@@ -4,7 +4,7 @@ export const config = {
 
 // Paths that must always be reachable without auth — otherwise the redirect-to-login
 // itself would get redirected, and nobody could ever reach the login page or submit it.
-const PUBLIC_PATHS = ['/login.html', '/api/login', '/api/logout'];
+const PUBLIC_PATHS = ['/login.html', '/api/login', '/api/logout', '/logo-white.png', '/logo-black-transparent.png'];
 
 async function verifyToken(token, secret) {
   if (!token) return false;
