@@ -4104,52 +4104,104 @@ async function approveDesign(){
   saveCurrentProject();
 }
 
-/* ================= Project persistence (IndexedDB) ================= */
+/* ================= Project persistence (Vercel Postgres + Blob, via /api/projects) ================= */
+/* Replaces the previous IndexedDB-only storage: projects now live in the cloud, tied to
+   the account rather than one browser on one computer. The four functions below
+   (dbPutProject, dbGetAllProjects, dbGetProject, dbDeleteProject) are the ONLY functions
+   that talk to the backend — every other function in this file (saveCurrentProject,
+   openProject, renameProjectPrompt, deleteProjectPrompt, renderProjectSidebar) only calls
+   these, so migrating their internals here is enough; nothing else needed to change.
 
-const PROJECTS_DB_NAME = 'boothDesignStudioDB';
-const PROJECTS_STORE = 'projects';
+   Images embedded in a project (data URLs) are uploaded to Blob storage server-side on
+   save and re-inlined server-side on load — the client always works with the same data
+   shape it always has (real inline images), it's only how they're persisted that changed.
+
+   blobRefCache avoids re-uploading unchanged images on every save within a session: after
+   a successful save, the server tells us which images it just stored and under what blob
+   reference; the next time we see that EXACT same data URL, we send the cached reference
+   instead of the raw image again. This only helps within a continuous session — opening
+   an existing project fresh (its images arrive as real data URLs, not blob refs) means the
+   next save after that will re-upload everything once, then be fast again after that. */
+
 let currentProjectId = null;
+const blobRefCache = new Map(); // data URL string -> "blob:<pathname>" string
 
-function openProjectsDB(){
-  return new Promise((resolve, reject) => {
-    if(!window.indexedDB){ reject(new Error('IndexedDB not supported in this browser.')); return; }
-    const req = indexedDB.open(PROJECTS_DB_NAME, 1);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if(!db.objectStoreNames.contains(PROJECTS_STORE)){
-        db.createObjectStore(PROJECTS_STORE, { keyPath: 'id' });
-      }
-    };
-    req.onsuccess = (e) => resolve(e.target.result);
-    req.onerror = (e) => reject(e.target.error);
-  });
+function substituteCachedBlobRefs(node){
+  if(Array.isArray(node)) return node.map(substituteCachedBlobRefs);
+  if(node && typeof node === 'object'){
+    const out = {};
+    for(const key of Object.keys(node)) out[key] = substituteCachedBlobRefs(node[key]);
+    return out;
+  }
+  if(typeof node === 'string' && blobRefCache.has(node)) return blobRefCache.get(node);
+  return node;
+}
+
+function zipUpdateBlobRefCache(original, stored){
+  if(Array.isArray(original) && Array.isArray(stored)){
+    const len = Math.min(original.length, stored.length);
+    for(let i = 0; i < len; i++) zipUpdateBlobRefCache(original[i], stored[i]);
+    return;
+  }
+  if(original && typeof original === 'object' && stored && typeof stored === 'object'){
+    for(const key of Object.keys(original)){
+      if(key in stored) zipUpdateBlobRefCache(original[key], stored[key]);
+    }
+    return;
+  }
+  if(typeof original === 'string' && typeof stored === 'string' && stored.startsWith('blob:') && original !== stored){
+    blobRefCache.set(original, stored);
+  }
 }
 
 function dbPutProject(project){
-  return openProjectsDB().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(PROJECTS_STORE, 'readwrite');
-    tx.objectStore(PROJECTS_STORE).put(project);
-    tx.oncomplete = () => resolve();
-    tx.onerror = (e) => reject(e.target.error);
-  }));
+  const payload = substituteCachedBlobRefs(project);
+  return fetch('/api/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(async response => {
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not save project.');
+    if(data.storedProject) zipUpdateBlobRefCache(project, data.storedProject);
+    return data;
+  });
 }
 
 function dbGetAllProjects(){
-  return openProjectsDB().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(PROJECTS_STORE, 'readonly');
-    const req = tx.objectStore(PROJECTS_STORE).getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = (e) => reject(e.target.error);
-  }));
+  return fetch('/api/projects').then(async response => {
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load projects.');
+    return data;
+  });
+}
+
+function dbGetProject(id){
+  return fetch('/api/projects?id=' + encodeURIComponent(id)).then(async response => {
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load project.');
+    return data;
+  });
+}
+
+function dbRenameProject(id, name){
+  return fetch('/api/projects', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, name })
+  }).then(async response => {
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not rename project.');
+    return data;
+  });
 }
 
 function dbDeleteProject(id){
-  return openProjectsDB().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(PROJECTS_STORE, 'readwrite');
-    tx.objectStore(PROJECTS_STORE).delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = (e) => reject(e.target.error);
-  }));
+  return fetch('/api/projects?id=' + encodeURIComponent(id), { method: 'DELETE' }).then(async response => {
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not delete project.');
+    return data;
+  });
 }
 
 function generateProjectId(){
@@ -4405,9 +4457,8 @@ function renderProjectSidebar(){
 }
 
 function openProject(id){
-  dbGetAllProjects()
-    .then(projects => {
-      const project = projects.find(p => p.id === id);
+  dbGetProject(id)
+    .then(project => {
       if(!project) return;
       currentProjectId = project.id;
       restoreFormSnapshot(project.formSnapshot);
@@ -4416,7 +4467,10 @@ function openProject(id){
       renderProjectSidebar();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     })
-    .catch(err => console.error('Could not open project:', err));
+    .catch(err => {
+      console.error('Could not open project:', err);
+      alert('Could not open that project: ' + (err.message || 'unknown error'));
+    });
 }
 
 function renameProjectPrompt(id){
@@ -4428,8 +4482,7 @@ function renameProjectPrompt(id){
       if(newName === null) return;
       const trimmed = newName.trim();
       if(!trimmed) return;
-      project.name = trimmed;
-      return dbPutProject(project).then(() => {
+      return dbRenameProject(id, trimmed).then(() => {
         if(currentProjectId === id){
           currentProjectName = trimmed;
           const titleEl = document.getElementById('resConceptTitle');
