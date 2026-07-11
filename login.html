@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Lab — Sign In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#C9992E;
+    --muted-dark:#9AA0AC;
+    --muted-light:#8A8676;
+    --line-light:#E4E1D8;
+    --error:#C0432B;
+  }
+  *{box-sizing:border-box;}
+  html, body{ height:100%; margin:0; }
+  body{
+    font-family:'Archivo',sans-serif;
+    background:#fff;
+    display:flex;
+    min-height:100vh;
+  }
+
+  .split{
+    display:flex;
+    width:100%;
+    min-height:100vh;
+  }
+
+  /* ---------- LEFT: white login panel ---------- */
+  .login-side{
+    flex:1;
+    background:#fff;
+    color:#15181D;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:40px;
+  }
+  .login-box{
+    width:100%;
+    max-width:360px;
+  }
+
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:24px;
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+    color:#15181D;
+  }
+  .sub{
+    font-size:14px;
+    color:var(--muted-light);
+    margin:0 0 34px;
+    line-height:1.5;
+  }
+
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:500;
+    margin:0 0 6px;
+    color:#15181D;
+  }
+  .field{ margin-bottom:18px; }
+  .input-wrap{ position:relative; }
+  input[type=text], input[type=password]{
+    width:100%;
+    padding:12px 14px;
+    border:1.5px solid var(--line-light);
+    border-radius:9px;
+    font-family:'Archivo',sans-serif;
+    font-size:14.5px;
+    color:#15181D;
+    background:#fff;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  input[type=text]::placeholder, input[type=password]::placeholder{ color:#B3B0A5; }
+  input[type=text]:focus, input[type=password]:focus{
+    outline:none;
+    border-color:#15181D;
+    box-shadow:0 0 0 3px rgba(21,24,29,0.06);
+  }
+  input.field-error{ border-color:var(--error) !important; }
+  .toggle-pw{
+    position:absolute;
+    right:12px; top:50%;
+    transform:translateY(-50%);
+    background:none; border:none;
+    cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--muted-light);
+    padding:4px;
+  }
+  .toggle-pw:hover{ color:#15181D; }
+
+  .remember{
+    display:flex; align-items:center; gap:7px;
+    margin:2px 0 24px;
+    font-size:13px;
+    color:var(--muted-light);
+  }
+  .remember input{ accent-color:#15181D; }
+
+  button.submit{
+    width:100%;
+    padding:13px;
+    background:#15181D;
+    color:#fff;
+    border:none;
+    border-radius:9px;
+    font-family:'Archivo',sans-serif;
+    font-weight:600;
+    font-size:14.5px;
+    cursor:pointer;
+    transition:background .15s ease, transform .1s ease;
+  }
+  button.submit:hover{ background:#2A2E38; }
+  button.submit:active{ transform:scale(0.99); }
+  button.submit:disabled{ background:#9AA0AC; cursor:default; }
+
+  .status-msg{
+    margin-top:14px;
+    font-size:12.5px;
+    font-weight:500;
+    min-height:16px;
+  }
+  .status-msg.error{ color:var(--error); }
+  .status-msg.info{ color:var(--muted-light); }
+
+  .footer-note{
+    margin-top:40px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:#B3B0A5;
+    letter-spacing:.02em;
+  }
+
+  /* ---------- RIGHT: black logo side ---------- */
+  .logo-side{
+    flex:1;
+    background:#0B0C10;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:40px;
+    position:relative;
+    overflow:hidden;
+  }
+  .logo-side::before{
+    content:'';
+    position:absolute;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size:48px 48px;
+    pointer-events:none;
+  }
+  .logo-mark{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .logo-mark img{
+    width:100%;
+    max-width:340px;
+    height:auto;
+  }
+
+  @media (max-width: 760px){
+    .split{ flex-direction:column; }
+    .logo-side{ order:-1; min-height:180px; padding:24px; }
+    .logo-mark img{ max-width:220px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="split">
+    <div class="login-side">
+      <div class="login-box">
+        <h1>Sign in to Design Lab</h1>
+        <p class="sub">AI Events Design Platform</p>
+
+        <form id="loginForm" autocomplete="on">
+          <div class="field">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" placeholder="Enter your username" autocomplete="username" required>
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="input-wrap">
+              <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
+              <button type="button" class="toggle-pw" onclick="togglePw()">SHOW</button>
+            </div>
+          </div>
+
+          <label class="remember"><input type="checkbox" id="remember"> Remember me for 30 days</label>
+
+          <button type="submit" class="submit" id="submitBtn">Sign In</button>
+          <div class="status-msg" id="statusMsg"></div>
+        </form>
+
+        <div class="footer-note">DESIGN LAB · designslab.ai</div>
+      </div>
+    </div>
+
+    <div class="logo-side">
+      <div class="logo-mark">
+        <img src="/logo-white.png" alt="DesignsLab AI">
+      </div>
+    </div>
+  </div>
+
+<script>
+function togglePw(){
+  const pw = document.getElementById('password');
+  const btn = document.querySelector('.toggle-pw');
+  if(pw.type === 'password'){ pw.type = 'text'; btn.textContent = 'HIDE'; }
+  else{ pw.type = 'password'; btn.textContent = 'SHOW'; }
+}
+
+// Redirect target after a successful login — where the client honors it, they land back
+// where they were trying to go; otherwise the app root.
+function getRedirectTarget(){
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get('next');
+  if(next && next.startsWith('/') && !next.startsWith('//')) return next;
+  return '/';
+}
+
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const usernameEl = document.getElementById('username');
+  const passwordEl = document.getElementById('password');
+  const remember = document.getElementById('remember').checked;
+  const statusEl = document.getElementById('statusMsg');
+  const submitBtn = document.getElementById('submitBtn');
+
+  usernameEl.classList.remove('field-error');
+  passwordEl.classList.remove('field-error');
+  statusEl.className = 'status-msg info';
+  statusEl.textContent = 'Signing in...';
+  submitBtn.disabled = true;
+
+  try{
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: usernameEl.value, password: passwordEl.value, remember })
+    });
+
+    if(response.ok){
+      statusEl.className = 'status-msg info';
+      statusEl.textContent = 'Success — redirecting...';
+      window.location.href = getRedirectTarget();
+      return;
+    }
+
+    const data = await response.json().catch(() => ({}));
+    usernameEl.classList.add('field-error');
+    passwordEl.classList.add('field-error');
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = data.error || 'Incorrect username or password.';
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = 'Could not reach the server. Please try again.';
+  }finally{
+    submitBtn.disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>
