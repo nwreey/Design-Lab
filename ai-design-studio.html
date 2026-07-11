@@ -4504,7 +4504,10 @@ function deleteProjectPrompt(id){
         renderProjectSidebar();
       }
     })
-    .catch(err => console.error('Could not delete project:', err));
+    .catch(err => {
+      console.error('Could not delete project:', err);
+      alert('Could not delete that project: ' + (err.message || 'unknown error'));
+    });
 }
 
 /* Lets a user who already has a finished design skip the form, OpenAI, and Gemini
