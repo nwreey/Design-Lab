@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DesignsLab AI — AI Design Studio for Events & Exhibition Professionals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFFFFF;
+    --ink:#111111;
+    --muted:#666666;
+    --line:#EAEAEA;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
+
+  /* ---------- shared ---------- */
+  h1,h2,h3{font-weight:800;letter-spacing:-0.02em;margin:0;}
+  a{color:inherit;}
+  .eyebrow{
+    font-size:12.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  }
+  .section{padding:88px 0;}
+  .section-head{text-align:center;max-width:640px;margin:0 auto 52px;}
+  .section-head h2{font-size:32px;margin-top:10px;}
+  .section-head p{color:var(--muted);font-size:16px;margin-top:12px;line-height:1.6;}
+
+  button, .btn{
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    padding:15px 30px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    text-decoration:none;
+    transition:transform .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+    border:2px solid var(--ink);
+  }
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 24px -8px rgba(17,17,17,0.35);}
+  .btn-secondary{background:#fff;color:var(--ink);}
+  .btn-secondary:hover{background:#F7F7F7;transform:translateY(-2px);}
+
+  /* ---------- hero ---------- */
+  .hero{padding:56px 0 80px;text-align:center;}
+  .hero-logo{height:46px;margin-bottom:44px;}
+
+  /* ---------- top bar: login / signup ---------- */
+  .topbar{
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+    gap:12px;
+    padding:24px 0 0;
+  }
+  .login-link{
+    font-size:14px;
+    font-weight:600;
+    color:var(--ink);
+    text-decoration:none;
+    padding:9px 6px;
+  }
+  .login-link:hover{text-decoration:underline;}
+  .signup-btn-disabled{
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    font-weight:700;
+    color:#fff;
+    background:var(--ink);
+    padding:10px 20px;
+    border-radius:10px;
+    border:2px solid var(--ink);
+    cursor:default;
+    user-select:none;
+    opacity:.55;
+  }
+  .hero h1{
+    font-size:46px;
+    line-height:1.15;
+    max-width:760px;
+    margin:0 auto;
+  }
+  .hero .sub1{
+    font-size:18px;
+    color:var(--ink);
+    max-width:660px;
+    margin:24px auto 0;
+    line-height:1.6;
+  }
+  .hero .sub2{
+    font-size:15.5px;
+    color:var(--muted);
+    max-width:640px;
+    margin:14px auto 0;
+    line-height:1.65;
+  }
+
+  .badges{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:10px;
+    margin:36px 0 32px;
+  }
+  .badge{
+    display:flex;align-items:center;gap:6px;
+    font-size:12.5px;font-weight:600;color:var(--ink);
+    background:#F7F7F7;border:1px solid var(--line);
+    padding:7px 14px;border-radius:999px;
+  }
+  .badge .check{color:#1E9E5C;font-weight:800;}
+
+  .hero-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:6px;}
+
+  .trial-notice{
+    max-width:620px;
+    margin:44px auto 0;
+    background:#FFF9EC;
+    border:1.5px solid #F0DCA0;
+    border-radius:var(--radius);
+    padding:18px 22px;
+    font-size:13.5px;
+    color:#7A5C10;
+    line-height:1.6;
+    text-align:left;
+  }
+  .trial-notice b{display:block;font-size:14px;margin-bottom:4px;}
+
+  /* ---------- what we do ---------- */
+  .feature-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:24px;
+  }
+  @media(max-width:900px){ .feature-grid{grid-template-columns:1fr 1fr;} }
+  @media(max-width:620px){ .feature-grid{grid-template-columns:1fr;} }
+  .feature-card{
+    border:1.5px solid var(--line);
+    border-radius:var(--radius);
+    padding:28px 24px;
+    transition:box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+  }
+  .feature-card:hover{box-shadow:0 14px 32px -14px rgba(17,17,17,0.18);transform:translateY(-3px);border-color:#DADADA;}
+  .feature-icon{
+    width:46px;height:46px;border-radius:12px;background:#111111;color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:16px;
+  }
+  .feature-card h3{font-size:17px;margin-bottom:8px;}
+  .feature-card p{font-size:14px;color:var(--muted);line-height:1.6;margin:0;}
+
+  /* ---------- why us: 4 col ---------- */
+  .why-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:29px;
+  }
+  @media(max-width:900px){ .why-grid{grid-template-columns:1fr 1fr;} }
+  @media(max-width:560px){ .why-grid{grid-template-columns:1fr;} }
+  .why-item{text-align:center;padding:12px 15px;}
+  .why-emoji{font-size:36px;margin-bottom:17px;}
+  .why-item h3{font-size:18.5px;margin-bottom:10px;}
+  .why-item p{font-size:16px;color:var(--muted);line-height:1.6;margin:0;}
+
+  .section-alt{background:#FAFAFA;}
+
+  /* ---------- how it works ---------- */
+  .steps{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .step{
+    flex:1;
+    min-width:180px;
+    text-align:center;
+    position:relative;
+  }
+  .step-num{
+    width:53px;height:53px;border-radius:50%;
+    background:#111111;color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:23px;
+    margin:0 auto 17px;
+  }
+  .step p{font-size:16px;font-weight:600;margin:0;line-height:1.5;}
+  .step-arrow{
+    position:absolute;top:26px;right:-29px;
+    font-size:22px;color:#C6C6C6;
+  }
+  @media(max-width:900px){ .step-arrow{display:none;} .steps{flex-direction:column;align-items:center;gap:30px;} }
+
+  /* ---------- tools grid ---------- */
+  .tools-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:20px;
+  }
+  @media(max-width:900px){ .tools-grid{grid-template-columns:1fr 1fr;} }
+  @media(max-width:620px){ .tools-grid{grid-template-columns:1fr;} }
+  .tool-card{
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px;
+    transition:box-shadow .2s ease, transform .2s ease;
+  }
+  .tool-card:hover{box-shadow:0 14px 32px -14px rgba(17,17,17,0.18);transform:translateY(-3px);}
+  .tool-card h3{font-size:15.5px;margin-bottom:6px;}
+  .tool-card p{font-size:13px;color:var(--muted);margin:0;line-height:1.55;}
+
+  /* ---------- trial CTA ---------- */
+  .trial-cta{
+    background:#111111;
+    color:#fff;
+    border-radius:20px;
+    padding:56px 40px;
+    text-align:center;
+  }
+  .trial-cta .eyebrow{color:#B8B8B8;}
+  .trial-cta h2{color:#fff;font-size:28px;margin-top:10px;}
+  .trial-cta p{color:#C9C9C9;font-size:15px;max-width:560px;margin:16px auto 0;line-height:1.65;}
+  .trial-cta .btn-primary{background:#fff;color:#111;border-color:#fff;margin-top:28px;}
+  .trial-cta .btn-primary:hover{background:#111;color:#fff;box-shadow:0 10px 24px -8px rgba(255,255,255,0.25);}
+
+  /* ---------- footer ---------- */
+  footer{
+    border-top:1px solid var(--line);
+    padding:44px 0 36px;
+    text-align:center;
+  }
+  footer .footer-logo{height:26px;margin-bottom:14px;opacity:.9;}
+  footer .footer-tag{font-size:14px;font-weight:600;color:var(--ink);}
+  footer .footer-sub{font-size:12.5px;color:var(--muted);margin-top:6px;}
+  footer .footer-copy{font-size:11.5px;color:#9A9A9A;margin-top:22px;}
+</style>
+</head>
+<body>
+
+  <!-- ================= HERO ================= -->
+  <section class="hero wrap">
+    <div class="topbar">
+      <a href="#" class="login-link">Log in</a>
+      <span class="signup-btn-disabled" title="Not active in this preview">Sign up</span>
+    </div>
+
+    <img src="logo-black-transparent.png" alt="DesignsLab AI" class="hero-logo">
+
+    <h1>AI Design Studio for Events &amp; Exhibition Professionals</h1>
+
+    <p class="sub1">Create exhibition booths, event concepts, display stands, and presentation-ready visuals in minutes using AI.</p>
+    <p class="sub2">DesignsLab AI helps event agencies, designers, and exhibition contractors transform ideas into professional 3D concepts with speed and consistency.</p>
+
+    <div class="badges">
+      <span class="badge"><span class="check">✓</span> AI-Powered Design</span>
+      <span class="badge"><span class="check">✓</span> 3D Visualization</span>
+      <span class="badge"><span class="check">✓</span> Multi-View Generation</span>
+      <span class="badge"><span class="check">✓</span> Professional Event Concepts</span>
+      <span class="badge"><span class="check">✓</span> Presentation Ready</span>
+    </div>
+
+    <div class="hero-actions">
+      <a href="#" class="btn btn-primary">🚀 Try It Now</a>
+      <a href="#features" class="btn btn-secondary">View Features</a>
+    </div>
+
+    <div class="trial-notice">
+      <b>⚠️ Trial Version</b>
+      Access is available by approval only. Create your account and submit your request. Once approved, you'll receive access to the AI Design Studio.
+    </div>
+  </section>
+
+  <!-- ================= WHAT WE DO ================= -->
+  <section class="section" id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">What We Do</div>
+        <h2>AI-Powered Creative Solutions</h2>
+      </div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🏛</div>
+          <h3>Exhibition Booth 3D Visualization</h3>
+          <p>Create professional exhibition booth concepts with multiple perspectives and presentation-ready renderings.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📐</div>
+          <h3>Architectural Booth Design</h3>
+          <p>Generate creative booth layouts, structural concepts, floor plans, and architectural ideas.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎪</div>
+          <h3>Event Concepts &amp; Render Views</h3>
+          <p>Create complete event environments, stages, entrances, registration areas, and immersive experiences.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛍</div>
+          <h3>Product Display Stands</h3>
+          <p>Design premium retail displays, kiosks, product showcases, POS units, and promotional stands.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">✏️</div>
+          <h3>AI Design Editing</h3>
+          <p>Modify existing concepts without redesigning everything. Change materials, colors, furniture, branding, layouts, walls, lighting, and perspectives.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎁</div>
+          <h3>Gift Items Design</h3>
+          <p>Create branded corporate gifts, giveaways, and promotional merchandise concepts — from packaging mockups to presentation-ready visuals for client approval.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= WHY US ================= -->
+  <section class="section section-alt">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Why DesignsLab AI</div>
+        <h2>Built for Events &amp; Exhibition Professionals</h2>
+      </div>
+      <div class="why-grid">
+        <div class="why-item">
+          <div class="why-emoji">⚡</div>
+          <h3>Faster Design Process</h3>
+          <p>Reduce concept creation from days to minutes.</p>
+        </div>
+        <div class="why-item">
+          <div class="why-emoji">🎯</div>
+          <h3>Professional Quality</h3>
+          <p>Architectural visualization built for events and exhibitions.</p>
+        </div>
+        <div class="why-item">
+          <div class="why-emoji">🏗</div>
+          <h3>Engineering-Oriented</h3>
+          <p>Designed using professional exhibition planning rules and industry standards.</p>
+        </div>
+        <div class="why-item">
+          <div class="why-emoji">🤖</div>
+          <h3>AI Assisted</h3>
+          <p>Combines AI with structured architectural logic for consistent, high-quality results.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HOW IT WORKS ================= -->
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">How It Works</div>
+        <h2>From Idea to Presentation-Ready Design</h2>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">👤</div>
+          <p>Create an Account</p>
+          <span class="step-arrow">→</span>
+        </div>
+        <div class="step">
+          <div class="step-num">🔑</div>
+          <p>Request Access</p>
+          <span class="step-arrow">→</span>
+        </div>
+        <div class="step">
+          <div class="step-num">✅</div>
+          <p>Get Approved</p>
+          <span class="step-arrow">→</span>
+        </div>
+        <div class="step">
+          <div class="step-num">🎨</div>
+          <p>Start Creating</p>
+          <span class="step-arrow">→</span>
+        </div>
+        <div class="step">
+          <div class="step-num">📥</div>
+          <p>Download Presentation-Ready Designs</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= AVAILABLE TOOLS ================= -->
+  <section class="section section-alt">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Available AI Tools</div>
+        <h2>Everything You Need in One Platform</h2>
+      </div>
+      <div class="tools-grid">
+        <div class="tool-card">
+          <h3>Exhibition Booth Designer</h3>
+          <p>Professional 3D booth concepts</p>
+        </div>
+        <div class="tool-card">
+          <h3>Event Concept Generator</h3>
+          <p>Stage and event visualization</p>
+        </div>
+        <div class="tool-card">
+          <h3>Display Stand Designer</h3>
+          <p>Retail and promotional display concepts</p>
+        </div>
+        <div class="tool-card">
+          <h3>AI Image Editor</h3>
+          <p>Modify existing designs</p>
+        </div>
+        <div class="tool-card">
+          <h3>Multi-View Generator</h3>
+          <p>Generate front, left, right, rear, top, and perspective views</p>
+        </div>
+        <div class="tool-card">
+          <h3>Gift Item Design</h3>
+          <p>Branded merchandise and corporate gift concepts</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TRIAL CTA ================= -->
+  <section class="section">
+    <div class="wrap">
+      <div class="trial-cta">
+        <div class="eyebrow">Trial Version</div>
+        <h2>Early Access Program</h2>
+        <p>DesignsLab AI is currently available as a trial version. Access is granted after account review to ensure the platform is used by professionals in the events and exhibition industry.</p>
+        <a href="#" class="btn btn-primary">Request Access</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer>
+    <div class="wrap">
+      <img src="logo-black-transparent.png" alt="DesignsLab AI" class="footer-logo">
+      <div class="footer-tag">AI Design Studio for Events &amp; Brands</div>
+      <div class="footer-sub">Events • Exhibition Booths • Display Stands</div>
+      <div class="footer-copy">© 2026 DMR Arabia. All rights reserved.</div>
+    </div>
+  </footer>
+
+</body>
+</html>
