@@ -416,7 +416,7 @@
   <div class="card" id="displayStandCard" style="display:none;">
     <div class="section-headline" style="margin-top:0;">Project Information</div>
     <div class="field">
-      <label>Project Name</label>
+      <label>Project Name <span class="required-mark">*</span></label>
       <input type="text" id="f_dsName" placeholder="e.g. Aura Cosmetics Mall Display">
     </div>
     <div class="field">
@@ -441,7 +441,7 @@
       </select>
     </div>
     <div class="field">
-      <label>Display Stand Type</label>
+      <label>Display Stand Type <span class="required-mark">*</span></label>
       <select id="f_dsType" onchange="document.getElementById('f_dsTypeCustom').style.display = this.value === 'Custom' ? 'block' : 'none';">
         <option value="">Select display stand type...</option>
         <option>Floor Display Stand</option>
@@ -510,16 +510,16 @@
     <div class="section-headline">Display Dimensions</div>
     <div class="row2">
       <div class="field">
-        <label>Maximum Width (cm)</label>
+        <label>Maximum Width (cm) <span class="required-mark">*</span></label>
         <input type="number" id="f_dsMaxWidth" placeholder="e.g. 60" min="0" step="0.1">
       </div>
       <div class="field">
-        <label>Maximum Depth (cm)</label>
+        <label>Maximum Depth (cm) <span class="required-mark">*</span></label>
         <input type="number" id="f_dsMaxDepth" placeholder="e.g. 45" min="0" step="0.1">
       </div>
     </div>
     <div class="field">
-      <label>Maximum Height (cm)</label>
+      <label>Maximum Height (cm) <span class="required-mark">*</span></label>
       <input type="number" id="f_dsMaxHeight" placeholder="e.g. 170" min="0" step="0.1">
     </div>
     <div class="row2">
@@ -585,7 +585,7 @@
 
     <div class="section-headline">Branding</div>
     <div class="field" id="dsLogoField">
-      <label>Upload Logo</label>
+      <label>Upload Logo <span class="required-mark">*</span></label>
       <div class="logo-upload" id="dsLogoUploadBox" onclick="document.getElementById('f_dsLogo').click()">
         <input type="file" id="f_dsLogo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleDsFileUpload(this, 'dsLogoList')">
         <div id="dsLogoPlaceholder">Click to upload your logo — PNG, JPG, WebP, or SVG</div>
@@ -676,7 +676,7 @@
 
     <div class="section-headline">AI Creative Brief</div>
     <div class="field">
-      <label>Describe your display stand</label>
+      <label>Describe your display stand <span class="required-mark">*</span></label>
       <textarea id="f_dsDescription" placeholder="e.g. Design a premium cosmetic display stand with curved white acrylic shelves, hidden LED lighting, gold accents, and space for 30 products. The stand should be elegant, compact, and suitable for shopping malls."></textarea>
     </div>
 
@@ -808,21 +808,21 @@
       <div class="field" id="genericSizeBlock">
         <div class="row2">
           <div class="field">
-            <label>Width — W (m)</label>
+            <label>Width — W (m) <span class="required-mark">*</span></label>
             <input type="number" id="f_eventWidth" placeholder="e.g. 20" min="1" step="0.1">
           </div>
           <div class="field">
-            <label>Depth — D (m)</label>
+            <label>Depth — D (m) <span class="required-mark">*</span></label>
             <input type="number" id="f_eventDepth" placeholder="e.g. 15" min="1" step="0.1">
           </div>
         </div>
         <label class="remember"><input type="checkbox" id="f_eventSizeUnknown" onchange="toggleGenericSizeUnknown(this)"> I don't know the exact size of the space</label>
-        <div class="hint">Select an Environment above (Indoor / Outdoor / Hybrid) for a more specific size question — or leave it unspecified and answer generally here. Unlike a booth, an event space isn't always a fixed, pre-assigned footprint. If you don't know the size, check the box: width and depth become optional, and the design is planned around the areas you select below in "Required Areas" instead.</div>
+        <div class="hint">* Required unless you check "I don't know the exact size" above — in that case, select at least one Required Area below instead. Select an Environment above (Indoor / Outdoor / Hybrid) for a more specific size question, or leave it unspecified and answer generally here.</div>
       </div>
 
       <div class="row2" id="indoorOutdoorSizeRow" style="display:none;">
         <div class="field" id="indoorSizeBlock" style="display:none;">
-          <label>Indoor space — W × D (m)</label>
+          <label>Indoor space — W × D (m) <span class="required-mark">*</span></label>
           <div class="row2">
             <input type="number" id="f_indoorWidth" placeholder="e.g. 30">
             <input type="number" id="f_indoorDepth" placeholder="e.g. 20">
@@ -830,7 +830,7 @@
           <label class="remember"><input type="checkbox" id="f_indoorSizeUnknown" onchange="toggleIndoorSizeUnknown(this)"> I don't know the indoor size</label>
         </div>
         <div class="field" id="outdoorSizeBlock" style="display:none;">
-          <label>Outdoor space — W × D (m)</label>
+          <label>Outdoor space — W × D (m) <span class="required-mark">*</span></label>
           <div class="row2">
             <input type="number" id="f_outdoorWidth" placeholder="e.g. 40">
             <input type="number" id="f_outdoorDepth" placeholder="e.g. 30">
@@ -838,17 +838,18 @@
           <label class="remember"><input type="checkbox" id="f_outdoorSizeUnknown" onchange="toggleOutdoorSizeUnknown(this)"> I don't know the outdoor size</label>
         </div>
       </div>
+      <div class="hint" id="indoorOutdoorSizeMandatoryHint" style="display:none;margin-top:-8px;">* Required unless you check "I don't know" for that side — then select at least one Required Area for that side instead.</div>
       <div class="hint" id="indoorOutdoorSizeHint" style="display:none;margin-top:-8px;margin-bottom:16px;">If either size is unknown, check its box — that space is then planned around the areas you select below in "Required Areas" instead of a fixed footprint.</div>
     </div>
 
     <div id="boothSizeFields">
       <div class="row2">
         <div class="field" id="widthField">
-          <label>Width — W (m)</label>
+          <label>Width — W (m) <span class="required-mark">*</span></label>
           <input type="number" id="f_width" placeholder="e.g. 6" min="1" step="0.1">
         </div>
         <div class="field" id="depthField">
-          <label>Depth — D (m)</label>
+          <label>Depth — D (m) <span class="required-mark">*</span></label>
           <input type="number" id="f_depth" placeholder="e.g. 4" min="1" step="0.1">
         </div>
       </div>
@@ -2538,6 +2539,7 @@ function handlePosterUpload(input){
 function removePosterFile(idx){
   posterFiles.splice(idx, 1);
   renderPosterFileList();
+  updateGenerateButtonState();
 }
 
 function renderPosterFileList(){
@@ -2696,6 +2698,7 @@ function handleLogoUpload(input){
       placeholder.style.display = 'none';
     }
     box.classList.add('has-logo');
+    updateGenerateButtonState();
   };
   reader.readAsDataURL(file);
 }
@@ -2829,6 +2832,7 @@ function updateEnvironmentSizeFields(select){
   document.getElementById('indoorSizeBlock').style.display = showIndoor ? 'block' : 'none';
   document.getElementById('outdoorSizeBlock').style.display = showOutdoor ? 'block' : 'none';
   document.getElementById('indoorOutdoorSizeHint').style.display = showEitherSpecific ? 'block' : 'none';
+  document.getElementById('indoorOutdoorSizeMandatoryHint').style.display = showEitherSpecific ? 'block' : 'none';
 
   // Hybrid gets separate Indoor/Outdoor Required Areas checklists, so the client can specify
   // exactly which areas belong in each part of the design — a single shared list can't
@@ -2885,10 +2889,11 @@ function setMode(m){
     document.getElementById('referenceImageHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('lblName').textContent = m==='booth' ? 'Project Name' : 'Event name';
     document.getElementById('f_name').placeholder = m==='booth' ? 'e.g. Riyadh International Tech Expo' : 'e.g. Product launch / Annual conference';
-    document.getElementById('lblDesc').textContent = m==='booth'
+    document.getElementById('lblDesc').innerHTML = (m==='booth'
       ? 'Describe what you want in detail: the goal, products on display, visual identity, any special requirements'
-      : 'Describe what you want in detail: the event goal, overall mood, activities or sessions, visual identity';
+      : 'Describe what you want in detail: the event goal, overall mood, activities or sessions, visual identity') + ' <span class="required-mark">*</span>';
   }
+  updateGenerateButtonState();
 }
 
 const STANDALONE_EDIT_KEY = 'STANDALONE_EDIT_DESIGN';
@@ -3136,6 +3141,84 @@ function formatSpaceAllocationForPrompt(alloc){
 These exact quantities override EPS-011's general ranges for this specific project — EPS-011 explains the reasoning and tiers, this block gives the resolved numbers to actually build. Only deviate from these specific numbers if the client's brief explicitly requests a different quantity.`;
 }
 
+function collectAreas(selector, otherToggleId, otherPrefix){
+  const areas = Array.from(document.querySelectorAll(selector)).map(cb => cb.value);
+  const otherToggle = document.getElementById(otherToggleId);
+  if(otherToggle.checked) areas.push(...collectOtherAreaValues(otherPrefix));
+  return areas;
+}
+
+// Single source of truth for "what does this mode still need before it can generate" —
+// used both to show the specific error message on click, and to enable/disable the
+// Generate button in real time. Keeping this as one function (rather than two copies)
+// is what keeps those two behaviors from silently drifting out of sync over time.
+function getMissingRequirements(m){
+  const missing = [];
+
+  const width = String(document.getElementById('f_width').value).trim();
+  const depth = String(document.getElementById('f_depth').value).trim();
+  const desc = String(document.getElementById('f_desc').value).trim();
+  const colorHexes = Array.from(document.querySelectorAll('.color-hex'))
+    .map(i => String(i.value).trim())
+    .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
+  const hasPosters = document.getElementById('f_hasPosters').value;
+
+  const environmentForSize = document.getElementById('f_environment').value;
+  const isHybridForAreas = environmentForSize === 'Hybrid (Indoor + Outdoor)';
+  const requiredAreas = isHybridForAreas ? [] : collectAreas('.required-area-cb:checked', 'f_requiredAreaOtherToggle', 'required');
+  const indoorRequiredAreas = isHybridForAreas ? collectAreas('.indoor-area-cb:checked', 'f_indoorAreaOtherToggle', 'indoor') : [];
+  const outdoorRequiredAreas = isHybridForAreas ? collectAreas('.outdoor-area-cb:checked', 'f_outdoorAreaOtherToggle', 'outdoor') : [];
+
+  const eventWidth = String(document.getElementById('f_eventWidth').value).trim();
+  const eventDepth = String(document.getElementById('f_eventDepth').value).trim();
+  const eventSizeUnknown = document.getElementById('f_eventSizeUnknown').checked;
+  const indoorWidth = String(document.getElementById('f_indoorWidth').value).trim();
+  const indoorDepth = String(document.getElementById('f_indoorDepth').value).trim();
+  const indoorSizeUnknown = document.getElementById('f_indoorSizeUnknown').checked;
+  const outdoorWidth = String(document.getElementById('f_outdoorWidth').value).trim();
+  const outdoorDepth = String(document.getElementById('f_outdoorDepth').value).trim();
+  const outdoorSizeUnknown = document.getElementById('f_outdoorSizeUnknown').checked;
+  const needsIndoorSize = environmentForSize === 'Indoor' || environmentForSize === 'Hybrid (Indoor + Outdoor)';
+  const needsOutdoorSize = environmentForSize === 'Outdoor' || environmentForSize === 'Hybrid (Indoor + Outdoor)';
+
+  if(m === 'event'){
+    if(!desc) missing.push('a detailed description');
+    if(needsIndoorSize || needsOutdoorSize){
+      if(needsIndoorSize && !indoorSizeUnknown && (!indoorWidth || !indoorDepth)) missing.push('the indoor size (or check "I don\'t know the indoor size")');
+      if(needsOutdoorSize && !outdoorSizeUnknown && (!outdoorWidth || !outdoorDepth)) missing.push('the outdoor size (or check "I don\'t know the outdoor size")');
+      if(needsIndoorSize && indoorSizeUnknown && indoorRequiredAreas.length === 0) missing.push('at least one Indoor Required Area (since the indoor size is unknown)');
+      if(needsOutdoorSize && outdoorSizeUnknown && outdoorRequiredAreas.length === 0) missing.push('at least one Outdoor Required Area (since the outdoor size is unknown)');
+    } else if(eventSizeUnknown){
+      if(requiredAreas.length === 0) missing.push('at least one Required Area (since the exact size is unknown)');
+    } else if(environmentForSize === ''){
+      // No Environment chosen — nothing to require here, the brief tells the AI to infer it.
+    } else if(!eventWidth || !eventDepth){
+      missing.push('width and depth (or check "I don\'t know the exact size of the space")');
+    }
+  } else if(m === 'booth'){
+    if(!width) missing.push('width');
+    if(!depth) missing.push('depth');
+    if(!desc) missing.push('a detailed description');
+    if(colorHexes.length === 0) missing.push('at least one brand color');
+    if(!logoDataUrl) missing.push('a company logo');
+    if(hasPosters.startsWith('yes') && posterFiles.length === 0) missing.push('at least one poster file (or switch to "No — need new designs")');
+  }
+
+  return missing;
+}
+
+// Re-checks whether the current mode's mandatory fields are complete, and enables or
+// disables the Generate button accordingly. Called on load, on every relevant field
+// change, and whenever setMode() switches between booth and event.
+function updateGenerateButtonState(){
+  if(mode !== 'booth' && mode !== 'event') return; // Display Stand's button is disabled for an unrelated reason (no generation logic yet)
+  const btn = document.getElementById('submitBtn');
+  if(!btn) return;
+  const missing = getMissingRequirements(mode);
+  btn.disabled = missing.length > 0;
+  btn.title = missing.length > 0 ? 'Still needed: ' + missing.join(', ') : '';
+}
+
 async function generateDesign(){
   const name = document.getElementById('f_name').value.trim();
   currentProjectName = name || 'Untitled Project';
@@ -3143,13 +3226,6 @@ async function generateDesign(){
   const depth = document.getElementById('f_depth').value.trim();
   const environmentValueForAreas = document.getElementById('f_environment').value;
   const isHybridForAreas = environmentValueForAreas === 'Hybrid (Indoor + Outdoor)';
-
-  function collectAreas(selector, otherToggleId, otherPrefix){
-    const areas = Array.from(document.querySelectorAll(selector)).map(cb => cb.value);
-    const otherToggle = document.getElementById(otherToggleId);
-    if(otherToggle.checked) areas.push(...collectOtherAreaValues(otherPrefix));
-    return areas;
-  }
 
   const requiredAreas = isHybridForAreas ? [] : collectAreas('.required-area-cb:checked', 'f_requiredAreaOtherToggle', 'required');
   const indoorRequiredAreas = isHybridForAreas ? collectAreas('.indoor-area-cb:checked', 'f_indoorAreaOtherToggle', 'indoor') : [];
@@ -5524,6 +5600,7 @@ function openProject(id){
       restoreResultsView(project);
       renderProjectSidebar();
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      updateGenerateButtonState();
     })
     .catch(err => {
       console.error('Could not open project:', err);
@@ -5656,12 +5733,22 @@ function startNewProject(){
   unlockForm();
   renderProjectSidebar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  updateGenerateButtonState();
 }
 
 updateArchStyleHint(document.getElementById('f_archStyle'));
 renderProjectSidebar();
 checkAdminAccess();
 setMode('booth'); // must run once on load — otherwise every element whose correct visibility depends on setMode() (the new section headlines included) stays at its raw HTML default until a tab is actually clicked
+
+// Safety net: re-checks the Generate button state on any standard field change anywhere
+// on the page. Cheap to run, and means no individual field needs its own wiring — the
+// only places that needed explicit calls are the ones this can't see (async file-read
+// callbacks, and the poster-remove button click), which are already handled above.
+if(typeof document.addEventListener === 'function'){
+  document.addEventListener('input', updateGenerateButtonState);
+  document.addEventListener('change', updateGenerateButtonState);
+}
 </script>
 </body>
 </html>
