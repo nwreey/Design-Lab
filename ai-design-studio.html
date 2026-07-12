@@ -368,7 +368,7 @@
       <button class="ghost small" onclick="startNewProject()">+ New</button>
     </div>
     <div id="projectList" class="project-list"></div>
-    <div class="sidebar-note">Projects save automatically to this browser. Clearing browser data will remove them.</div>
+    <div class="sidebar-note">Projects save automatically to your account and are available from any device. They stay saved unless you delete them.</div>
 
     <div class="sidebar-upload-existing">
       <div class="sidebar-upload-divider">or</div>
@@ -593,7 +593,7 @@
       <div id="dsLogoList" class="file-list"></div>
     </div>
     <div class="field" id="dsBrandGuidelinesField">
-      <label>Upload Brand Guidelines</label>
+      <label>Upload Brand Guidelines (optional)</label>
       <div class="logo-upload" id="dsBrandGuidelinesUploadBox" onclick="document.getElementById('f_dsBrandGuidelines').click()">
         <input type="file" id="f_dsBrandGuidelines" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" style="display:none;" onchange="handleDsFileUpload(this, 'dsBrandGuidelinesList')">
         <div id="dsBrandGuidelinesPlaceholder">Click to upload brand guidelines — PDF, JPG, or PNG</div>
@@ -601,20 +601,12 @@
       <div id="dsBrandGuidelinesList" class="file-list"></div>
     </div>
     <div class="field" id="dsProductArtworkField">
-      <label>Upload Product Artwork</label>
+      <label>Upload Product Artwork (optional)</label>
       <div class="logo-upload" id="dsProductArtworkUploadBox" onclick="document.getElementById('f_dsProductArtwork').click()">
         <input type="file" id="f_dsProductArtwork" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple style="display:none;" onchange="handleDsFileUpload(this, 'dsProductArtworkList')">
         <div id="dsProductArtworkPlaceholder">Click to upload product artwork — PDF, JPG, or PNG (multiple allowed)</div>
       </div>
       <div id="dsProductArtworkList" class="file-list"></div>
-    </div>
-    <div class="field" id="dsInspirationField">
-      <label>Upload Inspiration Images</label>
-      <div class="logo-upload" id="dsInspirationUploadBox" onclick="document.getElementById('f_dsInspiration').click()">
-        <input type="file" id="f_dsInspiration" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" onchange="handleDsFileUpload(this, 'dsInspirationList')">
-        <div id="dsInspirationPlaceholder">Click to upload inspiration images — PNG, JPG, or WebP (multiple allowed)</div>
-      </div>
-      <div id="dsInspirationList" class="file-list"></div>
     </div>
     <div class="field">
       <label>Website</label>
@@ -686,23 +678,6 @@
     <div class="field">
       <label>Describe your display stand</label>
       <textarea id="f_dsDescription" placeholder="e.g. Design a premium cosmetic display stand with curved white acrylic shelves, hidden LED lighting, gold accents, and space for 30 products. The stand should be elegant, compact, and suitable for shopping malls."></textarea>
-    </div>
-
-    <div class="section-headline">AI Output</div>
-    <div class="field">
-      <label>Generate</label>
-      <div class="checkbox-grid">
-        <label><input type="checkbox" class="ds-output-cb" value="Hero View"> Hero View</label>
-        <label><input type="checkbox" class="ds-output-cb" value="Front View"> Front View</label>
-        <label><input type="checkbox" class="ds-output-cb" value="Left View"> Left View</label>
-        <label><input type="checkbox" class="ds-output-cb" value="Right View"> Right View</label>
-        <label><input type="checkbox" class="ds-output-cb" value="Rear View"> Rear View</label>
-        <label><input type="checkbox" class="ds-output-cb" value="Top View"> Top View</label>
-        <label><input type="checkbox" class="ds-output-cb" value="Exploded View"> Exploded View</label>
-        <label><input type="checkbox" class="ds-output-cb" value="Multiple Perspectives"> Multiple Perspectives</label>
-        <label><input type="checkbox" class="ds-output-cb" value="White Background Product Render"> White Background Product Render</label>
-        <label><input type="checkbox" class="ds-output-cb" value="Presentation-Ready Images"> Presentation-Ready Images</label>
-      </div>
     </div>
 
     <div class="section-headline">Production Requirements</div>
