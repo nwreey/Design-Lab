@@ -410,7 +410,7 @@
     <button class="tab active" id="tabBooth" onclick="setMode('booth')">Exhibition Booth</button>
     <button class="tab" id="tabEvent" onclick="setMode('event')">Event Concept</button>
     <button class="tab" id="tabDisplayStand" onclick="setMode('displaystand')">Display Stand</button>
-    <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')">Edit Design</button>
+    <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')">Modify Design</button>
   </div>
 
   <div class="card" id="displayStandCard" style="display:none;">
@@ -739,14 +739,12 @@
 
   <div class="card" id="editDesignCard" style="display:none;">
 
-    <div class="field" id="editDesignUploadField">
-      <label>Upload any design picture to edit</label>
+    <div class="field" id="editDesignUploadField" style="display:none;">
       <div class="logo-upload" id="editDesignUploadBox" onclick="document.getElementById('editDesignFileInput').click();">
-        <div id="editDesignUploadPlaceholder">Click to upload a picture — any design, any source</div>
+        <div id="editDesignUploadPlaceholder"></div>
         <img id="editDesignUploadPreview" style="display:none;max-width:100%;border-radius:2px;">
       </div>
       <input type="file" id="editDesignFileInput" accept="image/*" style="display:none;" onchange="handleEditDesignUpload(this)">
-      <div class="hint">This is a standalone editor — upload any picture, mark it up, describe changes, and edit it directly. No form, no generation pipeline, just editing.</div>
     </div>
 
     <div id="editDesignViewWrap" style="display:none;">
@@ -761,11 +759,200 @@
     </div>
   </div>
 
+  <div class="card" id="modifyDesignFormCard" style="display:none;">
+    <div class="section-headline" style="margin-top:0;">Upload Existing Design</div>
+    <div class="field">
+      <label>Front View <span class="required-mark">*</span></label>
+      <div class="logo-upload" id="mdFrontViewUploadBox" onclick="document.getElementById('f_mdFrontView').click()">
+        <input type="file" id="f_mdFrontView" accept="image/jpeg,image/png,application/pdf" style="display:none;" onchange="handleDsFileUpload(this, 'mdFrontViewList')">
+        <div id="mdFrontViewPlaceholder">Click to upload the front view</div>
+      </div>
+      <div id="mdFrontViewList" class="file-list"></div>
+    </div>
+    <div class="field">
+      <label>Left View (optional)</label>
+      <div class="logo-upload" id="mdLeftViewUploadBox" onclick="document.getElementById('f_mdLeftView').click()">
+        <input type="file" id="f_mdLeftView" accept="image/jpeg,image/png,application/pdf" style="display:none;" onchange="handleDsFileUpload(this, 'mdLeftViewList')">
+        <div id="mdLeftViewPlaceholder">Click to upload the left view</div>
+      </div>
+      <div id="mdLeftViewList" class="file-list"></div>
+    </div>
+    <div class="field">
+      <label>Right View (optional)</label>
+      <div class="logo-upload" id="mdRightViewUploadBox" onclick="document.getElementById('f_mdRightView').click()">
+        <input type="file" id="f_mdRightView" accept="image/jpeg,image/png,application/pdf" style="display:none;" onchange="handleDsFileUpload(this, 'mdRightViewList')">
+        <div id="mdRightViewPlaceholder">Click to upload the right view</div>
+      </div>
+      <div id="mdRightViewList" class="file-list"></div>
+    </div>
+    <div class="field">
+      <label>Rear View (optional)</label>
+      <div class="logo-upload" id="mdRearViewUploadBox" onclick="document.getElementById('f_mdRearView').click()">
+        <input type="file" id="f_mdRearView" accept="image/jpeg,image/png,application/pdf" style="display:none;" onchange="handleDsFileUpload(this, 'mdRearViewList')">
+        <div id="mdRearViewPlaceholder">Click to upload the rear view</div>
+      </div>
+      <div id="mdRearViewList" class="file-list"></div>
+    </div>
+    <div class="field">
+      <label>Top View (optional)</label>
+      <div class="logo-upload" id="mdTopViewUploadBox" onclick="document.getElementById('f_mdTopView').click()">
+        <input type="file" id="f_mdTopView" accept="image/jpeg,image/png,application/pdf" style="display:none;" onchange="handleDsFileUpload(this, 'mdTopViewList')">
+        <div id="mdTopViewPlaceholder">Click to upload the top view</div>
+      </div>
+      <div id="mdTopViewList" class="file-list"></div>
+      <div class="hint">Supported formats: JPG, PNG, PDF (optional).</div>
+    </div>
+
+    <div class="section-headline">Project Type</div>
+    <div class="field">
+      <select id="f_mdProjectType" onchange="document.getElementById('f_mdProjectTypeCustom').style.display = this.value === 'Other' ? 'block' : 'none';">
+        <option value="">Select project type...</option>
+        <option>Exhibition Booth</option>
+        <option>Event Concept</option>
+        <option>Display Stand</option>
+        <option>Mall Kiosk</option>
+        <option>Pavilion</option>
+        <option>Stage Design</option>
+        <option>Registration Area</option>
+        <option>Other</option>
+      </select>
+      <input type="text" id="f_mdProjectTypeCustom" placeholder="Describe the project type" style="display:none;margin-top:8px;">
+    </div>
+
+    <div class="section-headline">What Would You Like to Modify?</div>
+    <div class="field">
+      <div class="hint" style="margin-top:0;margin-bottom:10px;">Select everything that should change. Anything left unchecked here — and anything explicitly locked in the section below — stays as it is in the uploaded design.</div>
+      <div class="checkbox-grid">
+        <label><input type="checkbox" class="md-modify-cb" value="Colors"> Colors</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Materials"> Materials</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Lighting"> Lighting</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Branding"> Branding</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Graphics"> Graphics</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Reception Counter"> Reception Counter</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Meeting Room"> Meeting Room</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Furniture"> Furniture</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Ceiling"> Ceiling</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Walls"> Walls</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Flooring"> Flooring</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Display Area"> Display Area</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Product Arrangement"> Product Arrangement</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Decorative Elements"> Decorative Elements</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Logo Position"> Logo Position</label>
+        <label><input type="checkbox" class="md-modify-cb" value="LED Screens"> LED Screens</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Overall Style"> Overall Style</label>
+        <label><input type="checkbox" class="md-modify-cb" value="Dimensions"> Dimensions</label>
+      </div>
+      <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_mdModifyOtherToggle" onchange="toggleOtherAreaContainer('mdModify', this.checked)"> Other</label>
+      <div id="mdModifyAreaOtherContainer" style="display:none;margin-top:8px;">
+        <div id="mdModifyAreaOtherList"></div>
+        <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('mdModify')">+ Add another</button>
+      </div>
+    </div>
+
+    <div class="section-headline">Describe the Required Changes</div>
+    <div class="field">
+      <textarea id="f_mdChangesDescription" placeholder="e.g. Change the flooring to oak wood, replace the black walls with white finishes, add hidden LED lighting, enlarge the reception counter, and replace all posters while keeping the overall architecture unchanged."></textarea>
+    </div>
+
+    <div class="section-headline">Keep These Elements (Locked)</div>
+    <div class="field">
+      <div class="hint" style="margin-top:0;margin-bottom:10px;">One of the most powerful controls here — anything checked below is treated as fixed and off-limits, even if it seems to overlap with something requested in the changes above.</div>
+      <div class="checkbox-grid">
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Booth Dimensions"> Keep Booth Dimensions</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Overall Structure"> Keep Overall Structure</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Floor Shape"> Keep Floor Shape</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Wall Locations"> Keep Wall Locations</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Ceiling Design"> Keep Ceiling Design</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Reception Location"> Keep Reception Location</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Meeting Room"> Keep Meeting Room</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Furniture Layout"> Keep Furniture Layout</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Lighting Layout"> Keep Lighting Layout</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Logo Positions"> Keep Logo Positions</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Camera Angle"> Keep Camera Angle</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Perspective"> Keep Perspective</label>
+        <label><input type="checkbox" class="md-keep-cb" value="Keep Everything Except Selected Changes"> Keep Everything Except Selected Changes</label>
+      </div>
+    </div>
+
+    <div class="section-headline">AI Modification Level</div>
+    <div class="field">
+      <label>How much should AI change?</label>
+      <select id="f_mdModificationLevel">
+        <option value="">Select modification level...</option>
+        <option value="Minor Adjustments (10%)">Minor Adjustments (10%)</option>
+        <option value="Moderate Changes (30%)">Moderate Changes (30%)</option>
+        <option value="Major Redesign (60%)">Major Redesign (60%)</option>
+        <option value="Complete Redesign (100%)">Complete Redesign (100%)</option>
+      </select>
+    </div>
+
+    <div class="section-headline">Rendering Style</div>
+    <div class="field">
+      <select id="f_mdRenderingStyle">
+        <option value="">Select rendering style...</option>
+        <option>Photorealistic</option>
+        <option>Concept</option>
+        <option>Premium Visualization</option>
+        <option>White Background</option>
+        <option>Presentation Ready</option>
+      </select>
+    </div>
+
+    <div class="section-headline">Output Required</div>
+    <div class="field">
+      <div class="checkbox-grid">
+        <label><input type="checkbox" class="md-output-cb" value="Same Camera View"> Same Camera View</label>
+        <label><input type="checkbox" class="md-output-cb" value="Front View"> Front View</label>
+        <label><input type="checkbox" class="md-output-cb" value="Left View"> Left View</label>
+        <label><input type="checkbox" class="md-output-cb" value="Right View"> Right View</label>
+        <label><input type="checkbox" class="md-output-cb" value="Rear View"> Rear View</label>
+        <label><input type="checkbox" class="md-output-cb" value="Top View"> Top View</label>
+        <label><input type="checkbox" class="md-output-cb" value="Multiple Perspectives"> Multiple Perspectives</label>
+        <label><input type="checkbox" class="md-output-cb" value="Presentation Images"> Presentation Images</label>
+      </div>
+    </div>
+
+    <div class="section-headline">AI Editing Rules</div>
+    <div class="field">
+      <textarea id="f_mdEditingRules" placeholder="e.g. Do not change the booth dimensions.
+Do not move the reception counter.
+Do not add walls.
+Keep all branding locations.
+Replace only the materials and graphics."></textarea>
+    </div>
+
+    <div class="section-headline">Reference Images (optional)</div>
+    <div class="field">
+      <label>Upload inspiration images</label>
+      <div class="logo-upload" id="mdReferenceImagesUploadBox" onclick="document.getElementById('f_mdReferenceImages').click()">
+        <input type="file" id="f_mdReferenceImages" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" onchange="handleDsFileUpload(this, 'mdReferenceImagesList')">
+        <div id="mdReferenceImagesPlaceholder">Click to upload inspiration images — PNG, JPG, or WebP (multiple allowed)</div>
+      </div>
+      <div id="mdReferenceImagesList" class="file-list"></div>
+      <div class="hint" style="margin-top:10px;">Choose how these should influence the edit — the design is still yours, these just borrow specific qualities from another reference in a controlled way.</div>
+      <div class="checkbox-grid" style="margin-top:8px;">
+        <label><input type="checkbox" class="md-match-cb" value="Match this material style"> Match this material style</label>
+        <label><input type="checkbox" class="md-match-cb" value="Match this lighting style"> Match this lighting style</label>
+        <label><input type="checkbox" class="md-match-cb" value="Match this color palette"> Match this color palette</label>
+        <label><input type="checkbox" class="md-match-cb" value="Match this furniture style"> Match this furniture style</label>
+        <label><input type="checkbox" class="md-match-cb" value="Match this architectural style"> Match this architectural style</label>
+        <label><input type="checkbox" class="md-match-cb" value="Match this branding style only"> Match this branding style only</label>
+      </div>
+    </div>
+
+    <div class="submit-bar">
+      <button class="primary" id="mdSubmitBtn" disabled title="Modify Design generation is not available yet" onclick="return false;">Generate Design</button>
+    </div>
+    <div style="text-align:center;padding:0 10px 20px;color:#666;font-size:13.5px;">
+      Not available yet — Modify Design generation is being built next. This button won't do anything until then.
+    </div>
+  </div>
+
   <div class="card" id="formCard">
 
     <!-- shared -->
-    <div class="section-headline" id="eventDetailsHeadline" style="display:none;">Event Details</div>
-    <div class="section-headline" id="boothDetailsHeadline" style="display:none;">Booth Details</div>
+    <div class="section-headline" id="eventDetailsHeadline" style="display:none;margin-top:0;">Event Details</div>
+    <div class="section-headline" id="boothDetailsHeadline" style="display:none;margin-top:0;">Booth Details</div>
     <div class="field">
       <label id="lblName">Project Name</label>
       <input type="text" id="f_name" placeholder="e.g. Riyadh International Tech Expo">
@@ -2854,7 +3041,7 @@ function setMode(m){
 
   document.getElementById('formCard').style.display = (m==='booth' || m==='event') ? 'block' : 'none';
   document.getElementById('displayStandCard').style.display = m==='displaystand' ? 'block' : 'none';
-  document.getElementById('editDesignCard').style.display = m==='editdesign' ? 'block' : 'none';
+  document.getElementById('modifyDesignFormCard').style.display = m==='editdesign' ? 'block' : 'none';
   if(m !== 'booth' && m !== 'event'){
     document.getElementById('promptReview').style.display = 'none';
     document.getElementById('result').style.display = 'none';
