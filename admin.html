@@ -128,6 +128,25 @@
       </table>
       <div class="status-msg" id="tableStatus"></div>
     </div>
+
+    <div class="card">
+      <h2>Login Activity &amp; Lockouts</h2>
+      <div class="hint" style="margin-bottom:14px;">After 5 failed login attempts from the same location, that username is temporarily locked for 15 minutes. If this looks like one of your team simply mistyping their password rather than anything suspicious, unlock them below.</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Location (IP)</th>
+            <th>Failed Attempts</th>
+            <th>Status</th>
+            <th>Last Attempt</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="lockoutsTableBody"></tbody>
+      </table>
+      <div class="status-msg" id="lockoutsStatus"></div>
+    </div>
   </div>
 
 <script>
@@ -147,6 +166,7 @@ async function init(){
     }
     document.getElementById('adminContent').style.display = 'block';
     await loadUsers();
+    await loadLockouts();
   }catch(err){
     showGate('Could not verify access: ' + (err.message || 'unknown error'));
   }
@@ -313,6 +333,60 @@ async function removeUser(id, username){
   }catch(err){
     tableStatus.className = 'status-msg error';
     tableStatus.textContent = err.message || 'Could not remove user.';
+  }
+}
+
+async function loadLockouts(){
+  const lockoutsStatus = document.getElementById('lockoutsStatus');
+  lockoutsStatus.textContent = 'Loading...';
+  try{
+    const response = await fetch('/api/admin-lockouts');
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load login activity.');
+    renderLockoutsTable(data);
+    lockoutsStatus.textContent = '';
+  }catch(err){
+    lockoutsStatus.className = 'status-msg error';
+    lockoutsStatus.textContent = err.message || 'Could not load login activity.';
+  }
+}
+
+function renderLockoutsTable(rows){
+  const body = document.getElementById('lockoutsTableBody');
+  if(rows.length === 0){
+    body.innerHTML = '<tr><td colspan="6" class="hint">No failed login attempts recorded.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(r => {
+    const lastAttempt = new Date(r.lastAttemptAt).toLocaleString();
+    const statusHtml = r.isCurrentlyLocked
+      ? `<span class="usage over">LOCKED until ${new Date(r.lockedUntil).toLocaleTimeString()}</span>`
+      : `<span class="usage">not locked</span>`;
+    return `
+      <tr>
+        <td>${escapeHtml(r.username)}</td>
+        <td class="master-note">${escapeHtml(r.ip)}</td>
+        <td>${r.failedCount}</td>
+        <td>${statusHtml}</td>
+        <td class="master-note">${lastAttempt}</td>
+        <td class="actions-cell">
+          ${r.isCurrentlyLocked ? `<button class="primary" style="padding:6px 14px;font-size:12px;" onclick="unlockAttempt('${encodeURIComponent(r.attemptKey)}')">Unlock now</button>` : '<span class="hint">—</span>'}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function unlockAttempt(encodedAttemptKey){
+  const lockoutsStatus = document.getElementById('lockoutsStatus');
+  try{
+    const response = await fetch('/api/admin-lockouts?attemptKey=' + encodedAttemptKey, { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not unlock that account.');
+    await loadLockouts();
+  }catch(err){
+    lockoutsStatus.className = 'status-msg error';
+    lockoutsStatus.textContent = err.message || 'Could not unlock that account.';
   }
 }
 
