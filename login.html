@@ -163,6 +163,7 @@
     padding:40px;
     position:relative;
     overflow:hidden;
+    order:-1;
   }
   .logo-side::before{
     content:'';
@@ -219,7 +220,7 @@
 
   @media (max-width: 760px){
     .split{ flex-direction:column; }
-    .logo-side{ min-height:180px; padding:24px; }
+    .logo-side{ order:0; min-height:180px; padding:24px; }
     .logo-mark img{ max-width:90px; margin-bottom:20px; }
     .right-heading{ font-size:20px; }
   }
