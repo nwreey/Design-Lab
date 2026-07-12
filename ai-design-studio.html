@@ -847,8 +847,8 @@
     <div class="field">
       <label>Construction style</label>
       <select id="f_mdConstructionStyle">
-        <option value="Wood Modular">Wood Modular</option>
         <option value="Premium Custom Build">Premium Custom Build</option>
+        <option value="Wood Modular">Wood Modular</option>
         <option value="Budget Modular">Budget Modular</option>
       </select>
     </div>
@@ -1087,12 +1087,12 @@ Replace only the materials and graphics."></textarea>
 
     <div id="boothDetailsFields" style="display:none;">
       <div class="field">
-        <label>Booth Height (m)</label>
+        <label>Booth Height (m) <span class="required-mark">*</span></label>
         <input type="number" min="0" step="0.1" id="f_totalHeight" placeholder="e.g. 5.5">
       </div>
 
       <div class="field" id="levelsField">
-        <label>Number of levels</label>
+        <label>Number of levels <span class="required-mark">*</span></label>
         <select id="f_levels" onchange="toggleUpperFloor(this)">
           <option value="1" selected>1 — Single level</option>
           <option value="2">2 — Double-deck (ground + upper floor)</option>
@@ -1100,13 +1100,13 @@ Replace only the materials and graphics."></textarea>
       </div>
 
       <div class="field" id="upperFloorField" style="display:none;">
-        <label>Upper floor program</label>
+        <label>Upper floor program <span class="required-mark">*</span></label>
         <textarea id="f_upperFloor" placeholder="e.g. VIP meeting & seating area with coffee break service"></textarea>
         <div class="hint">Describe what belongs on the upper level — everything else will be placed on the ground floor.</div>
       </div>
 
       <div class="field" id="openSidesField">
-        <label>Number of open sides</label>
+        <label>Number of open sides <span class="required-mark">*</span></label>
         <select id="f_openSides" onchange="toggleCornerSide(this)">
           <option value="1">1 — Inline (walls on 3 sides)</option>
           <option value="2" selected>2 — Corner (walls on 2 sides)</option>
@@ -1117,7 +1117,7 @@ Replace only the materials and graphics."></textarea>
       </div>
 
       <div class="field" id="cornerSideField">
-        <label>Which side is open, besides the front?</label>
+        <label>Which side is open, besides the front? <span class="required-mark">*</span></label>
         <select id="f_cornerSide">
           <option value="right" selected>Right</option>
           <option value="left">Left</option>
@@ -1158,7 +1158,7 @@ Replace only the materials and graphics."></textarea>
       </div>
     </div>
     <div class="field">
-      <label>Architectural style</label>
+      <label>Architectural style <span class="required-mark">*</span></label>
       <select id="f_archStyle" onchange="updateArchStyleHint(this)">
         <option value="Modern" selected>Modern</option>
         <option value="Minimal">Minimal</option>
@@ -1171,7 +1171,7 @@ Replace only the materials and graphics."></textarea>
     </div>
 
     <div class="field">
-      <label>Industry style (optional)</label>
+      <label id="lblIndustryStyle">Industry style <span class="required-mark">*</span></label>
       <select id="f_industryStyle">
         <option value="" selected>None / not applicable</option>
         <option value="Medical">Medical</option>
@@ -1184,17 +1184,17 @@ Replace only the materials and graphics."></textarea>
     </div>
 
     <div class="field">
-      <label>Construction style</label>
+      <label>Construction style <span class="required-mark">*</span></label>
       <select id="f_constructionStyle">
-        <option value="Wood Modular" selected>Wood Modular</option>
-        <option value="Premium Custom Build">Premium Custom Build</option>
+        <option value="Premium Custom Build" selected>Premium Custom Build</option>
+        <option value="Wood Modular">Wood Modular</option>
         <option value="Budget Modular">Budget Modular</option>
       </select>
       <div class="hint">Defines material quality and build complexity — important for construction feasibility.</div>
     </div>
 
     <div class="field">
-      <label>Brand personality</label>
+      <label>Brand personality <span class="required-mark">*</span></label>
       <select id="f_brandPersonality">
         <option value="Elegant" selected>Elegant</option>
         <option value="Innovative">Innovative</option>
@@ -1233,11 +1233,83 @@ Replace only the materials and graphics."></textarea>
         </div>
       </div>
 
+      <div class="section-headline" id="flooringHeadline" style="display:none;">Flooring</div>
+      <div class="field" id="floorTypeField">
+        <label>Floor Type <span class="required-mark">*</span></label>
+        <select id="f_floorType" onchange="toggleRaisedFloorHeight(this); toggleFloorTypeCustom(this);">
+          <option value="Venue Floor (No Platform)" selected>Venue Floor (No Platform)</option>
+          <option value="Raised Floor">Raised Floor</option>
+          <option value="Double Raised Floor">Double Raised Floor</option>
+          <option value="Custom">Custom</option>
+        </select>
+        <input type="text" id="f_floorTypeCustom" placeholder="Describe the custom floor type" style="display:none;margin-top:8px;">
+        <div class="hint">Whether the booth floor sits flush with the venue floor or is built up on a platform — this also sets the booth's legal construction boundary (see EPS-010).</div>
+      </div>
+
+      <div class="field" id="raisedFloorHeightField" style="display:none;">
+        <label>Raised Floor Height <span class="required-mark">*</span></label>
+        <select id="f_raisedFloorHeight" onchange="toggleRaisedFloorHeightCustom(this)">
+          <option value="50 mm" selected>50 mm</option>
+          <option value="100 mm">100 mm</option>
+          <option value="150 mm">150 mm</option>
+          <option value="Custom">Custom</option>
+        </select>
+        <input type="text" id="f_raisedFloorHeightCustom" placeholder="e.g. 200mm" style="display:none;margin-top:8px;">
+      </div>
+
+      <div class="field" id="floorFinishField">
+        <label>Floor Finish <span class="required-mark">*</span></label>
+        <select id="f_floorFinish" onchange="toggleCarpetType(this); toggleFloorFinishCustom(this);">
+          <option value="Carpet" selected>Carpet</option>
+          <option value="Wood / Laminate">Wood / Laminate</option>
+          <option value="Vinyl Flooring">Vinyl Flooring</option>
+          <option value="PVC Flooring">PVC Flooring</option>
+          <option value="Epoxy Finish">Epoxy Finish</option>
+          <option value="Marble Effect">Marble Effect</option>
+          <option value="Stone Effect">Stone Effect</option>
+          <option value="Artificial Grass">Artificial Grass</option>
+          <option value="Custom">Custom</option>
+        </select>
+        <input type="text" id="f_floorFinishCustom" placeholder="Describe the custom floor finish" style="display:none;margin-top:8px;">
+      </div>
+
+      <div class="field" id="carpetTypeField">
+        <label>Carpet Type <span class="required-mark">*</span></label>
+        <select id="f_carpetType" onchange="toggleCarpetTypeCustom(this)">
+          <option value="Exhibition Carpet" selected>Exhibition Carpet</option>
+          <option value="Premium Carpet">Premium Carpet</option>
+          <option value="Printed Carpet">Printed Carpet</option>
+          <option value="Custom Color">Custom Color</option>
+        </select>
+        <input type="text" id="f_carpetTypeCustom" placeholder="Describe the custom carpet color" style="display:none;margin-top:8px;">
+        <div class="hint">Only applies when Floor Finish is Carpet.</div>
+      </div>
+
+      <div class="field" id="floorEdgeFinishField">
+        <label>Floor Edge Finish <span class="required-mark">*</span></label>
+        <select id="f_floorEdgeFinish">
+          <option value="Straight Edge" selected>Straight Edge</option>
+          <option value="Chamfered Edge">Chamfered Edge</option>
+          <option value="Curved Edge">Curved Edge</option>
+          <option value="Illuminated Edge (Hidden LED)">Illuminated Edge (Hidden LED)</option>
+          <option value="Metal Trim">Metal Trim</option>
+          <option value="Wood Trim">Wood Trim</option>
+        </select>
+        <div class="hint">How the raised floor's visible perimeter edge is finished — irrelevant when Floor Type is Venue Floor (no platform edge exists).</div>
+      </div>
+
+      <div class="field" id="floorLightingField">
+        <label class="check-item-compact"><input type="checkbox" id="f_floorLighting"> Hidden Floor Lighting (LED strip around the raised floor's edge)</label>
+        <div class="hint">Optional — leave unchecked if not wanted, no need to select anything either way.</div>
+      </div>
+
       <div class="section-headline" id="requirementsHeadline" style="display:none;">Requirements</div>
       <div class="field" id="additionalReqField">
-        <div class="hint" style="margin-top:0;margin-bottom:10px;">Optional — check any that apply and specify exact quantities. Anything left unchecked here follows EPS-011's normal size-based defaults instead.</div>
+        <div class="hint" style="margin-top:0;margin-bottom:10px;">Select at least 2 <span class="required-mark">*</span> — check any that apply and specify exact quantities. Anything left unchecked here follows EPS-011's normal size-based defaults instead.</div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_reception" onchange="toggleAdditionalReqSection('reception', this.checked)"> Reception counter — specify exact quantity and widths</label>
+        <div class="subarea-label">Visitor Experience</div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_reception" onchange="toggleAdditionalReqSection('reception', this.checked)"> Reception Counter — specify exact quantity and widths</label>
         <div id="addreq_reception_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_reception_count">How many reception counters?</label>
           <input type="number" min="1" id="addreq_reception_count" placeholder="e.g. 2" oninput="renderReceptionCounterFields()">
@@ -1245,32 +1317,125 @@ Replace only the materials and graphics."></textarea>
           <div id="addreq_reception_list"></div>
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_seating" onchange="toggleAdditionalReqSection('seating', this.checked)"> Seating area — specify exact quantity and capacity</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_infocounter" onchange="toggleAdditionalReqSection('infocounter', this.checked)"> Information Counter — specify exact quantity</label>
+        <div id="addreq_infocounter_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_infocounter_count">How many information counters?</label>
+          <input type="number" min="1" id="addreq_infocounter_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_seating" onchange="toggleAdditionalReqSection('seating', this.checked)"> Seating Area — specify exact quantity and capacity</label>
         <div id="addreq_seating_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_seating_count">How many seating areas?</label>
           <input type="number" min="1" id="addreq_seating_count" placeholder="e.g. 2" oninput="renderSeatingAreaFields()">
           <div id="addreq_seating_list"></div>
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_tv" onchange="toggleAdditionalReqSection('tv', this.checked)"> TV screen — specify exact quantity and size</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_meetingtables" onchange="toggleAdditionalReqSection('meetingtables', this.checked)"> Meeting Tables — specify exact quantity and seats per table</label>
+        <div id="addreq_meetingtables_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_meetingtables_count">How many meeting tables?</label>
+          <input type="number" min="1" id="addreq_meetingtables_count" placeholder="e.g. 1" oninput="renderAddreqUnitRows('meetingtables', 'seats', 'seats per table', 'e.g. 6', {min:'1'})">
+          <div id="addreq_meetingtables_list"></div>
+        </div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_vipmeeting" onchange="toggleAdditionalReqSection('vipmeeting', this.checked)"> VIP Meeting Room — specify exact quantity</label>
+        <div id="addreq_vipmeeting_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_vipmeeting_count">How many VIP meeting rooms?</label>
+          <input type="number" min="1" id="addreq_vipmeeting_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_openmeeting"> Open Meeting Area</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_lounge"> Lounge Area</label>
+        <label class="check-item-compact" style="margin-bottom:16px;"><input type="checkbox" id="addreq_coffeebar"> Coffee Bar / Hospitality</label>
+
+        <div class="subarea-label" style="margin-top:8px;">Product Display</div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_displayshelves" onchange="toggleAdditionalReqSection('displayshelves', this.checked)"> Display Shelves — specify exact quantity</label>
+        <div id="addreq_displayshelves_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_displayshelves_count">How many display shelves?</label>
+          <input type="number" min="1" id="addreq_displayshelves_count" placeholder="e.g. 3">
+        </div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_displaytables" onchange="toggleAdditionalReqSection('displaytables', this.checked)"> Display Tables — specify exact quantity</label>
+        <div id="addreq_displaytables_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_displaytables_count">How many display tables?</label>
+          <input type="number" min="1" id="addreq_displaytables_count" placeholder="e.g. 2">
+        </div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_glasscabinets" onchange="toggleAdditionalReqSection('glasscabinets', this.checked)"> Glass Display Cabinets — specify exact quantity</label>
+        <div id="addreq_glasscabinets_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_glasscabinets_count">How many glass display cabinets?</label>
+          <input type="number" min="1" id="addreq_glasscabinets_count" placeholder="e.g. 2">
+        </div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_pedestals" onchange="toggleAdditionalReqSection('pedestals', this.checked)"> Product Pedestals — specify exact quantity</label>
+        <div id="addreq_pedestals_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_pedestals_count">How many product pedestals?</label>
+          <input type="number" min="1" id="addreq_pedestals_count" placeholder="e.g. 3">
+        </div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_interactivedisplay"> Interactive Product Display</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_brochurestand"> Brochure Stand</label>
+        <label class="check-item-compact" style="margin-bottom:16px;"><input type="checkbox" id="addreq_literaturerack"> Literature Rack</label>
+
+        <div class="subarea-label" style="margin-top:8px;">Digital &amp; Technology</div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_tv" onchange="toggleAdditionalReqSection('tv', this.checked)"> TV Screens — specify exact quantity and size</label>
         <div id="addreq_tv_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_tv_count">How many TV screens?</label>
           <input type="number" min="1" id="addreq_tv_count" placeholder="e.g. 2" oninput="renderTvScreenFields()">
           <div id="addreq_tv_list"></div>
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_led" onchange="toggleAdditionalReqSection('led', this.checked)"> LED screen — specify exact quantity and dimensions</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_led" onchange="toggleAdditionalReqSection('led', this.checked)"> LED Screens — specify exact quantity and dimensions</label>
         <div id="addreq_led_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_led_count">How many LED screens?</label>
           <input type="number" min="1" id="addreq_led_count" placeholder="e.g. 1" oninput="renderLedScreenFields()">
           <div id="addreq_led_list"></div>
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_shelves"> Shelves</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_touchscreen"> Touch screen</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_displaytables"> Display Tables</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_storageroom"> Storage Room</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_lightingsystem"> Lighting System</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_touchscreen" onchange="toggleAdditionalReqSection('touchscreen', this.checked)"> Touch Screens — specify exact quantity and size</label>
+        <div id="addreq_touchscreen_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_touchscreen_count">How many touch screens?</label>
+          <input type="number" min="1" id="addreq_touchscreen_count" placeholder="e.g. 1" oninput="renderAddreqUnitRows('touchscreen', 'size', 'size (inches)', 'e.g. 32', {min:'1'})">
+          <div id="addreq_touchscreen_list"></div>
+        </div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_kiosk"> Interactive Kiosk</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_digitaltotem"> Digital Totem</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_chargingstation"> Charging Station</label>
+        <label class="check-item-compact" style="margin-bottom:16px;"><input type="checkbox" id="addreq_qrdisplay"> QR Code Display</label>
+
+        <div class="subarea-label" style="margin-top:8px;">Functional Spaces</div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_storageroom" onchange="toggleAdditionalReqSection('storageroom', this.checked)"> Storage Room — specify exact quantity and size</label>
+        <div id="addreq_storageroom_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_storageroom_count">How many storage rooms?</label>
+          <input type="number" min="1" id="addreq_storageroom_count" placeholder="e.g. 1" oninput="renderAddreqUnitRows('storageroom', 'size', 'size (sqm)', 'e.g. 4', {min:'0.5', step:'0.5'})">
+          <div id="addreq_storageroom_list"></div>
+        </div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_pantry"> Pantry</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_staffarea"> Staff Area</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_lockablecabinet"> Lockable Cabinet</label>
+        <label class="check-item-compact" style="margin-bottom:16px;"><input type="checkbox" id="addreq_hiddenstorage"> Hidden Storage</label>
+
+        <div class="subarea-label" style="margin-top:8px;">Lighting</div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_ambientlighting"> Ambient Lighting</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_spotlights"> Spotlights</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_hiddenledlighting"> Hidden LED Lighting</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_covelighting"> Cove Lighting</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_accentlighting"> Product Accent Lighting</label>
+        <label class="check-item-compact" style="margin-bottom:16px;"><input type="checkbox" id="addreq_decorativelighting"> Decorative Lighting</label>
+
+        <div class="subarea-label" style="margin-top:8px;">Decorative Elements</div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_planters"> Planters</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_greenwall"> Green Wall</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_decorativepanels"> Decorative Panels</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_brandgraphics"> Brand Graphics</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_hangingdecor"> Hanging Decorations</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_sculpture"> Feature Sculpture</label>
       </div>
 
       <div class="section-headline" id="referenceImageHeadline" style="display:none;">Reference Image</div>
@@ -1416,7 +1581,7 @@ Replace only the materials and graphics."></textarea>
     </div>
 
     <div class="field" id="modularWallLayoutField">
-      <label class="check-item-compact" style="font-weight:600;"><input type="checkbox" id="f_modularWallLayout"> Modular Wall Layout</label>
+      <label class="check-item-compact" style="font-weight:600;"><input type="checkbox" id="f_modularWallLayout" onchange="confirmModularWallLayout(this)"> Modular Wall Layout</label>
       <div class="hint">When enabled: equal architectural spacing, identical repeated panels/dividers, mandatory symmetry, no random or irregular gaps — a CAD-like modular rhythm across every wall. Applies to the initial design and to every edit you make afterward.</div>
     </div>
 
@@ -1673,6 +1838,18 @@ Replace only the materials and graphics."></textarea>
 
 <script>
 let mode = 'booth';
+
+// Every checkbox under the Requirements section, across all six categories — the single
+// shared list used both for the "at least 2 selected" validation and matched against
+// getMissingRequirements()/generateDesign() so the two validation paths can't drift apart.
+const ADDREQ_ALL_CHECKBOX_IDS = [
+  'addreq_reception', 'addreq_infocounter', 'addreq_seating', 'addreq_meetingtables', 'addreq_vipmeeting', 'addreq_openmeeting', 'addreq_lounge', 'addreq_coffeebar',
+  'addreq_displayshelves', 'addreq_displaytables', 'addreq_glasscabinets', 'addreq_pedestals', 'addreq_interactivedisplay', 'addreq_brochurestand', 'addreq_literaturerack',
+  'addreq_tv', 'addreq_led', 'addreq_touchscreen', 'addreq_kiosk', 'addreq_digitaltotem', 'addreq_chargingstation', 'addreq_qrdisplay',
+  'addreq_storageroom', 'addreq_pantry', 'addreq_staffarea', 'addreq_lockablecabinet', 'addreq_hiddenstorage',
+  'addreq_ambientlighting', 'addreq_spotlights', 'addreq_hiddenledlighting', 'addreq_covelighting', 'addreq_accentlighting', 'addreq_decorativelighting',
+  'addreq_planters', 'addreq_greenwall', 'addreq_decorativepanels', 'addreq_brandgraphics', 'addreq_hangingdecor', 'addreq_sculpture',
+];
 let lastGeneratedBrief = '';
 
 const EXPERT_DESIGNER_PERSONA = `You are a world-class Exhibition Stand Designer with over 20 years of experience in designing exhibition booths for international trade shows and expos. You specialize in: • Custom exhibition stands • Modular exhibition booths • Double-decker stands • Country pavilions • Corporate brand experiences • Technology showcases • Government pavilions • Medical exhibitions • Automotive exhibitions • AI & Technology expos • Luxury exhibition architecture
@@ -2507,7 +2684,15 @@ OPEN SPACE RATIO BY SIZE (minimum open circulation)
 Never overcrowd the booth with furniture or partitions.
 
 GOLDEN RULE
-The booth should always appear balanced, functional, and proportional to its size. Every added element must serve a clear purpose. As the booth area increases, expand functionality by adding reception capacity, meeting spaces, product displays, and visitor amenities — not by simply increasing the number of walls or decorative objects.`;
+The booth should always appear balanced, functional, and proportional to its size. Every added element must serve a clear purpose. As the booth area increases, expand functionality by adding reception capacity, meeting spaces, product displays, and visitor amenities — not by simply increasing the number of walls or decorative objects.
+
+AI DEFAULTS FOR UNSPECIFIED QUANTITIES
+Whenever the client leaves a Requirements item unchecked, or checks one without stating an exact quantity, do not default to zero and do not default to some arbitrary fixed number either — reason it out from these four factors together, the same way an experienced exhibition designer would:
+• Booth size — larger footprints support and generally warrant more of an element (more display shelves, more seating capacity) before it reads as overcrowded; smaller footprints demand restraint, per this standard's open-space-ratio table above.
+• Booth Height — taller booths can support more vertically-oriented elements (hanging decorations, taller product pedestals, feature sculptures) without looking sparse; low-height booths should lean toward horizontal, floor-level elements instead.
+• Industry — a medical booth's product display needs differ sharply from an automotive or luxury jewelry booth's; infer typical furniture, display, and technology needs from the stated industry (see EPS-004's style taxonomy for the established industry-to-material/color mapping, and extend that same industry-awareness to these quantity decisions).
+• Project objective — a booth built for lead generation needs more meeting/seating capacity than one built purely for brand visibility or product launch spectacle; infer the objective from the client's description and let it guide which categories (Visitor Experience vs. Product Display vs. Digital & Technology) get the most emphasis.
+This applies across every category in the Requirements section — Visitor Experience, Product Display, Digital & Technology, Functional Spaces, Lighting, and Decorative Elements — not just the items with explicit quantity fields.`;
 
 const EPS_012 = `CEILING & RIGGING RULES
 
@@ -2563,6 +2748,48 @@ Every booth must have one hero architectural element. This hero element should b
 
 GOLDEN RULE
 The booth should be recognized by its architectural identity first and its graphics second. The structure itself should communicate the brand. The main logo should be integrated into the primary architectural feature, clearly visible from the main visitor approach, while all secondary branding supports this focal point.`;
+
+const EPS_015 = `FLOORING RULES
+
+GENERAL RULE
+The floor is not a passive background — it is a structural and visual decision that changes how premium the booth reads, how the raised platform's edge is detailed, and how light behaves across the space. Never render a generic gray floor by default; always reflect the client's specified Floor Type, Floor Finish, Carpet Type, Raised Floor Height, Floor Edge Finish, and Hidden Floor Lighting exactly, using the visual guidance below. Where the client has left flooring unspecified, default to a raised floor with premium exhibition carpet and a straight edge — never bare venue concrete.
+
+FLOOR TYPE — WHAT EACH LOOKS LIKE
+• Venue Floor (No Platform): the booth finish sits directly on the venue's own floor with zero height change — no visible step, no edge trim, no raised-floor lighting. Furniture and walls read as standing directly on the hall floor.
+• Raised Floor: a single continuous platform lifts the entire booth footprint above the venue floor by the specified height, with one visible perimeter edge running the full boundary of the booth (per EPS-010, this platform IS the booth's legal construction boundary — nothing may extend past it).
+• Double Raised Floor: two distinct platform levels at different heights within the same booth (e.g. a lower general circulation platform and a higher VIP/stage platform), each with its own edge — use this to reinforce hierarchy between general and premium zones, never as a decorative afterthought.
+• Custom: follow the client's stated custom description exactly for the platform configuration.
+
+FLOOR FINISH — VISUAL CHARACTER OF EACH
+• Carpet: soft, matte, acoustic-dampening surface — the default premium exhibition choice; see Carpet Type below for the exact look.
+• Wood / Laminate: warm-toned linear or herringbone plank pattern, satin sheen, reads upscale and hospitality-like — pairs well with Luxury and Corporate architectural styles.
+• Vinyl Flooring: smooth, seamless, low-sheen commercial finish — practical and clean, common for technology and medical booths.
+• PVC Flooring: similar to vinyl but often shown in bold solid colors or interlocking tile patterns — used where a modern, slightly industrial-clean look is wanted.
+• Epoxy Finish: high-gloss, seamless, reflective resin surface — reads highly premium and futuristic, throws sharp light reflections; strong pairing with Futuristic and Luxury styles.
+• Marble Effect: polished stone-look surface with visible veining, light-colored and reflective — reads luxury and formality, common for Government and Luxury booths.
+• Stone Effect: matte, textured stone-look surface (unlike the polished sheen of Marble Effect) — reads grounded and natural rather than glossy-premium.
+• Artificial Grass: green synthetic turf texture — used deliberately for outdoor, lifestyle, automotive, or eco-themed concepts, never as a default.
+• Custom: follow the client's stated custom description exactly.
+
+CARPET TYPE (only relevant when Floor Finish is Carpet)
+• Exhibition Carpet: flat, solid-color commercial-grade carpet tile — the standard, cost-efficient default look.
+• Premium Carpet: thicker pile, richer color saturation, slightly plush appearance — visibly more upscale than Exhibition Carpet.
+• Printed Carpet: carries a custom printed pattern or brand graphic across its surface — treat this as an additional branding surface, not just a floor.
+• Custom Color: solid-color carpet in the client's specified custom color — coordinate this color with the booth's brand color palette unless the client states otherwise.
+
+RAISED FLOOR HEIGHT — RENDER SCALE
+The stated height (50mm / 100mm / 150mm / custom) must read as a genuine, visible step at the platform's perimeter edge, proportional to a real person's shoe/ankle height standing beside it — never render it as a flush, invisible transition, and never exaggerate it into a tall stage-like riser unless the client's stated height is unusually large.
+
+FLOOR EDGE FINISH — ONLY APPLIES WHEN A RAISED OR DOUBLE RAISED FLOOR EXISTS (irrelevant for Venue Floor, since there is no platform edge to finish)
+• Straight Edge: a plain vertical flat face at the platform's perimeter — the clean, default treatment.
+• Chamfered Edge: the vertical face is cut at a 45-degree bevel instead of a flat vertical drop — softer, safer-looking, common in premium builds.
+• Curved Edge: the edge is rounded/radiused rather than angular — reads soft and modern.
+• Illuminated Edge (Hidden LED): the edge face itself is lit from within by a concealed LED strip, making the platform appear to visually float — this is a distinct architectural treatment from the separate Hidden Floor Lighting rule below (that rule lights the surrounding floor; this one lights the edge face itself) and both may be specified together.
+• Metal Trim: a thin brushed or polished metal strip caps the edge — reads industrial-premium.
+• Wood Trim: a wood strip caps the edge, coordinating with any wood elements elsewhere in the booth.
+
+HIDDEN FLOOR LIGHTING
+When specified YES, include a continuous concealed LED light strip recessed at the base of the raised floor's perimeter, washing light outward/downward onto the surrounding venue floor — this reads as a premium architectural signature and should be visible in the render as a soft glowing line at floor level along the booth's boundary. When NO, the floor's edge should show no such lighting effect.`;
 
 const ECS_001 = `EVENT PLANNING PRINCIPLES
 
@@ -2823,6 +3050,9 @@ function toggleAdditionalReqSection(type, checked){
     if(type === 'seating') renderSeatingAreaFields();
     if(type === 'tv') renderTvScreenFields();
     if(type === 'led') renderLedScreenFields();
+    if(type === 'meetingtables') renderAddreqUnitRows('meetingtables', 'seats', 'seats per table', 'e.g. 6', {min:'1'});
+    if(type === 'touchscreen') renderAddreqUnitRows('touchscreen', 'size', 'size (inches)', 'e.g. 32', {min:'1'});
+    if(type === 'storageroom') renderAddreqUnitRows('storageroom', 'size', 'size (sqm)', 'e.g. 4', {min:'0.5', step:'0.5'});
   }
 }
 
@@ -2862,6 +3092,22 @@ function renderLedScreenFields(){
   const rows = [];
   for(let i = 1; i <= count; i++){
     rows.push(`<div class="row2" style="margin-top:8px;"><div><label class="sublabel">LED screen ${i} — width (m)</label><input type="number" min="0.1" step="0.1" id="addreq_led_w_${i}" placeholder="e.g. 3"></div><div><label class="sublabel">LED screen ${i} — height (m)</label><input type="number" min="0.1" step="0.1" id="addreq_led_h_${i}" placeholder="e.g. 2"></div></div>`);
+  }
+  list.innerHTML = rows.join('');
+}
+
+// Generic version of the reception/seating/tv/led render-per-unit pattern above — used for
+// every newer Requirements item that also needs one sub-field specified per unit, so each
+// new item doesn't need its own hand-written, near-identical render function.
+const ADDREQ_UNIT_ITEM_LABELS = { meetingtables: 'Meeting table', touchscreen: 'Touch screen', storageroom: 'Storage room' };
+function renderAddreqUnitRows(prefix, fieldSuffix, subfieldLabel, placeholder, attrs){
+  const count = Math.max(0, parseInt(document.getElementById('addreq_' + prefix + '_count').value) || 0);
+  const list = document.getElementById('addreq_' + prefix + '_list');
+  const itemLabel = ADDREQ_UNIT_ITEM_LABELS[prefix] || prefix;
+  const extraAttrs = Object.entries(attrs || {}).map(([k, v]) => `${k}="${v}"`).join(' ');
+  const rows = [];
+  for(let i = 1; i <= count; i++){
+    rows.push(`<div class="row2" style="margin-top:8px;"><div><label class="sublabel">${itemLabel} ${i} — ${subfieldLabel}</label><input type="number" ${extraAttrs} id="addreq_${prefix}_${fieldSuffix}_${i}" placeholder="${placeholder}"></div></div>`);
   }
   list.innerHTML = rows.join('');
 }
@@ -2918,21 +3164,97 @@ function collectAdditionalRequirements(){
     }
   }
 
-  const simpleExtras = [
-    ['addreq_shelves', 'Shelves'],
-    ['addreq_touchscreen', 'Touch screen'],
-    ['addreq_displaytables', 'Display Tables'],
-    ['addreq_storageroom', 'Storage Room'],
-    ['addreq_lightingsystem', 'Lighting System'],
-  ].filter(([id]) => document.getElementById(id).checked).map(([, label]) => label);
-  if(simpleExtras.length > 0){
-    lines.push(`ADDITIONAL ELEMENTS EXPLICITLY REQUESTED BY THE CLIENT — these must be included in the design: ${simpleExtras.join(', ')}.`);
+  // Newer items that also carry one sub-field per unit (seats, size, sqm) — same
+  // "exact specification, per unit" reporting style as the four detailed items above.
+  const unitItems = [
+    ['meetingtables', 'seats', 'MEETING TABLES', 'meeting table(s)', v => v ? v + ' seats' : 'seats not specified'],
+    ['touchscreen', 'size', 'TOUCH SCREENS', 'touch screen(s)', v => v ? v + '"' : 'size not specified'],
+    ['storageroom', 'size', 'STORAGE ROOM', 'storage room(s)', v => v ? v + ' sqm' : 'size not specified'],
+  ];
+  for(const [prefix, fieldSuffix, title, unitLabel, formatValue] of unitItems){
+    if(document.getElementById('addreq_' + prefix).checked){
+      const count = Math.max(0, parseInt(document.getElementById('addreq_' + prefix + '_count').value) || 0);
+      if(count > 0){
+        const units = [];
+        for(let i = 1; i <= count; i++){
+          const el = document.getElementById(`addreq_${prefix}_${fieldSuffix}_${i}`);
+          units.push(`Unit ${i}: ${formatValue(el && el.value)}`);
+        }
+        lines.push(`${title} — EXACT CLIENT SPECIFICATION (overrides computed/default quantity): exactly ${count} ${unitLabel} required. ${units.join('; ')}.`);
+      }
+    }
+  }
+
+  // Quantity-only items — a single explicit count, no further per-unit breakdown needed.
+  const quantityOnlyItems = [
+    ['infocounter', 'INFORMATION COUNTER', 'information counter(s)'],
+    ['vipmeeting', 'VIP MEETING ROOM', 'VIP meeting room(s)'],
+    ['displayshelves', 'DISPLAY SHELVES', 'display shelving unit(s)'],
+    ['displaytables', 'DISPLAY TABLES', 'display table(s)'],
+    ['glasscabinets', 'GLASS DISPLAY CABINETS', 'glass display cabinet(s)'],
+    ['pedestals', 'PRODUCT PEDESTALS', 'product pedestal(s)'],
+  ];
+  for(const [id, title, unitLabel] of quantityOnlyItems){
+    if(document.getElementById('addreq_' + id).checked){
+      const count = Math.max(0, parseInt(document.getElementById('addreq_' + id + '_count').value) || 0);
+      if(count > 0){
+        lines.push(`${title} — EXACT CLIENT SPECIFICATION (overrides computed/default quantity): exactly ${count} ${unitLabel} required.`);
+      }
+    }
+  }
+
+  // Simple checkboxes with no quantity — grouped by category for a clearer, better-organized brief.
+  const simpleGroups = [
+    ['Visitor Experience', [['addreq_openmeeting', 'Open Meeting Area'], ['addreq_lounge', 'Lounge Area'], ['addreq_coffeebar', 'Coffee Bar / Hospitality']]],
+    ['Product Display', [['addreq_interactivedisplay', 'Interactive Product Display'], ['addreq_brochurestand', 'Brochure Stand'], ['addreq_literaturerack', 'Literature Rack']]],
+    ['Digital & Technology', [['addreq_kiosk', 'Interactive Kiosk'], ['addreq_digitaltotem', 'Digital Totem'], ['addreq_chargingstation', 'Charging Station'], ['addreq_qrdisplay', 'QR Code Display']]],
+    ['Functional Spaces', [['addreq_pantry', 'Pantry'], ['addreq_staffarea', 'Staff Area'], ['addreq_lockablecabinet', 'Lockable Cabinet'], ['addreq_hiddenstorage', 'Hidden Storage']]],
+    ['Lighting', [['addreq_ambientlighting', 'Ambient Lighting'], ['addreq_spotlights', 'Spotlights'], ['addreq_hiddenledlighting', 'Hidden LED Lighting'], ['addreq_covelighting', 'Cove Lighting'], ['addreq_accentlighting', 'Product Accent Lighting'], ['addreq_decorativelighting', 'Decorative Lighting']]],
+    ['Decorative Elements', [['addreq_planters', 'Planters'], ['addreq_greenwall', 'Green Wall'], ['addreq_decorativepanels', 'Decorative Panels'], ['addreq_brandgraphics', 'Brand Graphics'], ['addreq_hangingdecor', 'Hanging Decorations'], ['addreq_sculpture', 'Feature Sculpture']]],
+  ];
+  for(const [groupName, items] of simpleGroups){
+    const checked = items.filter(([id]) => document.getElementById(id).checked).map(([, label]) => label);
+    if(checked.length > 0){
+      lines.push(`${groupName.toUpperCase()} — EXPLICITLY REQUESTED BY THE CLIENT (these must be included in the design): ${checked.join(', ')}.`);
+    }
   }
 
   if(lines.length === 0) return '';
   return `
 
 ADDITIONAL REQUIREMENTS — EXPLICITLY SPECIFIED BY THE CLIENT (these exact quantities and dimensions are mandatory facts, not suggestions — they override the computed space allocation and EPS-011's general defaults for these specific elements):
+${lines.join('\n')}`;
+}
+
+function collectFlooringSpecification(){
+  const floorTypeRaw = document.getElementById('f_floorType').value;
+  const floorType = floorTypeRaw === 'Custom' ? (document.getElementById('f_floorTypeCustom').value.trim() || 'Custom') : floorTypeRaw;
+
+  const floorFinishRaw = document.getElementById('f_floorFinish').value;
+  const floorFinish = floorFinishRaw === 'Custom' ? (document.getElementById('f_floorFinishCustom').value.trim() || 'Custom') : floorFinishRaw;
+
+  const lines = [`Floor Type: ${floorType}.`, `Floor Finish: ${floorFinish}.`];
+
+  if(floorFinishRaw === 'Carpet'){
+    const carpetTypeRaw = document.getElementById('f_carpetType').value;
+    const carpetType = carpetTypeRaw === 'Custom Color' ? (document.getElementById('f_carpetTypeCustom').value.trim() || 'a custom color') : carpetTypeRaw;
+    lines.push(`Carpet Type: ${carpetType}.`);
+  }
+
+  if(floorTypeRaw === 'Raised Floor' || floorTypeRaw === 'Double Raised Floor'){
+    const heightRaw = document.getElementById('f_raisedFloorHeight').value;
+    const height = heightRaw === 'Custom' ? (document.getElementById('f_raisedFloorHeightCustom').value.trim() || 'a custom height') : heightRaw;
+    lines.push(`Raised Floor Height: ${height} above the venue floor.`);
+    lines.push(`Floor Edge Finish: ${document.getElementById('f_floorEdgeFinish').value} — this is the visible finish of the raised floor's perimeter edge, where it meets the venue floor.`);
+  }
+
+  lines.push(document.getElementById('f_floorLighting').checked
+    ? 'Hidden Floor Lighting: YES — include a hidden LED light strip recessed into the raised floor edge, washing light downward/outward along the perimeter.'
+    : 'Hidden Floor Lighting: No floor-edge lighting.');
+
+  return `
+
+FLOORING SPECIFICATION — EXPLICITLY SPECIFIED BY THE CLIENT (mandatory facts, not suggestions; apply exactly as stated, following EPS-015's guidance on what each choice looks like in the finished render):
 ${lines.join('\n')}`;
 }
 
@@ -3164,6 +3486,31 @@ function toggleEventTypeCustom(select){
   document.getElementById('f_eventTypeCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
 }
 
+function toggleCarpetType(select){
+  document.getElementById('carpetTypeField').style.display = select.value === 'Carpet' ? 'block' : 'none';
+}
+
+function toggleRaisedFloorHeight(select){
+  const needsHeight = select.value === 'Raised Floor' || select.value === 'Double Raised Floor';
+  document.getElementById('raisedFloorHeightField').style.display = needsHeight ? 'block' : 'none';
+}
+
+function toggleFloorTypeCustom(select){
+  document.getElementById('f_floorTypeCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
+}
+
+function toggleFloorFinishCustom(select){
+  document.getElementById('f_floorFinishCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
+}
+
+function toggleRaisedFloorHeightCustom(select){
+  document.getElementById('f_raisedFloorHeightCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
+}
+
+function toggleCarpetTypeCustom(select){
+  document.getElementById('f_carpetTypeCustom').style.display = select.value === 'Custom Color' ? 'block' : 'none';
+}
+
 function setMode(m){
   mode = m;
   document.getElementById('tabBooth').classList.toggle('active', m==='booth');
@@ -3208,13 +3555,15 @@ function setMode(m){
     document.getElementById('boothDetailsFields').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('boothThemeHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('boothThemeFieldsTop').style.display = m==='booth' ? 'block' : 'none';
+    document.getElementById('flooringHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('requirementsHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('referenceImageHeadline').style.display = m==='booth' ? 'block' : 'none';
-    document.getElementById('lblName').textContent = m==='booth' ? 'Project Name' : 'Event name';
+    document.getElementById('lblName').innerHTML = m==='booth' ? 'Project Name <span class="required-mark">*</span>' : 'Event name';
+    document.getElementById('lblIndustryStyle').innerHTML = m==='booth' ? 'Industry style <span class="required-mark">*</span>' : 'Industry style (optional)';
     document.getElementById('f_name').placeholder = m==='booth' ? 'e.g. Riyadh International Tech Expo' : 'e.g. Product launch / Annual conference';
     document.getElementById('lblDesc').innerHTML = (m==='booth'
       ? 'Describe what you want in detail: the goal, products on display, visual identity, any special requirements'
-      : 'Describe what you want in detail: the event goal, overall mood, activities or sessions, visual identity') + ' <span class="required-mark">*</span>';
+      : 'Describe what you want in detail: the event goal, overall mood, activities or sessions, visual identity' + ' <span class="required-mark">*</span>');
   }
   updateGenerateButtonState();
 }
@@ -3306,6 +3655,12 @@ function toggleUpperFloor(sel){
 
 function toggleCornerSide(sel){
   document.getElementById('cornerSideField').style.display = sel.value === '2' ? 'block' : 'none';
+}
+
+function confirmModularWallLayout(checkbox){
+  if(!checkbox.checked) return; // only confirm when turning it ON — unchecking needs no confirmation
+  const confirmed = confirm('Modular Wall Layout enforces equal spacing, identical repeated panels, and mandatory symmetry across every wall — it assumes a real modular build system on site. Are you sure you have the modular system in place to actually build something like that?');
+  if(!confirmed) checkbox.checked = false;
 }
 
 function buildOpenSidesDescription(){
@@ -3478,13 +3833,27 @@ function collectAreas(selector, otherToggleId, otherPrefix){
 function getMissingRequirements(m){
   const missing = [];
 
+  const name = String(document.getElementById('f_name').value).trim();
   const width = String(document.getElementById('f_width').value).trim();
   const depth = String(document.getElementById('f_depth').value).trim();
   const desc = String(document.getElementById('f_desc').value).trim();
+  const totalHeight = String(document.getElementById('f_totalHeight').value).trim();
+  const levels = document.getElementById('f_levels').value;
+  const upperFloor = String(document.getElementById('f_upperFloor').value).trim();
+  const industryStyle = document.getElementById('f_industryStyle').value;
   const colorHexes = Array.from(document.querySelectorAll('.color-hex'))
     .map(i => String(i.value).trim())
     .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   const hasPosters = document.getElementById('f_hasPosters').value;
+  const selectedRequirementsCount = ADDREQ_ALL_CHECKBOX_IDS.filter(id => document.getElementById(id).checked).length;
+  const floorType = document.getElementById('f_floorType').value;
+  const floorTypeCustom = String(document.getElementById('f_floorTypeCustom').value).trim();
+  const floorFinish = document.getElementById('f_floorFinish').value;
+  const floorFinishCustom = String(document.getElementById('f_floorFinishCustom').value).trim();
+  const carpetType = document.getElementById('f_carpetType').value;
+  const carpetTypeCustom = String(document.getElementById('f_carpetTypeCustom').value).trim();
+  const raisedFloorHeight = document.getElementById('f_raisedFloorHeight').value;
+  const raisedFloorHeightCustom = String(document.getElementById('f_raisedFloorHeightCustom').value).trim();
 
   const environmentForSize = document.getElementById('f_environment').value;
   const isHybridForAreas = environmentForSize === 'Hybrid (Indoor + Outdoor)';
@@ -3519,12 +3888,20 @@ function getMissingRequirements(m){
       missing.push('width and depth (or check "I don\'t know the exact size of the space")');
     }
   } else if(m === 'booth'){
+    if(!name) missing.push('a project name');
     if(!width) missing.push('width');
     if(!depth) missing.push('depth');
-    if(!desc) missing.push('a detailed description');
+    if(!totalHeight) missing.push('booth height');
+    if(levels === '2' && !upperFloor) missing.push('the upper floor program (since you selected a double-deck booth)');
+    if(!industryStyle) missing.push('an industry style');
     if(colorHexes.length === 0) missing.push('at least one brand color');
     if(!logoDataUrl) missing.push('a company logo');
     if(hasPosters.startsWith('yes') && posterFiles.length === 0) missing.push('at least one poster file (or switch to "No — need new designs")');
+    if(selectedRequirementsCount < 2) missing.push('at least 2 selections under Requirements');
+    if(floorType === 'Custom' && !floorTypeCustom) missing.push('a description for the custom floor type');
+    if(floorFinish === 'Custom' && !floorFinishCustom) missing.push('a description for the custom floor finish');
+    if(floorFinish === 'Carpet' && carpetType === 'Custom Color' && !carpetTypeCustom) missing.push('a description for the custom carpet color');
+    if((floorType === 'Raised Floor' || floorType === 'Double Raised Floor') && raisedFloorHeight === 'Custom' && !raisedFloorHeightCustom) missing.push('a value for the custom raised floor height');
   }
 
   return missing;
@@ -3644,12 +4021,25 @@ async function generateDesign(){
       errBox.scrollIntoView({behavior:'smooth', block:'center'});
       return;
     }
-  } else if(!width || !depth || !desc){
+  } else if(!name || !width || !depth || !totalHeight){
     const missing = [];
+    if(!name) missing.push('a project name');
     if(!width) missing.push('width');
     if(!depth) missing.push('depth');
-    if(!desc) missing.push('a detailed description');
+    if(!totalHeight) missing.push('booth height');
     errBox.textContent = 'Please enter ' + missing.join(', ') + ' — this field is above, in the main form (not the sidebar\'s optional "Booth size" fields, which are only for uploading an existing finished design).';
+    errBox.style.display = 'block';
+    errBox.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  if(mode === 'booth' && levels === '2' && !upperFloorProgram){
+    errBox.textContent = 'Please describe the upper floor program — required since you selected a double-deck booth.';
+    errBox.style.display = 'block';
+    errBox.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  if(mode === 'booth' && !industryStyle){
+    errBox.textContent = 'Please select an industry style.';
     errBox.style.display = 'block';
     errBox.scrollIntoView({behavior:'smooth', block:'center'});
     return;
@@ -3668,6 +4058,41 @@ async function generateDesign(){
     errBox.textContent = 'Please upload at least one poster file, or switch to "No — need new designs".';
     errBox.style.display = 'block';
     return;
+  }
+  if(mode === 'booth'){
+    const selectedRequirementsCount = ADDREQ_ALL_CHECKBOX_IDS.filter(id => document.getElementById(id).checked).length;
+    if(selectedRequirementsCount < 2){
+      errBox.textContent = 'Please select at least 2 items under Requirements.';
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+    const floorTypeGen = document.getElementById('f_floorType').value;
+    const floorFinishGen = document.getElementById('f_floorFinish').value;
+    if(floorTypeGen === 'Custom' && !document.getElementById('f_floorTypeCustom').value.trim()){
+      errBox.textContent = 'Please describe the custom floor type under Flooring.';
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+    if(floorFinishGen === 'Custom' && !document.getElementById('f_floorFinishCustom').value.trim()){
+      errBox.textContent = 'Please describe the custom floor finish under Flooring.';
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+    if(floorFinishGen === 'Carpet' && document.getElementById('f_carpetType').value === 'Custom Color' && !document.getElementById('f_carpetTypeCustom').value.trim()){
+      errBox.textContent = 'Please describe the custom carpet color under Flooring.';
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+    if((floorTypeGen === 'Raised Floor' || floorTypeGen === 'Double Raised Floor') && document.getElementById('f_raisedFloorHeight').value === 'Custom' && !document.getElementById('f_raisedFloorHeightCustom').value.trim()){
+      errBox.textContent = 'Please enter the custom raised floor height under Flooring.';
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
   }
 
   // Shown once generation is actually about to start — non-blocking, so it doesn't gate or
@@ -3742,6 +4167,7 @@ Brand personality: ${brandPersonality}
 Client's detailed description: """${desc}"""
 ${modularWallLayout ? MODULAR_WALL_LAYOUT_TEXT : ''}
 ${mode==='booth' ? formatSpaceAllocationForPrompt(computeSpaceAllocation(width, depth, levels)) : ''}
+${mode==='booth' ? collectFlooringSpecification() : ''}
 ${mode==='booth' ? collectAdditionalRequirements() : ''}
 `;
 
@@ -3751,7 +4177,7 @@ ${mode==='booth' ? collectAdditionalRequirements() : ''}
 
 You are DMR AI Exhibition Architect.
 
-Follow the DMR Exhibition Prompt Standards (EPS) below exactly. These standards are fixed and permanent — all thirteen apply to every single request, regardless of what the client brief contains. EPS-003 is a growing list of hard corrections from real past mistakes — treat every rule in it as an absolute override, even if something elsewhere in this prompt or in the client's brief seems to suggest otherwise. EPS-005 governs exact dimensions and human-scale proportions and must be followed with numerical precision — treat every measurement in it as a hard construction constraint, not a suggestion. EPS-006 is the standard vocabulary of booth elements and their priority — use it to decide which components to include or omit for this specific project; never invent an element outside this vocabulary without clear justification from the brief, and never overcrowd the booth by including every possible element regardless of size or budget. EPS-007 is an absolute, non-negotiable rule with zero exceptions: the booth must never contain any people, staff, visitors, or crowds in any form. EPS-008 is the mandatory design rulebook governing floor shape, height limits, open-booth requirements, meeting-room openness, structural realism, visitor flow, and the architectural grid — every numeric limit and default in it (4.0m max height, 60% minimum open sides, 36 sqm storage threshold, rectangular floor) is a hard constraint that only the client's explicit brief may override, never your own judgment. EPS-009 governs reception counter placement and design — the reception's position must be decided BEFORE any other furniture or interior layout, then treated as a locked architectural anchor that everything else is arranged around; it must sit flush with the raised floor's front edge on the booth's perimeter, never deep inside, never at an island booth's center, and never hidden behind other elements. EPS-010 is an absolute construction-legality rule: the raised floor is the exact footprint and legal construction boundary of the booth — every wall, column, counter, and piece of furniture must be fully supported by and contained within that floor, with zero overhang, zero floating elements, and zero exceptions unless the client explicitly requests otherwise; before finalizing any design, verify every object sits entirely within this boundary and reposition anything that doesn't. EPS-011 gives the exact quantity of each element from EPS-006's vocabulary to include based on the booth's actual square meterage (reception counters, meeting tables, storage, LED screens, seating, open-space ratio, and more, each with its own size-tiered range) — use it together with EPS-006 to decide not just what belongs in the booth but how much of it, so small booths never end up overcrowded and large booths never end up empty. EPS-012 is an absolute default: no suspended venue rigging, hanging trusses, or ceiling suspension of any kind unless the client explicitly requests it — the booth structure must be self-supporting, achieving visual impact through architectural frames and columns instead. EPS-013 governs how the logo becomes architecture, not decoration — every booth needs one dominant hero structural element that is architecturally stronger than everything else, is the primary carrier of the logo, and is what the booth is designed around, not a wall the logo gets placed on afterward.
+Follow the DMR Exhibition Prompt Standards (EPS) below exactly. These standards are fixed and permanent — all fourteen apply to every single request, regardless of what the client brief contains. EPS-003 is a growing list of hard corrections from real past mistakes — treat every rule in it as an absolute override, even if something elsewhere in this prompt or in the client's brief seems to suggest otherwise. EPS-005 governs exact dimensions and human-scale proportions and must be followed with numerical precision — treat every measurement in it as a hard construction constraint, not a suggestion. EPS-006 is the standard vocabulary of booth elements and their priority — use it to decide which components to include or omit for this specific project; never invent an element outside this vocabulary without clear justification from the brief, and never overcrowd the booth by including every possible element regardless of size or budget. EPS-007 is an absolute, non-negotiable rule with zero exceptions: the booth must never contain any people, staff, visitors, or crowds in any form. EPS-008 is the mandatory design rulebook governing floor shape, height limits, open-booth requirements, meeting-room openness, structural realism, visitor flow, and the architectural grid — every numeric limit and default in it (4.0m max height, 60% minimum open sides, 36 sqm storage threshold, rectangular floor) is a hard constraint that only the client's explicit brief may override, never your own judgment. EPS-009 governs reception counter placement and design — the reception's position must be decided BEFORE any other furniture or interior layout, then treated as a locked architectural anchor that everything else is arranged around; it must sit flush with the raised floor's front edge on the booth's perimeter, never deep inside, never at an island booth's center, and never hidden behind other elements. EPS-010 is an absolute construction-legality rule: the raised floor is the exact footprint and legal construction boundary of the booth — every wall, column, counter, and piece of furniture must be fully supported by and contained within that floor, with zero overhang, zero floating elements, and zero exceptions unless the client explicitly requests otherwise; before finalizing any design, verify every object sits entirely within this boundary and reposition anything that doesn't. EPS-011 gives the exact quantity of each element from EPS-006's vocabulary to include based on the booth's actual square meterage (reception counters, meeting tables, storage, LED screens, seating, open-space ratio, and more, each with its own size-tiered range) — use it together with EPS-006 to decide not just what belongs in the booth but how much of it, so small booths never end up overcrowded and large booths never end up empty. EPS-012 is an absolute default: no suspended venue rigging, hanging trusses, or ceiling suspension of any kind unless the client explicitly requests it — the booth structure must be self-supporting, achieving visual impact through architectural frames and columns instead. EPS-013 governs how the logo becomes architecture, not decoration — every booth needs one dominant hero structural element that is architecturally stronger than everything else, is the primary carrier of the logo, and is what the booth is designed around, not a wall the logo gets placed on afterward. EPS-015 governs flooring — the exact Floor Type, Floor Finish, Carpet Type, Raised Floor Height, Floor Edge Finish, and Hidden Floor Lighting the client specified must all be reflected precisely in the render, using EPS-015's visual guidance for what each option actually looks like; where the client left flooring unspecified, default to a raised floor with premium exhibition carpet and a straight edge, never bare venue concrete.
 
 <<EPS-001 START>>
 
@@ -3833,6 +4259,12 @@ ${EPS_013}
 
 <<EPS-013 END>>
 
+<<EPS-015 START>>
+
+${EPS_015}
+
+<<EPS-015 END>>
+
 <<APS-001 START>>
 
 ${APS_001}
@@ -3850,7 +4282,7 @@ ${mode === 'event' ? [
   ['006', ECS_006], ['007', ECS_007], ['008', ECS_008], ['009', ECS_009], ['010', ECS_010], ['021', ECS_021], ['022', ECS_022]
 ].map(([num, content]) => `<<ECS-${num} START>>\n\n${content}\n\n<<ECS-${num} END>>\n`).join('\n') + '\n' : ''}Your task: convert the client's requirements below into the world's best ${mode === 'event' ? 'event concept' : 'exhibition booth'} prompt.
 
-Every field the client filled in is MANDATORY and MUST appear explicitly in the final design — you are not permitted to omit, soften, or silently substitute any stated dimension, color, configuration, or requirement. Where the client left something unspecified, follow EPS-001 and EPS-002 above to infer a professional, high-end solution. The client's actual logo image and/or existing poster designs, if attached, must also inform the result exactly as EPS-001, EPS-002, EPS-003, EPS-004, EPS-005, EPS-006, EPS-007, EPS-008, EPS-009, EPS-010, EPS-011, EPS-012, EPS-013, APS-001, and LDS-001 ${mode === 'event' ? 'describe, and — specifically for events — as ECS-001 through ECS-010, ECS-021, and ECS-022 above describe' : 'describe'}.
+Every field the client filled in is MANDATORY and MUST appear explicitly in the final design — you are not permitted to omit, soften, or silently substitute any stated dimension, color, configuration, or requirement. Where the client left something unspecified, follow EPS-001 and EPS-002 above to infer a professional, high-end solution. The client's actual logo image and/or existing poster designs, if attached, must also inform the result exactly as EPS-001, EPS-002, EPS-003, EPS-004, EPS-005, EPS-006, EPS-007, EPS-008, EPS-009, EPS-010, EPS-011, EPS-012, EPS-013, EPS-015, APS-001, and LDS-001 ${mode === 'event' ? 'describe, and — specifically for events — as ECS-001 through ECS-010, ECS-021, and ECS-022 above describe' : 'describe'}.
 
 CRITICAL — the prompt must explicitly name and use the specific facts from the brief, not paraphrase them away:
 - State the exact width and depth in meters and the exact open/closed side configuration (e.g. "a 6m wide × 4m deep corner booth, open on the front and right side, solid walls on the back and left")
@@ -4099,7 +4531,7 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
 function syncModifyDesignStyleFields(){
   if(optionResults.length === 0) return; // nothing generated yet — leave the fields at their defaults
   document.getElementById('f_mdArchStyle').value = document.getElementById('f_archStyle').value || 'Modern';
-  document.getElementById('f_mdConstructionStyle').value = document.getElementById('f_constructionStyle').value || 'Wood Modular';
+  document.getElementById('f_mdConstructionStyle').value = document.getElementById('f_constructionStyle').value || 'Premium Custom Build';
   document.getElementById('f_mdBrandPersonality').value = document.getElementById('f_brandPersonality').value || 'Elegant';
 }
 
@@ -4116,7 +4548,7 @@ function submitModifyDesignStyleChange(){
   if(!current || current.status !== 'done') return; // button should already be disabled in this case — defensive check
 
   const originalArch = document.getElementById('f_archStyle').value || 'Modern';
-  const originalConstruction = document.getElementById('f_constructionStyle').value || 'Wood Modular';
+  const originalConstruction = document.getElementById('f_constructionStyle').value || 'Premium Custom Build';
   const originalBrand = document.getElementById('f_brandPersonality').value || 'Elegant';
   const newArch = document.getElementById('f_mdArchStyle').value;
   const newConstruction = document.getElementById('f_mdConstructionStyle').value;
@@ -5826,6 +6258,16 @@ function collectFormSnapshot(){
     f_outdoorAreaOtherToggle: document.getElementById('f_outdoorAreaOtherToggle').checked,
     f_outdoorAreaOtherValues: collectOtherAreaValues('outdoor'),
     f_desc: document.getElementById('f_desc').value,
+    f_floorType: document.getElementById('f_floorType').value,
+    f_floorTypeCustom: document.getElementById('f_floorTypeCustom').value,
+    f_floorFinish: document.getElementById('f_floorFinish').value,
+    f_floorFinishCustom: document.getElementById('f_floorFinishCustom').value,
+    f_carpetType: document.getElementById('f_carpetType').value,
+    f_carpetTypeCustom: document.getElementById('f_carpetTypeCustom').value,
+    f_raisedFloorHeight: document.getElementById('f_raisedFloorHeight').value,
+    f_raisedFloorHeightCustom: document.getElementById('f_raisedFloorHeightCustom').value,
+    f_floorEdgeFinish: document.getElementById('f_floorEdgeFinish').value,
+    f_floorLighting: document.getElementById('f_floorLighting').checked,
     f_openSides: document.getElementById('f_openSides').value,
     f_cornerSide: document.getElementById('f_cornerSide').value,
     f_levels: document.getElementById('f_levels').value,
@@ -5846,7 +6288,7 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_archStyle').value = snap.f_archStyle || 'Modern';
   updateArchStyleHint(document.getElementById('f_archStyle'));
   document.getElementById('f_industryStyle').value = snap.f_industryStyle || '';
-  document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || 'Wood Modular';
+  document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || 'Premium Custom Build';
   document.getElementById('f_brandPersonality').value = snap.f_brandPersonality || 'Elegant';
   document.getElementById('f_attendees').value = snap.f_attendees || '';
   document.getElementById('f_eventType').value = snap.f_eventType || '';
@@ -5885,6 +6327,22 @@ function restoreFormSnapshot(snap){
   document.getElementById('outdoorAreaOtherContainer').style.display = snap.f_outdoorAreaOtherToggle ? 'block' : 'none';
   restoreOtherAreaBoxes('outdoor', snap.f_outdoorAreaOtherValues);
   document.getElementById('f_desc').value = snap.f_desc || '';
+  document.getElementById('f_floorType').value = snap.f_floorType || 'Venue Floor (No Platform)';
+  document.getElementById('f_floorTypeCustom').value = snap.f_floorTypeCustom || '';
+  document.getElementById('f_floorFinish').value = snap.f_floorFinish || 'Carpet';
+  document.getElementById('f_floorFinishCustom').value = snap.f_floorFinishCustom || '';
+  document.getElementById('f_carpetType').value = snap.f_carpetType || 'Exhibition Carpet';
+  document.getElementById('f_carpetTypeCustom').value = snap.f_carpetTypeCustom || '';
+  document.getElementById('f_raisedFloorHeight').value = snap.f_raisedFloorHeight || '50 mm';
+  document.getElementById('f_raisedFloorHeightCustom').value = snap.f_raisedFloorHeightCustom || '';
+  document.getElementById('f_floorEdgeFinish').value = snap.f_floorEdgeFinish || 'Straight Edge';
+  document.getElementById('f_floorLighting').checked = !!snap.f_floorLighting;
+  toggleRaisedFloorHeight(document.getElementById('f_floorType'));
+  toggleFloorTypeCustom(document.getElementById('f_floorType'));
+  toggleCarpetType(document.getElementById('f_floorFinish'));
+  toggleFloorFinishCustom(document.getElementById('f_floorFinish'));
+  toggleRaisedFloorHeightCustom(document.getElementById('f_raisedFloorHeight'));
+  toggleCarpetTypeCustom(document.getElementById('f_carpetType'));
   document.getElementById('f_openSides').value = snap.f_openSides || '2';
   toggleCornerSide(document.getElementById('f_openSides'));
   document.getElementById('f_cornerSide').value = snap.f_cornerSide || 'right';
