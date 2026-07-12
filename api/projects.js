@@ -1,5 +1,35 @@
-import { sql } from '@vercel/postgres';
+import crypto from 'crypto';
+import { neon } from '@neondatabase/serverless';
+const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 import { put, get, del } from '@vercel/blob';
+
+/* ================= Caller identity ================= */
+/* Same token verification as login.js/admin-users.js/me.js, duplicated here rather than
+   imported from a shared module — this file runs on Vercel's Node runtime and the token
+   format is small enough that keeping each file's own copy avoids any cross-file import
+   path fragility, matching the pattern already used elsewhere in this project. */
+function getCaller(req) {
+  const signingSecret = process.env.SITE_PASSWORD || '';
+  if (!signingSecret) return null;
+  const cookieHeader = req.headers.cookie || '';
+  const match = cookieHeader.match(/(?:^|; )design_lab_auth=([^;]*)/);
+  const token = match ? decodeURIComponent(match[1]) : null;
+  if (!token) return null;
+  const separatorIndex = token.indexOf('.');
+  if (separatorIndex === -1) return null;
+  const payloadB64 = token.substring(0, separatorIndex);
+  const signature = token.substring(separatorIndex + 1);
+  const expectedSignature = crypto.createHmac('sha256', signingSecret).update(payloadB64).digest('hex');
+  if (signature !== expectedSignature) return null;
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf8'));
+  } catch (err) {
+    return null;
+  }
+  if (!payload.expiry || payload.expiry < Math.floor(Date.now() / 1000)) return null;
+  return payload;
+}
 
 /* ================= Schema ================= */
 /* Auto-creates the table on first use — no manual migration step required. Projects are
@@ -13,9 +43,13 @@ async function ensureSchema() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       saved_at TIMESTAMPTZ NOT NULL,
-      data JSONB NOT NULL
+      data JSONB NOT NULL,
+      user_id TEXT
     );
   `;
+  // Adds the column if this table already existed from before multi-user support —
+  // CREATE TABLE IF NOT EXISTS above won't add columns to an existing table by itself.
+  await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_id TEXT;`;
 }
 
 /* ================= Image extraction (save) / inlining (load) ================= */
@@ -105,6 +139,12 @@ function collectBlobPaths(node, out) {
 }
 
 export default async function handler(req, res) {
+  const caller = getCaller(req);
+  if (!caller) {
+    res.status(401).json({ error: { message: 'Not logged in.' } });
+    return;
+  }
+
   try {
     await ensureSchema();
   } catch (err) {
@@ -117,19 +157,26 @@ export default async function handler(req, res) {
     const { id } = req.query;
 
     if (id) {
-      const result = await sql`SELECT id, name, saved_at, data FROM projects WHERE id = ${id};`;
+      const result = await sql`SELECT id, name, saved_at, data, user_id FROM projects WHERE id = ${id};`;
       if (result.rows.length === 0) {
         res.status(404).json({ error: { message: 'Project not found.' } });
         return;
       }
       const row = result.rows[0];
+      if (caller.role !== 'admin' && row.user_id && row.user_id !== caller.userId) {
+        res.status(403).json({ error: { message: 'You do not have access to this project.' } });
+        return;
+      }
       const resolvedData = await inlineImages(row.data);
       res.status(200).json({ id: row.id, name: row.name, savedAt: row.saved_at, ...resolvedData });
       return;
     }
 
-    // No id — lightweight list for the sidebar, no image data at all.
-    const result = await sql`SELECT id, name, saved_at FROM projects ORDER BY saved_at DESC;`;
+    // No id — lightweight list for the sidebar, no image data at all. Admins see every
+    // project; everyone else sees only their own.
+    const result = caller.role === 'admin'
+      ? await sql`SELECT id, name, saved_at, user_id FROM projects ORDER BY saved_at DESC;`
+      : await sql`SELECT id, name, saved_at, user_id FROM projects WHERE user_id = ${caller.userId} ORDER BY saved_at DESC;`;
     res.status(200).json(result.rows.map(r => ({ id: r.id, name: r.name, savedAt: r.saved_at })));
     return;
   }
@@ -139,6 +186,28 @@ export default async function handler(req, res) {
     if (!project.id || !project.name) {
       res.status(400).json({ error: { message: 'Project must include id and name.' } });
       return;
+    }
+
+    const existing = await sql`SELECT user_id FROM projects WHERE id = ${project.id};`;
+    const isNewProject = existing.rows.length === 0;
+
+    if (!isNewProject) {
+      const ownerId = existing.rows[0].user_id;
+      if (caller.role !== 'admin' && ownerId && ownerId !== caller.userId) {
+        res.status(403).json({ error: { message: 'You do not have access to this project.' } });
+        return;
+      }
+    } else if (caller.role !== 'admin') {
+      // Enforce the project quota only when actually creating a NEW project — editing an
+      // existing one you already own should never be blocked by a creation limit.
+      const countResult = await sql`SELECT COUNT(*)::int AS count FROM projects WHERE user_id = ${caller.userId};`;
+      const limitResult = await sql`SELECT project_limit FROM users WHERE id = ${caller.userId};`;
+      const currentCount = countResult.rows[0].count;
+      const limit = limitResult.rows.length > 0 ? limitResult.rows[0].project_limit : null;
+      if (limit != null && currentCount >= limit) {
+        res.status(403).json({ error: { message: `You've reached your project limit (${limit}). Ask an admin to raise it or remove an old project first.` } });
+        return;
+      }
     }
 
     const uploadedCountRef = { count: 0 };
@@ -152,9 +221,10 @@ export default async function handler(req, res) {
     }
 
     const savedAt = project.savedAt || new Date().toISOString();
+    const ownerForInsert = isNewProject ? caller.userId : (existing.rows[0].user_id || caller.userId);
     await sql`
-      INSERT INTO projects (id, name, saved_at, data)
-      VALUES (${project.id}, ${project.name}, ${savedAt}, ${JSON.stringify(storedData)}::jsonb)
+      INSERT INTO projects (id, name, saved_at, data, user_id)
+      VALUES (${project.id}, ${project.name}, ${savedAt}, ${JSON.stringify(storedData)}::jsonb, ${ownerForInsert})
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, saved_at = EXCLUDED.saved_at, data = EXCLUDED.data;
     `;
 
@@ -169,11 +239,16 @@ export default async function handler(req, res) {
       res.status(400).json({ error: { message: 'Rename requires id and name.' } });
       return;
     }
-    const result = await sql`UPDATE projects SET name = ${name} WHERE id = ${id} RETURNING id;`;
-    if (result.rows.length === 0) {
+    const existing = await sql`SELECT user_id FROM projects WHERE id = ${id};`;
+    if (existing.rows.length === 0) {
       res.status(404).json({ error: { message: 'Project not found.' } });
       return;
     }
+    if (caller.role !== 'admin' && existing.rows[0].user_id && existing.rows[0].user_id !== caller.userId) {
+      res.status(403).json({ error: { message: 'You do not have access to this project.' } });
+      return;
+    }
+    await sql`UPDATE projects SET name = ${name} WHERE id = ${id};`;
     res.status(200).json({ ok: true });
     return;
   }
@@ -184,18 +259,25 @@ export default async function handler(req, res) {
       res.status(400).json({ error: { message: 'Delete requires an id.' } });
       return;
     }
-    const result = await sql`SELECT data FROM projects WHERE id = ${id};`;
-    if (result.rows.length > 0) {
-      const blobPaths = [];
-      collectBlobPaths(result.rows[0].data, blobPaths);
-      if (blobPaths.length > 0) {
-        try {
-          await Promise.all(blobPaths.map(p => del(p)));
-        } catch (err) {
-          // Don't block the actual project deletion on cleanup failing — an orphaned
-          // blob file is a minor storage cost, a project that won't delete is worse.
-          console.error('Could not clean up some blob files for project', id, err);
-        }
+    const result = await sql`SELECT data, user_id FROM projects WHERE id = ${id};`;
+    if (result.rows.length === 0) {
+      res.status(200).json({ ok: true }); // already gone — deleting a nonexistent project isn't an error
+      return;
+    }
+    if (caller.role !== 'admin' && result.rows[0].user_id && result.rows[0].user_id !== caller.userId) {
+      res.status(403).json({ error: { message: 'You do not have access to this project.' } });
+      return;
+    }
+
+    const blobPaths = [];
+    collectBlobPaths(result.rows[0].data, blobPaths);
+    if (blobPaths.length > 0) {
+      try {
+        await Promise.all(blobPaths.map(p => del(p)));
+      } catch (err) {
+        // Don't block the actual project deletion on cleanup failing — an orphaned
+        // blob file is a minor storage cost, a project that won't delete is worse.
+        console.error('Could not clean up some blob files for project', id, err);
       }
     }
     await sql`DELETE FROM projects WHERE id = ${id};`;

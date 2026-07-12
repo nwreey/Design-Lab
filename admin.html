@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Lab — Admin Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FFFFFF;
+    --ink:#0B0C10;
+    --navy:#0B0C10;
+    --navy-soft:rgba(11,12,16,0.08);
+    --gold:#6B6F76;
+    --line:rgba(11,12,16,0.18);
+    --error:#C0432B;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Space Grotesk',sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    padding:32px 40px 60px;
+  }
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;border-bottom:2px solid var(--navy);padding-bottom:18px;margin-bottom:28px;flex-wrap:wrap;}
+  h1{font-weight:800;font-size:26px;margin:0;letter-spacing:.2px;}
+  .tagline{font-size:13.5px;color:var(--ink);opacity:.65;margin-top:4px;}
+  .back-link{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--navy);text-decoration:none;border:1.5px solid var(--navy);padding:5px 12px;border-radius:2px;}
+  .back-link:hover{background:var(--navy);color:var(--paper);}
+
+  #gateMsg{display:none;text-align:center;padding:60px 20px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--error);}
+  #adminContent{display:none;}
+
+  .card{background:#fff;border:1.5px solid var(--navy);border-radius:2px;padding:22px 24px;margin-bottom:24px;position:relative;}
+  .card::before{content:'';position:absolute;top:-1px;left:-1px;width:14px;height:14px;border-top:2px solid var(--gold);border-left:2px solid var(--gold);}
+  .card::after{content:'';position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold);}
+  .card h2{font-size:17px;font-weight:700;margin:0 0 16px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink);opacity:.55;padding:8px 10px;border-bottom:1.5px solid var(--navy);}
+  td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  .role-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid var(--navy);}
+  .role-badge.admin{background:var(--navy);color:#fff;}
+  .usage{font-family:'IBM Plex Mono',monospace;font-size:12px;}
+  .usage.over{color:var(--error);font-weight:600;}
+
+  input[type=text],input[type=password],input[type=number]{
+    padding:8px 10px;border:1.5px solid var(--line);border-radius:2px;font-family:'Space Grotesk',sans-serif;font-size:13px;width:100%;
+  }
+  input:focus{outline:2px solid var(--gold);outline-offset:1px;border-color:var(--navy);}
+  label{display:block;font-size:12px;font-weight:600;margin-bottom:5px;}
+  .field{margin-bottom:14px;}
+  .row4{display:grid;grid-template-columns:1.4fr 1.4fr 1fr 1fr;gap:12px;align-items:end;}
+  @media(max-width:800px){.row4{grid-template-columns:1fr 1fr;}}
+
+  button{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer;border-radius:2px;transition:.15s ease;}
+  button.primary{background:var(--navy);color:#fff;border:2px solid var(--navy);padding:9px 18px;}
+  button.primary:hover{background:#fff;color:var(--navy);}
+  button.primary:disabled{opacity:.5;cursor:not-allowed;}
+  button.ghost{background:transparent;color:var(--navy);border:1.5px solid var(--navy);padding:5px 12px;font-size:12px;}
+  button.ghost:hover{background:var(--navy-soft);}
+  button.danger{background:transparent;color:var(--error);border:1.5px solid var(--error);padding:5px 12px;font-size:12px;}
+  button.danger:hover{background:var(--error);color:#fff;}
+
+  .status-msg{margin-top:12px;font-size:12.5px;font-family:'IBM Plex Mono',monospace;min-height:16px;}
+  .status-msg.error{color:var(--error);}
+  .status-msg.ok{color:#2E6B5E;}
+
+  .actions-cell{display:flex;gap:6px;flex-wrap:wrap;}
+  .hint{font-size:11.5px;color:var(--ink);opacity:.55;margin-top:4px;}
+  .master-note{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);opacity:.5;}
+</style>
+</head>
+<body>
+
+  <div id="gateMsg"></div>
+
+  <div id="adminContent">
+    <header>
+      <div>
+        <h1>Admin Panel</h1>
+        <div class="tagline">Manage your team's accounts, limits, and access</div>
+      </div>
+      <a href="/" class="back-link">← Back to Studio</a>
+    </header>
+
+    <div class="card">
+      <h2>Add a team member</h2>
+      <div class="row4">
+        <div class="field">
+          <label for="newUsername">Username</label>
+          <input type="text" id="newUsername" placeholder="e.g. sara">
+        </div>
+        <div class="field">
+          <label for="newPassword">Password</label>
+          <input type="password" id="newPassword" placeholder="min. 6 characters">
+        </div>
+        <div class="field">
+          <label for="newProjectLimit">Project limit</label>
+          <input type="number" id="newProjectLimit" placeholder="blank = unlimited" min="0">
+        </div>
+        <div class="field">
+          <label for="newEditLimit">Edit limit</label>
+          <input type="number" id="newEditLimit" placeholder="blank = unlimited" min="0">
+        </div>
+      </div>
+      <button class="primary" id="addUserBtn" onclick="addUser()">Add user</button>
+      <div class="status-msg" id="addUserStatus"></div>
+      <div class="hint">New users are regular team members by default — grant admin from the table below if needed.</div>
+    </div>
+
+    <div class="card">
+      <h2>Team members</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Projects</th>
+            <th>Edits</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="usersTableBody"></tbody>
+      </table>
+      <div class="status-msg" id="tableStatus"></div>
+    </div>
+  </div>
+
+<script>
+let usersCache = [];
+
+async function init(){
+  try{
+    const meResponse = await fetch('/api/me');
+    if(!meResponse.ok){
+      showGate('You need to be logged in to view this page.');
+      return;
+    }
+    const me = await meResponse.json();
+    if(me.role !== 'admin'){
+      showGate('This page is only available to admins.');
+      return;
+    }
+    document.getElementById('adminContent').style.display = 'block';
+    await loadUsers();
+  }catch(err){
+    showGate('Could not verify access: ' + (err.message || 'unknown error'));
+  }
+}
+
+function showGate(msg){
+  const gate = document.getElementById('gateMsg');
+  gate.textContent = msg;
+  gate.style.display = 'block';
+}
+
+async function loadUsers(){
+  const tableStatus = document.getElementById('tableStatus');
+  tableStatus.textContent = 'Loading...';
+  try{
+    const response = await fetch('/api/admin-users');
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load users.');
+    usersCache = data;
+    renderUsersTable();
+    tableStatus.textContent = '';
+  }catch(err){
+    tableStatus.className = 'status-msg error';
+    tableStatus.textContent = err.message || 'Could not load users.';
+  }
+}
+
+function renderUsersTable(){
+  const body = document.getElementById('usersTableBody');
+  if(usersCache.length === 0){
+    body.innerHTML = '<tr><td colspan="5" class="hint">No team members added yet.</td></tr>';
+    return;
+  }
+  body.innerHTML = usersCache.map(u => {
+    const projLimitText = u.project_limit != null ? `${u.project_count} / ${u.project_limit}` : `${u.project_count} / \u221e`;
+    const editLimitText = u.edit_limit != null ? `${u.edit_count} / ${u.edit_limit}` : `${u.edit_count} / \u221e`;
+    const projOver = u.project_limit != null && u.project_count >= u.project_limit;
+    const editOver = u.edit_limit != null && u.edit_count >= u.edit_limit;
+    return `
+      <tr>
+        <td>${escapeHtml(u.username)}</td>
+        <td><span class="role-badge ${u.role === 'admin' ? 'admin' : ''}">${u.role}</span></td>
+        <td class="usage ${projOver ? 'over' : ''}">${projLimitText}</td>
+        <td class="usage ${editOver ? 'over' : ''}">${editLimitText}</td>
+        <td class="actions-cell">
+          <button class="ghost" onclick="toggleRole('${u.id}', '${u.role}')">${u.role === 'admin' ? 'Make member' : 'Make admin'}</button>
+          <button class="ghost" onclick="editLimitsPrompt('${u.id}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'})">Edit limits</button>
+          <button class="ghost" onclick="resetPasswordPrompt('${u.id}')">Reset password</button>
+          <button class="ghost" onclick="resetEditCount('${u.id}')">Reset edit count</button>
+          <button class="danger" onclick="removeUser('${u.id}', '${escapeHtml(u.username)}')">Remove</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function escapeHtml(s){
+  return (s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+async function addUser(){
+  const username = document.getElementById('newUsername').value.trim();
+  const password = document.getElementById('newPassword').value;
+  const projectLimitRaw = document.getElementById('newProjectLimit').value;
+  const editLimitRaw = document.getElementById('newEditLimit').value;
+  const statusEl = document.getElementById('addUserStatus');
+  const btn = document.getElementById('addUserBtn');
+
+  if(!username || !password){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = 'Username and password are required.';
+    return;
+  }
+
+  btn.disabled = true;
+  statusEl.className = 'status-msg';
+  statusEl.textContent = 'Adding...';
+
+  try{
+    const response = await fetch('/api/admin-users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username, password,
+        projectLimit: projectLimitRaw === '' ? null : parseInt(projectLimitRaw, 10),
+        editLimit: editLimitRaw === '' ? null : parseInt(editLimitRaw, 10)
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not add user.');
+
+    document.getElementById('newUsername').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('newProjectLimit').value = '';
+    document.getElementById('newEditLimit').value = '';
+    statusEl.className = 'status-msg ok';
+    statusEl.textContent = 'User added.';
+    await loadUsers();
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Could not add user.';
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+async function toggleRole(id, currentRole){
+  const newRole = currentRole === 'admin' ? 'member' : 'admin';
+  if(!confirm(`Change this user's role to ${newRole}?`)) return;
+  await patchUser(id, { role: newRole });
+}
+
+function editLimitsPrompt(id, currentProjectLimit, currentEditLimit){
+  const projInput = prompt('Project limit (leave blank for unlimited):', currentProjectLimit == null ? '' : currentProjectLimit);
+  if(projInput === null) return;
+  const editInput = prompt('Edit limit (leave blank for unlimited):', currentEditLimit == null ? '' : currentEditLimit);
+  if(editInput === null) return;
+  patchUser(id, {
+    projectLimit: projInput.trim() === '' ? null : parseInt(projInput, 10),
+    editLimit: editInput.trim() === '' ? null : parseInt(editInput, 10)
+  });
+}
+
+function resetPasswordPrompt(id){
+  const newPassword = prompt('New password for this user (min. 6 characters):');
+  if(newPassword === null) return;
+  if(newPassword.length < 6){
+    alert('Password must be at least 6 characters.');
+    return;
+  }
+  patchUser(id, { newPassword });
+}
+
+function resetEditCount(id){
+  if(!confirm("Reset this user's edit count back to zero?")) return;
+  patchUser(id, { resetEditCount: true });
+}
+
+async function patchUser(id, fields){
+  const tableStatus = document.getElementById('tableStatus');
+  try{
+    const response = await fetch('/api/admin-users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...fields })
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not update user.');
+    await loadUsers();
+  }catch(err){
+    tableStatus.className = 'status-msg error';
+    tableStatus.textContent = err.message || 'Could not update user.';
+  }
+}
+
+async function removeUser(id, username){
+  if(!confirm(`Remove ${username}? They will no longer be able to log in. Their existing projects are kept, not deleted.`)) return;
+  const tableStatus = document.getElementById('tableStatus');
+  try{
+    const response = await fetch('/api/admin-users?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not remove user.');
+    await loadUsers();
+  }catch(err){
+    tableStatus.className = 'status-msg error';
+    tableStatus.textContent = err.message || 'Could not remove user.';
+  }
+}
+
+init();
+</script>
+
+</body>
+</html>

@@ -388,6 +388,7 @@
     </div>
     <div class="header-right">
       <div class="ref">REV. AI‑01</div>
+      <a href="/admin.html" class="logout-btn" id="adminPanelLink" style="display:none;text-decoration:none;">Admin panel</a>
       <button type="button" class="logout-btn" onclick="logOut()">Log out</button>
     </div>
   </header>
@@ -1983,6 +1984,20 @@ function clearReferenceImage(){
   document.getElementById('referenceImageClearRow').style.display = 'none';
 }
 
+async function checkAdminAccess(){
+  try{
+    const response = await fetch('/api/me');
+    if(!response.ok) return;
+    const data = await response.json();
+    if(data.role === 'admin'){
+      const link = document.getElementById('adminPanelLink');
+      if(link) link.style.display = 'inline-block';
+    }
+  }catch(err){
+    console.error('Could not check admin access:', err);
+  }
+}
+
 async function logOut(){
   try{
     await fetch('/api/logout', { method: 'POST' });
@@ -2912,7 +2927,7 @@ async function regenerateOtherOption(){
     const response = await fetch('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX })
+      body: JSON.stringify({ prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: true })
     });
     const data = await response.json().catch(() => ({}));
     if(!response.ok || !data.image){
@@ -3159,7 +3174,7 @@ RESIZE THIS BOOTH: the client wants to change the physical footprint from approx
   try{
     const compressedComposite = await compressDataUrl(compositeDataUrl, 1536, 0.88);
     const composite2 = dataUrlParts(compressedComposite);
-    requestBody = { prompt: promptText, referenceImage: composite2.base64, referenceMimeType: composite2.mime, preferSpeed: shouldPreferSpeedForCurrentBooth() };
+    requestBody = { prompt: promptText, referenceImage: composite2.base64, referenceMimeType: composite2.mime, preferSpeed: shouldPreferSpeedForCurrentBooth(), isUserInitiatedEdit: true };
 
     if(editReferenceDataUrl){
       const compressedRef = await compressDataUrl(editReferenceDataUrl, 1536, 0.88);
@@ -3379,7 +3394,7 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
     const response = await fetch('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, referenceImage: base64, referenceMimeType: mime })
+      body: JSON.stringify({ prompt, referenceImage: base64, referenceMimeType: mime, isUserInitiatedEdit: true })
     });
     const rawText = await response.text();
     let data = {};
@@ -3819,7 +3834,7 @@ async function submitSnapshotEdit(){
     const response = await fetch('/api/edit-image-openai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: fullPrompt, referenceImage: base64, referenceMimeType: mime, preferSpeed: shouldPreferSpeedForCurrentBooth(), size: '1536x1024' })
+      body: JSON.stringify({ prompt: fullPrompt, referenceImage: base64, referenceMimeType: mime, preferSpeed: shouldPreferSpeedForCurrentBooth(), size: '1536x1024', isUserInitiatedEdit: true })
     });
     const rawText = await response.text();
     let data = {};
@@ -4602,6 +4617,7 @@ function startNewProject(){
 
 updateArchStyleHint(document.getElementById('f_archStyle'));
 renderProjectSidebar();
+checkAdminAccess();
 </script>
 </body>
 </html>

@@ -1,3 +1,62 @@
+const crypto = require('crypto');
+const { neon } = require('@neondatabase/serverless');
+const sql = neon(process.env.DATABASE_URL, { fullResults: true });
+
+/* Same token verification duplicated across the auth-aware endpoints in this project —
+   see api/projects.js for the fuller explanation of why this isn't a shared import. */
+function getCaller(req) {
+  const signingSecret = process.env.SITE_PASSWORD || '';
+  if (!signingSecret) return null;
+  const cookieHeader = req.headers.cookie || '';
+  const match = cookieHeader.match(/(?:^|; )design_lab_auth=([^;]*)/);
+  const token = match ? decodeURIComponent(match[1]) : null;
+  if (!token) return null;
+  const separatorIndex = token.indexOf('.');
+  if (separatorIndex === -1) return null;
+  const payloadB64 = token.substring(0, separatorIndex);
+  const signature = token.substring(separatorIndex + 1);
+  const expectedSignature = crypto.createHmac('sha256', signingSecret).update(payloadB64).digest('hex');
+  if (signature !== expectedSignature) return null;
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf8'));
+  } catch (err) {
+    return null;
+  }
+  if (!payload.expiry || payload.expiry < Math.floor(Date.now() / 1000)) return null;
+  return payload;
+}
+
+/* Only Modify Design (a deliberate, user-chosen edit action) counts against the edit
+   quota — the INITIAL design generation also goes through this same endpoint, but that's
+   covered by the separate project quota instead; counting it here too would double-count
+   the same action under two different limits. Fails open on a database hiccup, same
+   reasoning as api/edit-image-openai.js: an unenforced limit briefly is a smaller problem
+   than the whole generation feature going down over an unrelated quota-check error. */
+async function checkEditQuota(caller) {
+  if (!caller || caller.role === 'admin') return null;
+  try {
+    const result = await sql`SELECT edit_limit, edit_count FROM users WHERE id = ${caller.userId};`;
+    if (result.rows.length === 0) return null;
+    const { edit_limit, edit_count } = result.rows[0];
+    if (edit_limit != null && edit_count >= edit_limit) {
+      return `You've reached your edit limit (${edit_limit}). Ask an admin to raise it.`;
+    }
+  } catch (err) {
+    console.error('Could not check edit quota:', err);
+  }
+  return null;
+}
+
+async function incrementEditCount(caller) {
+  if (!caller || caller.role === 'admin') return;
+  try {
+    await sql`UPDATE users SET edit_count = edit_count + 1 WHERE id = ${caller.userId};`;
+  } catch (err) {
+    console.error('Could not increment edit count:', err);
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -13,6 +72,12 @@ module.exports = async (req, res) => {
     return;
   }
 
+  const caller = getCaller(req);
+  if (!caller) {
+    res.status(401).json({ error: { message: 'Not logged in.' } });
+    return;
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     res.status(500).json({ error: { message: 'Server is missing GEMINI_API_KEY.' } });
@@ -20,10 +85,18 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages } = req.body || {};
+    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, isUserInitiatedEdit } = req.body || {};
     if (!prompt || typeof prompt !== 'string') {
       res.status(400).json({ error: { message: 'Request body must include a "prompt" string.' } });
       return;
+    }
+
+    if (isUserInitiatedEdit) {
+      const quotaError = await checkEditQuota(caller);
+      if (quotaError) {
+        res.status(403).json({ error: { message: quotaError } });
+        return;
+      }
     }
 
     const model = 'gemini-3.1-flash-image';
@@ -76,6 +149,7 @@ module.exports = async (req, res) => {
     }
 
     const mime = imagePart.inlineData.mimeType || 'image/png';
+    if (isUserInitiatedEdit) await incrementEditCount(caller);
     res.status(200).json({ image: `data:${mime};base64,${imagePart.inlineData.data}` });
   } catch (err) {
     res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });
