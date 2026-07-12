@@ -167,17 +167,77 @@
     display:flex;
     flex-direction:column;
     align-items:center;
+    max-width:380px;
   }
   .logo-mark img{
     width:100%;
-    max-width:340px;
+    max-width:120px;
     height:auto;
+    margin-bottom:36px;
+  }
+  .right-heading{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:26px;
+    line-height:1.25;
+    color:#fff;
+    text-align:center;
+    letter-spacing:-0.01em;
+    margin:0 0 16px;
+  }
+  .right-desc{
+    font-size:14px;
+    line-height:1.6;
+    color:#9AA0AC;
+    text-align:center;
+    margin:0 0 40px;
+  }
+  .right-features{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px 28px;
+    width:100%;
+    margin-bottom:40px;
+  }
+  .right-feature{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .right-feature .icon{
+    width:34px;height:34px;
+    border-radius:9px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.1);
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+    flex-shrink:0;
+  }
+  .right-feature .label{
+    font-size:12.5px;
+    font-weight:500;
+    color:#D8DAE0;
+    line-height:1.35;
+  }
+  .right-trial-notice{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:#6B707B;
+    text-align:center;
+    border-top:1px solid rgba(255,255,255,0.08);
+    padding-top:18px;
+    width:100%;
+    letter-spacing:.02em;
+    line-height:1.6;
   }
 
   @media (max-width: 760px){
     .split{ flex-direction:column; }
     .logo-side{ order:-1; min-height:180px; padding:24px; }
-    .logo-mark img{ max-width:220px; }
+    .logo-mark img{ max-width:90px; margin-bottom:20px; }
+    .right-heading{ font-size:20px; }
+    .right-features{ margin-bottom:24px; }
+    .right-trial-notice{ display:none; }
   }
 </style>
 </head>
@@ -214,6 +274,38 @@
     <div class="logo-side">
       <div class="logo-mark">
         <img src="/logo-white.png" alt="DesignsLab AI">
+
+        <h2 class="right-heading">AI-Powered Event &amp; Exhibition Design Platform</h2>
+        <p class="right-desc">Create exhibition booths, event concepts, display stands, and presentation-ready visuals in minutes — powered by AI, built for events and exhibition professionals.</p>
+
+        <div class="right-features">
+          <div class="right-feature">
+            <div class="icon">🏛</div>
+            <div class="label">Exhibition Booth Design</div>
+          </div>
+          <div class="right-feature">
+            <div class="icon">🎪</div>
+            <div class="label">Event Concepts</div>
+          </div>
+          <div class="right-feature">
+            <div class="icon">🛍</div>
+            <div class="label">Display Stands</div>
+          </div>
+          <div class="right-feature">
+            <div class="icon">🎁</div>
+            <div class="label">Gift Item Design</div>
+          </div>
+          <div class="right-feature">
+            <div class="icon">✏️</div>
+            <div class="label">AI Design Editing</div>
+          </div>
+          <div class="right-feature">
+            <div class="icon">📐</div>
+            <div class="label">Multi-View Generation</div>
+          </div>
+        </div>
+
+        <div class="right-trial-notice">⚠️ TRIAL VERSION — access by approval only</div>
       </div>
     </div>
   </div>
