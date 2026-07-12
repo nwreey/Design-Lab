@@ -107,6 +107,11 @@
   .section-headline{font-weight:800;font-size:15px;letter-spacing:.02em;text-transform:uppercase;color:var(--navy);border-bottom:2px solid var(--navy);padding-bottom:8px;margin:28px 0 18px;}
   .section-headline:first-child{margin-top:0;}
   .subarea-label{font-weight:700;font-size:13px;color:var(--navy);margin:14px 0 8px;}
+  .other-area-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .other-area-row input[type=text]{flex:1;}
+  .other-area-remove{flex-shrink:0;width:30px;height:30px;border-radius:2px;border:1.5px solid var(--navy);background:transparent;color:var(--navy);font-size:16px;line-height:1;cursor:pointer;}
+  .other-area-remove:hover{background:var(--navy);color:var(--paper);}
+  .add-other-area-btn{margin-top:2px;}
   .checkbox-grid label{display:flex;align-items:center;gap:7px;font-weight:500;font-size:14px;cursor:pointer;}
 
   .submit-bar{display:flex;justify-content:flex-end;padding:14px 0 22px;}
@@ -403,7 +408,13 @@
   <div class="tabs">
     <button class="tab active" id="tabBooth" onclick="setMode('booth')">Exhibition Booth</button>
     <button class="tab" id="tabEvent" onclick="setMode('event')">Event Concept</button>
+    <button class="tab" id="tabDisplayStand" onclick="setMode('displaystand')">Display Stand</button>
     <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')">Edit Design</button>
+  </div>
+
+  <div class="card" id="displayStandCard" style="display:none;text-align:center;padding:60px 30px;">
+    <h2 style="font-family:'Space Grotesk',sans-serif;font-size:22px;margin:0 0 10px;">Display Stand</h2>
+    <p style="color:#666;font-size:15px;max-width:480px;margin:0 auto;">This tool is coming soon. We're currently focused on Event Concept — Display Stand design will be built out next.</p>
   </div>
 
   <div class="card" id="editDesignCard" style="display:none;">
@@ -439,11 +450,6 @@
     </div>
 
     <div id="eventDetailsFields" style="display:none;">
-      <div class="field">
-        <label>Client / Organization</label>
-        <input type="text" id="f_clientOrg" placeholder="e.g. Ministry of Health, Acme Corp">
-      </div>
-
       <div class="field">
         <label>Event Type</label>
         <select id="f_eventType" onchange="toggleEventTypeCustom(this)">
@@ -769,8 +775,11 @@
           <label><input type="checkbox" class="required-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
           <label><input type="checkbox" class="required-area-cb" value="Exit Experience"> Exit Experience</label>
         </div>
-        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_requiredAreaOtherToggle" onchange="document.getElementById('f_requiredAreaOtherText').style.display = this.checked ? 'block' : 'none';"> Other (please specify)</label>
-        <input type="text" id="f_requiredAreaOtherText" placeholder="e.g. Kids Play Zone, Falconry Display" style="display:none;margin-top:8px;">
+        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_requiredAreaOtherToggle" onchange="toggleOtherAreaContainer('required', this.checked)"> Other</label>
+        <div id="requiredAreaOtherContainer" style="display:none;margin-top:8px;">
+          <div id="requiredAreaOtherList"></div>
+          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('required')">+ Add another</button>
+        </div>
       </div>
 
       <div id="splitRequiredAreasBlock" style="display:none;">
@@ -799,8 +808,11 @@
           <label><input type="checkbox" class="indoor-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
           <label><input type="checkbox" class="indoor-area-cb" value="Exit Experience"> Exit Experience</label>
         </div>
-        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_indoorAreaOtherToggle" onchange="document.getElementById('f_indoorAreaOtherText').style.display = this.checked ? 'block' : 'none';"> Other indoor area (please specify)</label>
-        <input type="text" id="f_indoorAreaOtherText" placeholder="e.g. Kids Play Zone" style="display:none;margin-top:8px;">
+        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_indoorAreaOtherToggle" onchange="toggleOtherAreaContainer('indoor', this.checked)"> Other</label>
+        <div id="indoorAreaOtherContainer" style="display:none;margin-top:8px;">
+          <div id="indoorAreaOtherList"></div>
+          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('indoor')">+ Add another</button>
+        </div>
 
         <div class="subarea-label" style="margin-top:20px;">Outdoor Required Areas</div>
         <div class="checkbox-grid">
@@ -825,8 +837,11 @@
           <label><input type="checkbox" class="outdoor-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
           <label><input type="checkbox" class="outdoor-area-cb" value="Exit Experience"> Exit Experience</label>
         </div>
-        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_outdoorAreaOtherToggle" onchange="document.getElementById('f_outdoorAreaOtherText').style.display = this.checked ? 'block' : 'none';"> Other outdoor area (please specify)</label>
-        <input type="text" id="f_outdoorAreaOtherText" placeholder="e.g. Falconry Display" style="display:none;margin-top:8px;">
+        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_outdoorAreaOtherToggle" onchange="toggleOtherAreaContainer('outdoor', this.checked)"> Other</label>
+        <div id="outdoorAreaOtherContainer" style="display:none;margin-top:8px;">
+          <div id="outdoorAreaOtherList"></div>
+          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('outdoor')">+ Add another</button>
+        </div>
       </div>
     </div>
 
@@ -2049,6 +2064,24 @@ PRODUCTION DIFFERENCES — indoor production allows faster installation, a fully
 
 GOLDEN RULE — never design an indoor event like an outdoor festival, and never design an outdoor event like a hotel ballroom. The environment determines the architecture, materials, lighting, furniture, visitor experience, and production requirements — treat it as a foundational decision, not a stylistic afterthought.`;
 
+const ECS_022 = `EVENT CATEGORIES & DESIGN LANGUAGE
+
+Different event categories require genuinely different design philosophies, not just different decoration applied to the same underlying structure. The event type should shape the architecture, materials, lighting approach, and overall visual language from the start — treat the category below as defining the design character of the whole concept, not a cosmetic theme layered on afterward.
+
+Medical Conference — clean, white, professional, technology-focused.
+AI / Technology Summit — futuristic, LED-rich, modern, immersive.
+Government Event — formal, elegant, protocol-driven.
+Awards Ceremony — luxury, dramatic lighting, premium finishes.
+Product Launch — built around a hero product and a clear reveal moment, high visual impact.
+Music Festival — large stages, dynamic lighting, designed for crowd flow at scale.
+Food Festival — open layouts, seating clusters, kiosks, and shade as a real design requirement, not an afterthought.
+Sports Event — strong wayfinding, spectator flow, sponsor visibility.
+Cultural Festival — reflects local identity, heritage, and artistic elements specific to the culture in question.
+Fashion Show — runway-centered, minimalist backdrop, tightly controlled lighting.
+Automotive Event — large display zones, real demonstration areas, bold architecture.
+
+Where the client's event type matches one of these categories, let its design character genuinely drive the concept — the materials, the lighting approach, and the spatial planning should all read as consistent with that category's identity, not just its name mentioned once in passing. Where the event type doesn't match any category above, or the client's brief gives explicit direction that differs from the default, follow the brief — these are strong defaults for authenticity, not a constraint that overrides what the client actually asked for.`;
+
 const palette = ['#152241','#E1A13B','#2E6B5E','#C0432B','#6B7A99','#8A6D3B'];
 
 const APS_001 = `ARCHITECTURE KNOWLEDGE
@@ -2366,14 +2399,61 @@ const toggleGenericSizeUnknown = makeSizeUnknownToggler('f_eventWidth', 'f_event
 const toggleIndoorSizeUnknown = makeSizeUnknownToggler('f_indoorWidth', 'f_indoorDepth');
 const toggleOutdoorSizeUnknown = makeSizeUnknownToggler('f_outdoorWidth', 'f_outdoorDepth');
 
+function restoreOtherAreaBoxes(prefix, values){
+  const list = document.getElementById(prefix + 'AreaOtherList');
+  list.innerHTML = '';
+  (values || []).forEach(value => {
+    addOtherAreaBox(prefix);
+    const rows = list.children;
+    rows[rows.length - 1].querySelector('input').value = value;
+  });
+}
+
+function toggleOtherAreaContainer(prefix, show){
+  const container = document.getElementById(prefix + 'AreaOtherContainer');
+  container.style.display = show ? 'block' : 'none';
+  const list = document.getElementById(prefix + 'AreaOtherList');
+  if(show && list.children.length === 0){
+    addOtherAreaBox(prefix); // start with one box as soon as "Other" is checked
+  }
+}
+
+function addOtherAreaBox(prefix){
+  const list = document.getElementById(prefix + 'AreaOtherList');
+  const row = document.createElement('div');
+  row.className = 'other-area-row';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = prefix + '-other-area-input';
+  input.placeholder = 'e.g. Falconry Display';
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'other-area-remove';
+  removeBtn.textContent = '×';
+  removeBtn.onclick = function(){ row.remove(); };
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  list.appendChild(row);
+}
+
+function collectOtherAreaValues(prefix){
+  return Array.from(document.querySelectorAll('.' + prefix + '-other-area-input'))
+    .map(inp => inp.value.trim())
+    .filter(Boolean);
+}
+
 function updateEnvironmentSizeFields(select){
   const value = select.value;
   const showIndoor = value === 'Indoor' || value === 'Hybrid (Indoor + Outdoor)';
   const showOutdoor = value === 'Outdoor' || value === 'Hybrid (Indoor + Outdoor)';
   const showEitherSpecific = showIndoor || showOutdoor;
   const isHybrid = value === 'Hybrid (Indoor + Outdoor)';
+  const environmentChosen = value !== '';
 
-  document.getElementById('genericSizeBlock').style.display = showEitherSpecific ? 'none' : 'block';
+  // No dimension question at all until an Environment is actually chosen — asking for
+  // width/depth before knowing indoor vs outdoor doesn't mean anything architecturally,
+  // and ECS-021 already establishes environment as the thing to determine first.
+  document.getElementById('genericSizeBlock').style.display = (environmentChosen && !showEitherSpecific) ? 'block' : 'none';
   document.getElementById('indoorOutdoorSizeRow').style.display = showEitherSpecific ? 'grid' : 'none';
   document.getElementById('indoorSizeBlock').style.display = showIndoor ? 'block' : 'none';
   document.getElementById('outdoorSizeBlock').style.display = showOutdoor ? 'block' : 'none';
@@ -2394,9 +2474,11 @@ function setMode(m){
   mode = m;
   document.getElementById('tabBooth').classList.toggle('active', m==='booth');
   document.getElementById('tabEvent').classList.toggle('active', m==='event');
+  document.getElementById('tabDisplayStand').classList.toggle('active', m==='displaystand');
   document.getElementById('tabEditDesign').classList.toggle('active', m==='editdesign');
 
   document.getElementById('formCard').style.display = (m==='booth' || m==='event') ? 'block' : 'none';
+  document.getElementById('displayStandCard').style.display = m==='displaystand' ? 'block' : 'none';
   document.getElementById('editDesignCard').style.display = m==='editdesign' ? 'block' : 'none';
   if(m !== 'booth' && m !== 'event'){
     document.getElementById('promptReview').style.display = 'none';
@@ -2424,7 +2506,7 @@ function setMode(m){
       updateEnvironmentSizeFields(document.getElementById('f_environment'));
     }
     document.getElementById('boothOnlyFields').style.display = m==='booth' ? 'block' : 'none';
-    document.getElementById('lblName').textContent = m==='booth' ? 'Exhibition or host name' : 'Event name or type';
+    document.getElementById('lblName').textContent = m==='booth' ? 'Exhibition or host name' : 'Event name';
     document.getElementById('f_name').placeholder = m==='booth' ? 'e.g. Riyadh International Tech Expo' : 'e.g. Product launch / Annual conference';
     document.getElementById('lblDesc').textContent = m==='booth'
       ? 'Describe what you want in detail: the goal, products on display, visual identity, any special requirements'
@@ -2685,17 +2767,16 @@ async function generateDesign(){
   const environmentValueForAreas = document.getElementById('f_environment').value;
   const isHybridForAreas = environmentValueForAreas === 'Hybrid (Indoor + Outdoor)';
 
-  function collectAreas(selector, otherToggleId, otherTextId){
+  function collectAreas(selector, otherToggleId, otherPrefix){
     const areas = Array.from(document.querySelectorAll(selector)).map(cb => cb.value);
     const otherToggle = document.getElementById(otherToggleId);
-    const otherText = document.getElementById(otherTextId).value.trim();
-    if(otherToggle.checked && otherText) areas.push(otherText);
+    if(otherToggle.checked) areas.push(...collectOtherAreaValues(otherPrefix));
     return areas;
   }
 
-  const requiredAreas = isHybridForAreas ? [] : collectAreas('.required-area-cb:checked', 'f_requiredAreaOtherToggle', 'f_requiredAreaOtherText');
-  const indoorRequiredAreas = isHybridForAreas ? collectAreas('.indoor-area-cb:checked', 'f_indoorAreaOtherToggle', 'f_indoorAreaOtherText') : [];
-  const outdoorRequiredAreas = isHybridForAreas ? collectAreas('.outdoor-area-cb:checked', 'f_outdoorAreaOtherToggle', 'f_outdoorAreaOtherText') : [];
+  const requiredAreas = isHybridForAreas ? [] : collectAreas('.required-area-cb:checked', 'f_requiredAreaOtherToggle', 'required');
+  const indoorRequiredAreas = isHybridForAreas ? collectAreas('.indoor-area-cb:checked', 'f_indoorAreaOtherToggle', 'indoor') : [];
+  const outdoorRequiredAreas = isHybridForAreas ? collectAreas('.outdoor-area-cb:checked', 'f_outdoorAreaOtherToggle', 'outdoor') : [];
 
   // Event mode's size question is environment-aware: a generic W/D question when no
   // Environment is chosen, or dedicated Indoor and/or Outdoor questions once one is —
@@ -2718,7 +2799,6 @@ async function generateDesign(){
   const constructionStyle = document.getElementById('f_constructionStyle').value;
   const brandPersonality = document.getElementById('f_brandPersonality').value;
   const attendees = document.getElementById('f_attendees').value.trim();
-  const clientOrg = document.getElementById('f_clientOrg').value.trim();
   const eventTypeRaw = document.getElementById('f_eventType').value;
   const eventTypeCustom = document.getElementById('f_eventTypeCustom').value.trim();
   const eventType = eventTypeRaw === 'Custom' ? (eventTypeCustom || 'Custom') : eventTypeRaw;
@@ -2778,6 +2858,10 @@ async function generateDesign(){
         errBox.scrollIntoView({behavior:'smooth', block:'center'});
         return;
       }
+    } else if(environmentForSize === ''){
+      // No Environment chosen yet — the size question isn't even shown in this case, so
+      // nothing to require here. The brief will explicitly tell the AI to infer both the
+      // environment and the scale from the event type instead.
     } else if(!eventWidth || !eventDepth){
       errBox.textContent = 'Please enter width and depth (or check "I don\'t know the exact size of the space").';
       errBox.style.display = 'block';
@@ -2834,6 +2918,9 @@ async function generateDesign(){
       }
       return lines.join('\n');
     }
+    if(environmentForSize === ''){
+      return `Exact size: not specified by the client, and no environment was selected either. Infer both the environment (Indoor / Outdoor / Hybrid) and a realistic overall scale from the event type and description below, per ECS-021's environment detection guidance. ${noFootprintInstruction}`;
+    }
     return eventSizeUnknown
       ? `Exact size: not specified by the client. ${noFootprintInstruction}`
       : `Dimensions: ${eventWidth} m (width) × ${eventDepth} m (depth) — approximate area ${(parseFloat(eventWidth) * parseFloat(eventDepth)).toFixed(1)} square meters`;
@@ -2850,7 +2937,6 @@ ${mode==='booth' ? 'Booth configuration: ' + openSides : ''}
 ${mode==='booth' ? 'Number of levels: ' + levels + (levels==='2' ? ' (ground floor + upper floor)' : '') : ''}
 ${mode==='booth' && totalHeight ? 'Target total height: ' + totalHeight + ' m' : ''}
 ${mode==='booth' && levels==='2' && upperFloorProgram ? 'Upper floor program: ' + upperFloorProgram : ''}
-${mode==='event' ? 'Client / Organization: ' + (clientOrg || 'not specified') : ''}
 ${mode==='event' ? 'Event type: ' + (eventType || 'not specified') : ''}
 ${mode==='event' && (country || city) ? 'Location: ' + [city, country].filter(Boolean).join(', ') : ''}
 ${mode==='event' && venue ? 'Venue: ' + venue : ''}
@@ -2971,10 +3057,10 @@ ${LDS_001}
 
 ${mode === 'event' ? [
   ['001', ECS_001], ['002', ECS_002], ['003', ECS_003], ['004', ECS_004], ['005', ECS_005],
-  ['006', ECS_006], ['007', ECS_007], ['008', ECS_008], ['009', ECS_009], ['010', ECS_010], ['021', ECS_021]
+  ['006', ECS_006], ['007', ECS_007], ['008', ECS_008], ['009', ECS_009], ['010', ECS_010], ['021', ECS_021], ['022', ECS_022]
 ].map(([num, content]) => `<<ECS-${num} START>>\n\n${content}\n\n<<ECS-${num} END>>\n`).join('\n') + '\n' : ''}Your task: convert the client's requirements below into the world's best ${mode === 'event' ? 'event concept' : 'exhibition booth'} prompt.
 
-Every field the client filled in is MANDATORY and MUST appear explicitly in the final design — you are not permitted to omit, soften, or silently substitute any stated dimension, color, configuration, or requirement. Where the client left something unspecified, follow EPS-001 and EPS-002 above to infer a professional, high-end solution. The client's actual logo image and/or existing poster designs, if attached, must also inform the result exactly as EPS-001, EPS-002, EPS-003, EPS-004, EPS-005, EPS-006, EPS-007, EPS-008, EPS-009, EPS-010, EPS-011, EPS-012, EPS-013, APS-001, and LDS-001 ${mode === 'event' ? 'describe, and — specifically for events — as ECS-001 through ECS-010 and ECS-021 above describe' : 'describe'}.
+Every field the client filled in is MANDATORY and MUST appear explicitly in the final design — you are not permitted to omit, soften, or silently substitute any stated dimension, color, configuration, or requirement. Where the client left something unspecified, follow EPS-001 and EPS-002 above to infer a professional, high-end solution. The client's actual logo image and/or existing poster designs, if attached, must also inform the result exactly as EPS-001, EPS-002, EPS-003, EPS-004, EPS-005, EPS-006, EPS-007, EPS-008, EPS-009, EPS-010, EPS-011, EPS-012, EPS-013, APS-001, and LDS-001 ${mode === 'event' ? 'describe, and — specifically for events — as ECS-001 through ECS-010, ECS-021, and ECS-022 above describe' : 'describe'}.
 
 CRITICAL — the prompt must explicitly name and use the specific facts from the brief, not paraphrase them away:
 - State the exact width and depth in meters and the exact open/closed side configuration (e.g. "a 6m wide × 4m deep corner booth, open on the front and right side, solid walls on the back and left")
@@ -4766,7 +4852,6 @@ function collectFormSnapshot(){
     f_constructionStyle: document.getElementById('f_constructionStyle').value,
     f_brandPersonality: document.getElementById('f_brandPersonality').value,
     f_attendees: document.getElementById('f_attendees').value,
-    f_clientOrg: document.getElementById('f_clientOrg').value,
     f_eventType: document.getElementById('f_eventType').value,
     f_eventTypeCustom: document.getElementById('f_eventTypeCustom').value,
     f_country: document.getElementById('f_country').value,
@@ -4784,13 +4869,13 @@ function collectFormSnapshot(){
     f_outdoorSizeUnknown: document.getElementById('f_outdoorSizeUnknown').checked,
     f_requiredAreas: Array.from(document.querySelectorAll('.required-area-cb:checked')).map(cb => cb.value),
     f_requiredAreaOtherToggle: document.getElementById('f_requiredAreaOtherToggle').checked,
-    f_requiredAreaOtherText: document.getElementById('f_requiredAreaOtherText').value,
+    f_requiredAreaOtherValues: collectOtherAreaValues('required'),
     f_indoorRequiredAreas: Array.from(document.querySelectorAll('.indoor-area-cb:checked')).map(cb => cb.value),
     f_indoorAreaOtherToggle: document.getElementById('f_indoorAreaOtherToggle').checked,
-    f_indoorAreaOtherText: document.getElementById('f_indoorAreaOtherText').value,
+    f_indoorAreaOtherValues: collectOtherAreaValues('indoor'),
     f_outdoorRequiredAreas: Array.from(document.querySelectorAll('.outdoor-area-cb:checked')).map(cb => cb.value),
     f_outdoorAreaOtherToggle: document.getElementById('f_outdoorAreaOtherToggle').checked,
-    f_outdoorAreaOtherText: document.getElementById('f_outdoorAreaOtherText').value,
+    f_outdoorAreaOtherValues: collectOtherAreaValues('outdoor'),
     f_desc: document.getElementById('f_desc').value,
     f_openSides: document.getElementById('f_openSides').value,
     f_cornerSide: document.getElementById('f_cornerSide').value,
@@ -4815,7 +4900,6 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || 'Wood Modular';
   document.getElementById('f_brandPersonality').value = snap.f_brandPersonality || 'Elegant';
   document.getElementById('f_attendees').value = snap.f_attendees || '';
-  document.getElementById('f_clientOrg').value = snap.f_clientOrg || '';
   document.getElementById('f_eventType').value = snap.f_eventType || '';
   document.getElementById('f_eventTypeCustom').value = snap.f_eventTypeCustom || '';
   toggleEventTypeCustom(document.getElementById('f_eventType'));
@@ -4839,18 +4923,18 @@ function restoreFormSnapshot(snap){
   const savedAreas = new Set(snap.f_requiredAreas || []);
   document.querySelectorAll('.required-area-cb').forEach(cb => { cb.checked = savedAreas.has(cb.value); });
   document.getElementById('f_requiredAreaOtherToggle').checked = !!snap.f_requiredAreaOtherToggle;
-  document.getElementById('f_requiredAreaOtherText').value = snap.f_requiredAreaOtherText || '';
-  document.getElementById('f_requiredAreaOtherText').style.display = snap.f_requiredAreaOtherToggle ? 'block' : 'none';
+  document.getElementById('requiredAreaOtherContainer').style.display = snap.f_requiredAreaOtherToggle ? 'block' : 'none';
+  restoreOtherAreaBoxes('required', snap.f_requiredAreaOtherValues);
   const savedIndoorAreas = new Set(snap.f_indoorRequiredAreas || []);
   document.querySelectorAll('.indoor-area-cb').forEach(cb => { cb.checked = savedIndoorAreas.has(cb.value); });
   document.getElementById('f_indoorAreaOtherToggle').checked = !!snap.f_indoorAreaOtherToggle;
-  document.getElementById('f_indoorAreaOtherText').value = snap.f_indoorAreaOtherText || '';
-  document.getElementById('f_indoorAreaOtherText').style.display = snap.f_indoorAreaOtherToggle ? 'block' : 'none';
+  document.getElementById('indoorAreaOtherContainer').style.display = snap.f_indoorAreaOtherToggle ? 'block' : 'none';
+  restoreOtherAreaBoxes('indoor', snap.f_indoorAreaOtherValues);
   const savedOutdoorAreas = new Set(snap.f_outdoorRequiredAreas || []);
   document.querySelectorAll('.outdoor-area-cb').forEach(cb => { cb.checked = savedOutdoorAreas.has(cb.value); });
   document.getElementById('f_outdoorAreaOtherToggle').checked = !!snap.f_outdoorAreaOtherToggle;
-  document.getElementById('f_outdoorAreaOtherText').value = snap.f_outdoorAreaOtherText || '';
-  document.getElementById('f_outdoorAreaOtherText').style.display = snap.f_outdoorAreaOtherToggle ? 'block' : 'none';
+  document.getElementById('outdoorAreaOtherContainer').style.display = snap.f_outdoorAreaOtherToggle ? 'block' : 'none';
+  restoreOtherAreaBoxes('outdoor', snap.f_outdoorAreaOtherValues);
   document.getElementById('f_desc').value = snap.f_desc || '';
   document.getElementById('f_openSides').value = snap.f_openSides || '2';
   toggleCornerSide(document.getElementById('f_openSides'));
