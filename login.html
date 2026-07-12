@@ -232,7 +232,7 @@ function getRedirectTarget(){
   const params = new URLSearchParams(window.location.search);
   const next = params.get('next');
   if(next && next.startsWith('/') && !next.startsWith('//')) return next;
-  return '/';
+  return '/ai-design-studio.html';
 }
 
 document.getElementById('loginForm').addEventListener('submit', async function(e){

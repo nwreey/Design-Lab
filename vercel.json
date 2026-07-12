@@ -8,6 +8,6 @@
     "api/luma-video-proxy.js": { "maxDuration": 30 }
   },
   "rewrites": [
-    { "source": "/", "destination": "/ai-design-studio.html" }
+    { "source": "/", "destination": "/homepage.html" }
   ]
 }

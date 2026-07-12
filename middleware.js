@@ -4,7 +4,7 @@ export const config = {
 
 // Paths that must always be reachable without auth — otherwise the redirect-to-login
 // itself would get redirected, and nobody could ever reach the login page or submit it.
-const PUBLIC_PATHS = ['/login.html', '/api/login', '/api/logout', '/logo-white.png', '/logo-black-transparent.png'];
+const PUBLIC_PATHS = ['/', '/homepage.html', '/login.html', '/api/login', '/api/logout', '/logo-white.png', '/logo-black-transparent.png'];
 
 // Paths that require the admin role specifically, on top of just being logged in.
 const ADMIN_ONLY_PATHS = ['/admin.html', '/api/admin-users'];
