@@ -101,6 +101,13 @@
   input:focus, select:focus, textarea:focus{outline:2px solid var(--gold);outline-offset:1px;border-color:var(--navy);}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   @media(max-width:560px){.row2{grid-template-columns:1fr;}}
+  .checkbox-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 16px;}
+  @media(max-width:760px){.checkbox-grid{grid-template-columns:1fr 1fr;}}
+  @media(max-width:480px){.checkbox-grid{grid-template-columns:1fr;}}
+  .section-headline{font-weight:800;font-size:15px;letter-spacing:.02em;text-transform:uppercase;color:var(--navy);border-bottom:2px solid var(--navy);padding-bottom:8px;margin:28px 0 18px;}
+  .section-headline:first-child{margin-top:0;}
+  .subarea-label{font-weight:700;font-size:13px;color:var(--navy);margin:14px 0 8px;}
+  .checkbox-grid label{display:flex;align-items:center;gap:7px;font-weight:500;font-size:14px;cursor:pointer;}
 
   .submit-bar{display:flex;justify-content:flex-end;padding:14px 0 22px;}
   button.primary{
@@ -395,7 +402,7 @@
 
   <div class="tabs">
     <button class="tab active" id="tabBooth" onclick="setMode('booth')">Exhibition Booth</button>
-    <button class="tab" id="tabEvent" onclick="setMode('event')">Event Design</button>
+    <button class="tab" id="tabEvent" onclick="setMode('event')">Event Concept</button>
     <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')">Edit Design</button>
   </div>
 
@@ -425,22 +432,101 @@
   <div class="card" id="formCard">
 
     <!-- shared -->
+    <div class="section-headline" id="eventDetailsHeadline" style="display:none;">Event Details</div>
     <div class="field">
       <label id="lblName">Exhibition or host name</label>
       <input type="text" id="f_name" placeholder="e.g. Riyadh International Tech Expo">
     </div>
 
-    <div class="row2">
-      <div class="field" id="widthField">
-        <label>Width — W (m)</label>
-        <input type="number" id="f_width" placeholder="e.g. 6" min="1" step="0.1">
+    <div id="eventDetailsFields" style="display:none;">
+      <div class="field">
+        <label>Client / Organization</label>
+        <input type="text" id="f_clientOrg" placeholder="e.g. Ministry of Health, Acme Corp">
       </div>
-      <div class="field" id="depthField">
-        <label>Depth — D (m)</label>
-        <input type="number" id="f_depth" placeholder="e.g. 4" min="1" step="0.1">
+
+      <div class="field">
+        <label>Event Type</label>
+        <select id="f_eventType" onchange="toggleEventTypeCustom(this)">
+          <option value="">Select event type...</option>
+          <option>Conference</option>
+          <option>Summit</option>
+          <option>Forum</option>
+          <option>Exhibition</option>
+          <option>Gala Dinner</option>
+          <option>Awards Ceremony</option>
+          <option>Product Launch</option>
+          <option>Government Event</option>
+          <option>Corporate Event</option>
+          <option>Festival</option>
+          <option>Workshop</option>
+          <option>Networking Event</option>
+          <option>Sports Event</option>
+          <option>Custom</option>
+        </select>
+        <input type="text" id="f_eventTypeCustom" placeholder="Describe the custom event type" style="display:none;margin-top:8px;">
+      </div>
+
+      <div class="field">
+        <label>Environment</label>
+        <select id="f_environment" onchange="updateEnvironmentSizeFields(this)">
+          <option value="">Not specified — infer from event type</option>
+          <option>Indoor</option>
+          <option>Outdoor</option>
+          <option>Hybrid (Indoor + Outdoor)</option>
+        </select>
+        <div class="hint">Affects architecture, materials, lighting, and production planning. If left unspecified, the AI infers this from your event type — e.g. a Conference defaults to Indoor, a Festival defaults to Outdoor.</div>
+      </div>
+
+      <div class="field" id="genericSizeBlock">
+        <div class="row2">
+          <div class="field">
+            <label>Width — W (m)</label>
+            <input type="number" id="f_eventWidth" placeholder="e.g. 20" min="1" step="0.1">
+          </div>
+          <div class="field">
+            <label>Depth — D (m)</label>
+            <input type="number" id="f_eventDepth" placeholder="e.g. 15" min="1" step="0.1">
+          </div>
+        </div>
+        <label class="remember"><input type="checkbox" id="f_eventSizeUnknown" onchange="toggleGenericSizeUnknown(this)"> I don't know the exact size of the space</label>
+        <div class="hint">Select an Environment above (Indoor / Outdoor / Hybrid) for a more specific size question — or leave it unspecified and answer generally here. Unlike a booth, an event space isn't always a fixed, pre-assigned footprint. If you don't know the size, check the box: width and depth become optional, and the design is planned around the areas you select below in "Required Areas" instead.</div>
+      </div>
+
+      <div class="row2" id="indoorOutdoorSizeRow" style="display:none;">
+        <div class="field" id="indoorSizeBlock" style="display:none;">
+          <label>Indoor space — W × D (m)</label>
+          <div class="row2">
+            <input type="number" id="f_indoorWidth" placeholder="e.g. 30">
+            <input type="number" id="f_indoorDepth" placeholder="e.g. 20">
+          </div>
+          <label class="remember"><input type="checkbox" id="f_indoorSizeUnknown" onchange="toggleIndoorSizeUnknown(this)"> I don't know the indoor size</label>
+        </div>
+        <div class="field" id="outdoorSizeBlock" style="display:none;">
+          <label>Outdoor space — W × D (m)</label>
+          <div class="row2">
+            <input type="number" id="f_outdoorWidth" placeholder="e.g. 40">
+            <input type="number" id="f_outdoorDepth" placeholder="e.g. 30">
+          </div>
+          <label class="remember"><input type="checkbox" id="f_outdoorSizeUnknown" onchange="toggleOutdoorSizeUnknown(this)"> I don't know the outdoor size</label>
+        </div>
+      </div>
+      <div class="hint" id="indoorOutdoorSizeHint" style="display:none;margin-top:-8px;margin-bottom:16px;">If either size is unknown, check its box — that space is then planned around the areas you select below in "Required Areas" instead of a fixed footprint.</div>
+    </div>
+
+    <div id="boothSizeFields">
+      <div class="row2">
+        <div class="field" id="widthField">
+          <label>Width — W (m)</label>
+          <input type="number" id="f_width" placeholder="e.g. 6" min="1" step="0.1">
+        </div>
+        <div class="field" id="depthField">
+          <label>Depth — D (m)</label>
+          <input type="number" id="f_depth" placeholder="e.g. 4" min="1" step="0.1">
+        </div>
       </div>
     </div>
 
+    <div class="section-headline" id="eventThemeHeadline" style="display:none;">Event Theme</div>
     <div class="field">
       <label>Architectural style</label>
       <select id="f_archStyle" onchange="updateArchStyleHint(this)">
@@ -632,9 +718,116 @@
       </div>
     </div>
 
-    <div class="field" id="attendeesField" style="display:none;">
-      <label>Expected number of attendees</label>
-      <input type="number" id="f_attendees" placeholder="e.g. 150" min="1">
+    <div class="section-headline" id="locationHeadline" style="display:none;">Location</div>
+    <div id="eventLocationFields" style="display:none;">
+      <div class="row2">
+        <div class="field">
+          <label>Country</label>
+          <input type="text" id="f_country" placeholder="e.g. Saudi Arabia">
+        </div>
+        <div class="field">
+          <label>City</label>
+          <input type="text" id="f_city" placeholder="e.g. Riyadh">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Venue</label>
+        <input type="text" id="f_venue" placeholder="e.g. King Abdulaziz International Conference Center">
+      </div>
+
+      <div class="field" id="attendeesField">
+        <label>Expected number of attendees</label>
+        <input type="number" id="f_attendees" placeholder="e.g. 150" min="1">
+      </div>
+    </div>
+
+    <div class="section-headline" id="requiredAreasHeadline" style="display:none;">Required Areas</div>
+    <div id="eventRequiredAreasFields" style="display:none;">
+      <div class="field" id="unifiedRequiredAreasBlock">
+        <div class="hint" style="margin-bottom:10px;">Select all that apply — this drives the design directly, especially important if the size above is unknown.</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="required-area-cb" value="Main Entrance"> Main Entrance</label>
+          <label><input type="checkbox" class="required-area-cb" value="Registration Area"> Registration Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
+          <label><input type="checkbox" class="required-area-cb" value="Main Stage"> Main Stage</label>
+          <label><input type="checkbox" class="required-area-cb" value="VIP Lounge"> VIP Lounge</label>
+          <label><input type="checkbox" class="required-area-cb" value="Networking Area"> Networking Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Exhibition Area"> Exhibition Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Sponsor Area"> Sponsor Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Media Center"> Media Center</label>
+          <label><input type="checkbox" class="required-area-cb" value="Interview Zone"> Interview Zone</label>
+          <label><input type="checkbox" class="required-area-cb" value="Press Conference Room"> Press Conference Room</label>
+          <label><input type="checkbox" class="required-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
+          <label><input type="checkbox" class="required-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
+          <label><input type="checkbox" class="required-area-cb" value="Prayer Area"> Prayer Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Dining Area"> Dining Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Outdoor Area"> Outdoor Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
+          <label><input type="checkbox" class="required-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
+          <label><input type="checkbox" class="required-area-cb" value="Exit Experience"> Exit Experience</label>
+        </div>
+        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_requiredAreaOtherToggle" onchange="document.getElementById('f_requiredAreaOtherText').style.display = this.checked ? 'block' : 'none';"> Other (please specify)</label>
+        <input type="text" id="f_requiredAreaOtherText" placeholder="e.g. Kids Play Zone, Falconry Display" style="display:none;margin-top:8px;">
+      </div>
+
+      <div id="splitRequiredAreasBlock" style="display:none;">
+        <div class="hint" style="margin-bottom:10px;">You selected Hybrid — specify exactly which areas belong indoors and which belong outdoors, so each part of the design is planned correctly.</div>
+
+        <div class="subarea-label">Indoor Required Areas</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="indoor-area-cb" value="Main Entrance"> Main Entrance</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Registration Area"> Registration Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Main Stage"> Main Stage</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="VIP Lounge"> VIP Lounge</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Networking Area"> Networking Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Exhibition Area"> Exhibition Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Sponsor Area"> Sponsor Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Media Center"> Media Center</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Interview Zone"> Interview Zone</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Press Conference Room"> Press Conference Room</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Prayer Area"> Prayer Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Dining Area"> Dining Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Exit Experience"> Exit Experience</label>
+        </div>
+        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_indoorAreaOtherToggle" onchange="document.getElementById('f_indoorAreaOtherText').style.display = this.checked ? 'block' : 'none';"> Other indoor area (please specify)</label>
+        <input type="text" id="f_indoorAreaOtherText" placeholder="e.g. Kids Play Zone" style="display:none;margin-top:8px;">
+
+        <div class="subarea-label" style="margin-top:20px;">Outdoor Required Areas</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="outdoor-area-cb" value="Main Entrance"> Main Entrance</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Registration Area"> Registration Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Main Stage"> Main Stage</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="VIP Lounge"> VIP Lounge</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Networking Area"> Networking Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Exhibition Area"> Exhibition Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Sponsor Area"> Sponsor Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Media Center"> Media Center</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Interview Zone"> Interview Zone</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Press Conference Room"> Press Conference Room</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Prayer Area"> Prayer Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Dining Area"> Dining Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Exit Experience"> Exit Experience</label>
+        </div>
+        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_outdoorAreaOtherToggle" onchange="document.getElementById('f_outdoorAreaOtherText').style.display = this.checked ? 'block' : 'none';"> Other outdoor area (please specify)</label>
+        <input type="text" id="f_outdoorAreaOtherText" placeholder="e.g. Falconry Display" style="display:none;margin-top:8px;">
+      </div>
     </div>
 
     <div class="field">
@@ -643,7 +836,7 @@
       <div class="hint">This description is what the AI builds the concept from — the more specific it is, the closer the result will be to what you have in mind.</div>
     </div>
 
-    <div class="field">
+    <div class="field" id="modularWallLayoutField">
       <label class="check-item-compact" style="font-weight:600;"><input type="checkbox" id="f_modularWallLayout"> Modular Wall Layout</label>
       <div class="hint">When enabled: equal architectural spacing, identical repeated panels/dividers, mandatory symmetry, no random or irregular gaps — a CAD-like modular rhythm across every wall. Applies to the initial design and to every edit you make afterward.</div>
     </div>
@@ -1764,7 +1957,155 @@ Every booth must have one hero architectural element. This hero element should b
 GOLDEN RULE
 The booth should be recognized by its architectural identity first and its graphics second. The structure itself should communicate the brand. The main logo should be integrated into the primary architectural feature, clearly visible from the main visitor approach, while all secondary branding supports this focal point.`;
 
+const ECS_001 = `EVENT PLANNING PRINCIPLES
+
+An event is not a collection of beautiful objects — it is a carefully designed visitor experience. Design experiences, not isolated spaces. Every event should guide visitors naturally from arrival to departure. Every area should support the event's actual objectives. Architecture, branding, technology, and circulation must work together as one experience, not as separate decisions made independently of each other.
+
+EVENT PHILOSOPHY — every event concept should answer five questions before anything else: Why are visitors coming? What should they experience? Where should they move? Where should they stop? What should they remember?
+
+EVENT FLOW — every event follows a journey, and this is the order to think in: Arrival → Drop Off → Entrance Feature → Registration → Welcome → Main Experience → Networking → Coffee → Sessions → Exhibition → Entertainment → Exit. Always reason about the event in this sequence.`;
+
+const ECS_002 = `EVENT TYPES
+
+Understand and apply the difference between event types automatically — each has its own defining character:
+
+Conference — focused on education. Large stage. Audience seating. Minimal networking emphasis.
+Summit — premium. VIP guests. Strong networking focus. Modern branding. Large LED. Premium finishes throughout.
+Forum — discussion-driven. Panel sessions. Smaller audience. Interactive format.
+Award Ceremony — luxury. Stage-focused. Dramatic lighting. Red carpet. Photo opportunity moments. Entertainment.
+Product Launch — brand experience. A clear reveal moment. Large LED. Interactive elements. Designed for social media moments.
+Government Event — formal. Elegant. Minimal. High protocol. National branding. Professional, controlled circulation.
+
+Let the client's stated event type shape these defaults — never apply one event type's character to a different declared type.`;
+
+const ECS_003 = `SPACE PLANNING
+
+Every event consists of zones, and they follow a strict hierarchy that must never be mixed randomly: Public Zone → Semi Public Zone → VIP Zone → Back of House → Production Zone.
+
+Correct example: Entrance → Registration → Welcome → Networking → Main Hall.
+Incorrect example: Entrance → Main Hall → Registration. Registration appearing after the main hall is poor planning and must never happen — registration and welcome always precede the main experience.`;
+
+const ECS_004 = `VISITOR JOURNEY
+
+The visitor should never feel lost. Design every event as a guided experience where the visitor naturally understands where to go next. Create visual landmarks that orient people without signage doing all the work. Avoid dead ends. Avoid confusing layouts. Provide clear, legible transitions between spaces so movement from one zone to the next always feels intentional.`;
+
+const ECS_005 = `REGISTRATION STANDARDS
+
+Registration is the visitor's first physical interaction with the event, and it must be designed accordingly: highly visible, easy to access, free of congestion, with a natural queue rather than a chaotic crowd. Digital check-in is preferred where the format allows it. Branding must be visible at the registration point. The area must be well illuminated. Registration must never block or crowd the main entrance.`;
+
+const ECS_006 = `STAGE DESIGN
+
+The stage is the event's focal point. It must always face the audience. LED must be centered. The speaker must remain visible from all seating angles. The composition must be camera-friendly. Lighting must be balanced, not harsh or uneven. Branding must be integrated into the stage design itself, not applied as an afterthought. Access to and from the stage must be clear. Proportions must read as professional, not improvised. Never place decoration anywhere that blocks visibility of the stage or the speaker.`;
+
+const ECS_007 = `LED & AV STANDARDS
+
+LED should support the experience, not dominate or overwhelm it. It must be sized and positioned at a proper viewing angle, centered where it serves as the focal point, fully visible from the intended audience area, built to correct architectural proportions, free of visual clutter, and integrated into the surrounding architecture rather than looking like an added screen bolted onto a wall.`;
+
+const ECS_008 = `LIGHTING
+
+Lighting creates emotion, and it should be layered deliberately in this order: Functional → Architectural → Accent → Decorative → Experience. Lighting choices must always serve this hierarchy — never approach lighting as "add random spotlights" without a layered, purposeful design behind it.`;
+
+const ECS_009 = `NETWORKING
+
+Networking areas are among the most valuable spaces in an event and deserve real design attention: comfortable furniture, natural circulation that doesn't funnel people awkwardly, coffee or refreshments nearby, a semi-private feel rather than fully exposed to main traffic, good lighting, and a layout that genuinely supports conversation rather than just filling empty space with chairs.`;
+
+const ECS_010 = `EVENT QUALITY CHECKLIST
+
+Before finalizing any event concept, verify every one of the following has been genuinely addressed, not just implicitly assumed: visitor journey, registration, main stage, seating, networking, branding, AV, lighting, accessibility, production feasibility, emergency access, VIP circulation, service access, sponsor visibility, photography opportunities, and social media moments.
+
+AI PHILOSOPHY — the AI is not decorating an event, it is designing a visitor experience. Every design decision should measurably improve one of the following: visitor flow, experience quality, comfort, brand visibility, interaction, photography potential, production feasibility, or operational efficiency. The event must function professionally before it becomes visually impressive — a beautiful design that doesn't work operationally has failed at the actual job.`;
+
+const ECS_021 = `EVENT ENVIRONMENT STANDARDS
+
+PURPOSE — before designing any event, determine the event environment first: Indoor, Outdoor, or Hybrid (Indoor + Outdoor). This affects architecture, materials, lighting, visitor flow, production, and technology. Never assume the environment silently — if the client's brief specifies it, use exactly what they specified; if not, infer the most likely environment from the event type using the detection guidance below, and design consistently with that inference throughout.
+
+INDOOR EVENTS — take place inside convention centers, hotels, exhibition halls, ballrooms, arenas, shopping malls, universities, museums, and conference facilities. Typical examples: conferences, summits, forums, corporate meetings, medical congresses, exhibitions, product launches, gala dinners, award ceremonies, workshops, training sessions, trade shows, investor meetings.
+
+Indoor design principles: prioritize architecture over landscaping. Use controlled lighting. Use premium finishes. Maintain clear visitor circulation. Ceiling structures may be used. Temperature and weather are controlled, so this never needs to be designed around. Lighting should become part of the experience itself, not just illumination.
+
+Indoor materials — preferred: wood, MDF, acrylic, glass, fabric, LED screens, printed graphics, carpet, vinyl flooring, decorative panels, aluminum frames. Avoid: grass, large landscape elements, heavy concrete finishes, outdoor paving, and weather-resistant materials unless the brief specifically calls for them.
+
+Indoor lighting — use hidden LED, cove lighting, spotlights, wall washing, architectural lighting, and ambient lighting. Avoid simulating excessive direct sunlight.
+
+Indoor event feel: professional, elegant, comfortable, controlled, architectural, premium.
+
+OUTDOOR EVENTS — occur in open-air environments. Typical examples: national day celebrations, festivals, concerts, sporting events, cultural events, food festivals, outdoor product launches, public gatherings, community events, government celebrations, fireworks events, family entertainment, open-air exhibitions.
+
+Outdoor design principles: design for weather, for sunlight, and for wind. Design for public safety. Create large open circulation areas. Provide shading where appropriate. Use durable materials. Think about how the design functions in both day and night operation, not just one.
+
+Outdoor materials — preferred: steel, aluminum, outdoor-rated wood, weather-resistant fabric, concrete, artificial grass, natural landscaping, outdoor furniture, pavers, stone, waterproof LED screens. Avoid: interior carpets, indoor furniture, fragile decorative materials, indoor wall systems.
+
+Outdoor lighting — use floodlights, landscape lighting, path lighting, stage lighting, decorative lighting, tree lighting, and architectural uplighting. Lighting must remain effective and functional after sunset — never design outdoor lighting as if the event only happens in daylight.
+
+Outdoor architecture: structures should read as visibly strong. Wind resistance should be considered in how anything tall or broad is depicted. Avoid unrealistic floating structures. Use realistic, visible support systems.
+
+Outdoor visitor experience should feel: open, comfortable, safe, entertained, guided.
+
+HYBRID EVENTS — combine indoor and outdoor experiences. Typical examples: an exhibition with an outdoor display area, a conference with outdoor networking, a festival with indoor workshops, a product launch with an outdoor demonstration, an automotive exhibition, a government expo. Clearly separate the indoor and outdoor zones in the design while maintaining one consistent design language across both — they should read as one event, not two disconnected designs stitched together.
+
+ENVIRONMENT DETECTION — when the environment isn't specified in the brief, infer it from the event type: Conference, Summit, Forum, Workshop, Medical Congress, and Corporate Meeting should be assumed Indoor unless specified otherwise. Festival, Concert, Sports Event, National Celebration, Food Festival, and Public Entertainment should be assumed Outdoor unless specified otherwise.
+
+PRODUCTION DIFFERENCES — indoor production allows faster installation, a fully controlled environment, and higher finish quality, with less need for weather protection. Outdoor production requires weather protection, heavy-duty structures, careful power distribution planning, water resistance, wind load consideration, and real site preparation. Let the design reflect these realistic production differences rather than treating indoor and outdoor construction as interchangeable.
+
+GOLDEN RULE — never design an indoor event like an outdoor festival, and never design an outdoor event like a hotel ballroom. The environment determines the architecture, materials, lighting, furniture, visitor experience, and production requirements — treat it as a foundational decision, not a stylistic afterthought.`;
+
 const palette = ['#152241','#E1A13B','#2E6B5E','#C0432B','#6B7A99','#8A6D3B'];
+
+const APS_001 = `ARCHITECTURE KNOWLEDGE
+
+This is the foundation every other standard builds on — architectural quality is judged first by whether these principles are respected, before any material, color, or branding decision is even considered.
+
+HUMAN SCALE — every dimension must read as built for real people to occupy: door and passage widths sized for comfortable single or dual pedestrian flow, counter and desk heights at natural working height, seating and lounge furniture at genuine human proportions. Never let an element read as oversized or dollhouse-miniature relative to a person standing beside it.
+
+PROPORTION & SYMMETRY — architectural elements should relate to each other in deliberate, legible ratios, not arbitrary ones. Where a structure is symmetrical around a center line, the two halves must genuinely mirror each other — same element count, same spacing, same sizing, reflected — not an approximate resemblance.
+
+VISUAL HIERARCHY — one element should read as dominant, with everything else supporting it in a clear order of visual importance. A design where every element competes equally for attention has no hierarchy and reads as cluttered regardless of how well each individual piece is designed.
+
+RHYTHM & REPETITION — repeated elements (columns, panels, lighting fixtures, structural bays) should repeat at a consistent, legible interval. Irregular, randomly-varying spacing between what should be matching elements reads as a construction error, not a design choice — unless irregularity is the explicit intent.
+
+MODULARITY — favor designs that can be described as a base module repeated, mirrored, or scaled, rather than a collection of one-off custom pieces. This is both more buildable and more visually coherent.
+
+BALANCE — the visual weight of a composition (mass, color intensity, material density) should feel balanced across the space, even when the layout is asymmetrical. Asymmetrical does not mean unbalanced.
+
+NEGATIVE SPACE — empty, uncluttered space is a design element in its own right, not a failure to fill space. Every surface and every square meter does not need to carry an object or a graphic. Deliberate emptiness draws attention to what remains.
+
+MATERIAL COMBINATIONS — limit any single design to a coherent, intentional material palette (typically 2–4 primary materials) rather than an unlimited mix. Materials should be paired the way a professional interior architect would pair them — contrasting textures (matte against gloss, rough against smooth) rather than materials chosen at random.
+
+ARCHITECTURAL FOCAL POINTS — every design needs one primary point the eye is drawn to first, established through height, lighting, color contrast, or central positioning — not several competing focal points fighting for the same attention.
+
+STRUCTURAL FEASIBILITY — every element must be something that could plausibly be built with real materials and real structural support. No floating, unsupported masses; no impossible cantilevers; no structure that ignores gravity for visual effect.
+
+MODULAR CONSTRUCTION — where relevant, favor construction logic based on repeatable, prefabricated modules over fully bespoke one-off builds, which is both more realistic and more consistent with how real exhibition and event structures are actually built.
+
+GRID SYSTEMS — underlying every layout should be a coherent grid governing alignment of walls, panels, furniture, and graphics. Elements that don't align to any legible grid read as sloppy even if each one individually looks fine.
+
+GOLDEN RATIO — where a natural opportunity exists (facade proportions, panel divisions, hero-element sizing relative to its surroundings), the golden ratio (approximately 1:1.618) is a strong default for pleasing proportion — this is a helpful default, not a rule that overrides the client's actual stated dimensions.`;
+
+const LDS_001 = `LIGHTING STANDARDS
+
+Lighting is one of the areas AI-generated architectural visualization most commonly gets wrong — flat, uniform, or randomly-placed lighting is one of the fastest ways a render reads as artificial rather than professionally designed. Every design must show genuine lighting layering, not a single uniform light source.
+
+LIGHT HIERARCHY — think in layers, in this order, and make sure the final image actually shows evidence of each layer rather than defaulting to flat, even illumination: Ambient (general, even base illumination that makes the space usable) → Task (focused light where an actual task happens — a reception desk, a demo counter) → Accent (directional light that draws attention to a specific object, material, or focal point) → Architectural (light that reveals and enhances the structure itself — grazing a textured wall, defining an edge) → Decorative (purely atmospheric light — color washes, decorative fixtures) on top.
+
+AMBIENT LIGHTING — the base layer that makes the whole space readable; should be even but not flat, typically slightly brighter near focal points and slightly dimmer at the periphery to reinforce hierarchy rather than compete with it.
+
+ACCENT LIGHTING — narrow-beam, directional light aimed at a specific object or surface (a logo, a product, a material sample) to draw the eye there deliberately — never applied so broadly that it stops reading as an accent.
+
+TASK LIGHTING — functional, adequate light exactly where someone needs to see clearly to do something — at a reception counter, a demo station, a reading or work surface.
+
+HIDDEN LED STRIPS — a common, high-quality technique for edge-lighting shelving, counters, ceiling coffers, and structural edges without a visible fixture — the light should appear to emanate from the architecture itself, with the actual LED strip concealed from the primary viewing angle.
+
+WALL WASHING — broad, even light grazed across a large vertical surface to make it read as a deliberate backdrop or brand surface, distinct from a narrow accent beam.
+
+COVE LIGHTING — indirect light concealed in a recess (typically at a ceiling or shelf edge) that bounces off an adjacent surface, producing a soft glow without a visible light source — a strong technique for premium, high-end atmosphere.
+
+STAGE LIGHTING — where a stage or presentation area exists, lighting must clearly separate the presenter/stage from the audience area in brightness, follow standard front-key-plus-back-rim lighting logic so the subject reads three-dimensionally rather than flat, and stay bright and even enough that a camera could realistically capture it — never underlit or silhouetted unless that is the explicit intended effect.
+
+EXHIBITION LIGHTING — general exhibition-hall lighting (the ambient light of the surrounding venue, not the booth or stage itself) should read as consistent, professional venue lighting — not the dramatic, moody lighting appropriate to a stage moment.
+
+COLOR TEMPERATURE — be deliberate and consistent: warm light (approximately 2700–3000K) reads as inviting, luxurious, hospitality-oriented; neutral light (3500–4500K) reads as clean, corporate, professional; cool light (5000K+) reads as clinical, technological, futuristic. Mixing temperatures without a clear reason (e.g., warm ambient with cool accent for contrast) reads as an error, not a stylistic choice.
+
+SHADOW CONTROL — shadows should be present and physically plausible — flat, shadowless renders read as artificial — but never so harsh or chaotic that they obscure important elements or read as a lighting mistake rather than an intentional effect.`;
 
 /* Representative colors/materials for each Architectural Style (Level 1 of EPS-004) —
    shown live under the dropdown so the client can see what they're choosing, and also
@@ -2009,6 +2350,46 @@ async function logOut(){
   window.location.href = '/login.html';
 }
 
+function makeSizeUnknownToggler(widthId, depthId){
+  return function(checkbox){
+    const widthInput = document.getElementById(widthId);
+    const depthInput = document.getElementById(depthId);
+    widthInput.disabled = checkbox.checked;
+    depthInput.disabled = checkbox.checked;
+    if(checkbox.checked){
+      widthInput.value = '';
+      depthInput.value = '';
+    }
+  };
+}
+const toggleGenericSizeUnknown = makeSizeUnknownToggler('f_eventWidth', 'f_eventDepth');
+const toggleIndoorSizeUnknown = makeSizeUnknownToggler('f_indoorWidth', 'f_indoorDepth');
+const toggleOutdoorSizeUnknown = makeSizeUnknownToggler('f_outdoorWidth', 'f_outdoorDepth');
+
+function updateEnvironmentSizeFields(select){
+  const value = select.value;
+  const showIndoor = value === 'Indoor' || value === 'Hybrid (Indoor + Outdoor)';
+  const showOutdoor = value === 'Outdoor' || value === 'Hybrid (Indoor + Outdoor)';
+  const showEitherSpecific = showIndoor || showOutdoor;
+  const isHybrid = value === 'Hybrid (Indoor + Outdoor)';
+
+  document.getElementById('genericSizeBlock').style.display = showEitherSpecific ? 'none' : 'block';
+  document.getElementById('indoorOutdoorSizeRow').style.display = showEitherSpecific ? 'grid' : 'none';
+  document.getElementById('indoorSizeBlock').style.display = showIndoor ? 'block' : 'none';
+  document.getElementById('outdoorSizeBlock').style.display = showOutdoor ? 'block' : 'none';
+  document.getElementById('indoorOutdoorSizeHint').style.display = showEitherSpecific ? 'block' : 'none';
+
+  // Hybrid gets separate Indoor/Outdoor Required Areas checklists, so the client can specify
+  // exactly which areas belong in each part of the design — a single shared list can't
+  // express that distinction. Indoor-only or Outdoor-only or unspecified all use one list.
+  document.getElementById('unifiedRequiredAreasBlock').style.display = isHybrid ? 'none' : 'block';
+  document.getElementById('splitRequiredAreasBlock').style.display = isHybrid ? 'block' : 'none';
+}
+
+function toggleEventTypeCustom(select){
+  document.getElementById('f_eventTypeCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
+}
+
 function setMode(m){
   mode = m;
   document.getElementById('tabBooth').classList.toggle('active', m==='booth');
@@ -2023,7 +2404,25 @@ function setMode(m){
   }
 
   if(m==='booth' || m==='event'){
-    document.getElementById('attendeesField').style.display = m==='event' ? 'block' : 'none';
+    document.getElementById('eventDetailsHeadline').style.display = m==='event' ? 'block' : 'none';
+    document.getElementById('eventDetailsFields').style.display = m==='event' ? 'block' : 'none';
+    document.getElementById('eventThemeHeadline').style.display = m==='event' ? 'block' : 'none';
+    document.getElementById('locationHeadline').style.display = m==='event' ? 'block' : 'none';
+    document.getElementById('eventLocationFields').style.display = m==='event' ? 'block' : 'none';
+    document.getElementById('requiredAreasHeadline').style.display = m==='event' ? 'block' : 'none';
+    document.getElementById('eventRequiredAreasFields').style.display = m==='event' ? 'block' : 'none';
+    document.getElementById('modularWallLayoutField').style.display = m==='event' ? 'none' : 'block';
+    document.getElementById('boothSizeFields').style.display = m==='booth' ? 'block' : 'none';
+    if(m === 'booth'){
+      // Booth mode always requires exact dimensions — always re-enabled, no "unknown size" concept applies here.
+      document.getElementById('f_width').disabled = false;
+      document.getElementById('f_depth').disabled = false;
+    } else {
+      // Re-apply the correct generic/indoor/outdoor size field visibility for the event's
+      // current Environment selection — needed both on a fresh switch to event mode and
+      // when reopening a saved project, since the browser doesn't fire onchange on its own.
+      updateEnvironmentSizeFields(document.getElementById('f_environment'));
+    }
     document.getElementById('boothOnlyFields').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('lblName').textContent = m==='booth' ? 'Exhibition or host name' : 'Event name or type';
     document.getElementById('f_name').placeholder = m==='booth' ? 'e.g. Riyadh International Tech Expo' : 'e.g. Product launch / Annual conference';
@@ -2283,11 +2682,50 @@ async function generateDesign(){
   currentProjectName = name || 'Untitled Project';
   const width = document.getElementById('f_width').value.trim();
   const depth = document.getElementById('f_depth').value.trim();
+  const environmentValueForAreas = document.getElementById('f_environment').value;
+  const isHybridForAreas = environmentValueForAreas === 'Hybrid (Indoor + Outdoor)';
+
+  function collectAreas(selector, otherToggleId, otherTextId){
+    const areas = Array.from(document.querySelectorAll(selector)).map(cb => cb.value);
+    const otherToggle = document.getElementById(otherToggleId);
+    const otherText = document.getElementById(otherTextId).value.trim();
+    if(otherToggle.checked && otherText) areas.push(otherText);
+    return areas;
+  }
+
+  const requiredAreas = isHybridForAreas ? [] : collectAreas('.required-area-cb:checked', 'f_requiredAreaOtherToggle', 'f_requiredAreaOtherText');
+  const indoorRequiredAreas = isHybridForAreas ? collectAreas('.indoor-area-cb:checked', 'f_indoorAreaOtherToggle', 'f_indoorAreaOtherText') : [];
+  const outdoorRequiredAreas = isHybridForAreas ? collectAreas('.outdoor-area-cb:checked', 'f_outdoorAreaOtherToggle', 'f_outdoorAreaOtherText') : [];
+
+  // Event mode's size question is environment-aware: a generic W/D question when no
+  // Environment is chosen, or dedicated Indoor and/or Outdoor questions once one is —
+  // see updateEnvironmentSizeFields(). Read whichever set is actually relevant right now.
+  const environmentForSize = document.getElementById('f_environment').value;
+  const eventWidth = document.getElementById('f_eventWidth').value.trim();
+  const eventDepth = document.getElementById('f_eventDepth').value.trim();
+  const eventSizeUnknown = document.getElementById('f_eventSizeUnknown').checked;
+  const indoorWidth = document.getElementById('f_indoorWidth').value.trim();
+  const indoorDepth = document.getElementById('f_indoorDepth').value.trim();
+  const indoorSizeUnknown = document.getElementById('f_indoorSizeUnknown').checked;
+  const outdoorWidth = document.getElementById('f_outdoorWidth').value.trim();
+  const outdoorDepth = document.getElementById('f_outdoorDepth').value.trim();
+  const outdoorSizeUnknown = document.getElementById('f_outdoorSizeUnknown').checked;
+  const needsIndoorSize = environmentForSize === 'Indoor' || environmentForSize === 'Hybrid (Indoor + Outdoor)';
+  const needsOutdoorSize = environmentForSize === 'Outdoor' || environmentForSize === 'Hybrid (Indoor + Outdoor)';
+
   const archStyle = document.getElementById('f_archStyle').value;
   const industryStyle = document.getElementById('f_industryStyle').value;
   const constructionStyle = document.getElementById('f_constructionStyle').value;
   const brandPersonality = document.getElementById('f_brandPersonality').value;
   const attendees = document.getElementById('f_attendees').value.trim();
+  const clientOrg = document.getElementById('f_clientOrg').value.trim();
+  const eventTypeRaw = document.getElementById('f_eventType').value;
+  const eventTypeCustom = document.getElementById('f_eventTypeCustom').value.trim();
+  const eventType = eventTypeRaw === 'Custom' ? (eventTypeCustom || 'Custom') : eventTypeRaw;
+  const country = document.getElementById('f_country').value.trim();
+  const city = document.getElementById('f_city').value.trim();
+  const venue = document.getElementById('f_venue').value.trim();
+  const environment = document.getElementById('f_environment').value;
   const desc = document.getElementById('f_desc').value.trim();
   const openSides = mode === 'booth' ? buildOpenSidesDescription() : '';
 
@@ -2307,7 +2745,46 @@ async function generateDesign(){
   const errBox = document.getElementById('errorBox');
   errBox.style.display = 'none';
 
-  if(!width || !depth || !desc){
+  if(mode === 'event'){
+    if(!desc){
+      errBox.textContent = 'Please enter a detailed description — this field is above, in the main form.';
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+    if(needsIndoorSize || needsOutdoorSize){
+      const missingSizes = [];
+      if(needsIndoorSize && !indoorSizeUnknown && (!indoorWidth || !indoorDepth)) missingSizes.push('the indoor size (or check "I don\'t know the indoor size")');
+      if(needsOutdoorSize && !outdoorSizeUnknown && (!outdoorWidth || !outdoorDepth)) missingSizes.push('the outdoor size (or check "I don\'t know the outdoor size")');
+      if(missingSizes.length > 0){
+        errBox.textContent = 'Please enter ' + missingSizes.join(' and ') + '.';
+        errBox.style.display = 'block';
+        errBox.scrollIntoView({behavior:'smooth', block:'center'});
+        return;
+      }
+      const missingAreaMessages = [];
+      if(needsIndoorSize && indoorSizeUnknown && indoorRequiredAreas.length === 0) missingAreaMessages.push('at least one Indoor Required Area (since the indoor size is unknown)');
+      if(needsOutdoorSize && outdoorSizeUnknown && outdoorRequiredAreas.length === 0) missingAreaMessages.push('at least one Outdoor Required Area (since the outdoor size is unknown)');
+      if(missingAreaMessages.length > 0){
+        errBox.textContent = 'Please select ' + missingAreaMessages.join(' and ') + ' — this is what that part of the design will be planned around instead of fixed dimensions.';
+        errBox.style.display = 'block';
+        errBox.scrollIntoView({behavior:'smooth', block:'center'});
+        return;
+      }
+    } else if(eventSizeUnknown){
+      if(requiredAreas.length === 0){
+        errBox.textContent = 'Since the exact size is unknown, please select at least one Required Area — this is what the design will be planned around instead of fixed dimensions.';
+        errBox.style.display = 'block';
+        errBox.scrollIntoView({behavior:'smooth', block:'center'});
+        return;
+      }
+    } else if(!eventWidth || !eventDepth){
+      errBox.textContent = 'Please enter width and depth (or check "I don\'t know the exact size of the space").';
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+  } else if(!width || !depth || !desc){
     const missing = [];
     if(!width) missing.push('width');
     if(!depth) missing.push('depth');
@@ -2341,14 +2818,43 @@ async function generateDesign(){
 
   const kindLabel = mode === 'booth' ? 'exhibition booth' : 'event';
 
+  function buildEventSizeText(){
+    const noFootprintInstruction = 'Do NOT invent a specific width/depth footprint for this space. Instead, plan and size it based entirely on the relevant Required Areas listed below — let the actual program of spaces determine a realistic, proportionate scale, the way a real event designer would size a space around its actual requirements rather than starting from an arbitrary footprint.';
+    if(needsIndoorSize || needsOutdoorSize){
+      const lines = [];
+      if(needsIndoorSize){
+        lines.push(indoorSizeUnknown
+          ? `Indoor space size: not specified by the client. ${noFootprintInstruction}`
+          : `Indoor space dimensions: ${indoorWidth} m (width) × ${indoorDepth} m (depth) — approximate area ${(parseFloat(indoorWidth) * parseFloat(indoorDepth)).toFixed(1)} square meters`);
+      }
+      if(needsOutdoorSize){
+        lines.push(outdoorSizeUnknown
+          ? `Outdoor space size: not specified by the client. ${noFootprintInstruction}`
+          : `Outdoor space dimensions: ${outdoorWidth} m (width) × ${outdoorDepth} m (depth) — approximate area ${(parseFloat(outdoorWidth) * parseFloat(outdoorDepth)).toFixed(1)} square meters`);
+      }
+      return lines.join('\n');
+    }
+    return eventSizeUnknown
+      ? `Exact size: not specified by the client. ${noFootprintInstruction}`
+      : `Dimensions: ${eventWidth} m (width) × ${eventDepth} m (depth) — approximate area ${(parseFloat(eventWidth) * parseFloat(eventDepth)).toFixed(1)} square meters`;
+  }
+
   const userBrief = `
 ${modularWallLayout ? 'PRIORITY REQUIREMENT FOR THIS PROJECT: this booth must use a strict modular wall system — identical repeated panel/divider spacing and mandatory symmetry across every wall. Full detail on this requirement is given later in this brief; treat it as equal in importance to the dimensions and brand colors below, not as an afterthought.\n' : ''}Request type: ${kindLabel} design
 Name/context: ${name || 'not specified'}
-Dimensions: ${width} m (width) × ${depth} m (depth) — approximate area ${(parseFloat(width) * parseFloat(depth)).toFixed(1)} square meters
+${mode === 'event' ? buildEventSizeText() : `Dimensions: ${width} m (width) × ${depth} m (depth) — approximate area ${(parseFloat(width) * parseFloat(depth)).toFixed(1)} square meters`}
+${mode==='event' && requiredAreas.length > 0 ? 'Required Areas (must all be included in the design): ' + requiredAreas.join(', ') : ''}
+${mode==='event' && indoorRequiredAreas.length > 0 ? 'Indoor Required Areas (must all be included in the indoor part of the design): ' + indoorRequiredAreas.join(', ') : ''}
+${mode==='event' && outdoorRequiredAreas.length > 0 ? 'Outdoor Required Areas (must all be included in the outdoor part of the design): ' + outdoorRequiredAreas.join(', ') : ''}
 ${mode==='booth' ? 'Booth configuration: ' + openSides : ''}
 ${mode==='booth' ? 'Number of levels: ' + levels + (levels==='2' ? ' (ground floor + upper floor)' : '') : ''}
 ${mode==='booth' && totalHeight ? 'Target total height: ' + totalHeight + ' m' : ''}
 ${mode==='booth' && levels==='2' && upperFloorProgram ? 'Upper floor program: ' + upperFloorProgram : ''}
+${mode==='event' ? 'Client / Organization: ' + (clientOrg || 'not specified') : ''}
+${mode==='event' ? 'Event type: ' + (eventType || 'not specified') : ''}
+${mode==='event' && (country || city) ? 'Location: ' + [city, country].filter(Boolean).join(', ') : ''}
+${mode==='event' && venue ? 'Venue: ' + venue : ''}
+${mode==='event' ? 'Environment: ' + (environment || 'not specified by the client — infer Indoor, Outdoor, or Hybrid from the event type, per the environment detection guidance below') : ''}
 ${mode==='event' ? 'Expected number of attendees: ' + (attendees || 'not specified') : ''}
 ${mode==='booth' ? 'Required brand colors: ' + colorHexes.join(', ') : ''}
 ${mode==='booth' ? 'Poster artwork status: ' + hasPosters : ''}
@@ -2451,9 +2957,24 @@ ${EPS_013}
 
 <<EPS-013 END>>
 
-Your task: convert the client's requirements below into the world's best exhibition booth prompt.
+<<APS-001 START>>
 
-Every field the client filled in is MANDATORY and MUST appear explicitly in the final design — you are not permitted to omit, soften, or silently substitute any stated dimension, color, configuration, or requirement. Where the client left something unspecified, follow EPS-001 and EPS-002 above to infer a professional, high-end solution. The client's actual logo image and/or existing poster designs, if attached, must also inform the result exactly as EPS-001, EPS-002, EPS-003, EPS-004, EPS-005, EPS-006, EPS-007, EPS-008, EPS-009, EPS-010, EPS-011, EPS-012, and EPS-013 describe.
+${APS_001}
+
+<<APS-001 END>>
+
+<<LDS-001 START>>
+
+${LDS_001}
+
+<<LDS-001 END>>
+
+${mode === 'event' ? [
+  ['001', ECS_001], ['002', ECS_002], ['003', ECS_003], ['004', ECS_004], ['005', ECS_005],
+  ['006', ECS_006], ['007', ECS_007], ['008', ECS_008], ['009', ECS_009], ['010', ECS_010], ['021', ECS_021]
+].map(([num, content]) => `<<ECS-${num} START>>\n\n${content}\n\n<<ECS-${num} END>>\n`).join('\n') + '\n' : ''}Your task: convert the client's requirements below into the world's best ${mode === 'event' ? 'event concept' : 'exhibition booth'} prompt.
+
+Every field the client filled in is MANDATORY and MUST appear explicitly in the final design — you are not permitted to omit, soften, or silently substitute any stated dimension, color, configuration, or requirement. Where the client left something unspecified, follow EPS-001 and EPS-002 above to infer a professional, high-end solution. The client's actual logo image and/or existing poster designs, if attached, must also inform the result exactly as EPS-001, EPS-002, EPS-003, EPS-004, EPS-005, EPS-006, EPS-007, EPS-008, EPS-009, EPS-010, EPS-011, EPS-012, EPS-013, APS-001, and LDS-001 ${mode === 'event' ? 'describe, and — specifically for events — as ECS-001 through ECS-010 and ECS-021 above describe' : 'describe'}.
 
 CRITICAL — the prompt must explicitly name and use the specific facts from the brief, not paraphrase them away:
 - State the exact width and depth in meters and the exact open/closed side configuration (e.g. "a 6m wide × 4m deep corner booth, open on the front and right side, solid walls on the back and left")
@@ -4245,6 +4766,31 @@ function collectFormSnapshot(){
     f_constructionStyle: document.getElementById('f_constructionStyle').value,
     f_brandPersonality: document.getElementById('f_brandPersonality').value,
     f_attendees: document.getElementById('f_attendees').value,
+    f_clientOrg: document.getElementById('f_clientOrg').value,
+    f_eventType: document.getElementById('f_eventType').value,
+    f_eventTypeCustom: document.getElementById('f_eventTypeCustom').value,
+    f_country: document.getElementById('f_country').value,
+    f_city: document.getElementById('f_city').value,
+    f_venue: document.getElementById('f_venue').value,
+    f_environment: document.getElementById('f_environment').value,
+    f_eventWidth: document.getElementById('f_eventWidth').value,
+    f_eventDepth: document.getElementById('f_eventDepth').value,
+    f_eventSizeUnknown: document.getElementById('f_eventSizeUnknown').checked,
+    f_indoorWidth: document.getElementById('f_indoorWidth').value,
+    f_indoorDepth: document.getElementById('f_indoorDepth').value,
+    f_indoorSizeUnknown: document.getElementById('f_indoorSizeUnknown').checked,
+    f_outdoorWidth: document.getElementById('f_outdoorWidth').value,
+    f_outdoorDepth: document.getElementById('f_outdoorDepth').value,
+    f_outdoorSizeUnknown: document.getElementById('f_outdoorSizeUnknown').checked,
+    f_requiredAreas: Array.from(document.querySelectorAll('.required-area-cb:checked')).map(cb => cb.value),
+    f_requiredAreaOtherToggle: document.getElementById('f_requiredAreaOtherToggle').checked,
+    f_requiredAreaOtherText: document.getElementById('f_requiredAreaOtherText').value,
+    f_indoorRequiredAreas: Array.from(document.querySelectorAll('.indoor-area-cb:checked')).map(cb => cb.value),
+    f_indoorAreaOtherToggle: document.getElementById('f_indoorAreaOtherToggle').checked,
+    f_indoorAreaOtherText: document.getElementById('f_indoorAreaOtherText').value,
+    f_outdoorRequiredAreas: Array.from(document.querySelectorAll('.outdoor-area-cb:checked')).map(cb => cb.value),
+    f_outdoorAreaOtherToggle: document.getElementById('f_outdoorAreaOtherToggle').checked,
+    f_outdoorAreaOtherText: document.getElementById('f_outdoorAreaOtherText').value,
     f_desc: document.getElementById('f_desc').value,
     f_openSides: document.getElementById('f_openSides').value,
     f_cornerSide: document.getElementById('f_cornerSide').value,
@@ -4269,6 +4815,42 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || 'Wood Modular';
   document.getElementById('f_brandPersonality').value = snap.f_brandPersonality || 'Elegant';
   document.getElementById('f_attendees').value = snap.f_attendees || '';
+  document.getElementById('f_clientOrg').value = snap.f_clientOrg || '';
+  document.getElementById('f_eventType').value = snap.f_eventType || '';
+  document.getElementById('f_eventTypeCustom').value = snap.f_eventTypeCustom || '';
+  toggleEventTypeCustom(document.getElementById('f_eventType'));
+  document.getElementById('f_country').value = snap.f_country || '';
+  document.getElementById('f_city').value = snap.f_city || '';
+  document.getElementById('f_venue').value = snap.f_venue || '';
+  document.getElementById('f_environment').value = snap.f_environment || '';
+  document.getElementById('f_eventWidth').value = snap.f_eventWidth || '';
+  document.getElementById('f_eventDepth').value = snap.f_eventDepth || '';
+  document.getElementById('f_eventSizeUnknown').checked = !!snap.f_eventSizeUnknown;
+  toggleGenericSizeUnknown(document.getElementById('f_eventSizeUnknown'));
+  document.getElementById('f_indoorWidth').value = snap.f_indoorWidth || '';
+  document.getElementById('f_indoorDepth').value = snap.f_indoorDepth || '';
+  document.getElementById('f_indoorSizeUnknown').checked = !!snap.f_indoorSizeUnknown;
+  toggleIndoorSizeUnknown(document.getElementById('f_indoorSizeUnknown'));
+  document.getElementById('f_outdoorWidth').value = snap.f_outdoorWidth || '';
+  document.getElementById('f_outdoorDepth').value = snap.f_outdoorDepth || '';
+  document.getElementById('f_outdoorSizeUnknown').checked = !!snap.f_outdoorSizeUnknown;
+  toggleOutdoorSizeUnknown(document.getElementById('f_outdoorSizeUnknown'));
+  updateEnvironmentSizeFields(document.getElementById('f_environment'));
+  const savedAreas = new Set(snap.f_requiredAreas || []);
+  document.querySelectorAll('.required-area-cb').forEach(cb => { cb.checked = savedAreas.has(cb.value); });
+  document.getElementById('f_requiredAreaOtherToggle').checked = !!snap.f_requiredAreaOtherToggle;
+  document.getElementById('f_requiredAreaOtherText').value = snap.f_requiredAreaOtherText || '';
+  document.getElementById('f_requiredAreaOtherText').style.display = snap.f_requiredAreaOtherToggle ? 'block' : 'none';
+  const savedIndoorAreas = new Set(snap.f_indoorRequiredAreas || []);
+  document.querySelectorAll('.indoor-area-cb').forEach(cb => { cb.checked = savedIndoorAreas.has(cb.value); });
+  document.getElementById('f_indoorAreaOtherToggle').checked = !!snap.f_indoorAreaOtherToggle;
+  document.getElementById('f_indoorAreaOtherText').value = snap.f_indoorAreaOtherText || '';
+  document.getElementById('f_indoorAreaOtherText').style.display = snap.f_indoorAreaOtherToggle ? 'block' : 'none';
+  const savedOutdoorAreas = new Set(snap.f_outdoorRequiredAreas || []);
+  document.querySelectorAll('.outdoor-area-cb').forEach(cb => { cb.checked = savedOutdoorAreas.has(cb.value); });
+  document.getElementById('f_outdoorAreaOtherToggle').checked = !!snap.f_outdoorAreaOtherToggle;
+  document.getElementById('f_outdoorAreaOtherText').value = snap.f_outdoorAreaOtherText || '';
+  document.getElementById('f_outdoorAreaOtherText').style.display = snap.f_outdoorAreaOtherToggle ? 'block' : 'none';
   document.getElementById('f_desc').value = snap.f_desc || '';
   document.getElementById('f_openSides').value = snap.f_openSides || '2';
   toggleCornerSide(document.getElementById('f_openSides'));
