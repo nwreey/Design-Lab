@@ -259,6 +259,7 @@
   .viewer3d-camera-checks-light{display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:6px;margin-bottom:10px;}
   .viewer3d-camera-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#fff;opacity:.75;margin-bottom:8px;}
   .check-item-compact{display:flex;align-items:center;gap:6px;font-family:'Space Grotesk',sans-serif;font-size:12px;color:var(--ink);cursor:pointer;padding:6px 8px;border:1px solid var(--line);border-radius:2px;transition:.15s ease;}
+  #additionalReqField .check-item-compact{font-size:14px;font-weight:500;padding:0;border:none;border-radius:0;gap:7px;}
   .check-item-compact:hover{background:var(--navy-soft);}
   .check-item-compact input{margin:0;}
   .viewer3d-camera-row-light{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
@@ -444,8 +445,9 @@
 
     <!-- shared -->
     <div class="section-headline" id="eventDetailsHeadline" style="display:none;">Event Details</div>
+    <div class="section-headline" id="boothDetailsHeadline" style="display:none;">Booth Details</div>
     <div class="field">
-      <label id="lblName">Exhibition or host name</label>
+      <label id="lblName">Project Name</label>
       <input type="text" id="f_name" placeholder="e.g. Riyadh International Tech Expo">
     </div>
 
@@ -532,7 +534,78 @@
       </div>
     </div>
 
+    <div id="boothDetailsFields" style="display:none;">
+      <div class="field">
+        <label>Booth Height (m)</label>
+        <input type="number" min="0" step="0.1" id="f_totalHeight" placeholder="e.g. 5.5">
+      </div>
+
+      <div class="field" id="levelsField">
+        <label>Number of levels</label>
+        <select id="f_levels" onchange="toggleUpperFloor(this)">
+          <option value="1" selected>1 — Single level</option>
+          <option value="2">2 — Double-deck (ground + upper floor)</option>
+        </select>
+      </div>
+
+      <div class="field" id="upperFloorField" style="display:none;">
+        <label>Upper floor program</label>
+        <textarea id="f_upperFloor" placeholder="e.g. VIP meeting & seating area with coffee break service"></textarea>
+        <div class="hint">Describe what belongs on the upper level — everything else will be placed on the ground floor.</div>
+      </div>
+
+      <div class="field" id="openSidesField">
+        <label>Number of open sides</label>
+        <select id="f_openSides" onchange="toggleCornerSide(this)">
+          <option value="1">1 — Inline (walls on 3 sides)</option>
+          <option value="2" selected>2 — Corner (walls on 2 sides)</option>
+          <option value="3">3 — Peninsula (wall on 1 side)</option>
+          <option value="4">4 — Island (no walls)</option>
+        </select>
+        <div class="hint">Determines which sides can carry walls, signage, and branding versus open sightlines into the aisle.</div>
+      </div>
+
+      <div class="field" id="cornerSideField">
+        <label>Which side is open, besides the front?</label>
+        <select id="f_cornerSide">
+          <option value="right" selected>Right</option>
+          <option value="left">Left</option>
+        </select>
+        <div class="hint">The opposite side, along with the back, will be treated as closed walls.</div>
+      </div>
+    </div>
+
     <div class="section-headline" id="eventThemeHeadline" style="display:none;">Event Theme</div>
+    <div class="section-headline" id="boothThemeHeadline" style="display:none;">Booth Theme</div>
+    <div id="boothThemeFieldsTop" style="display:none;">
+      <div class="field" id="colorsField">
+        <label>Brand colors <span class="required-mark">*</span></label>
+        <div id="colorRows">
+          <div class="color-row">
+            <input type="color" class="color-picker" value="#152241" oninput="syncColorHex(this)">
+            <input type="text" class="color-hex" value="#152241" placeholder="#RRGGBB" oninput="syncColorPicker(this)">
+            <button type="button" class="color-remove" onclick="removeColorRow(this)" aria-label="Remove color">×</button>
+          </div>
+          <div class="color-row">
+            <input type="color" class="color-picker" value="#E1A13B" oninput="syncColorHex(this)">
+            <input type="text" class="color-hex" value="#E1A13B" placeholder="#RRGGBB" oninput="syncColorPicker(this)">
+            <button type="button" class="color-remove" onclick="removeColorRow(this)" aria-label="Remove color">×</button>
+          </div>
+        </div>
+        <button type="button" class="ghost small" onclick="addColorRow()">+ Add color</button>
+        <div class="hint">Add at least one brand color — the AI will build the full palette around these.</div>
+      </div>
+
+      <div class="field" id="logoField">
+        <label>Company logo <span class="required-mark">*</span></label>
+        <div class="logo-upload" id="logoUploadBox" onclick="document.getElementById('f_logo').click()">
+          <input type="file" id="f_logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleLogoUpload(this)">
+          <img id="logoPreview" alt="Logo preview" style="display:none;">
+          <div id="logoPlaceholder">Click to upload your logo — PNG, JPG, WebP, or SVG</div>
+        </div>
+        <div class="hint">Required. The AI uses the logo's colors and style to keep the concept on-brand.</div>
+      </div>
+    </div>
     <div class="field">
       <label>Architectural style</label>
       <select id="f_archStyle" onchange="updateArchStyleHint(this)">
@@ -581,73 +654,6 @@
     </div>
 
     <div id="boothOnlyFields">
-      <div class="field" id="openSidesField">
-        <label>Number of open sides</label>
-        <select id="f_openSides" onchange="toggleCornerSide(this)">
-          <option value="1">1 — Inline (walls on 3 sides)</option>
-          <option value="2" selected>2 — Corner (walls on 2 sides)</option>
-          <option value="3">3 — Peninsula (wall on 1 side)</option>
-          <option value="4">4 — Island (no walls)</option>
-        </select>
-        <div class="hint">Determines which sides can carry walls, signage, and branding versus open sightlines into the aisle.</div>
-      </div>
-
-      <div class="field" id="cornerSideField">
-        <label>Which side is open, besides the front?</label>
-        <select id="f_cornerSide">
-          <option value="right" selected>Right</option>
-          <option value="left">Left</option>
-        </select>
-        <div class="hint">The opposite side, along with the back, will be treated as closed walls.</div>
-      </div>
-
-      <div class="field" id="levelsField">
-        <label>Number of levels</label>
-        <select id="f_levels" onchange="toggleUpperFloor(this)">
-          <option value="1" selected>1 — Single level</option>
-          <option value="2">2 — Double-deck (ground + upper floor)</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label>Total design height (m)</label>
-        <input type="number" min="0" step="0.1" id="f_totalHeight" placeholder="e.g. 5.5">
-      </div>
-
-      <div class="field" id="upperFloorField" style="display:none;">
-        <label>Upper floor program</label>
-        <textarea id="f_upperFloor" placeholder="e.g. VIP meeting & seating area with coffee break service"></textarea>
-        <div class="hint">Describe what belongs on the upper level — everything else will be placed on the ground floor.</div>
-      </div>
-
-      <div class="field" id="colorsField">
-        <label>Brand colors <span class="required-mark">*</span></label>
-        <div id="colorRows">
-          <div class="color-row">
-            <input type="color" class="color-picker" value="#152241" oninput="syncColorHex(this)">
-            <input type="text" class="color-hex" value="#152241" placeholder="#RRGGBB" oninput="syncColorPicker(this)">
-            <button type="button" class="color-remove" onclick="removeColorRow(this)" aria-label="Remove color">×</button>
-          </div>
-          <div class="color-row">
-            <input type="color" class="color-picker" value="#E1A13B" oninput="syncColorHex(this)">
-            <input type="text" class="color-hex" value="#E1A13B" placeholder="#RRGGBB" oninput="syncColorPicker(this)">
-            <button type="button" class="color-remove" onclick="removeColorRow(this)" aria-label="Remove color">×</button>
-          </div>
-        </div>
-        <button type="button" class="ghost small" onclick="addColorRow()">+ Add color</button>
-        <div class="hint">Add at least one brand color — the AI will build the full palette around these.</div>
-      </div>
-
-      <div class="field" id="logoField">
-        <label>Company logo <span class="required-mark">*</span></label>
-        <div class="logo-upload" id="logoUploadBox" onclick="document.getElementById('f_logo').click()">
-          <input type="file" id="f_logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleLogoUpload(this)">
-          <img id="logoPreview" alt="Logo preview" style="display:none;">
-          <div id="logoPlaceholder">Click to upload your logo — PNG, JPG, WebP, or SVG</div>
-        </div>
-        <div class="hint">Required. The AI uses the logo's colors and style to keep the concept on-brand.</div>
-      </div>
-
       <div class="field" id="postersField">
         <label>Posters</label>
         <div class="row2">
@@ -676,8 +682,8 @@
         </div>
       </div>
 
+      <div class="section-headline" id="requirementsHeadline" style="display:none;">Requirements</div>
       <div class="field" id="additionalReqField">
-        <label>Additional requirements</label>
         <div class="hint" style="margin-top:0;margin-bottom:10px;">Optional — check any that apply and specify exact quantities. Anything left unchecked here follows EPS-011's normal size-based defaults instead.</div>
 
         <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_reception" onchange="toggleAdditionalReqSection('reception', this.checked)"> Reception counter — specify exact quantity and widths</label>
@@ -708,8 +714,15 @@
           <input type="number" min="1" id="addreq_led_count" placeholder="e.g. 1" oninput="renderLedScreenFields()">
           <div id="addreq_led_list"></div>
         </div>
+
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_shelves"> Shelves</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_touchscreen"> Touch screen</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_displaytables"> Display Tables</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_storageroom"> Storage Room</label>
+        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_lightingsystem"> Lighting System</label>
       </div>
 
+      <div class="section-headline" id="referenceImageHeadline" style="display:none;">Reference Image</div>
       <div class="field" id="referenceImageField">
         <label>Reference image (optional)</label>
         <div class="logo-upload" id="referenceImageUploadBox" onclick="document.getElementById('f_referenceImage').click()">
@@ -2298,6 +2311,17 @@ function collectAdditionalRequirements(){
     }
   }
 
+  const simpleExtras = [
+    ['addreq_shelves', 'Shelves'],
+    ['addreq_touchscreen', 'Touch screen'],
+    ['addreq_displaytables', 'Display Tables'],
+    ['addreq_storageroom', 'Storage Room'],
+    ['addreq_lightingsystem', 'Lighting System'],
+  ].filter(([id]) => document.getElementById(id).checked).map(([, label]) => label);
+  if(simpleExtras.length > 0){
+    lines.push(`ADDITIONAL ELEMENTS EXPLICITLY REQUESTED BY THE CLIENT — these must be included in the design: ${simpleExtras.join(', ')}.`);
+  }
+
   if(lines.length === 0) return '';
   return `
 
@@ -2506,7 +2530,13 @@ function setMode(m){
       updateEnvironmentSizeFields(document.getElementById('f_environment'));
     }
     document.getElementById('boothOnlyFields').style.display = m==='booth' ? 'block' : 'none';
-    document.getElementById('lblName').textContent = m==='booth' ? 'Exhibition or host name' : 'Event name';
+    document.getElementById('boothDetailsHeadline').style.display = m==='booth' ? 'block' : 'none';
+    document.getElementById('boothDetailsFields').style.display = m==='booth' ? 'block' : 'none';
+    document.getElementById('boothThemeHeadline').style.display = m==='booth' ? 'block' : 'none';
+    document.getElementById('boothThemeFieldsTop').style.display = m==='booth' ? 'block' : 'none';
+    document.getElementById('requirementsHeadline').style.display = m==='booth' ? 'block' : 'none';
+    document.getElementById('referenceImageHeadline').style.display = m==='booth' ? 'block' : 'none';
+    document.getElementById('lblName').textContent = m==='booth' ? 'Project Name' : 'Event name';
     document.getElementById('f_name').placeholder = m==='booth' ? 'e.g. Riyadh International Tech Expo' : 'e.g. Product launch / Annual conference';
     document.getElementById('lblDesc').textContent = m==='booth'
       ? 'Describe what you want in detail: the goal, products on display, visual identity, any special requirements'
