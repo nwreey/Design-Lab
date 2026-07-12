@@ -5314,6 +5314,7 @@ function startNewProject(){
 updateArchStyleHint(document.getElementById('f_archStyle'));
 renderProjectSidebar();
 checkAdminAccess();
+setMode('booth'); // must run once on load — otherwise every element whose correct visibility depends on setMode() (the new section headlines included) stays at its raw HTML default until a tab is actually clicked
 </script>
 </body>
 </html>
