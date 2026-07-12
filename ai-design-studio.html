@@ -413,12 +413,354 @@
     <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')">Edit Design</button>
   </div>
 
-  <div class="card" id="displayStandCard" style="display:none;text-align:center;padding:60px 30px;">
-    <h2 style="font-family:'Space Grotesk',sans-serif;font-size:22px;margin:0 0 10px;">Display Stand</h2>
-    <p style="color:#666;font-size:15px;max-width:480px;margin:0 auto;">This tool is coming soon. We're currently focused on Event Concept — Display Stand design will be built out next.</p>
+  <div class="card" id="displayStandCard" style="display:none;">
+    <div class="section-headline" style="margin-top:0;">Project Information</div>
+    <div class="field">
+      <label>Project Name</label>
+      <input type="text" id="f_dsName" placeholder="e.g. Aura Cosmetics Mall Display">
+    </div>
+    <div class="field">
+      <label>Company Name</label>
+      <input type="text" id="f_dsCompany" placeholder="e.g. Aura Cosmetics">
+    </div>
+    <div class="field">
+      <label>Industry</label>
+      <select id="f_dsIndustry">
+        <option value="">Select industry...</option>
+        <option>Retail</option>
+        <option>Cosmetics</option>
+        <option>Electronics</option>
+        <option>Healthcare</option>
+        <option>Food &amp; Beverage</option>
+        <option>Jewelry</option>
+        <option>Fashion</option>
+        <option>Automotive</option>
+        <option>Technology</option>
+        <option>Pharmacy</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Display Stand Type</label>
+      <select id="f_dsType" onchange="document.getElementById('f_dsTypeCustom').style.display = this.value === 'Custom' ? 'block' : 'none';">
+        <option value="">Select display stand type...</option>
+        <option>Floor Display Stand</option>
+        <option>Counter Display</option>
+        <option>Gondola Display</option>
+        <option>POP Display</option>
+        <option>POS Display</option>
+        <option>Retail Shelf Display</option>
+        <option>Product Showcase</option>
+        <option>Display Cabinet</option>
+        <option>Window Display</option>
+        <option>Freestanding Display</option>
+        <option>Promotional Stand</option>
+        <option>Sampling Stand</option>
+        <option>Mall Display</option>
+        <option>Custom</option>
+      </select>
+      <input type="text" id="f_dsTypeCustom" placeholder="Describe the custom display stand type" style="display:none;margin-top:8px;">
+    </div>
+
+    <div class="section-headline">Product Information</div>
+    <div class="field">
+      <label>Product Name</label>
+      <input type="text" id="f_dsProductName" placeholder="e.g. Radiance Serum">
+    </div>
+    <div class="field">
+      <label>Product Category</label>
+      <input type="text" id="f_dsProductCategory" placeholder="e.g. Skincare">
+    </div>
+    <div class="field">
+      <label>Product Dimensions</label>
+      <div class="row2">
+        <div class="field">
+          <label class="sublabel">Width (cm)</label>
+          <input type="number" id="f_dsProductWidth" placeholder="e.g. 5" min="0" step="0.1">
+        </div>
+        <div class="field">
+          <label class="sublabel">Depth (cm)</label>
+          <input type="number" id="f_dsProductDepth" placeholder="e.g. 5" min="0" step="0.1">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="sublabel">Height (cm)</label>
+          <input type="number" id="f_dsProductHeight" placeholder="e.g. 15" min="0" step="0.1">
+        </div>
+        <div class="field">
+          <label class="sublabel">Weight (kg)</label>
+          <input type="number" id="f_dsProductWeight" placeholder="e.g. 0.3" min="0" step="0.1">
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Number of Products to Display</label>
+      <input type="number" id="f_dsProductCount" placeholder="e.g. 30" min="1">
+    </div>
+    <div class="field" id="dsProductImagesField">
+      <label>Product Images</label>
+      <div class="logo-upload" id="dsProductImagesUploadBox" onclick="document.getElementById('f_dsProductImages').click()">
+        <input type="file" id="f_dsProductImages" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" onchange="handleDsFileUpload(this, 'dsProductImagesList')">
+        <div id="dsProductImagesPlaceholder">Click to upload product images — PNG, JPG, or WebP (multiple allowed)</div>
+      </div>
+      <div id="dsProductImagesList" class="file-list"></div>
+    </div>
+
+    <div class="section-headline">Display Dimensions</div>
+    <div class="row2">
+      <div class="field">
+        <label>Maximum Width (cm)</label>
+        <input type="number" id="f_dsMaxWidth" placeholder="e.g. 60" min="0" step="0.1">
+      </div>
+      <div class="field">
+        <label>Maximum Depth (cm)</label>
+        <input type="number" id="f_dsMaxDepth" placeholder="e.g. 45" min="0" step="0.1">
+      </div>
+    </div>
+    <div class="field">
+      <label>Maximum Height (cm)</label>
+      <input type="number" id="f_dsMaxHeight" placeholder="e.g. 170" min="0" step="0.1">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Number of Shelves</label>
+        <input type="number" id="f_dsShelfCount" placeholder="e.g. 4" min="0">
+      </div>
+      <div class="field">
+        <label>Number of Display Levels</label>
+        <input type="number" id="f_dsLevelCount" placeholder="e.g. 3" min="0">
+      </div>
+    </div>
+
+    <div class="section-headline">Location</div>
+    <div class="field">
+      <label>Where will the display be used?</label>
+      <select id="f_dsLocation">
+        <option value="">Select location...</option>
+        <option>Shopping Mall</option>
+        <option>Supermarket</option>
+        <option>Retail Store</option>
+        <option>Pharmacy</option>
+        <option>Airport</option>
+        <option>Exhibition</option>
+        <option>Showroom</option>
+        <option>Reception Area</option>
+        <option>Hotel</option>
+        <option>Outdoor</option>
+        <option>Other</option>
+      </select>
+    </div>
+
+    <div class="section-headline">Display Purpose</div>
+    <div class="field">
+      <select id="f_dsPurpose">
+        <option value="">Select display purpose...</option>
+        <option>Product Sales</option>
+        <option>Product Launch</option>
+        <option>Brand Awareness</option>
+        <option>Sampling</option>
+        <option>Promotion</option>
+        <option>Information Display</option>
+        <option>Luxury Showcase</option>
+      </select>
+    </div>
+
+    <div class="section-headline">Materials</div>
+    <div class="field">
+      <label>Preferred Materials</label>
+      <div class="checkbox-grid">
+        <label><input type="checkbox" class="ds-material-cb" value="MDF"> MDF</label>
+        <label><input type="checkbox" class="ds-material-cb" value="Wood"> Wood</label>
+        <label><input type="checkbox" class="ds-material-cb" value="Acrylic"> Acrylic</label>
+        <label><input type="checkbox" class="ds-material-cb" value="Glass"> Glass</label>
+        <label><input type="checkbox" class="ds-material-cb" value="Metal"> Metal</label>
+        <label><input type="checkbox" class="ds-material-cb" value="Aluminum"> Aluminum</label>
+        <label><input type="checkbox" class="ds-material-cb" value="PVC"> PVC</label>
+        <label><input type="checkbox" class="ds-material-cb" value="LED"> LED</label>
+        <label><input type="checkbox" class="ds-material-cb" value="Fabric"> Fabric</label>
+        <label><input type="checkbox" class="ds-material-cb" value="Cardboard"> Cardboard</label>
+      </div>
+    </div>
+
+    <div class="section-headline">Branding</div>
+    <div class="field" id="dsLogoField">
+      <label>Upload Logo</label>
+      <div class="logo-upload" id="dsLogoUploadBox" onclick="document.getElementById('f_dsLogo').click()">
+        <input type="file" id="f_dsLogo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleDsFileUpload(this, 'dsLogoList')">
+        <div id="dsLogoPlaceholder">Click to upload your logo — PNG, JPG, WebP, or SVG</div>
+      </div>
+      <div id="dsLogoList" class="file-list"></div>
+    </div>
+    <div class="field" id="dsBrandGuidelinesField">
+      <label>Upload Brand Guidelines</label>
+      <div class="logo-upload" id="dsBrandGuidelinesUploadBox" onclick="document.getElementById('f_dsBrandGuidelines').click()">
+        <input type="file" id="f_dsBrandGuidelines" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" style="display:none;" onchange="handleDsFileUpload(this, 'dsBrandGuidelinesList')">
+        <div id="dsBrandGuidelinesPlaceholder">Click to upload brand guidelines — PDF, JPG, or PNG</div>
+      </div>
+      <div id="dsBrandGuidelinesList" class="file-list"></div>
+    </div>
+    <div class="field" id="dsProductArtworkField">
+      <label>Upload Product Artwork</label>
+      <div class="logo-upload" id="dsProductArtworkUploadBox" onclick="document.getElementById('f_dsProductArtwork').click()">
+        <input type="file" id="f_dsProductArtwork" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple style="display:none;" onchange="handleDsFileUpload(this, 'dsProductArtworkList')">
+        <div id="dsProductArtworkPlaceholder">Click to upload product artwork — PDF, JPG, or PNG (multiple allowed)</div>
+      </div>
+      <div id="dsProductArtworkList" class="file-list"></div>
+    </div>
+    <div class="field" id="dsInspirationField">
+      <label>Upload Inspiration Images</label>
+      <div class="logo-upload" id="dsInspirationUploadBox" onclick="document.getElementById('f_dsInspiration').click()">
+        <input type="file" id="f_dsInspiration" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" onchange="handleDsFileUpload(this, 'dsInspirationList')">
+        <div id="dsInspirationPlaceholder">Click to upload inspiration images — PNG, JPG, or WebP (multiple allowed)</div>
+      </div>
+      <div id="dsInspirationList" class="file-list"></div>
+    </div>
+    <div class="field">
+      <label>Website</label>
+      <input type="text" id="f_dsWebsite" placeholder="e.g. www.auracosmetics.com">
+    </div>
+
+    <div class="section-headline">Features</div>
+    <div class="field">
+      <label>Select Required Features</label>
+      <div class="checkbox-grid">
+        <label><input type="checkbox" class="ds-feature-cb" value="LED Lighting"> LED Lighting</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Lockable Cabinet"> Lockable Cabinet</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Storage"> Storage</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Wheels"> Wheels</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Interactive Screen"> Interactive Screen</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Brochure Holder"> Brochure Holder</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Product Hooks"> Product Hooks</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Glass Shelves"> Glass Shelves</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Acrylic Shelves"> Acrylic Shelves</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Hidden Storage"> Hidden Storage</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Digital Display"> Digital Display</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Price Holder"> Price Holder</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="QR Code Holder"> QR Code Holder</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Sample Holder"> Sample Holder</label>
+        <label><input type="checkbox" class="ds-feature-cb" value="Product Tester Area"> Product Tester Area</label>
+      </div>
+    </div>
+
+    <div class="section-headline">Style</div>
+    <div class="field">
+      <label>Preferred Style</label>
+      <select id="f_dsStyle">
+        <option value="">Select style...</option>
+        <option>Modern</option>
+        <option>Minimal</option>
+        <option>Luxury</option>
+        <option>Premium</option>
+        <option>Industrial</option>
+        <option>Technology</option>
+        <option>Organic</option>
+        <option>Elegant</option>
+      </select>
+    </div>
+
+    <div class="section-headline">Colors</div>
+    <div class="field">
+      <label>Primary Color</label>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input type="color" id="f_dsColorPrimary" value="#152241">
+        <input type="text" id="f_dsColorPrimaryHex" value="#152241" placeholder="#RRGGBB" oninput="document.getElementById('f_dsColorPrimary').value = this.value;">
+      </div>
+    </div>
+    <div class="field">
+      <label>Secondary Color</label>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input type="color" id="f_dsColorSecondary" value="#E1A13B">
+        <input type="text" id="f_dsColorSecondaryHex" value="#E1A13B" placeholder="#RRGGBB" oninput="document.getElementById('f_dsColorSecondary').value = this.value;">
+      </div>
+    </div>
+    <div class="field">
+      <label>Accent Color</label>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input type="color" id="f_dsColorAccent" value="#FFFFFF">
+        <input type="text" id="f_dsColorAccentHex" value="#FFFFFF" placeholder="#RRGGBB" oninput="document.getElementById('f_dsColorAccent').value = this.value;">
+      </div>
+    </div>
+
+    <div class="section-headline">AI Creative Brief</div>
+    <div class="field">
+      <label>Describe your display stand</label>
+      <textarea id="f_dsDescription" placeholder="e.g. Design a premium cosmetic display stand with curved white acrylic shelves, hidden LED lighting, gold accents, and space for 30 products. The stand should be elegant, compact, and suitable for shopping malls."></textarea>
+    </div>
+
+    <div class="section-headline">AI Output</div>
+    <div class="field">
+      <label>Generate</label>
+      <div class="checkbox-grid">
+        <label><input type="checkbox" class="ds-output-cb" value="Hero View"> Hero View</label>
+        <label><input type="checkbox" class="ds-output-cb" value="Front View"> Front View</label>
+        <label><input type="checkbox" class="ds-output-cb" value="Left View"> Left View</label>
+        <label><input type="checkbox" class="ds-output-cb" value="Right View"> Right View</label>
+        <label><input type="checkbox" class="ds-output-cb" value="Rear View"> Rear View</label>
+        <label><input type="checkbox" class="ds-output-cb" value="Top View"> Top View</label>
+        <label><input type="checkbox" class="ds-output-cb" value="Exploded View"> Exploded View</label>
+        <label><input type="checkbox" class="ds-output-cb" value="Multiple Perspectives"> Multiple Perspectives</label>
+        <label><input type="checkbox" class="ds-output-cb" value="White Background Product Render"> White Background Product Render</label>
+        <label><input type="checkbox" class="ds-output-cb" value="Presentation-Ready Images"> Presentation-Ready Images</label>
+      </div>
+    </div>
+
+    <div class="section-headline">Production Requirements</div>
+    <div class="field">
+      <select id="f_dsProduction">
+        <option value="">Select production requirement...</option>
+        <option>Flat Pack Design</option>
+        <option>Easy Assembly</option>
+        <option>Tool-Free Assembly</option>
+        <option>Reusable</option>
+        <option>Lightweight</option>
+        <option>Heavy Duty</option>
+        <option>Indoor Use</option>
+        <option>Outdoor Use</option>
+        <option>Portable</option>
+        <option>Permanent Installation</option>
+      </select>
+    </div>
+
+    <div class="section-headline">Manufacturing Budget</div>
+    <div class="field">
+      <select id="f_dsBudget">
+        <option value="">Select budget tier...</option>
+        <option>Economy</option>
+        <option>Standard</option>
+        <option>Premium</option>
+        <option>Luxury</option>
+      </select>
+      <div class="hint">The AI automatically selects appropriate materials and construction methods based on the chosen budget.</div>
+    </div>
+
+    <div class="section-headline">Retail Environment</div>
+    <div class="field">
+      <select id="f_dsRetailEnvironment">
+        <option value="">Select retail environment...</option>
+        <option>Luxury Boutique</option>
+        <option>Shopping Mall</option>
+        <option>Hypermarket</option>
+        <option>Supermarket</option>
+        <option>Pharmacy</option>
+        <option>Electronics Store</option>
+        <option>Fashion Store</option>
+        <option>Airport Duty Free</option>
+        <option>Hotel Lobby</option>
+        <option>Exhibition Hall</option>
+        <option>Corporate Reception</option>
+        <option>Outdoor Promotional Area</option>
+      </select>
+      <div class="hint">Adjusts display height, product accessibility, materials, lighting, branding intensity, customer interaction, security features, and overall design language to match the real-world setting — a luxury boutique display and a supermarket display need genuinely different design logic, not just different graphics.</div>
+    </div>
+
+    <div style="text-align:center;padding:30px 10px 10px;color:#666;font-size:13.5px;">
+      This form is ready — AI generation for Display Stand is being built next. Your entries won't generate a design yet.
+    </div>
   </div>
 
   <div class="card" id="editDesignCard" style="display:none;">
+
     <div class="field" id="editDesignUploadField">
       <label>Upload any design picture to edit</label>
       <div class="logo-upload" id="editDesignUploadBox" onclick="document.getElementById('editDesignFileInput').click();">
@@ -2179,6 +2521,33 @@ const visionCompatibleTypes = ['image/png','image/jpeg','image/webp','image/gif'
 function togglePosterUpload(sel){
   const isYes = sel.value.startsWith('yes');
   document.getElementById('posterUploadField').style.display = isYes ? 'block' : 'none';
+}
+
+const dsFileStorage = {};
+
+function handleDsFileUpload(input, listId){
+  const files = Array.from(input.files || []);
+  if(!dsFileStorage[listId]) dsFileStorage[listId] = [];
+  files.forEach(f => dsFileStorage[listId].push({ name: f.name, size: f.size, type: f.type, file: f }));
+  renderDsFileList(listId);
+  input.value = '';
+}
+
+function removeDsFile(listId, idx){
+  dsFileStorage[listId].splice(idx, 1);
+  renderDsFileList(listId);
+}
+
+function renderDsFileList(listId){
+  const list = document.getElementById(listId);
+  const files = dsFileStorage[listId] || [];
+  if(files.length === 0){ list.innerHTML = ''; return; }
+  list.innerHTML = files.map((f, i) => `
+    <div class="file-row">
+      <span class="file-name">${f.name}</span>
+      <button type="button" class="file-remove" onclick="removeDsFile('${listId}', ${i})" aria-label="Remove file">×</button>
+    </div>
+  `).join('');
 }
 
 function handlePosterUpload(input){
