@@ -106,6 +106,10 @@
           <label for="newEditLimit">Edit limit</label>
           <input type="number" id="newEditLimit" placeholder="blank = unlimited" min="0">
         </div>
+        <div class="field">
+          <label for="newModifyLimit">Modify limit</label>
+          <input type="number" id="newModifyLimit" placeholder="blank = unlimited" min="0">
+        </div>
       </div>
       <button class="primary" id="addUserBtn" onclick="addUser()">Add user</button>
       <div class="status-msg" id="addUserStatus"></div>
@@ -121,6 +125,7 @@
             <th>Role</th>
             <th>Projects</th>
             <th>Edits</th>
+            <th>Modifies</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -197,25 +202,29 @@ async function loadUsers(){
 function renderUsersTable(){
   const body = document.getElementById('usersTableBody');
   if(usersCache.length === 0){
-    body.innerHTML = '<tr><td colspan="5" class="hint">No team members added yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" class="hint">No team members added yet.</td></tr>';
     return;
   }
   body.innerHTML = usersCache.map(u => {
     const projLimitText = u.project_limit != null ? `${u.project_count} / ${u.project_limit}` : `${u.project_count} / \u221e`;
     const editLimitText = u.edit_limit != null ? `${u.edit_count} / ${u.edit_limit}` : `${u.edit_count} / \u221e`;
+    const modifyLimitText = u.modify_limit != null ? `${u.modify_count} / ${u.modify_limit}` : `${u.modify_count} / \u221e`;
     const projOver = u.project_limit != null && u.project_count >= u.project_limit;
     const editOver = u.edit_limit != null && u.edit_count >= u.edit_limit;
+    const modifyOver = u.modify_limit != null && u.modify_count >= u.modify_limit;
     return `
       <tr>
         <td>${escapeHtml(u.username)}</td>
         <td><span class="role-badge ${u.role === 'admin' ? 'admin' : ''}">${u.role}</span></td>
         <td class="usage ${projOver ? 'over' : ''}">${projLimitText}</td>
         <td class="usage ${editOver ? 'over' : ''}">${editLimitText}</td>
+        <td class="usage ${modifyOver ? 'over' : ''}">${modifyLimitText}</td>
         <td class="actions-cell">
           <button class="ghost" onclick="toggleRole('${u.id}', '${u.role}')">${u.role === 'admin' ? 'Make member' : 'Make admin'}</button>
-          <button class="ghost" onclick="editLimitsPrompt('${u.id}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'})">Edit limits</button>
+          <button class="ghost" onclick="editLimitsPrompt('${u.id}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'}, ${u.modify_limit != null ? u.modify_limit : 'null'})">Edit limits</button>
           <button class="ghost" onclick="resetPasswordPrompt('${u.id}')">Reset password</button>
           <button class="ghost" onclick="resetEditCount('${u.id}')">Reset edit count</button>
+          <button class="ghost" onclick="resetModifyCount('${u.id}')">Reset modify count</button>
           <button class="danger" onclick="removeUser('${u.id}', '${escapeHtml(u.username)}')">Remove</button>
         </td>
       </tr>
@@ -232,6 +241,7 @@ async function addUser(){
   const password = document.getElementById('newPassword').value;
   const projectLimitRaw = document.getElementById('newProjectLimit').value;
   const editLimitRaw = document.getElementById('newEditLimit').value;
+  const modifyLimitRaw = document.getElementById('newModifyLimit').value;
   const statusEl = document.getElementById('addUserStatus');
   const btn = document.getElementById('addUserBtn');
 
@@ -252,7 +262,8 @@ async function addUser(){
       body: JSON.stringify({
         username, password,
         projectLimit: projectLimitRaw === '' ? null : parseInt(projectLimitRaw, 10),
-        editLimit: editLimitRaw === '' ? null : parseInt(editLimitRaw, 10)
+        editLimit: editLimitRaw === '' ? null : parseInt(editLimitRaw, 10),
+        modifyLimit: modifyLimitRaw === '' ? null : parseInt(modifyLimitRaw, 10)
       })
     });
     const data = await response.json().catch(() => ({}));
@@ -262,6 +273,7 @@ async function addUser(){
     document.getElementById('newPassword').value = '';
     document.getElementById('newProjectLimit').value = '';
     document.getElementById('newEditLimit').value = '';
+    document.getElementById('newModifyLimit').value = '';
     statusEl.className = 'status-msg ok';
     statusEl.textContent = 'User added.';
     await loadUsers();
@@ -279,14 +291,17 @@ async function toggleRole(id, currentRole){
   await patchUser(id, { role: newRole });
 }
 
-function editLimitsPrompt(id, currentProjectLimit, currentEditLimit){
+function editLimitsPrompt(id, currentProjectLimit, currentEditLimit, currentModifyLimit){
   const projInput = prompt('Project limit (leave blank for unlimited):', currentProjectLimit == null ? '' : currentProjectLimit);
   if(projInput === null) return;
   const editInput = prompt('Edit limit (leave blank for unlimited):', currentEditLimit == null ? '' : currentEditLimit);
   if(editInput === null) return;
+  const modifyInput = prompt('Modify limit (leave blank for unlimited):', currentModifyLimit == null ? '' : currentModifyLimit);
+  if(modifyInput === null) return;
   patchUser(id, {
     projectLimit: projInput.trim() === '' ? null : parseInt(projInput, 10),
-    editLimit: editInput.trim() === '' ? null : parseInt(editInput, 10)
+    editLimit: editInput.trim() === '' ? null : parseInt(editInput, 10),
+    modifyLimit: modifyInput.trim() === '' ? null : parseInt(modifyInput, 10)
   });
 }
 
@@ -303,6 +318,11 @@ function resetPasswordPrompt(id){
 function resetEditCount(id){
   if(!confirm("Reset this user's edit count back to zero?")) return;
   patchUser(id, { resetEditCount: true });
+}
+
+function resetModifyCount(id){
+  if(!confirm("Reset this user's modify count back to zero?")) return;
+  patchUser(id, { resetModifyCount: true });
 }
 
 async function patchUser(id, fields){

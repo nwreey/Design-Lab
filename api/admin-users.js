@@ -50,6 +50,11 @@ async function ensureSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `;
+  // CREATE TABLE IF NOT EXISTS is a no-op against an already-existing table, so it never
+  // adds new columns on its own — this deployment already has a live users table from
+  // earlier, so modify_limit/modify_count need their own explicit, idempotent migration.
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS modify_limit INTEGER;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS modify_count INTEGER NOT NULL DEFAULT 0;`;
 }
 
 function generateUserId() {
@@ -79,7 +84,7 @@ export default async function handler(req, res) {
     // Includes each user's live project count alongside their limit, so the admin panel
     // can show "3 / 10 projects" without a second round trip per user.
     const result = await sql`
-      SELECT u.id, u.username, u.role, u.project_limit, u.edit_limit, u.edit_count, u.created_at,
+      SELECT u.id, u.username, u.role, u.project_limit, u.edit_limit, u.edit_count, u.modify_limit, u.modify_count, u.created_at,
              COUNT(p.id)::int AS project_count
       FROM users u
       LEFT JOIN projects p ON p.user_id = u.id
@@ -91,7 +96,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { username, password, role, projectLimit, editLimit } = req.body || {};
+    const { username, password, role, projectLimit, editLimit, modifyLimit } = req.body || {};
     if (!username || !password) {
       res.status(400).json({ error: { message: 'Username and password are required.' } });
       return;
@@ -106,9 +111,9 @@ export default async function handler(req, res) {
 
     try {
       await sql`
-        INSERT INTO users (id, username, password_hash, role, project_limit, edit_limit)
+        INSERT INTO users (id, username, password_hash, role, project_limit, edit_limit, modify_limit)
         VALUES (${id}, ${username}, ${passwordHash}, ${finalRole},
-                ${projectLimit != null ? projectLimit : null}, ${editLimit != null ? editLimit : null});
+                ${projectLimit != null ? projectLimit : null}, ${editLimit != null ? editLimit : null}, ${modifyLimit != null ? modifyLimit : null});
       `;
     } catch (err) {
       if (String(err.message || '').includes('duplicate key')) {
@@ -125,7 +130,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { id, role, projectLimit, editLimit, resetEditCount, newPassword } = req.body || {};
+    const { id, role, projectLimit, editLimit, modifyLimit, resetEditCount, resetModifyCount, newPassword } = req.body || {};
     if (!id) {
       res.status(400).json({ error: { message: 'User id is required.' } });
       return;
@@ -147,8 +152,14 @@ export default async function handler(req, res) {
     if (editLimit !== undefined) {
       await sql`UPDATE users SET edit_limit = ${editLimit} WHERE id = ${id};`;
     }
+    if (modifyLimit !== undefined) {
+      await sql`UPDATE users SET modify_limit = ${modifyLimit} WHERE id = ${id};`;
+    }
     if (resetEditCount) {
       await sql`UPDATE users SET edit_count = 0 WHERE id = ${id};`;
+    }
+    if (resetModifyCount) {
+      await sql`UPDATE users SET modify_count = 0 WHERE id = ${id};`;
     }
 
     res.status(200).json({ ok: true });

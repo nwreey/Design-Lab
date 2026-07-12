@@ -27,33 +27,36 @@ function getCaller(req) {
   return payload;
 }
 
-/* Only Modify Design (a deliberate, user-chosen edit action) counts against the edit
-   quota — the INITIAL design generation also goes through this same endpoint, but that's
-   covered by the separate project quota instead; counting it here too would double-count
-   the same action under two different limits. Fails open on a database hiccup, same
-   reasoning as api/edit-image-openai.js: an unenforced limit briefly is a smaller problem
-   than the whole generation feature going down over an unrelated quota-check error. */
-async function checkEditQuota(caller) {
+/* Modify Design (a deliberate, user-chosen edit action) counts against the MODIFY quota —
+   deliberately separate from "Edit Image" (api/edit-image-openai.js), which uses its own
+   edit_limit/edit_count instead. These are genuinely different actions the admin needs to
+   be able to limit independently, not one combined counter. The INITIAL design generation
+   also goes through this same endpoint, but that's covered by the separate project quota
+   instead; counting it here too would double-count the same action under two different
+   limits. Fails open on a database hiccup, same reasoning as api/edit-image-openai.js: an
+   unenforced limit briefly is a smaller problem than the whole generation feature going
+   down over an unrelated quota-check error. */
+async function checkModifyQuota(caller) {
   if (!caller || caller.role === 'admin') return null;
   try {
-    const result = await sql`SELECT edit_limit, edit_count FROM users WHERE id = ${caller.userId};`;
+    const result = await sql`SELECT modify_limit, modify_count FROM users WHERE id = ${caller.userId};`;
     if (result.rows.length === 0) return null;
-    const { edit_limit, edit_count } = result.rows[0];
-    if (edit_limit != null && edit_count >= edit_limit) {
-      return `You've reached your edit limit (${edit_limit}). Ask an admin to raise it.`;
+    const { modify_limit, modify_count } = result.rows[0];
+    if (modify_limit != null && modify_count >= modify_limit) {
+      return `You've reached your modify limit (${modify_limit}). Ask an admin to raise it.`;
     }
   } catch (err) {
-    console.error('Could not check edit quota:', err);
+    console.error('Could not check modify quota:', err);
   }
   return null;
 }
 
-async function incrementEditCount(caller) {
+async function incrementModifyCount(caller) {
   if (!caller || caller.role === 'admin') return;
   try {
-    await sql`UPDATE users SET edit_count = edit_count + 1 WHERE id = ${caller.userId};`;
+    await sql`UPDATE users SET modify_count = modify_count + 1 WHERE id = ${caller.userId};`;
   } catch (err) {
-    console.error('Could not increment edit count:', err);
+    console.error('Could not increment modify count:', err);
   }
 }
 
@@ -92,7 +95,7 @@ module.exports = async (req, res) => {
     }
 
     if (isUserInitiatedEdit) {
-      const quotaError = await checkEditQuota(caller);
+      const quotaError = await checkModifyQuota(caller);
       if (quotaError) {
         res.status(403).json({ error: { message: quotaError } });
         return;
@@ -149,7 +152,7 @@ module.exports = async (req, res) => {
     }
 
     const mime = imagePart.inlineData.mimeType || 'image/png';
-    if (isUserInitiatedEdit) await incrementEditCount(caller);
+    if (isUserInitiatedEdit) await incrementModifyCount(caller);
     res.status(200).json({ image: `data:${mime};base64,${imagePart.inlineData.data}` });
   } catch (err) {
     res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });

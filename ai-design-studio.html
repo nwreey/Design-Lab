@@ -35,6 +35,10 @@
   .app-layout{display:flex;min-height:100vh;align-items:flex-start;}
   .sidebar{width:250px;flex-shrink:0;background:#fff;border-right:1.5px solid var(--navy);padding:24px 16px;min-height:100vh;box-sizing:border-box;position:sticky;top:0;overflow-y:auto;max-height:100vh;}
   .sidebar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .project-usage-indicator{font-size:11.5px;font-weight:600;padding:6px 10px;border-radius:2px;margin-bottom:14px;background:var(--line);color:var(--ink);opacity:.75;}
+  .project-usage-indicator:empty{display:none;margin-bottom:0;}
+  .project-usage-indicator.near-limit{background:#fff3cd;color:#7a5c00;opacity:1;}
+  .project-usage-indicator.at-limit{background:#fde2e2;color:#8a1f1f;opacity:1;}
   .sidebar-header h2{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:15px;color:var(--navy);margin:0;}
   .project-list{display:flex;flex-direction:column;gap:6px;}
   .project-item{display:flex;align-items:center;gap:4px;}
@@ -52,7 +56,7 @@
   .sidebar-upload-divider{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);opacity:.4;margin-bottom:12px;}
   .sidebar-upload-dims-label{font-size:11px;font-weight:600;color:var(--navy);margin-bottom:6px;}
   .sidebar-upload-dims-row{display:flex;gap:6px;margin-bottom:10px;}
-  .sidebar-upload-dims-row input{width:100%;min-width:0;padding:7px 6px;border:1.5px solid var(--line);border-radius:2px;font-family:'Space Grotesk',sans-serif;font-size:12px;text-align:center;}
+  .sidebar-upload-dims-row input{width:100%;min-width:0;padding:7px 6px;border:1.5px solid var(--line);border-radius:2px;font-family:'Space Grotesk',sans-serif;font-size:9px;text-align:center;}
 
   @media(max-width:820px){
     .app-layout{flex-direction:column;}
@@ -279,6 +283,12 @@
   .viewer3d-generated-card-light-label.failed-label{color:#c0432b;}
   #renderSlotImg{cursor:zoom-in;}
   .lightbox-overlay{display:none;position:fixed;inset:0;background:rgba(10,14,26,0.92);z-index:9999;align-items:center;justify-content:center;padding:40px;cursor:zoom-out;}
+  .gen-notice-overlay{display:none;position:fixed;inset:0;background:rgba(10,14,26,0.55);z-index:9998;align-items:center;justify-content:center;padding:24px;}
+  .gen-notice-card{background:var(--paper);border:1.5px solid var(--navy);border-radius:2px;padding:28px;max-width:460px;box-shadow:0 12px 40px rgba(0,0,0,.25);}
+  .gen-notice-card h3{font-family:'Space Grotesk',sans-serif;font-size:17px;margin:0 0 12px;}
+  .gen-notice-card p{font-size:14px;line-height:1.6;color:var(--ink);margin:0 0 20px;}
+  #genNoticeQuotaText{background:var(--line);padding:10px 12px;border-radius:2px;font-weight:600;font-size:13px;}
+  .gen-notice-card button{width:100%;}
   .lightbox-overlay.open{display:flex;}
   .lightbox-overlay img{max-width:100%;max-height:100%;border-radius:2px;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
   .lightbox-close{position:absolute;top:20px;right:28px;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer;background:transparent;border:1.5px solid #fff;padding:8px 16px;border-radius:2px;}
@@ -367,6 +377,8 @@
       <h2>Projects</h2>
       <button class="ghost small" onclick="startNewProject()">+ New</button>
     </div>
+    <div id="projectUsageIndicator" class="project-usage-indicator"></div>
+    <div id="modifyUsageIndicator" class="project-usage-indicator"></div>
     <div id="projectList" class="project-list"></div>
     <div class="sidebar-note">Projects save automatically to your account and are available from any device. They stay saved unless you delete them.</div>
 
@@ -819,6 +831,37 @@
       <input type="text" id="f_mdProjectTypeCustom" placeholder="Describe the project type" style="display:none;margin-top:8px;">
     </div>
 
+    <div class="section-headline">Change Style</div>
+    <div class="field">
+      <div class="hint" style="margin-top:0;margin-bottom:10px;">Didn't like the style that was used? Change it here — these are pre-filled with whatever was used in your last generated design, and changing them sends the same design straight back for a new render, without rewriting anything else.</div>
+      <label>Architectural style</label>
+      <select id="f_mdArchStyle">
+        <option value="Modern">Modern</option>
+        <option value="Minimal">Minimal</option>
+        <option value="Luxury">Luxury</option>
+        <option value="Futuristic">Futuristic</option>
+        <option value="Corporate">Corporate</option>
+        <option value="Industrial">Industrial</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Construction style</label>
+      <select id="f_mdConstructionStyle">
+        <option value="Wood Modular">Wood Modular</option>
+        <option value="Premium Custom Build">Premium Custom Build</option>
+        <option value="Budget Modular">Budget Modular</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Brand personality</label>
+      <select id="f_mdBrandPersonality">
+        <option value="Elegant">Elegant</option>
+        <option value="Innovative">Innovative</option>
+        <option value="Eco Friendly">Eco Friendly</option>
+        <option value="Luxury">Luxury</option>
+      </select>
+    </div>
+
     <div class="section-headline">What Would You Like to Modify?</div>
     <div class="field">
       <div class="hint" style="margin-top:0;margin-bottom:10px;">Select everything that should change. Anything left unchecked here — and anything explicitly locked in the section below — stays as it is in the uploaded design.</div>
@@ -941,10 +984,10 @@ Replace only the materials and graphics."></textarea>
     </div>
 
     <div class="submit-bar">
-      <button class="primary" id="mdSubmitBtn" disabled title="Modify Design generation is not available yet" onclick="return false;">Generate Design</button>
+      <button class="primary" id="mdSubmitBtn" disabled title="Generate a design first — there's nothing to modify yet" onclick="submitModifyDesignStyleChange()">Generate Design</button>
     </div>
     <div style="text-align:center;padding:0 10px 20px;color:#666;font-size:13.5px;">
-      Not available yet — Modify Design generation is being built next. This button won't do anything until then.
+      Right now this button only applies changes to Architectural Style, Construction Style, and Brand Personality above. The rest of this form (Sections 2–9 below "Change Style") is not connected to generation yet.
     </div>
   </div>
 
@@ -1431,10 +1474,9 @@ Replace only the materials and graphics."></textarea>
       <div class="grid-area-actionbar">
         <div class="action-bar" id="actionBar">
           <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;">Download image</button>
-          <button class="ghost small" onclick="openEditPanel()">Edit image</button>
           <button class="ghost small" onclick="openModifyDesignPanel()">Modify design</button>
-          <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()">Other option</button>
           <button class="primary small" id="approveDesignBtn" onclick="approveDesign()">Approve</button>
+          <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()">Other option</button>
         </div>
         <div class="action-status" id="actionStatus"></div>
       </div>
@@ -1451,7 +1493,7 @@ Replace only the materials and graphics."></textarea>
         </div>
 
         <div class="luma-snapshots-tab" id="lumaSnapshotsTab" style="display:none;">
-          <div class="viewer3d-label">Click any snapshot to mark it up and describe a change — each edit applies directly to that one image through OpenAI. The video itself is never touched or re-rendered.</div>
+          <div class="viewer3d-label">Click any snapshot to mark it up and describe a change — each edit applies directly to that one image. The video itself is never touched or re-rendered.</div>
           <div class="luma-snapshots-strip" id="lumaSnapshotsStrip"></div>
         </div>
 
@@ -1507,6 +1549,26 @@ Replace only the materials and graphics."></textarea>
     <div class="viewer3d-generated-wrap-light" id="viewer3dGeneratedWrap" style="display:block;">
       <div class="section-label-light">Final Views — click any image to preview full size</div>
       <div class="viewer3d-generated-grid-light" id="viewer3dGeneratedGrid"></div>
+    </div>
+  </div>
+
+  <div class="gen-notice-overlay" id="genNoticeOverlay">
+    <div class="gen-notice-card">
+      <h3>Before you generate</h3>
+      <p>Once this design is generated, the information you entered is locked and can't be edited directly — except for <strong>Architectural Style</strong>, <strong>Construction Style</strong>, and <strong>Brand Personality</strong>, which you can still change afterward from the Modify Design tab.</p>
+      <p id="genNoticeQuotaText" style="display:none;"></p>
+      <button class="primary" onclick="document.getElementById('genNoticeOverlay').style.display='none';">Got it</button>
+    </div>
+  </div>
+
+  <div class="gen-notice-overlay" id="modifyNoticeOverlay">
+    <div class="gen-notice-card">
+      <h3>Submit this modification?</h3>
+      <p id="modifyNoticeText"></p>
+      <div style="display:flex;gap:10px;">
+        <button class="ghost" onclick="document.getElementById('modifyNoticeOverlay').style.display='none';" style="flex:1;">Cancel</button>
+        <button class="primary" onclick="document.getElementById('modifyNoticeOverlay').style.display='none'; confirmSubmitModifyDesign();" style="flex:1;">Confirm</button>
+      </div>
     </div>
   </div>
 
@@ -1571,7 +1633,7 @@ Replace only the materials and graphics."></textarea>
   </div>
 
   <div id="modifyDesignPanel" class="edit-panel" style="display:none;">
-    <div class="viewer3d-label" style="color:var(--ink);opacity:.75;margin-bottom:10px;">Mark the area you want redesigned. Unlike Edit image, this doesn't follow a literal instruction — Gemini reconsiders that area using its own design judgment, informed by your original brief, and may reallocate elements freely within it. The overall theme, materials, and style stay consistent with the rest of the approved design.</div>
+    <div class="viewer3d-label" style="color:var(--ink);opacity:.75;margin-bottom:10px;">Mark the area you want redesigned. Unlike Edit image, this doesn't follow a literal instruction — DesignsLab reconsiders that area using its own design judgment, informed by your original brief, and may reallocate elements freely within it. The overall theme, materials, and style stay consistent with the rest of the approved design.</div>
     <div class="edit-canvas-wrap" id="modifyDesignCanvasWrap">
       <img id="modifyDesignBaseImg" alt="Image being modified">
       <canvas id="modifyDesignMarkupCanvas"></canvas>
@@ -1579,6 +1641,7 @@ Replace only the materials and graphics."></textarea>
     <div class="edit-toolbar">
       <button class="ghost small active" id="modifyPenOnBtn" onclick="setModifyDesignPenMode(true)">Pen</button>
       <button class="ghost small" id="modifyPanOnBtn" onclick="setModifyDesignPenMode(false)">No draw</button>
+      <button class="ghost small" id="modifyUndoBtn" onclick="undoModifyDesignMarkup()" disabled>Undo</button>
       <button class="ghost small" onclick="clearModifyDesignMarkup()">Clear markup</button>
       <div class="markup-color-picker" id="modifyMarkupColorPicker">
         <button type="button" class="markup-color-swatch active" id="modifyMarkupColorRedBtn" data-color="#E1355C" style="background:#E1355C;" onclick="setModifyDesignMarkupColor('#E1355C', this)" title="Red"></button>
@@ -1586,12 +1649,20 @@ Replace only the materials and graphics."></textarea>
         <button type="button" class="markup-color-swatch" data-color="#2E9E5C" style="background:#2E9E5C;" onclick="setModifyDesignMarkupColor('#2E9E5C', this)" title="Green"></button>
         <button type="button" class="markup-color-swatch" data-color="#E8B923" style="background:#E8B923;" onclick="setModifyDesignMarkupColor('#E8B923', this)" title="Yellow"></button>
       </div>
-      <span class="hint" style="margin:0;">Draw around the area to be redesigned. Multiple colors mark separate areas — Gemini reconsiders each independently.</span>
+      <span class="hint" style="margin:0;">Draw around the area to be redesigned. Multiple colors mark separate areas — DesignsLab reconsiders each independently.</span>
     </div>
-    <textarea id="modifyDesignText" placeholder="Optional — give Gemini a direction if you have one (e.g. 'make this feel more open', 'add a small lounge here'). Leave blank to let Gemini decide freely, guided only by your original brief and the established theme."></textarea>
+    <textarea id="modifyDesignText" placeholder="Optional — give DesignsLab a direction if you have one (e.g. 'make this feel more open', 'add a small lounge here'). Leave blank to let DesignsLab decide freely, guided only by your original brief and the established theme."></textarea>
+    <div class="field" id="modifyDesignAttachField" style="margin-top:10px;">
+      <div class="logo-upload" id="modifyDesignAttachBox" onclick="document.getElementById('modifyDesignAttachInput').click()">
+        <input type="file" id="modifyDesignAttachInput" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleModifyDesignAttach(this)">
+        <div id="modifyDesignAttachPlaceholder">Click to attach a reference image (optional)</div>
+        <img id="modifyDesignAttachPreview" alt="Attached reference preview" style="display:none;max-height:90px;max-width:100%;object-fit:contain;margin-top:8px;">
+      </div>
+      <div class="hint" style="margin-top:6px;">Optional — attach an inspiration or reference image alongside your markup, e.g. a material, lighting style, or layout you'd like this area to draw from.</div>
+    </div>
     <div class="edit-actions">
       <button class="ghost" onclick="closeModifyDesignPanel()">Cancel</button>
-      <button class="primary" onclick="submitModifyDesign()">Submit to Gemini</button>
+      <button class="primary" onclick="submitModifyDesign()">Submit</button>
     </div>
     <div class="edit-status" id="modifyDesignStatus"></div>
   </div>
@@ -2919,17 +2990,78 @@ function clearReferenceImage(){
   document.getElementById('referenceImageClearRow').style.display = 'none';
 }
 
+let isAdminUser = false;
+let currentUserProjectLimit = null; // null = no limit known yet, or admin (unlimited)
+let lastKnownProjectCount = null;
+let projectLimitInfoLoaded = false; // distinguishes "not yet checked" from "confirmed unlimited"
+let currentUserModifyLimit = null;
+let currentUserModifyCount = null;
+let adminCheckPromise = null;
+
 async function checkAdminAccess(){
   try{
     const response = await fetch('/api/me');
     if(!response.ok) return;
     const data = await response.json();
     if(data.role === 'admin'){
+      isAdminUser = true;
       const link = document.getElementById('adminPanelLink');
       if(link) link.style.display = 'inline-block';
     }
+    currentUserProjectLimit = data.projectLimit != null ? data.projectLimit : null;
+    currentUserModifyLimit = data.modifyLimit != null ? data.modifyLimit : null;
+    currentUserModifyCount = data.modifyCount != null ? data.modifyCount : 0;
+    projectLimitInfoLoaded = true;
+    renderProjectUsageIndicator();
+    renderModifyUsageIndicator();
   }catch(err){
     console.error('Could not check admin access:', err);
+  }
+}
+
+function renderProjectUsageIndicator(){
+  const el = document.getElementById('projectUsageIndicator');
+  el.classList.remove('near-limit', 'at-limit');
+
+  // Admins have no limit — the indicator stays empty (and hidden, via CSS) for them.
+  if(isAdminUser){ el.textContent = ''; return; }
+  // Don't show anything until both pieces of data have actually arrived — a flash of
+  // "0 projects" before the real count loads would be more confusing than informative.
+  if(!projectLimitInfoLoaded || lastKnownProjectCount === null){ el.textContent = ''; return; }
+
+  if(currentUserProjectLimit == null){
+    el.textContent = `${lastKnownProjectCount} project${lastKnownProjectCount === 1 ? '' : 's'}`;
+    return;
+  }
+
+  el.textContent = `${lastKnownProjectCount} of ${currentUserProjectLimit} projects used`;
+  if(lastKnownProjectCount >= currentUserProjectLimit){
+    el.classList.add('at-limit');
+  }else if(lastKnownProjectCount >= currentUserProjectLimit - 1){
+    el.classList.add('near-limit');
+  }
+}
+
+function renderModifyUsageIndicator(){
+  const el = document.getElementById('modifyUsageIndicator');
+  if(!el) return;
+  el.classList.remove('near-limit', 'at-limit');
+
+  // Admins have no limit — the indicator stays empty (and hidden, via CSS) for them.
+  if(isAdminUser){ el.textContent = ''; return; }
+  // Don't show anything until the data has actually arrived from /api/me.
+  if(!projectLimitInfoLoaded || currentUserModifyCount === null){ el.textContent = ''; return; }
+
+  if(currentUserModifyLimit == null){
+    el.textContent = `${currentUserModifyCount} modification${currentUserModifyCount === 1 ? '' : 's'}`;
+    return;
+  }
+
+  el.textContent = `${currentUserModifyCount} of ${currentUserModifyLimit} modifications used`;
+  if(currentUserModifyCount >= currentUserModifyLimit){
+    el.classList.add('at-limit');
+  }else if(currentUserModifyCount >= currentUserModifyLimit - 1){
+    el.classList.add('near-limit');
   }
 }
 
@@ -3042,6 +3174,10 @@ function setMode(m){
   document.getElementById('formCard').style.display = (m==='booth' || m==='event') ? 'block' : 'none';
   document.getElementById('displayStandCard').style.display = m==='displaystand' ? 'block' : 'none';
   document.getElementById('modifyDesignFormCard').style.display = m==='editdesign' ? 'block' : 'none';
+  if(m === 'editdesign'){
+    syncModifyDesignStyleFields();
+    updateModifyDesignButtonState();
+  }
   if(m !== 'booth' && m !== 'event'){
     document.getElementById('promptReview').style.display = 'none';
     document.getElementById('result').style.display = 'none';
@@ -3534,6 +3670,20 @@ async function generateDesign(){
     return;
   }
 
+  // Shown once generation is actually about to start — non-blocking, so it doesn't gate or
+  // delay the request itself. Real users glance at it and dismiss it; it never affects the
+  // underlying generation flow, which proceeds on the same tick regardless.
+  const quotaTextEl = document.getElementById('genNoticeQuotaText');
+  const isNewProject = !currentProjectId; // re-generating an existing project never counts against the quota, per the backend's own enforcement logic
+  if(!isAdminUser && isNewProject && currentUserProjectLimit != null && lastKnownProjectCount != null){
+    const remainingAfterThis = currentUserProjectLimit - lastKnownProjectCount - 1;
+    quotaTextEl.textContent = `This will use 1 of your allowed projects — you'll have ${Math.max(0, remainingAfterThis)} remaining after this one.`;
+    quotaTextEl.style.display = 'block';
+  }else{
+    quotaTextEl.style.display = 'none';
+  }
+  document.getElementById('genNoticeOverlay').style.display = 'flex';
+
   lockForm();
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('loadingText').textContent = 'Analyzing your brief and writing rendering prompts...';
@@ -3798,7 +3948,7 @@ Never generate an image yourself. Never explain your reasoning, your process, or
       throw new Error('The prompt-writer did not return a usable prompt.');
     }
 
-    showPromptReview(promptResult);
+    await showPromptReview(promptResult);
     saveCurrentProject();
     document.getElementById('loading').style.display = 'none';
   }catch(err){
@@ -3813,8 +3963,9 @@ Never generate an image yourself. Never explain your reasoning, your process, or
 /* ---------- prompt review step: edit/approve before rendering ---------- */
 
 let pendingPromptResult = null;
+let lastGeneratedMode = null;
 
-function showPromptReview(promptResult){
+async function showPromptReview(promptResult){
   pendingPromptResult = promptResult;
   const wrap = document.getElementById('promptCards');
   wrap.innerHTML = `
@@ -3824,6 +3975,21 @@ function showPromptReview(promptResult){
       <textarea class="prompt-text-input" id="promptText0" style="min-height:180px;">${promptResult.image_prompt || ''}</textarea>
     </div>
   `;
+
+  // Wait for the admin check to definitely finish before deciding — trusting isAdminUser's
+  // current value here would risk a race where a fast click resolves before /api/me returns,
+  // which for a real admin would mean silently losing their one debugging capability with no
+  // indication anything was skipped.
+  if(adminCheckPromise) await adminCheckPromise;
+
+  if(!isAdminUser){
+    // Regular users never see this step — the prompt the AI wrote goes straight through to
+    // image generation with no manual gate. This screen stays fully live for admins only, so
+    // mistakes in the pipeline stay debuggable without exposing the raw AI prompt to everyone.
+    approvePrompts();
+    return;
+  }
+
   document.getElementById('promptReview').style.display = 'block';
   document.getElementById('promptReview').scrollIntoView({behavior:'smooth', block:'start'});
 }
@@ -3865,7 +4031,8 @@ function unlockForm(){
   document.querySelectorAll('#formCard input, #formCard select, #formCard textarea, #formCard button').forEach(el => { el.disabled = false; });
 }
 
-function startRenderSession(promptOptions){
+function startRenderSession(promptOptions, isUserInitiatedEdit){
+  if(mode === 'booth' || mode === 'event') lastGeneratedMode = mode;
   resetLumaState();
   document.getElementById('viewer3dGeneratedCard').style.display = 'none';
   document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
@@ -3894,7 +4061,7 @@ function startRenderSession(promptOptions){
     fetch('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX })
+      body: JSON.stringify({ prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: !!isUserInitiatedEdit })
     })
       .then(res => res.json().catch(() => ({})).then(data => ({ ok: res.ok, data })))
       .then(async ({ ok, data }) => {
@@ -3906,6 +4073,10 @@ function startRenderSession(promptOptions){
           optionResults[i].status = 'done';
           optionResults[i].gallery = [{ label: 'Original', image: compressed }];
           optionResults[i].activeGalleryIndex = 0;
+          if(isUserInitiatedEdit && !isAdminUser && currentUserModifyCount != null){
+            currentUserModifyCount++;
+            renderModifyUsageIndicator();
+          }
         }
         renderOptionTabsV2();
         if(activeOptionIndex === i) showOptionV2(i);
@@ -3919,6 +4090,63 @@ function startRenderSession(promptOptions){
         saveCurrentProject();
       });
   });
+}
+
+/* ---------- Modify Design: change Architectural/Construction style or Brand personality
+   on an already-generated design, resending the same prompt straight to Gemini with just
+   those changes folded in — no trip back through OpenAI. ---------- */
+
+function syncModifyDesignStyleFields(){
+  if(optionResults.length === 0) return; // nothing generated yet — leave the fields at their defaults
+  document.getElementById('f_mdArchStyle').value = document.getElementById('f_archStyle').value || 'Modern';
+  document.getElementById('f_mdConstructionStyle').value = document.getElementById('f_constructionStyle').value || 'Wood Modular';
+  document.getElementById('f_mdBrandPersonality').value = document.getElementById('f_brandPersonality').value || 'Elegant';
+}
+
+function updateModifyDesignButtonState(){
+  const btn = document.getElementById('mdSubmitBtn');
+  const current = optionResults[activeOptionIndex];
+  const hasCompletedDesign = optionResults.length > 0 && current && current.status === 'done';
+  btn.disabled = !hasCompletedDesign;
+  btn.title = hasCompletedDesign ? '' : "Generate a design first — there's nothing to modify yet";
+}
+
+function submitModifyDesignStyleChange(){
+  const current = optionResults[activeOptionIndex];
+  if(!current || current.status !== 'done') return; // button should already be disabled in this case — defensive check
+
+  const originalArch = document.getElementById('f_archStyle').value || 'Modern';
+  const originalConstruction = document.getElementById('f_constructionStyle').value || 'Wood Modular';
+  const originalBrand = document.getElementById('f_brandPersonality').value || 'Elegant';
+  const newArch = document.getElementById('f_mdArchStyle').value;
+  const newConstruction = document.getElementById('f_mdConstructionStyle').value;
+  const newBrand = document.getElementById('f_mdBrandPersonality').value;
+
+  const changes = [];
+  if(newArch !== originalArch) changes.push(`Architectural style is now: ${newArch} (previously ${originalArch}).`);
+  if(newConstruction !== originalConstruction) changes.push(`Construction style is now: ${newConstruction} (previously ${originalConstruction}).`);
+  if(newBrand !== originalBrand) changes.push(`Brand personality is now: ${newBrand} (previously ${originalBrand}).`);
+
+  if(changes.length === 0){
+    alert("These match what's already in the current design — change at least one of the three fields above before generating.");
+    return;
+  }
+
+  // The exact same prompt OpenAI already wrote for this design, with an explicit, scoped
+  // change instruction appended — not a new prompt, not a trip back through OpenAI. Every
+  // other element, dimension, and requirement in the original prompt stays untouched.
+  const modifiedPrompt = `${current.image_prompt}\n\nUPDATE ONLY THE FOLLOWING — keep every other element, dimension, color, and requirement described above exactly as originally specified, unchanged:\n${changes.join('\n')}`;
+
+  // Keep the main form's values in sync, so a second consecutive style change compares
+  // against this one's result rather than the original — otherwise re-opening this tab
+  // and changing the same field back and forth would never register as a real change.
+  document.getElementById('f_archStyle').value = newArch;
+  document.getElementById('f_constructionStyle').value = newConstruction;
+  document.getElementById('f_brandPersonality').value = newBrand;
+
+  startRenderSession([{ title: current.title, image_prompt: modifiedPrompt, conceptDescription: current.conceptDescription || '' }], true);
+
+  if(lastGeneratedMode) setMode(lastGeneratedMode);
 }
 
 function renderOptionTabsV2(){
@@ -4162,7 +4390,7 @@ async function regenerateOtherOption(){
   const statusEl = document.getElementById('actionStatus');
 
   if(!opt.image_prompt){
-    statusEl.textContent = '"Other option" needs a design that was generated in this tool — this picture was uploaded directly, so there\'s no prompt to regenerate from. Use "Edit image" instead to make changes.';
+    statusEl.textContent = '"Other option" needs a design that was generated in this tool — this picture was uploaded directly, so there\'s no prompt to regenerate from.';
     return;
   }
 
@@ -4184,6 +4412,13 @@ async function regenerateOtherOption(){
     opt.status = 'done';
     opt.gallery.push({ label: 'Other option', image: compressed });
     opt.activeGalleryIndex = opt.gallery.length - 1;
+    // Other option already counts against the modify quota on the backend (same
+    // isUserInitiatedEdit path as Modify Design's Submit) — keep the sidebar's local
+    // count in sync immediately here too, not just after a Modify Design submission.
+    if(!isAdminUser && currentUserModifyCount != null){
+      currentUserModifyCount++;
+      renderModifyUsageIndicator();
+    }
     if(activeOptionIndex === idx){
       document.getElementById('renderSlotImg').src = compressed;
       renderGalleryStrip();
@@ -4503,6 +4738,8 @@ let modifyIsDrawingMarkup = false;
 let modifyPenModeOn = true;
 let modifyMarkupColor = '#E1355C';
 let modifyMarkupColorsUsed = new Set();
+let modifyMarkupUndoStack = []; // each entry: { imageData, colorsUsed } snapshotted right before a stroke (or a full clear) begins
+let modifyDesignAttachedFile = null; // { dataUrl, mimeType, name } — optional reference image attached alongside the markup
 
 function openModifyDesignPanel(){
   const opt = optionResults[activeOptionIndex];
@@ -4520,6 +4757,11 @@ function openModifyDesignPanel(){
   document.getElementById('modifyPanOnBtn').classList.remove('active');
   modifyMarkupColor = '#E1355C';
   modifyMarkupColorsUsed = new Set();
+  modifyMarkupUndoStack = [];
+  updateModifyUndoBtnState();
+  modifyDesignAttachedFile = null;
+  document.getElementById('modifyDesignAttachPlaceholder').textContent = 'Click to attach a reference image (optional)';
+  document.getElementById('modifyDesignAttachPreview').style.display = 'none';
   document.querySelectorAll('#modifyMarkupColorPicker .markup-color-swatch').forEach(el => el.classList.remove('active'));
   document.getElementById('modifyMarkupColorRedBtn').classList.add('active');
 
@@ -4542,6 +4784,21 @@ function closeModifyDesignPanel(){
   if(panel) panel.style.display = 'none';
 }
 
+function handleModifyDesignAttach(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    modifyDesignAttachedFile = { dataUrl: e.target.result, mimeType: file.type || 'image/png', name: file.name };
+    const preview = document.getElementById('modifyDesignAttachPreview');
+    const placeholder = document.getElementById('modifyDesignAttachPlaceholder');
+    preview.src = modifyDesignAttachedFile.dataUrl;
+    preview.style.display = 'block';
+    placeholder.textContent = `Attached: ${file.name} — click to replace`;
+  };
+  reader.readAsDataURL(file);
+}
+
 function setModifyDesignPenMode(on){
   modifyPenModeOn = on;
   document.getElementById('modifyPenOnBtn').classList.toggle('active', on);
@@ -4557,8 +4814,26 @@ function setModifyDesignMarkupColor(color, btn){
 function clearModifyDesignMarkup(){
   if(!modifyEditCanvasCtx) return;
   const canvas = document.getElementById('modifyDesignMarkupCanvas');
+  modifyMarkupUndoStack.push({
+    imageData: modifyEditCanvasCtx.getImageData(0, 0, canvas.width, canvas.height),
+    colorsUsed: new Set(modifyMarkupColorsUsed),
+  });
+  updateModifyUndoBtnState();
   modifyEditCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
   modifyMarkupColorsUsed = new Set();
+}
+
+function undoModifyDesignMarkup(){
+  if(modifyMarkupUndoStack.length === 0 || !modifyEditCanvasCtx) return;
+  const last = modifyMarkupUndoStack.pop();
+  modifyEditCanvasCtx.putImageData(last.imageData, 0, 0);
+  modifyMarkupColorsUsed = last.colorsUsed;
+  updateModifyUndoBtnState();
+}
+
+function updateModifyUndoBtnState(){
+  const btn = document.getElementById('modifyUndoBtn');
+  if(btn) btn.disabled = modifyMarkupUndoStack.length === 0;
 }
 
 function modifyDesignCanvasHasMarkup(canvas){
@@ -4576,6 +4851,11 @@ function wireModifyDesignCanvasEvents(canvas){
   canvas.onmousedown = (e) => {
     if(!modifyPenModeOn) return;
     modifyIsDrawingMarkup = true;
+    modifyMarkupUndoStack.push({
+      imageData: modifyEditCanvasCtx.getImageData(0, 0, canvas.width, canvas.height),
+      colorsUsed: new Set(modifyMarkupColorsUsed),
+    });
+    updateModifyUndoBtnState();
     const p = getCanvasPos(canvas, e);
     modifyEditCanvasCtx.beginPath();
     modifyEditCanvasCtx.moveTo(p.x, p.y);
@@ -4597,21 +4877,36 @@ function wireModifyDesignCanvasEvents(canvas){
   canvas.ontouchend = (e) => { e.preventDefault(); canvas.onmouseup(); };
 }
 
-async function submitModifyDesign(){
+function submitModifyDesign(){
+  const canvas = document.getElementById('modifyDesignMarkupCanvas');
+  const hasMarkup = modifyDesignCanvasHasMarkup(canvas);
+
+  if(!hasMarkup){
+    alert('Mark the area you want DesignsLab to redesign before submitting.');
+    return;
+  }
+
+  const noticeText = document.getElementById('modifyNoticeText');
+  if(isAdminUser){
+    noticeText.textContent = 'Submit this modification?';
+  }else if(currentUserModifyLimit == null){
+    noticeText.textContent = `This will use 1 of your modifications — you've used ${currentUserModifyCount != null ? currentUserModifyCount : 0} so far, with no set limit.`;
+  }else{
+    const remainingAfterThis = currentUserModifyLimit - currentUserModifyCount - 1;
+    noticeText.textContent = `This will use 1 of your allowed modifications — you'll have ${Math.max(0, remainingAfterThis)} remaining after this one.`;
+  }
+  document.getElementById('modifyNoticeOverlay').style.display = 'flex';
+}
+
+async function confirmSubmitModifyDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt) return;
   const idx = activeOptionIndex;
 
   const canvas = document.getElementById('modifyDesignMarkupCanvas');
   const baseImg = document.getElementById('modifyDesignBaseImg');
-  const hasMarkup = modifyDesignCanvasHasMarkup(canvas);
   const guidance = document.getElementById('modifyDesignText').value.trim();
   const statusEl = document.getElementById('modifyDesignStatus');
-
-  if(!hasMarkup){
-    alert('Mark the area you want Gemini to redesign before submitting.');
-    return;
-  }
 
   const composite = document.createElement('canvas');
   composite.width = canvas.width;
@@ -4626,7 +4921,7 @@ async function submitModifyDesign(){
     ? `The attached image has hand-drawn markings in ${colorsUsedList.length} different colors (${colorsUsedList.join(', ')}) — each color marks a SEPARATE area to reconsider independently.`
     : `The attached image has a hand-drawn ${colorsUsedList[0] || 'red'} marking around the area to reconsider.`;
 
-  const prompt = `You are the same world-class exhibition stand designer who produced this approved booth design, working from the exact same original client brief below. Reconsider ONLY the marked area(s) of the attached image using your own professional design judgment — you have creative freedom within the marked area to reallocate, resize, add, or remove elements as you see fit, based on what would genuinely make the best use of that space. ${areaDescription} ${guidance ? `The client's direction for this area: "${guidance}".` : "The client has not given specific direction for this area — decide freely based on the brief and what best serves the design."} Everywhere OUTSIDE the marked area(s) must remain exactly as shown, completely unchanged. The redesigned area must use the exact same theme, materials, color palette, branding, and architectural style already established in the rest of this design — it must read as one coherent design, not a mismatched addition.
+  const prompt = `You are the same world-class exhibition stand designer who produced this approved booth design, working from the exact same original client brief below. Reconsider ONLY the marked area(s) of the attached image using your own professional design judgment — you have creative freedom within the marked area to reallocate, resize, add, or remove elements as you see fit, based on what would genuinely make the best use of that space. ${areaDescription} ${guidance ? `The client's direction for this area: "${guidance}".` : "The client has not given specific direction for this area — decide freely based on the brief and what best serves the design."} Everywhere OUTSIDE the marked area(s) must remain exactly as shown, completely unchanged. The redesigned area must use the exact same theme, materials, color palette, branding, and architectural style already established in the rest of this design — it must read as one coherent design, not a mismatched addition.${modifyDesignAttachedFile ? ' The client has also attached a separate reference image (provided after this one) — draw on it for inspiration (material, lighting, layout, or style, as appropriate) for the redesigned area specifically, without copying it wholesale or letting it override the established theme.' : ''}
 
 ORIGINAL CLIENT BRIEF THIS DESIGN WAS BUILT FROM:
 ${lastGeneratedBrief || '(brief not available — infer the established style, materials, and theme directly from the reference image itself.)'}
@@ -4635,13 +4930,20 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
   const compressed = await compressDataUrl(compositeDataUrl, 1536, 0.9);
   const { mime, base64 } = dataUrlParts(compressed);
 
-  statusEl.textContent = 'Sending to Gemini — this can take a moment...';
+  const additionalReferenceImages = [];
+  if(modifyDesignAttachedFile){
+    const attachedCompressed = await compressDataUrl(modifyDesignAttachedFile.dataUrl, 1536, 0.9);
+    const attachedParts = dataUrlParts(attachedCompressed);
+    additionalReferenceImages.push({ data: attachedParts.base64, mimeType: attachedParts.mime });
+  }
+
+  statusEl.textContent = 'Sending to DesignsLab — this can take a moment...';
 
   try{
     const response = await fetch('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, referenceImage: base64, referenceMimeType: mime, isUserInitiatedEdit: true })
+      body: JSON.stringify({ prompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: true })
     });
     const rawText = await response.text();
     let data = {};
@@ -4650,12 +4952,19 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
       throw new Error((data.error && data.error.message) || 'Could not modify that area.');
     }
 
-    opt.gallery.push({ label: 'Modified by Gemini', image: data.image });
+    opt.gallery.push({ label: 'Modified by DesignsLab', image: data.image });
     opt.activeGalleryIndex = opt.gallery.length - 1;
     if(activeOptionIndex === idx){
       document.getElementById('renderSlotImg').src = data.image;
       renderGalleryStrip();
       renderGalleryNav();
+    }
+
+    // Keep the sidebar indicator in sync immediately, without waiting for a page reload
+    // or another /api/me round trip — the backend already incremented the real count.
+    if(!isAdminUser && currentUserModifyCount != null){
+      currentUserModifyCount++;
+      renderModifyUsageIndicator();
     }
 
     statusEl.textContent = '';
@@ -4850,7 +5159,7 @@ async function generateLumaSnapshotStrip(){
 
   lumaSnapshotFrames = [];
   const strip = document.getElementById('lumaSnapshotsStrip');
-  if(strip) strip.innerHTML = '<div class="viewer3d-label">Reading the video and generating clean snapshots with OpenAI...</div>';
+  if(strip) strip.innerHTML = '<div class="viewer3d-label">Reading the video and generating clean snapshots...</div>';
 
   for(let i = 0; i < LUMA_SNAPSHOT_COUNT; i++){
     const frameIndex = Math.round((i / LUMA_SNAPSHOT_COUNT) * duration * 24);
@@ -5352,7 +5661,7 @@ async function approveDesign(){
     descBlockCamera.style.display = 'block';
   }
 
-  statusEl.textContent = 'Generating a 360° video of your booth with Luma AI... this can take a minute or two.';
+  statusEl.textContent = 'Generating a 360° video of your booth with DesignsLab... this can take a minute or two.';
   try{
     await generateLumaVideo(heroImage);
     statusEl.textContent = '';
@@ -5755,6 +6064,8 @@ function renderProjectSidebar(){
   return dbGetAllProjects()
     .then(projects => {
       projects.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+      lastKnownProjectCount = projects.length;
+      renderProjectUsageIndicator();
       const wrap = document.getElementById('projectList');
       if(projects.length === 0){
         wrap.innerHTML = '<div class="project-empty-hint">No saved projects yet. Fill in the form and click Generate to start one.</div>';
@@ -5925,7 +6236,7 @@ function startNewProject(){
 
 updateArchStyleHint(document.getElementById('f_archStyle'));
 renderProjectSidebar();
-checkAdminAccess();
+adminCheckPromise = checkAdminAccess();
 setMode('booth'); // must run once on load — otherwise every element whose correct visibility depends on setMode() (the new section headlines included) stays at its raw HTML default until a tab is actually clicked
 
 // Safety net: re-checks the Generate button state on any standard field change anywhere
