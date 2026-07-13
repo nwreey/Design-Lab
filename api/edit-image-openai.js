@@ -39,7 +39,7 @@ async function checkEditQuota(caller) {
     if (result.rows.length === 0) return null;
     const { edit_limit, edit_count } = result.rows[0];
     if (edit_limit != null && edit_count >= edit_limit) {
-      return `You've reached your edit limit (${edit_limit}). Ask an admin to raise it.`;
+      return `You've reached your edit limit (${edit_limit}). Please contact your administrator to increase this limit.`;
     }
   } catch (err) {
     console.error('Could not check edit quota:', err);

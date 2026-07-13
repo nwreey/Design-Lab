@@ -43,7 +43,7 @@ async function checkModifyQuota(caller) {
     if (result.rows.length === 0) return null;
     const { modify_limit, modify_count } = result.rows[0];
     if (modify_limit != null && modify_count >= modify_limit) {
-      return `You've reached your modify limit (${modify_limit}). Ask an admin to raise it.`;
+      return `You've reached your modify limit (${modify_limit}). Please contact your administrator to increase this limit.`;
     }
   } catch (err) {
     console.error('Could not check modify quota:', err);

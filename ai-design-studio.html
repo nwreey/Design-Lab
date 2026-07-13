@@ -250,6 +250,7 @@
   .action-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 6px;padding:12px;background:#fff;border:1.5px solid var(--line);border-radius:2px;}
   .action-bar select{padding:8px 10px;border:1.5px solid var(--line);border-radius:2px;font-family:'Space Grotesk',sans-serif;font-size:12.5px;background:#fff;}
   .action-status{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--navy);opacity:.75;min-height:16px;margin:6px 0 14px;}
+  .action-status.is-limit-error, .edit-status.is-limit-error{color:#8a2f1c;opacity:1;font-weight:600;}
   .result-layout-grid{
     display:grid;
     grid-template-columns: 1fr;
@@ -310,6 +311,7 @@
   .luma-snapshots-tab{margin:0 0 20px;padding:12px;border:1.5px solid var(--navy);border-radius:2px;background:#0B0C10;}
   .luma-video-wrap{margin:0 0 20px;padding:12px;border:1.5px solid var(--navy);border-radius:2px;background:#0B0C10;}
   .viewer3d-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#fff;opacity:.75;margin-bottom:8px;}
+  .viewer3d-label.is-limit-error{color:#ff7a68;opacity:1;font-weight:600;}
   #lumaVideoPlayer{width:100%;max-height:480px;border-radius:2px;background:#000;display:block;}
   .luma-video-actions{display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
   .viewer3d-status-overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;height:420px;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:12.5px;text-align:center;padding:20px;gap:10px;}
@@ -4548,6 +4550,17 @@ let optionResults = [];
 let activeOptionIndex = 0;
 let currentProjectName = '';
 
+// Sets an error message on a status-line element (action-status or edit-status), applying
+// the same dark red used elsewhere in the app specifically when the message indicates a
+// quota limit was reached — keeping this detection in one place rather than duplicated
+// across every catch block that might surface a limit error from the backend.
+function setStatusError(el, message){
+  if(!el) return;
+  el.textContent = message;
+  const isLimitError = /reached your .* limit/i.test(message || '');
+  el.classList.toggle('is-limit-error', isLimitError);
+}
+
 function lockForm(){
   document.getElementById('formCard').classList.add('locked');
   document.querySelectorAll('#formCard input, #formCard select, #formCard textarea, #formCard button').forEach(el => { el.disabled = true; });
@@ -4923,7 +4936,7 @@ async function regenerateOtherOption(){
 
   const btn = document.getElementById('otherOptionBtn');
   if(btn) btn.disabled = true;
-  if(activeOptionIndex === idx) statusEl.textContent = 'Generating another option... this can take up to a minute. Your existing pictures and views are untouched.';
+  if(activeOptionIndex === idx) setStatusError(statusEl, 'Generating another option... this can take up to a minute. Your existing pictures and views are untouched.');
 
   try{
     const response = await fetch('/api/generate-image-gemini', {
@@ -4950,11 +4963,11 @@ async function regenerateOtherOption(){
       document.getElementById('renderSlotImg').src = compressed;
       renderGalleryStrip();
       renderGalleryNav();
-      statusEl.textContent = '';
+      setStatusError(statusEl, '');
     }
   }catch(err){
     if(activeOptionIndex === idx){
-      statusEl.textContent = 'Could not generate another option: ' + (err && err.message ? err.message : 'unknown error');
+      setStatusError(statusEl, 'Could not generate another option: ' + (err && err.message ? err.message : 'unknown error'));
     }
   }finally{
     if(btn) btn.disabled = false;
@@ -5197,7 +5210,7 @@ RESIZE THIS BOOTH: the client wants to change the physical footprint from approx
     requestBody.prompt += HARD_CONSTRAINTS_SUFFIX;
   }catch(err){
     console.error('Image compression failed:', err);
-    statusEl.textContent = 'Could not prepare that edit: ' + (err.message || 'unknown error');
+    setStatusError(statusEl, 'Could not prepare that edit: ' + (err.message || 'unknown error'));
     return;
   }
 
@@ -5247,7 +5260,7 @@ RESIZE THIS BOOTH: the client wants to change the physical footprint from approx
   }catch(err){
     console.error(err);
     if(activeOptionIndex === idx){
-      statusEl.textContent = 'Could not apply that edit: ' + (err.message || 'unknown error');
+      setStatusError(statusEl, 'Could not apply that edit: ' + (err.message || 'unknown error'));
     }
   }
 }
@@ -5494,12 +5507,12 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
       renderModifyUsageIndicator();
     }
 
-    statusEl.textContent = '';
+    setStatusError(statusEl, '');
     closeModifyDesignPanel();
     saveCurrentProject();
   }catch(err){
     console.error('Modify design failed:', err);
-    statusEl.textContent = 'Could not modify that area: ' + (err.message || 'unknown error');
+    setStatusError(statusEl, 'Could not modify that area: ' + (err.message || 'unknown error'));
   }
 }
 
@@ -5908,7 +5921,7 @@ async function submitSnapshotEdit(){
   const progressWrap = document.getElementById('lumaEditProgressWrap');
   const progressLabel = document.getElementById('lumaEditProgressLabel');
   if(progressWrap) progressWrap.style.display = 'block';
-  if(progressLabel) progressLabel.textContent = 'Applying your edit to this snapshot...';
+  if(progressLabel) setStatusError(progressLabel, 'Applying your edit to this snapshot...');
 
   try{
     const compressed = await compressDataUrl(compositeDataUrl, 1536, 0.88);
@@ -5936,7 +5949,7 @@ async function submitSnapshotEdit(){
   }catch(err){
     console.error('Snapshot edit failed:', err);
     if(progressLabel){
-      progressLabel.textContent = 'Could not apply that edit (' + (err.message || 'unknown error') + ').';
+      setStatusError(progressLabel, 'Could not apply that edit (' + (err.message || 'unknown error') + ').');
     }
     if(progressWrap) progressWrap.style.display = 'block';
   }

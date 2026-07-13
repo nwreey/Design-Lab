@@ -205,7 +205,7 @@ export default async function handler(req, res) {
       const currentCount = countResult.rows[0].count;
       const limit = limitResult.rows.length > 0 ? limitResult.rows[0].project_limit : null;
       if (limit != null && currentCount >= limit) {
-        res.status(403).json({ error: { message: `You've reached your project limit (${limit}). Ask an admin to raise it or remove an old project first.` } });
+        res.status(403).json({ error: { message: `You've reached your project limit (${limit}). Please contact your administrator to increase this limit, or remove an old project first.` } });
         return;
       }
     }
