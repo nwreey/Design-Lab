@@ -72,6 +72,20 @@
   .actions-cell{display:flex;gap:6px;flex-wrap:wrap;}
   .hint{font-size:11.5px;color:var(--ink);opacity:.55;margin-top:4px;}
   .master-note{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);opacity:.5;}
+
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(11,12,16,0.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:9998;align-items:center;justify-content:center;padding:24px;animation:modalFadeIn .18s ease;}
+  @keyframes modalFadeIn{from{opacity:0;}to{opacity:1;}}
+  @keyframes modalCardIn{from{opacity:0;transform:translateY(6px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+  .modal-card{background:var(--paper);border:1.5px solid var(--navy);border-radius:2px;padding:30px 30px 28px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(11,12,16,.35);position:relative;animation:modalCardIn .22s cubic-bezier(.2,.8,.3,1);}
+  .modal-card::before{content:'';position:absolute;top:-1px;left:-1px;width:16px;height:16px;border-top:2px solid var(--gold);border-left:2px solid var(--gold);}
+  .modal-card::after{content:'';position:absolute;bottom:-1px;right:-1px;width:16px;height:16px;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold);}
+  .modal-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
+  .modal-card h3{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:19px;margin:0 0 14px;color:var(--navy);}
+  .modal-card p{font-size:14px;line-height:1.65;color:var(--ink);opacity:.85;margin:0 0 20px;}
+  .modal-card .field{margin-bottom:16px;}
+  .modal-card .modal-status{font-size:12.5px;font-family:'IBM Plex Mono',monospace;color:var(--error);min-height:16px;margin:-6px 0 12px;}
+  .modal-buttons{display:flex;gap:10px;margin-top:6px;}
+  .modal-buttons button{flex:1;}
 </style>
 </head>
 <body>
@@ -99,15 +113,15 @@
           <input type="password" id="newPassword" placeholder="min. 6 characters">
         </div>
         <div class="field">
-          <label for="newProjectLimit">Project limit</label>
+          <label for="newProjectLimit">Project Limit</label>
           <input type="number" id="newProjectLimit" placeholder="blank = unlimited" min="0">
         </div>
         <div class="field">
-          <label for="newEditLimit">Edit limit</label>
+          <label for="newEditLimit">Editing Limit</label>
           <input type="number" id="newEditLimit" placeholder="blank = unlimited" min="0">
         </div>
         <div class="field">
-          <label for="newModifyLimit">Modify limit</label>
+          <label for="newModifyLimit">Modification Limit</label>
           <input type="number" id="newModifyLimit" placeholder="blank = unlimited" min="0">
         </div>
       </div>
@@ -151,6 +165,60 @@
         <tbody id="lockoutsTableBody"></tbody>
       </table>
       <div class="status-msg" id="lockoutsStatus"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="editLimitsModal">
+    <div class="modal-card">
+      <div class="modal-eyebrow">Team Member Limits</div>
+      <h3>Set usage limits</h3>
+      <p>Leave a field blank for unlimited. These apply to <strong id="editLimitsUsername"></strong>.</p>
+      <div class="field">
+        <label for="editLimitsProject">Project Limit</label>
+        <input type="number" id="editLimitsProject" placeholder="blank = unlimited" min="0">
+      </div>
+      <div class="field">
+        <label for="editLimitsEdit">Editing Limit</label>
+        <input type="number" id="editLimitsEdit" placeholder="blank = unlimited" min="0">
+      </div>
+      <div class="field">
+        <label for="editLimitsModify">Modification Limit</label>
+        <input type="number" id="editLimitsModify" placeholder="blank = unlimited" min="0">
+      </div>
+      <div class="modal-status" id="editLimitsStatus"></div>
+      <div class="modal-buttons">
+        <button class="ghost" onclick="closeEditLimitsModal()">Cancel</button>
+        <button class="primary" id="editLimitsSaveBtn" onclick="confirmEditLimits()">Save limits</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="resetPasswordModal">
+    <div class="modal-card">
+      <div class="modal-eyebrow">Team Member Access</div>
+      <h3>Reset password</h3>
+      <p>Set a new password for <strong id="resetPasswordUsername"></strong>. They'll need it the next time they log in.</p>
+      <div class="field">
+        <label for="resetPasswordInput">New password</label>
+        <input type="password" id="resetPasswordInput" placeholder="min. 6 characters">
+      </div>
+      <div class="modal-status" id="resetPasswordStatus"></div>
+      <div class="modal-buttons">
+        <button class="ghost" onclick="closeResetPasswordModal()">Cancel</button>
+        <button class="primary" id="resetPasswordSaveBtn" onclick="confirmResetPassword()">Set password</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="genericConfirmModal">
+    <div class="modal-card">
+      <div class="modal-eyebrow" id="genericConfirmEyebrow">Confirm</div>
+      <h3 id="genericConfirmTitle" style="display:none;"></h3>
+      <p id="genericConfirmText"></p>
+      <div class="modal-buttons">
+        <button class="ghost" id="genericConfirmCancelBtn" onclick="__resolveGenericConfirm(false)" style="display:none;">Cancel</button>
+        <button class="primary" id="genericConfirmOkBtn" onclick="__resolveGenericConfirm(true)">OK</button>
+      </div>
     </div>
   </div>
 
@@ -221,8 +289,8 @@ function renderUsersTable(){
         <td class="usage ${modifyOver ? 'over' : ''}">${modifyLimitText}</td>
         <td class="actions-cell">
           <button class="ghost" onclick="toggleRole('${u.id}', '${u.role}')">${u.role === 'admin' ? 'Make member' : 'Make admin'}</button>
-          <button class="ghost" onclick="editLimitsPrompt('${u.id}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'}, ${u.modify_limit != null ? u.modify_limit : 'null'})">Edit limits</button>
-          <button class="ghost" onclick="resetPasswordPrompt('${u.id}')">Reset password</button>
+          <button class="ghost" onclick="showEditLimitsModal('${u.id}', '${escapeHtml(u.username)}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'}, ${u.modify_limit != null ? u.modify_limit : 'null'})">Edit limits</button>
+          <button class="ghost" onclick="showResetPasswordModal('${u.id}', '${escapeHtml(u.username)}')">Reset password</button>
           <button class="ghost" onclick="resetEditCount('${u.id}')">Reset edit count</button>
           <button class="ghost" onclick="resetModifyCount('${u.id}')">Reset modify count</button>
           <button class="danger" onclick="removeUser('${u.id}', '${escapeHtml(u.username)}')">Remove</button>
@@ -285,43 +353,155 @@ async function addUser(){
   }
 }
 
-async function toggleRole(id, currentRole){
-  const newRole = currentRole === 'admin' ? 'member' : 'admin';
-  if(!confirm(`Change this user's role to ${newRole}?`)) return;
-  await patchUser(id, { role: newRole });
-}
+// ---------- Generic styled confirm/alert, replacing native browser dialogs ----------
+// Native confirm()/alert() can't be styled and don't match the rest of this panel's design.
+let __genericConfirmResolve = null;
 
-function editLimitsPrompt(id, currentProjectLimit, currentEditLimit, currentModifyLimit){
-  const projInput = prompt('Project limit (leave blank for unlimited):', currentProjectLimit == null ? '' : currentProjectLimit);
-  if(projInput === null) return;
-  const editInput = prompt('Edit limit (leave blank for unlimited):', currentEditLimit == null ? '' : currentEditLimit);
-  if(editInput === null) return;
-  const modifyInput = prompt('Modify limit (leave blank for unlimited):', currentModifyLimit == null ? '' : currentModifyLimit);
-  if(modifyInput === null) return;
-  patchUser(id, {
-    projectLimit: projInput.trim() === '' ? null : parseInt(projInput, 10),
-    editLimit: editInput.trim() === '' ? null : parseInt(editInput, 10),
-    modifyLimit: modifyInput.trim() === '' ? null : parseInt(modifyInput, 10)
+function genericConfirm(message, eyebrow, okLabel){
+  return new Promise(resolve => {
+    __genericConfirmResolve = resolve;
+    document.getElementById('genericConfirmEyebrow').textContent = eyebrow || 'Confirm';
+    document.getElementById('genericConfirmTitle').style.display = 'none';
+    document.getElementById('genericConfirmText').textContent = message;
+    document.getElementById('genericConfirmCancelBtn').style.display = 'block';
+    document.getElementById('genericConfirmOkBtn').textContent = okLabel || 'Confirm';
+    document.getElementById('genericConfirmModal').style.display = 'flex';
   });
 }
 
-function resetPasswordPrompt(id){
-  const newPassword = prompt('New password for this user (min. 6 characters):');
-  if(newPassword === null) return;
-  if(newPassword.length < 6){
-    alert('Password must be at least 6 characters.');
-    return;
-  }
-  patchUser(id, { newPassword });
+function genericAlert(message, eyebrow){
+  return new Promise(resolve => {
+    __genericConfirmResolve = resolve;
+    document.getElementById('genericConfirmEyebrow').textContent = eyebrow || 'Notice';
+    document.getElementById('genericConfirmTitle').style.display = 'none';
+    document.getElementById('genericConfirmText').textContent = message;
+    document.getElementById('genericConfirmCancelBtn').style.display = 'none';
+    document.getElementById('genericConfirmOkBtn').textContent = 'OK';
+    document.getElementById('genericConfirmModal').style.display = 'flex';
+  });
 }
 
-function resetEditCount(id){
-  if(!confirm("Reset this user's edit count back to zero?")) return;
+function __resolveGenericConfirm(result){
+  document.getElementById('genericConfirmModal').style.display = 'none';
+  if(__genericConfirmResolve){
+    const resolve = __genericConfirmResolve;
+    __genericConfirmResolve = null;
+    resolve(result);
+  }
+}
+
+async function toggleRole(id, currentRole){
+  const newRole = currentRole === 'admin' ? 'member' : 'admin';
+  if(!await genericConfirm(`Change this user's role to ${newRole}?`, 'Team Member Access', 'Change role')) return;
+  await patchUser(id, { role: newRole });
+}
+
+// ---------- Edit Limits: a single form for all three limits ----------
+// Previously three SEQUENTIAL prompt() dialogs — cancelling (or accidentally dismissing)
+// any one of the three silently aborted the entire update with no explanation, which was
+// the actual cause of limits "not reflecting" on the user. One form, one Save action,
+// fixes that structurally: there's no longer a middle step where the whole thing can
+// silently fail.
+let __editLimitsUserId = null;
+
+function showEditLimitsModal(id, username, currentProjectLimit, currentEditLimit, currentModifyLimit){
+  __editLimitsUserId = id;
+  document.getElementById('editLimitsUsername').textContent = username;
+  document.getElementById('editLimitsProject').value = currentProjectLimit == null ? '' : currentProjectLimit;
+  document.getElementById('editLimitsEdit').value = currentEditLimit == null ? '' : currentEditLimit;
+  document.getElementById('editLimitsModify').value = currentModifyLimit == null ? '' : currentModifyLimit;
+  document.getElementById('editLimitsStatus').textContent = '';
+  document.getElementById('editLimitsModal').style.display = 'flex';
+}
+
+function closeEditLimitsModal(){
+  document.getElementById('editLimitsModal').style.display = 'none';
+  __editLimitsUserId = null;
+}
+
+async function confirmEditLimits(){
+  if(!__editLimitsUserId) return;
+  const projRaw = document.getElementById('editLimitsProject').value.trim();
+  const editRaw = document.getElementById('editLimitsEdit').value.trim();
+  const modifyRaw = document.getElementById('editLimitsModify').value.trim();
+  const statusEl = document.getElementById('editLimitsStatus');
+  const btn = document.getElementById('editLimitsSaveBtn');
+
+  btn.disabled = true;
+  statusEl.textContent = '';
+  try{
+    const response = await fetch('/api/admin-users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: __editLimitsUserId,
+        projectLimit: projRaw === '' ? null : parseInt(projRaw, 10),
+        editLimit: editRaw === '' ? null : parseInt(editRaw, 10),
+        modifyLimit: modifyRaw === '' ? null : parseInt(modifyRaw, 10)
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not update limits.');
+    closeEditLimitsModal();
+    await loadUsers();
+  }catch(err){
+    statusEl.textContent = err.message || 'Could not update limits.';
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+// ---------- Reset Password: a single form instead of prompt() + alert() ----------
+let __resetPasswordUserId = null;
+
+function showResetPasswordModal(id, username){
+  __resetPasswordUserId = id;
+  document.getElementById('resetPasswordUsername').textContent = username;
+  document.getElementById('resetPasswordInput').value = '';
+  document.getElementById('resetPasswordStatus').textContent = '';
+  document.getElementById('resetPasswordModal').style.display = 'flex';
+}
+
+function closeResetPasswordModal(){
+  document.getElementById('resetPasswordModal').style.display = 'none';
+  __resetPasswordUserId = null;
+}
+
+async function confirmResetPassword(){
+  if(!__resetPasswordUserId) return;
+  const newPassword = document.getElementById('resetPasswordInput').value;
+  const statusEl = document.getElementById('resetPasswordStatus');
+  if(newPassword.length < 6){
+    statusEl.textContent = 'Password must be at least 6 characters.';
+    return;
+  }
+  const btn = document.getElementById('resetPasswordSaveBtn');
+  btn.disabled = true;
+  statusEl.textContent = '';
+  try{
+    const response = await fetch('/api/admin-users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: __resetPasswordUserId, newPassword })
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not reset password.');
+    closeResetPasswordModal();
+    await loadUsers();
+  }catch(err){
+    statusEl.textContent = err.message || 'Could not reset password.';
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+async function resetEditCount(id){
+  if(!await genericConfirm("Reset this user's edit count back to zero?", 'Team Member Limits', 'Reset count')) return;
   patchUser(id, { resetEditCount: true });
 }
 
-function resetModifyCount(id){
-  if(!confirm("Reset this user's modify count back to zero?")) return;
+async function resetModifyCount(id){
+  if(!await genericConfirm("Reset this user's modify count back to zero?", 'Team Member Limits', 'Reset count')) return;
   patchUser(id, { resetModifyCount: true });
 }
 
@@ -343,7 +523,7 @@ async function patchUser(id, fields){
 }
 
 async function removeUser(id, username){
-  if(!confirm(`Remove ${username}? They will no longer be able to log in. Their existing projects are kept, not deleted.`)) return;
+  if(!await genericConfirm(`Remove ${username}? They will no longer be able to log in. Their existing projects are kept, not deleted.`, 'Team Member Access', 'Remove')) return;
   const tableStatus = document.getElementById('tableStatus');
   try{
     const response = await fetch('/api/admin-users?id=' + encodeURIComponent(id), { method: 'DELETE' });
