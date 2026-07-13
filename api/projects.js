@@ -85,7 +85,7 @@ async function extractImages(node, projectId, uploadedCountRef) {
     const buffer = Buffer.from(base64, 'base64');
     const ext = mime.includes('png') ? 'png' : mime.includes('jpeg') ? 'jpg' : mime.includes('webp') ? 'webp' : mime.includes('pdf') ? 'pdf' : mime.includes('svg') ? 'svg' : 'bin';
     const pathname = `projects/${projectId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
-    const blob = await put(pathname, buffer, { access: 'private', contentType: mime, addRandomSuffix: false });
+    const blob = await put(pathname, buffer, { access: 'public', contentType: mime, addRandomSuffix: false });
     uploadedCountRef.count++;
     return 'blob:' + blob.pathname;
   }
@@ -110,7 +110,7 @@ async function inlineImages(node) {
     if (match) {
       const pathname = match[1];
       try {
-        const result = await get(pathname, { access: 'private' });
+        const result = await get(pathname, { access: 'public' });
         if (!result || result.statusCode !== 200 || !result.stream) return node; // leave the marker if not found, don't crash the whole load
         const contentType = result.blob.contentType || 'application/octet-stream';
         const buffer = Buffer.from(await new Response(result.stream).arrayBuffer());
