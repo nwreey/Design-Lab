@@ -1166,12 +1166,12 @@ Replace only the materials and graphics."></textarea>
         <div id="colorRows">
           <div class="color-row">
             <input type="color" class="color-picker" value="#152241" oninput="syncColorHex(this)">
-            <input type="text" class="color-hex" value="#152241" placeholder="#RRGGBB" oninput="syncColorPicker(this)">
+            <input type="text" class="color-hex" value="#152241" placeholder="#RRGGBB" oninput="syncColorPicker(this)" onchange="syncColorPicker(this)">
             <button type="button" class="color-remove" onclick="removeColorRow(this)" aria-label="Remove color">×</button>
           </div>
           <div class="color-row">
             <input type="color" class="color-picker" value="#E1A13B" oninput="syncColorHex(this)">
-            <input type="text" class="color-hex" value="#E1A13B" placeholder="#RRGGBB" oninput="syncColorPicker(this)">
+            <input type="text" class="color-hex" value="#E1A13B" placeholder="#RRGGBB" oninput="syncColorPicker(this)" onchange="syncColorPicker(this)">
             <button type="button" class="color-remove" onclick="removeColorRow(this)" aria-label="Remove color">×</button>
           </div>
         </div>
@@ -3804,12 +3804,18 @@ function syncColorHex(colorInput){
 
 function syncColorPicker(hexInput){
   const v = hexInput.value.trim();
-  const match = v.match(/^#?([0-9A-Fa-f]{6})$/);
-  if(match){
-    const normalized = '#' + match[1].toUpperCase();
-    hexInput.closest('.color-row').querySelector('.color-picker').value = normalized;
-    // Normalize the text field itself too (e.g. a pasted "FF5733" with no leading #)
-    // so this color also counts as valid everywhere else the app checks for one.
+  // Accept both the full 6-digit form and CSS-style 3-digit shorthand (e.g. "#FFF" -> "#FFFFFF")
+  const shortMatch = v.match(/^#?([0-9A-Fa-f]{3})$/);
+  const fullMatch = v.match(/^#?([0-9A-Fa-f]{6})$/);
+  const sixDigit = fullMatch ? fullMatch[1] : (shortMatch ? shortMatch[1].split('').map(c => c + c).join('') : null);
+  if(sixDigit){
+    const normalized = '#' + sixDigit.toUpperCase();
+    // The native <input type="color"> element requires a lowercase #rrggbb value per the
+    // HTML spec's value sanitization — assigning an uppercase value can be silently
+    // rejected by some engines, which was leaving the swatch looking unchanged.
+    hexInput.closest('.color-row').querySelector('.color-picker').value = '#' + sixDigit.toLowerCase();
+    // Normalize the text field itself too (e.g. a pasted "FF5733" with no leading #, or a
+    // 3-digit shorthand) so this color also counts as valid everywhere else the app checks.
     if(hexInput.value !== normalized) hexInput.value = normalized;
   }
 }
@@ -3820,7 +3826,7 @@ function addColorRow(){
   div.className = 'color-row';
   div.innerHTML = `
     <input type="color" class="color-picker" value="#6B7A99" oninput="syncColorHex(this)">
-    <input type="text" class="color-hex" value="#6B7A99" placeholder="#RRGGBB" oninput="syncColorPicker(this)">
+    <input type="text" class="color-hex" value="#6B7A99" placeholder="#RRGGBB" oninput="syncColorPicker(this)" onchange="syncColorPicker(this)">
     <button type="button" class="color-remove" onclick="removeColorRow(this)" aria-label="Remove color">×</button>
   `;
   rows.appendChild(div);
@@ -6519,7 +6525,7 @@ function restoreFormSnapshot(snap){
     div.className = 'color-row';
     div.innerHTML = `
       <input type="color" class="color-picker" value="${hex}" oninput="syncColorHex(this)">
-      <input type="text" class="color-hex" value="${hex}" placeholder="#RRGGBB" oninput="syncColorPicker(this)">
+      <input type="text" class="color-hex" value="${hex}" placeholder="#RRGGBB" oninput="syncColorPicker(this)" onchange="syncColorPicker(this)">
       <button type="button" class="color-remove" onclick="removeColorRow(this)" aria-label="Remove color">×</button>
     `;
     rows.appendChild(div);
