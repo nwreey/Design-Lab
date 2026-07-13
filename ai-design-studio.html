@@ -35,10 +35,15 @@
   .app-layout{display:flex;min-height:100vh;align-items:flex-start;}
   .sidebar{width:250px;flex-shrink:0;background:#fff;border-right:1.5px solid var(--navy);padding:24px 16px;min-height:100vh;box-sizing:border-box;position:sticky;top:0;overflow-y:auto;max-height:100vh;}
   .sidebar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
-  .project-usage-indicator{font-size:11.5px;font-weight:600;padding:6px 10px;border-radius:2px;margin-bottom:14px;background:var(--line);color:var(--ink);opacity:.75;}
-  .project-usage-indicator:empty{display:none;margin-bottom:0;}
-  .project-usage-indicator.near-limit{background:#fff3cd;color:#7a5c00;opacity:1;}
-  .project-usage-indicator.at-limit{background:#fde2e2;color:#8a1f1f;opacity:1;}
+  .usage-summary{background:var(--paper);border:1.5px solid var(--navy);border-radius:2px;padding:16px 18px 14px;margin-top:20px;position:relative;}
+  .usage-summary::before{content:'';position:absolute;top:-1px;left:-1px;width:12px;height:12px;border-top:2px solid var(--gold);border-left:2px solid var(--gold);}
+  .usage-summary::after{content:'';position:absolute;bottom:-1px;right:-1px;width:12px;height:12px;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold);}
+  .usage-summary-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1.2px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
+  .usage-row{font-size:12px;font-weight:600;color:var(--ink);opacity:.75;padding:6px 0;}
+  .usage-row:empty{display:none;padding:0;}
+  .usage-row + .usage-row{border-top:1px solid var(--line);}
+  .usage-row.near-limit{color:#7a5c00;opacity:1;}
+  .usage-row.at-limit{color:#8a1f1f;opacity:1;}
   .project-save-error{font-size:11.5px;font-weight:600;padding:8px 10px;border-radius:2px;margin-bottom:14px;background:#fde2e2;color:#8a1f1f;line-height:1.4;}
   .sidebar-header h2{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:15px;color:var(--navy);margin:0;}
   .project-list{display:flex;flex-direction:column;gap:6px;}
@@ -379,7 +384,12 @@
   .timeline{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--navy);opacity:.8;margin-top:20px;}
 
 
-  footer{margin-top:56px;text-align:center;font-size:11.5px;color:var(--ink);opacity:.45;font-family:'IBM Plex Mono',monospace;}
+  footer{margin-top:56px;border-top:1.5px solid var(--line);padding:36px 0 30px;text-align:center;}
+  footer .footer-brandmark{display:flex;justify-content:center;margin-bottom:14px;}
+  footer .footer-brandmark svg{width:36px;height:36px;opacity:.85;}
+  footer .footer-tag{font-family:'Space Grotesk',sans-serif;font-size:13.5px;font-weight:700;color:var(--navy);}
+  footer .footer-sub{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.03em;color:var(--ink);opacity:.55;margin-top:8px;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.6;}
+  footer .footer-copy{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);opacity:.4;margin-top:18px;}
 </style>
 </head>
 <body>
@@ -389,8 +399,6 @@
       <h2>Projects</h2>
       <button class="ghost small" onclick="startNewProject()">+ New</button>
     </div>
-    <div id="projectUsageIndicator" class="project-usage-indicator"></div>
-    <div id="modifyUsageIndicator" class="project-usage-indicator"></div>
     <div id="projectSaveError" class="project-save-error" style="display:none;"></div>
     <div id="projectList" class="project-list"></div>
     <div class="sidebar-note">Projects save automatically to your account and are available from any device. They stay saved unless you delete them.</div>
@@ -406,6 +414,13 @@
       <input type="file" id="existingDesignUpload" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleExistingDesignUpload(this)">
       <button class="ghost small" style="width:100%;" onclick="document.getElementById('existingDesignUpload').click()">Upload an existing design</button>
       <div class="sidebar-note">Already have a finished design? Enter its size above (optional), then upload it here to skip the form and go straight to camera views. The size helps the app pick faster settings for large or double-deck booths.</div>
+    </div>
+
+    <div class="usage-summary" id="usageSummaryPanel" style="display:none;">
+      <div class="usage-summary-eyebrow">Account Usage</div>
+      <div id="projectUsageIndicator" class="usage-row"></div>
+      <div id="editUsageIndicator" class="usage-row"></div>
+      <div id="modifyUsageIndicator" class="usage-row"></div>
     </div>
   </aside>
 
@@ -1877,7 +1892,19 @@ Replace only the materials and graphics."></textarea>
     <div class="edit-status" id="modifyDesignStatus"></div>
   </div>
 
-  <footer>AI DESIGN STUDIO — RENDERED CONCEPTS ARE AI-GENERATED VISUALIZATIONS, NOT PHOTOREALISTIC ARCHITECTURAL RENDERS OR FINAL BLUEPRINTS</footer>
+  <footer>
+    <div class="footer-brandmark">
+      <svg viewBox="0 0 44 44" fill="none">
+        <rect x="3" y="3" width="38" height="38" stroke="#0B0C10" stroke-width="2"/>
+        <line x1="3" y1="16" x2="41" y2="16" stroke="#0B0C10" stroke-width="1.2"/>
+        <line x1="16" y1="16" x2="16" y2="41" stroke="#0B0C10" stroke-width="1.2"/>
+        <circle cx="29" cy="28" r="6" stroke="#6B6F76" stroke-width="2"/>
+      </svg>
+    </div>
+    <div class="footer-tag">AI Design Studio for Events &amp; Brands</div>
+    <div class="footer-sub">Rendered concepts are AI-generated visualizations, not photorealistic architectural renders or final blueprints.</div>
+    <div class="footer-copy">© 2026 DMR Arabia. All rights reserved.</div>
+  </footer>
 </div>
 </div>
 
@@ -3364,6 +3391,8 @@ let lastKnownProjectCount = null;
 let projectLimitInfoLoaded = false; // distinguishes "not yet checked" from "confirmed unlimited"
 let currentUserModifyLimit = null;
 let currentUserModifyCount = null;
+let currentUserEditLimit = null;
+let currentUserEditCount = null;
 let adminCheckPromise = null;
 
 async function checkAdminAccess(){
@@ -3379,26 +3408,43 @@ async function checkAdminAccess(){
     currentUserProjectLimit = data.projectLimit != null ? data.projectLimit : null;
     currentUserModifyLimit = data.modifyLimit != null ? data.modifyLimit : null;
     currentUserModifyCount = data.modifyCount != null ? data.modifyCount : 0;
+    currentUserEditLimit = data.editLimit != null ? data.editLimit : null;
+    currentUserEditCount = data.editCount != null ? data.editCount : 0;
     projectLimitInfoLoaded = true;
     renderProjectUsageIndicator();
     renderModifyUsageIndicator();
+    renderEditUsageIndicator();
   }catch(err){
     console.error('Could not check admin access:', err);
   }
 }
 
+// Hides the whole grouped panel when there's genuinely nothing to show (admins, or before
+// /api/me has resolved) — showing an empty bordered card would look like a rendering bug.
+function updateUsageSummaryVisibility(){
+  const panel = document.getElementById('usageSummaryPanel');
+  if(!panel) return;
+  const rows = ['projectUsageIndicator', 'editUsageIndicator', 'modifyUsageIndicator']
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+  const hasContent = rows.some(el => el.textContent !== '');
+  panel.style.display = hasContent ? 'block' : 'none';
+}
+
 function renderProjectUsageIndicator(){
   const el = document.getElementById('projectUsageIndicator');
+  if(!el) return;
   el.classList.remove('near-limit', 'at-limit');
 
   // Admins have no limit — the indicator stays empty (and hidden, via CSS) for them.
-  if(isAdminUser){ el.textContent = ''; return; }
+  if(isAdminUser){ el.textContent = ''; updateUsageSummaryVisibility(); return; }
   // Don't show anything until both pieces of data have actually arrived — a flash of
   // "0 projects" before the real count loads would be more confusing than informative.
-  if(!projectLimitInfoLoaded || lastKnownProjectCount === null){ el.textContent = ''; return; }
+  if(!projectLimitInfoLoaded || lastKnownProjectCount === null){ el.textContent = ''; updateUsageSummaryVisibility(); return; }
 
   if(currentUserProjectLimit == null){
     el.textContent = `${lastKnownProjectCount} project${lastKnownProjectCount === 1 ? '' : 's'}`;
+    updateUsageSummaryVisibility();
     return;
   }
 
@@ -3408,6 +3454,7 @@ function renderProjectUsageIndicator(){
   }else if(lastKnownProjectCount >= currentUserProjectLimit - 1){
     el.classList.add('near-limit');
   }
+  updateUsageSummaryVisibility();
 }
 
 function renderModifyUsageIndicator(){
@@ -3416,12 +3463,13 @@ function renderModifyUsageIndicator(){
   el.classList.remove('near-limit', 'at-limit');
 
   // Admins have no limit — the indicator stays empty (and hidden, via CSS) for them.
-  if(isAdminUser){ el.textContent = ''; return; }
+  if(isAdminUser){ el.textContent = ''; updateUsageSummaryVisibility(); return; }
   // Don't show anything until the data has actually arrived from /api/me.
-  if(!projectLimitInfoLoaded || currentUserModifyCount === null){ el.textContent = ''; return; }
+  if(!projectLimitInfoLoaded || currentUserModifyCount === null){ el.textContent = ''; updateUsageSummaryVisibility(); return; }
 
   if(currentUserModifyLimit == null){
     el.textContent = `${currentUserModifyCount} modification${currentUserModifyCount === 1 ? '' : 's'}`;
+    updateUsageSummaryVisibility();
     return;
   }
 
@@ -3431,6 +3479,32 @@ function renderModifyUsageIndicator(){
   }else if(currentUserModifyCount >= currentUserModifyLimit - 1){
     el.classList.add('near-limit');
   }
+  updateUsageSummaryVisibility();
+}
+
+function renderEditUsageIndicator(){
+  const el = document.getElementById('editUsageIndicator');
+  if(!el) return;
+  el.classList.remove('near-limit', 'at-limit');
+
+  // Admins have no limit — the indicator stays empty (and hidden, via CSS) for them.
+  if(isAdminUser){ el.textContent = ''; updateUsageSummaryVisibility(); return; }
+  // Don't show anything until the data has actually arrived from /api/me.
+  if(!projectLimitInfoLoaded || currentUserEditCount === null){ el.textContent = ''; updateUsageSummaryVisibility(); return; }
+
+  if(currentUserEditLimit == null){
+    el.textContent = `${currentUserEditCount} edit${currentUserEditCount === 1 ? '' : 's'}`;
+    updateUsageSummaryVisibility();
+    return;
+  }
+
+  el.textContent = `${currentUserEditCount} of ${currentUserEditLimit} edits used`;
+  if(currentUserEditCount >= currentUserEditLimit){
+    el.classList.add('at-limit');
+  }else if(currentUserEditCount >= currentUserEditLimit - 1){
+    el.classList.add('near-limit');
+  }
+  updateUsageSummaryVisibility();
 }
 
 async function logOut(){
@@ -5232,6 +5306,10 @@ RESIZE THIS BOOTH: the client wants to change the physical footprint from approx
     }
     statusEl.textContent = 'Applying edit...';
     const compressedResult = data.image;
+    if(!isAdminUser && currentUserEditCount != null){
+      currentUserEditCount++;
+      renderEditUsageIndicator();
+    }
 
     if(editTarget.type === 'camview'){
       pushCardHistory(editTarget.camId, compressedResult, editDesc);
@@ -5942,6 +6020,10 @@ async function submitSnapshotEdit(){
     pushCardHistory(snapshotHistoryKey(editingIndex), data.image);
     const frame = lumaSnapshotFrames.find(f => f.index === editingIndex);
     if(frame) frame.imageDataUrl = data.image;
+    if(!isAdminUser && currentUserEditCount != null){
+      currentUserEditCount++;
+      renderEditUsageIndicator();
+    }
 
     if(progressWrap) progressWrap.style.display = 'none';
     renderSnapshotThumbnails();
