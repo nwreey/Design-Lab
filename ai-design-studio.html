@@ -62,7 +62,8 @@
   .sidebar-upload-divider{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);opacity:.4;margin-bottom:12px;}
   .sidebar-upload-dims-label{font-size:11px;font-weight:600;color:var(--navy);margin-bottom:6px;}
   .sidebar-upload-dims-row{display:flex;gap:6px;margin-bottom:10px;}
-  .sidebar-upload-dims-row input{width:100%;min-width:0;padding:7px 6px;border:1.5px solid var(--line);border-radius:2px;font-family:'Space Grotesk',sans-serif;font-size:9px;text-align:center;}
+  .sidebar-upload-dims-row input{width:100%;min-width:0;}
+  #uploadExistingWidth, #uploadExistingDepth, #uploadExistingHeight{padding:7px 6px;font-size:9px;text-align:center;}
 
   @media(max-width:820px){
     .app-layout{flex-direction:column;}
@@ -85,6 +86,9 @@
     padding:5px 12px;border-radius:2px;cursor:pointer;transition:.15s ease;
   }
   .logout-btn:hover{background:var(--navy);color:var(--paper);}
+
+  .logout-btn.primary-action{background:var(--navy);color:var(--paper);}
+  .logout-btn.primary-action:hover{background:var(--paper);color:var(--navy);}
 
   /* tabs */
   .tabs{display:flex;gap:10px;margin-bottom:28px;}
@@ -386,7 +390,7 @@
 
   footer{margin-top:56px;border-top:1.5px solid var(--line);padding:36px 0 30px;text-align:center;}
   footer .footer-brandmark{display:flex;justify-content:center;margin-bottom:14px;}
-  footer .footer-brandmark svg{width:36px;height:36px;opacity:.85;}
+  footer .footer-logo-img{height:42px;opacity:.9;}
   footer .footer-tag{font-family:'Space Grotesk',sans-serif;font-size:13.5px;font-weight:700;color:var(--navy);}
   footer .footer-sub{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.03em;color:var(--ink);opacity:.55;margin-top:8px;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.6;}
   footer .footer-copy{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);opacity:.4;margin-top:18px;}
@@ -442,7 +446,7 @@
     <div class="header-right">
       <div class="ref">REV. AI‑01</div>
       <a href="/admin.html" class="logout-btn" id="adminPanelLink" style="display:none;text-decoration:none;">Admin panel</a>
-      <button type="button" class="logout-btn" onclick="logOut()">Log out</button>
+      <button type="button" class="logout-btn primary-action" onclick="logOut()">Log out</button>
     </div>
   </header>
 
@@ -1894,12 +1898,7 @@ Replace only the materials and graphics."></textarea>
 
   <footer>
     <div class="footer-brandmark">
-      <svg viewBox="0 0 44 44" fill="none">
-        <rect x="3" y="3" width="38" height="38" stroke="#0B0C10" stroke-width="2"/>
-        <line x1="3" y1="16" x2="41" y2="16" stroke="#0B0C10" stroke-width="1.2"/>
-        <line x1="16" y1="16" x2="16" y2="41" stroke="#0B0C10" stroke-width="1.2"/>
-        <circle cx="29" cy="28" r="6" stroke="#6B6F76" stroke-width="2"/>
-      </svg>
+      <img src="logo-black-transparent.png" alt="DesignsLab AI" class="footer-logo-img">
     </div>
     <div class="footer-tag">AI Design Studio for Events &amp; Brands</div>
     <div class="footer-sub">Rendered concepts are AI-generated visualizations, not photorealistic architectural renders or final blueprints.</div>
