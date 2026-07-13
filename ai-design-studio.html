@@ -109,6 +109,10 @@
   .checkbox-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 16px;}
   @media(max-width:760px){.checkbox-grid{grid-template-columns:1fr 1fr;}}
   @media(max-width:480px){.checkbox-grid{grid-template-columns:1fr;}}
+  .requirements-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 16px;align-items:start;}
+  @media(max-width:760px){.requirements-grid{grid-template-columns:1fr 1fr;}}
+  @media(max-width:480px){.requirements-grid{grid-template-columns:1fr;}}
+  .requirements-grid .subarea-label, .requirements-grid [id$="_body"]{grid-column:1 / -1;}
   .section-headline{font-weight:800;font-size:15px;letter-spacing:.02em;text-transform:uppercase;color:var(--navy);border-bottom:2px solid var(--navy);padding-bottom:8px;margin:28px 0 18px;}
   .section-headline:first-child{margin-top:0;}
   .subarea-label{font-weight:700;font-size:13px;color:var(--navy);margin:14px 0 8px;}
@@ -249,12 +253,11 @@
   .result-layout-grid{
     display:grid;
     grid-template-columns: 1fr;
-    grid-template-areas: "history" "approved" "conceptbox" "actionbar" "threed" "camerapanel" "generated";
+    grid-template-areas: "history" "approved" "actionbar" "threed" "camerapanel" "generated";
     gap:0;
   }
   .grid-area-history{grid-area:history;min-width:0;}
   .grid-area-approved{grid-area:approved;min-width:0;}
-  .grid-area-conceptbox{grid-area:conceptbox;min-width:0;}
   .grid-area-actionbar{grid-area:actionbar;min-width:0;}
   .grid-area-threed{grid-area:threed;min-width:0;}
   .grid-area-camerapanel{grid-area:camerapanel;min-width:0;}
@@ -285,11 +288,16 @@
   .viewer3d-generated-card-light-label.failed-label{color:#c0432b;}
   #renderSlotImg{cursor:zoom-in;}
   .lightbox-overlay{display:none;position:fixed;inset:0;background:rgba(10,14,26,0.92);z-index:9999;align-items:center;justify-content:center;padding:40px;cursor:zoom-out;}
-  .gen-notice-overlay{display:none;position:fixed;inset:0;background:rgba(10,14,26,0.55);z-index:9998;align-items:center;justify-content:center;padding:24px;}
-  .gen-notice-card{background:var(--paper);border:1.5px solid var(--navy);border-radius:2px;padding:28px;max-width:460px;box-shadow:0 12px 40px rgba(0,0,0,.25);}
-  .gen-notice-card h3{font-family:'Space Grotesk',sans-serif;font-size:17px;margin:0 0 12px;}
-  .gen-notice-card p{font-size:14px;line-height:1.6;color:var(--ink);margin:0 0 20px;}
-  #genNoticeQuotaText{background:var(--line);padding:10px 12px;border-radius:2px;font-weight:600;font-size:13px;}
+  .gen-notice-overlay{display:none;position:fixed;inset:0;background:rgba(11,12,16,0.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:9998;align-items:center;justify-content:center;padding:24px;animation:genNoticeFadeIn .18s ease;}
+  @keyframes genNoticeFadeIn{from{opacity:0;}to{opacity:1;}}
+  @keyframes genNoticeCardIn{from{opacity:0;transform:translateY(6px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+  .gen-notice-card{background:var(--paper);border:1.5px solid var(--navy);border-radius:2px;padding:30px 30px 28px;max-width:460px;box-shadow:0 20px 60px rgba(11,12,16,.35);position:relative;animation:genNoticeCardIn .22s cubic-bezier(.2,.8,.3,1);}
+  .gen-notice-card::before{content:'';position:absolute;top:-1px;left:-1px;width:16px;height:16px;border-top:2px solid var(--gold);border-left:2px solid var(--gold);}
+  .gen-notice-card::after{content:'';position:absolute;bottom:-1px;right:-1px;width:16px;height:16px;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold);}
+  .gen-notice-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1.5px;color:var(--teal);text-transform:uppercase;margin-bottom:8px;}
+  .gen-notice-card h3{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:19px;margin:0 0 14px;color:var(--navy);}
+  .gen-notice-card p{font-size:14px;line-height:1.65;color:var(--ink);opacity:.85;margin:0 0 22px;}
+  #genNoticeQuotaText{background:var(--line);padding:10px 12px;border-radius:2px;font-weight:600;font-size:13px;opacity:1 !important;}
   .gen-notice-card button{width:100%;}
   .lightbox-overlay.open{display:flex;}
   .lightbox-overlay img{max-width:100%;max-height:100%;border-radius:2px;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
@@ -1174,7 +1182,7 @@ Replace only the materials and graphics."></textarea>
     </div>
 
     <div class="field">
-      <label id="lblIndustryStyle">Industry style <span class="required-mark">*</span></label>
+      <label id="lblIndustryStyle">Industry style (optional)</label>
       <select id="f_industryStyle">
         <option value="" selected>None / not applicable</option>
         <option value="Medical">Medical</option>
@@ -1310,9 +1318,10 @@ Replace only the materials and graphics."></textarea>
       <div class="field" id="additionalReqField">
         <div class="hint" style="margin-top:0;margin-bottom:10px;">Select at least 2 <span class="required-mark">*</span> — check any that apply and specify exact quantities. Anything left unchecked here follows EPS-011's normal size-based defaults instead.</div>
 
+        <div class="requirements-grid">
         <div class="subarea-label">Visitor Experience</div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_reception" onchange="toggleAdditionalReqSection('reception', this.checked)"> Reception Counter — specify exact quantity and widths</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_reception" onchange="toggleAdditionalReqSection('reception', this.checked)"> Reception Counter</label>
         <div id="addreq_reception_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_reception_count">How many reception counters?</label>
           <input type="number" min="1" id="addreq_reception_count" placeholder="e.g. 2" oninput="renderReceptionCounterFields()">
@@ -1320,125 +1329,126 @@ Replace only the materials and graphics."></textarea>
           <div id="addreq_reception_list"></div>
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_infocounter" onchange="toggleAdditionalReqSection('infocounter', this.checked)"> Information Counter — specify exact quantity</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_infocounter" onchange="toggleAdditionalReqSection('infocounter', this.checked)"> Information Counter</label>
         <div id="addreq_infocounter_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_infocounter_count">How many information counters?</label>
           <input type="number" min="1" id="addreq_infocounter_count" placeholder="e.g. 1">
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_seating" onchange="toggleAdditionalReqSection('seating', this.checked)"> Seating Area — specify exact quantity and capacity</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_seating" onchange="toggleAdditionalReqSection('seating', this.checked)"> Seating Area</label>
         <div id="addreq_seating_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_seating_count">How many seating areas?</label>
           <input type="number" min="1" id="addreq_seating_count" placeholder="e.g. 2" oninput="renderSeatingAreaFields()">
           <div id="addreq_seating_list"></div>
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_meetingtables" onchange="toggleAdditionalReqSection('meetingtables', this.checked)"> Meeting Tables — specify exact quantity and seats per table</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_meetingtables" onchange="toggleAdditionalReqSection('meetingtables', this.checked)"> Meeting Tables</label>
         <div id="addreq_meetingtables_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_meetingtables_count">How many meeting tables?</label>
           <input type="number" min="1" id="addreq_meetingtables_count" placeholder="e.g. 1" oninput="renderAddreqUnitRows('meetingtables', 'seats', 'seats per table', 'e.g. 6', {min:'1'})">
           <div id="addreq_meetingtables_list"></div>
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_vipmeeting" onchange="toggleAdditionalReqSection('vipmeeting', this.checked)"> VIP Meeting Room — specify exact quantity</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_vipmeeting" onchange="toggleAdditionalReqSection('vipmeeting', this.checked)"> VIP Meeting Room</label>
         <div id="addreq_vipmeeting_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_vipmeeting_count">How many VIP meeting rooms?</label>
           <input type="number" min="1" id="addreq_vipmeeting_count" placeholder="e.g. 1">
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_openmeeting"> Open Meeting Area</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_lounge"> Lounge Area</label>
-        <label class="check-item-compact" style="margin-bottom:16px;"><input type="checkbox" id="addreq_coffeebar"> Coffee Bar / Hospitality</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_openmeeting"> Open Meeting Area</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_lounge"> Lounge Area</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_coffeebar"> Coffee Bar / Hospitality</label>
 
         <div class="subarea-label" style="margin-top:8px;">Product Display</div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_displayshelves" onchange="toggleAdditionalReqSection('displayshelves', this.checked)"> Display Shelves — specify exact quantity</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_displayshelves" onchange="toggleAdditionalReqSection('displayshelves', this.checked)"> Display Shelves</label>
         <div id="addreq_displayshelves_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_displayshelves_count">How many display shelves?</label>
           <input type="number" min="1" id="addreq_displayshelves_count" placeholder="e.g. 3">
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_displaytables" onchange="toggleAdditionalReqSection('displaytables', this.checked)"> Display Tables — specify exact quantity</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_displaytables" onchange="toggleAdditionalReqSection('displaytables', this.checked)"> Display Tables</label>
         <div id="addreq_displaytables_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_displaytables_count">How many display tables?</label>
           <input type="number" min="1" id="addreq_displaytables_count" placeholder="e.g. 2">
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_glasscabinets" onchange="toggleAdditionalReqSection('glasscabinets', this.checked)"> Glass Display Cabinets — specify exact quantity</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_glasscabinets" onchange="toggleAdditionalReqSection('glasscabinets', this.checked)"> Glass Display Cabinets</label>
         <div id="addreq_glasscabinets_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_glasscabinets_count">How many glass display cabinets?</label>
           <input type="number" min="1" id="addreq_glasscabinets_count" placeholder="e.g. 2">
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_pedestals" onchange="toggleAdditionalReqSection('pedestals', this.checked)"> Product Pedestals — specify exact quantity</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_pedestals" onchange="toggleAdditionalReqSection('pedestals', this.checked)"> Product Pedestals</label>
         <div id="addreq_pedestals_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_pedestals_count">How many product pedestals?</label>
           <input type="number" min="1" id="addreq_pedestals_count" placeholder="e.g. 3">
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_interactivedisplay"> Interactive Product Display</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_brochurestand"> Brochure Stand</label>
-        <label class="check-item-compact" style="margin-bottom:16px;"><input type="checkbox" id="addreq_literaturerack"> Literature Rack</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_interactivedisplay"> Interactive Product Display</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_brochurestand"> Brochure Stand</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_literaturerack"> Literature Rack</label>
 
         <div class="subarea-label" style="margin-top:8px;">Digital &amp; Technology</div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_tv" onchange="toggleAdditionalReqSection('tv', this.checked)"> TV Screens — specify exact quantity and size</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_tv" onchange="toggleAdditionalReqSection('tv', this.checked)"> TV Screens</label>
         <div id="addreq_tv_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_tv_count">How many TV screens?</label>
           <input type="number" min="1" id="addreq_tv_count" placeholder="e.g. 2" oninput="renderTvScreenFields()">
           <div id="addreq_tv_list"></div>
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_led" onchange="toggleAdditionalReqSection('led', this.checked)"> LED Screens — specify exact quantity and dimensions</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_led" onchange="toggleAdditionalReqSection('led', this.checked)"> LED Screens</label>
         <div id="addreq_led_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_led_count">How many LED screens?</label>
           <input type="number" min="1" id="addreq_led_count" placeholder="e.g. 1" oninput="renderLedScreenFields()">
           <div id="addreq_led_list"></div>
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_touchscreen" onchange="toggleAdditionalReqSection('touchscreen', this.checked)"> Touch Screens — specify exact quantity and size</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_touchscreen" onchange="toggleAdditionalReqSection('touchscreen', this.checked)"> Touch Screens</label>
         <div id="addreq_touchscreen_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_touchscreen_count">How many touch screens?</label>
           <input type="number" min="1" id="addreq_touchscreen_count" placeholder="e.g. 1" oninput="renderAddreqUnitRows('touchscreen', 'size', 'size (inches)', 'e.g. 32', {min:'1'})">
           <div id="addreq_touchscreen_list"></div>
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_kiosk"> Interactive Kiosk</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_digitaltotem"> Digital Totem</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_chargingstation"> Charging Station</label>
-        <label class="check-item-compact" style="margin-bottom:16px;"><input type="checkbox" id="addreq_qrdisplay"> QR Code Display</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_kiosk"> Interactive Kiosk</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_digitaltotem"> Digital Totem</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_chargingstation"> Charging Station</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_qrdisplay"> QR Code Display</label>
 
         <div class="subarea-label" style="margin-top:8px;">Functional Spaces</div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_storageroom" onchange="toggleAdditionalReqSection('storageroom', this.checked)"> Storage Room — specify exact quantity and size</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_storageroom" onchange="toggleAdditionalReqSection('storageroom', this.checked)"> Storage Room</label>
         <div id="addreq_storageroom_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_storageroom_count">How many storage rooms?</label>
           <input type="number" min="1" id="addreq_storageroom_count" placeholder="e.g. 1" oninput="renderAddreqUnitRows('storageroom', 'size', 'size (sqm)', 'e.g. 4', {min:'0.5', step:'0.5'})">
           <div id="addreq_storageroom_list"></div>
         </div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_pantry"> Pantry</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_staffarea"> Staff Area</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_lockablecabinet"> Lockable Cabinet</label>
-        <label class="check-item-compact" style="margin-bottom:16px;"><input type="checkbox" id="addreq_hiddenstorage"> Hidden Storage</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_pantry"> Pantry</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_staffarea"> Staff Area</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_lockablecabinet"> Lockable Cabinet</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_hiddenstorage"> Hidden Storage</label>
 
         <div class="subarea-label" style="margin-top:8px;">Lighting</div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_ambientlighting"> Ambient Lighting</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_spotlights"> Spotlights</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_hiddenledlighting"> Hidden LED Lighting</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_covelighting"> Cove Lighting</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_accentlighting"> Product Accent Lighting</label>
-        <label class="check-item-compact" style="margin-bottom:16px;"><input type="checkbox" id="addreq_decorativelighting"> Decorative Lighting</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_ambientlighting"> Ambient Lighting</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_spotlights"> Spotlights</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_hiddenledlighting"> Hidden LED Lighting</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_covelighting"> Cove Lighting</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_accentlighting"> Product Accent Lighting</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_decorativelighting"> Decorative Lighting</label>
 
         <div class="subarea-label" style="margin-top:8px;">Decorative Elements</div>
 
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_planters"> Planters</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_greenwall"> Green Wall</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_decorativepanels"> Decorative Panels</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_brandgraphics"> Brand Graphics</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_hangingdecor"> Hanging Decorations</label>
-        <label class="check-item-compact" style="margin-bottom:8px;"><input type="checkbox" id="addreq_sculpture"> Feature Sculpture</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_planters"> Planters</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_greenwall"> Green Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_decorativepanels"> Decorative Panels</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_brandgraphics"> Brand Graphics</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_hangingdecor"> Hanging Decorations</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_sculpture"> Feature Sculpture</label>
+        </div>
       </div>
 
       <div class="section-headline" id="referenceImageHeadline" style="display:none;">Reference Image</div>
@@ -1620,6 +1630,12 @@ Replace only the materials and graphics."></textarea>
     <h2 class="concept-title" id="resConceptTitle"></h2>
     <div class="concept-subtitle" id="resConceptSubtitle"></div>
 
+    <div class="concept-description-block" id="conceptDescriptionBlockCamera" style="display:none;">
+      <div class="concept-description-label">Concept write-up — for your presentation deck's "Concept here" text box</div>
+      <p class="concept-description-text" id="conceptDescriptionTextCamera"></p>
+      <button type="button" class="ghost small" onclick="copyConceptDescription()">Copy text</button>
+    </div>
+
     <div class="result-layout-grid" id="resultLayoutGrid">
       <div class="grid-area-history">
         <div id="galleryStrip" class="gallery-strip"></div>
@@ -1637,14 +1653,6 @@ Replace only the materials and graphics."></textarea>
           <img id="renderSlotImg" alt="AI rendered concept" style="display:none;" onclick="openImageLightbox(this.src)">
         </div>
         <div class="render-frame-caption">Picture approved</div>
-      </div>
-
-      <div class="grid-area-conceptbox">
-        <div class="concept-description-block concept-description-block-compact" id="conceptDescriptionBlockCamera" style="display:none;">
-          <div class="concept-description-label">Concept write-up — for your presentation deck's "Concept here" text box</div>
-          <p class="concept-description-text" id="conceptDescriptionTextCamera"></p>
-          <button type="button" class="ghost small" onclick="copyConceptDescription()">Copy text</button>
-        </div>
       </div>
 
       <div class="grid-area-actionbar">
@@ -1725,15 +1733,20 @@ Replace only the materials and graphics."></textarea>
 
   <div class="gen-notice-overlay" id="genNoticeOverlay">
     <div class="gen-notice-card">
+      <div class="gen-notice-eyebrow">Generate Design</div>
       <h3>Before you generate</h3>
       <p>Once this design is generated, the information you entered is locked and can't be edited directly — except for <strong>Architectural Style</strong>, <strong>Construction Style</strong>, and <strong>Brand Personality</strong>, which you can still change afterward from the Modify Design tab.</p>
       <p id="genNoticeQuotaText" style="display:none;"></p>
-      <button class="primary" onclick="document.getElementById('genNoticeOverlay').style.display='none';">Got it</button>
+      <div style="display:flex;gap:10px;">
+        <button class="ghost" onclick="document.getElementById('genNoticeOverlay').style.display='none'; pendingGenerateAction=null;" style="flex:1;">Cancel</button>
+        <button class="primary" onclick="confirmGenerateDesign();" style="flex:1;">Generate</button>
+      </div>
     </div>
   </div>
 
   <div class="gen-notice-overlay" id="modifyNoticeOverlay">
     <div class="gen-notice-card">
+      <div class="gen-notice-eyebrow">Modify Design</div>
       <h3>Submit this modification?</h3>
       <p id="modifyNoticeText"></p>
       <div style="display:flex;gap:10px;">
@@ -1745,11 +1758,24 @@ Replace only the materials and graphics."></textarea>
 
   <div class="gen-notice-overlay" id="approveNoticeOverlay">
     <div class="gen-notice-card">
+      <div class="gen-notice-eyebrow">Approve Design</div>
       <h3>Approve this design?</h3>
       <p>Are you sure you want to approve this design? Once approved, no further changes can be made to the concept itself — only the rendered views can still be edited afterward, using Modify Design or Other option.</p>
       <div style="display:flex;gap:10px;">
         <button class="ghost" onclick="document.getElementById('approveNoticeOverlay').style.display='none';" style="flex:1;">Cancel</button>
         <button class="primary" onclick="document.getElementById('approveNoticeOverlay').style.display='none'; confirmApproveDesign();" style="flex:1;">OK, approve</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="gen-notice-overlay" id="customAlertOverlay">
+    <div class="gen-notice-card">
+      <div class="gen-notice-eyebrow" id="customAlertEyebrow">Notice</div>
+      <h3 id="customAlertTitle" style="display:none;"></h3>
+      <p id="customAlertText"></p>
+      <div style="display:flex;gap:10px;">
+        <button class="ghost" id="customAlertCancelBtn" onclick="__resolveCustomAlert(false)" style="flex:1;display:none;">Cancel</button>
+        <button class="primary" id="customAlertOkBtn" onclick="__resolveCustomAlert(true)" style="flex:1;">OK</button>
       </div>
     </div>
   </div>
@@ -1855,6 +1881,7 @@ Replace only the materials and graphics."></textarea>
 
 <script>
 let mode = 'booth';
+let pendingGenerateAction = null; // holds the deferred generation logic while the "Before you generate" popup is showing
 
 // Every checkbox under the Requirements section, across all six categories — the single
 // shared list used both for the "at least 2 selected" validation and matched against
@@ -3576,7 +3603,7 @@ function setMode(m){
     document.getElementById('requirementsHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('referenceImageHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('lblName').innerHTML = m==='booth' ? 'Project Name <span class="required-mark">*</span>' : 'Event name';
-    document.getElementById('lblIndustryStyle').innerHTML = m==='booth' ? 'Industry style <span class="required-mark">*</span>' : 'Industry style (optional)';
+    document.getElementById('lblIndustryStyle').innerHTML = 'Industry style (optional)';
     document.getElementById('f_name').placeholder = m==='booth' ? 'e.g. Riyadh International Tech Expo' : 'e.g. Product launch / Annual conference';
     document.getElementById('lblDesc').innerHTML = (m==='booth'
       ? 'Describe what you want in detail: the goal, products on display, visual identity, any special requirements'
@@ -3674,9 +3701,9 @@ function toggleCornerSide(sel){
   document.getElementById('cornerSideField').style.display = sel.value === '2' ? 'block' : 'none';
 }
 
-function confirmModularWallLayout(checkbox){
+async function confirmModularWallLayout(checkbox){
   if(!checkbox.checked) return; // only confirm when turning it ON — unchecking needs no confirmation
-  const confirmed = confirm('Modular Wall Layout enforces equal spacing, identical repeated panels, and mandatory symmetry across every wall — it assumes a real modular build system on site. Are you sure you have the modular system in place to actually build something like that?');
+  const confirmed = await customConfirm('Modular Wall Layout enforces equal spacing, identical repeated panels, and mandatory symmetry across every wall — it assumes a real modular build system on site. Are you sure you have the modular system in place to actually build something like that?', 'Modular Wall Layout', 'Yes, I have it');
   if(!confirmed) checkbox.checked = false;
 }
 
@@ -3702,8 +3729,13 @@ function syncColorHex(colorInput){
 
 function syncColorPicker(hexInput){
   const v = hexInput.value.trim();
-  if(/^#([0-9A-Fa-f]{6})$/.test(v)){
-    hexInput.closest('.color-row').querySelector('.color-picker').value = v;
+  const match = v.match(/^#?([0-9A-Fa-f]{6})$/);
+  if(match){
+    const normalized = '#' + match[1].toUpperCase();
+    hexInput.closest('.color-row').querySelector('.color-picker').value = normalized;
+    // Normalize the text field itself too (e.g. a pasted "FF5733" with no leading #)
+    // so this color also counts as valid everywhere else the app checks for one.
+    if(hexInput.value !== normalized) hexInput.value = normalized;
   }
 }
 
@@ -3910,7 +3942,6 @@ function getMissingRequirements(m){
     if(!depth) missing.push('depth');
     if(!totalHeight) missing.push('booth height');
     if(levels === '2' && !upperFloor) missing.push('the upper floor program (since you selected a double-deck booth)');
-    if(!industryStyle) missing.push('an industry style');
     if(colorHexes.length === 0) missing.push('at least one brand color');
     if(!logoDataUrl) missing.push('a company logo');
     if(hasPosters.startsWith('yes') && posterFiles.length === 0) missing.push('at least one poster file (or switch to "No — need new designs")');
@@ -4055,12 +4086,6 @@ async function generateDesign(){
     errBox.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
-  if(mode === 'booth' && !industryStyle){
-    errBox.textContent = 'Please select an industry style.';
-    errBox.style.display = 'block';
-    errBox.scrollIntoView({behavior:'smooth', block:'center'});
-    return;
-  }
   if(mode === 'booth' && colorHexes.length === 0){
     errBox.textContent = 'Please add at least one brand color.';
     errBox.style.display = 'block';
@@ -4112,9 +4137,9 @@ async function generateDesign(){
     }
   }
 
-  // Shown once generation is actually about to start — non-blocking, so it doesn't gate or
-  // delay the request itself. Real users glance at it and dismiss it; it never affects the
-  // underlying generation flow, which proceeds on the same tick regardless.
+  // Now blocking: nothing below runs until the user actually confirms via the popup's
+  // "Generate" button — this is what gates both the project-quota deduction and the
+  // actual API calls behind a real, deliberate confirmation, rather than firing instantly.
   const quotaTextEl = document.getElementById('genNoticeQuotaText');
   const isNewProject = !currentProjectId; // re-generating an existing project never counts against the quota, per the backend's own enforcement logic
   if(!isAdminUser && isNewProject && currentUserProjectLimit != null && lastKnownProjectCount != null){
@@ -4124,8 +4149,8 @@ async function generateDesign(){
   }else{
     quotaTextEl.style.display = 'none';
   }
-  document.getElementById('genNoticeOverlay').style.display = 'flex';
 
+  pendingGenerateAction = async function proceedWithGeneration(){
   lockForm();
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('loadingText').textContent = 'Analyzing your brief and writing rendering prompts...';
@@ -4327,7 +4352,8 @@ Blend these extracted qualities naturally into the same single rendering prompt 
 Never generate an image yourself. Never explain your reasoning, your process, or EPS-001 itself. Output only the final result — respond in JSON only, with no explanation outside the JSON and no Markdown fences, using exactly this shape:
 {
   "title": "short catchy concept name",
-  "image_prompt": "the one full detailed image-generation prompt, written as one dense paragraph"
+  "image_prompt": "the one full detailed image-generation prompt, written as one dense paragraph",
+  "concept_description": "a short, client-facing concept write-up for a presentation deck, in the space usually labeled 'Concept here' under the rendered views — describe the actual design idea, mood, materials, and colors this specific design uses, and why it suits the brand, in natural, confident, professional marketing language, as a designer would describe the concept to a client. This is NOT a repeat or summary of the image_prompt — write it as a client would read it, not as a rendering instruction. Target 60-90 words; stop as soon as the idea is clearly and completely expressed, do not pad it with filler. Never mention AI, prompts, EPS standards, or the generation process."
 }`;
 
   let userContentParts = [];
@@ -4407,6 +4433,58 @@ Never generate an image yourself. Never explain your reasoning, your process, or
     unlockForm();
     document.getElementById('loading').style.display = 'none';
   }
+  }; // end of pendingGenerateAction
+
+  document.getElementById('genNoticeOverlay').style.display = 'flex';
+}
+
+function confirmGenerateDesign(){
+  document.getElementById('genNoticeOverlay').style.display = 'none';
+  if(pendingGenerateAction){
+    const action = pendingGenerateAction;
+    pendingGenerateAction = null;
+    action();
+  }
+}
+
+/* ---------- generic styled alert/confirm, replacing native browser dialogs ----------
+   Native alert()/confirm() are rendered by the browser itself, outside the page's DOM —
+   they can't be styled and don't center on the viewport the way the custom popups above
+   do, which is exactly why some popups looked "aligned with the page" instead of centered.
+   These two are drop-in, Promise-based replacements using the same overlay/card styling. */
+let __customAlertResolve = null;
+
+function customAlert(message, eyebrow){
+  return new Promise(resolve => {
+    __customAlertResolve = resolve;
+    document.getElementById('customAlertEyebrow').textContent = eyebrow || 'Notice';
+    document.getElementById('customAlertTitle').style.display = 'none';
+    document.getElementById('customAlertText').textContent = message;
+    document.getElementById('customAlertCancelBtn').style.display = 'none';
+    document.getElementById('customAlertOkBtn').textContent = 'OK';
+    document.getElementById('customAlertOverlay').style.display = 'flex';
+  });
+}
+
+function customConfirm(message, eyebrow, okLabel){
+  return new Promise(resolve => {
+    __customAlertResolve = resolve;
+    document.getElementById('customAlertEyebrow').textContent = eyebrow || 'Confirm';
+    document.getElementById('customAlertTitle').style.display = 'none';
+    document.getElementById('customAlertText').textContent = message;
+    document.getElementById('customAlertCancelBtn').style.display = 'block';
+    document.getElementById('customAlertOkBtn').textContent = okLabel || 'OK';
+    document.getElementById('customAlertOverlay').style.display = 'flex';
+  });
+}
+
+function __resolveCustomAlert(result){
+  document.getElementById('customAlertOverlay').style.display = 'none';
+  if(__customAlertResolve){
+    const resolve = __customAlertResolve;
+    __customAlertResolve = null;
+    resolve(result);
+  }
 }
 
 /* ---------- prompt review step: edit/approve before rendering ---------- */
@@ -4454,7 +4532,7 @@ function approvePrompts(){
   const imagePrompt = document.getElementById('promptText0').value.trim() || pendingPromptResult.image_prompt;
 
   const renderSlots = [
-    { title: title, image_prompt: imagePrompt, conceptDescription: pendingPromptResult.conceptDescription || '' }
+    { title: title, image_prompt: imagePrompt, conceptDescription: pendingPromptResult.concept_description || '' }
   ];
 
   document.getElementById('promptReview').style.display = 'none';
@@ -4560,7 +4638,7 @@ function updateModifyDesignButtonState(){
   btn.title = hasCompletedDesign ? '' : "Generate a design first — there's nothing to modify yet";
 }
 
-function submitModifyDesignStyleChange(){
+async function submitModifyDesignStyleChange(){
   const current = optionResults[activeOptionIndex];
   if(!current || current.status !== 'done') return; // button should already be disabled in this case — defensive check
 
@@ -4577,7 +4655,7 @@ function submitModifyDesignStyleChange(){
   if(newBrand !== originalBrand) changes.push(`Brand personality is now: ${newBrand} (previously ${originalBrand}).`);
 
   if(changes.length === 0){
-    alert("These match what's already in the current design — change at least one of the three fields above before generating.");
+    await customAlert("These match what's already in the current design — change at least one of the three fields above before generating.", 'Change Style');
     return;
   }
 
@@ -4702,11 +4780,11 @@ function renderGalleryStrip(){
   `).join('');
 }
 
-function removeGalleryEntry(i){
+async function removeGalleryEntry(i){
   const opt = optionResults[activeOptionIndex];
   if(!opt || !opt.gallery || !opt.gallery[i]) return;
   if(opt.gallery.length <= 1){
-    alert('You need to keep at least one version — this is the only one left.');
+    await customAlert('You need to keep at least one version — this is the only one left.', 'Remove Version');
     return;
   }
 
@@ -5053,7 +5131,7 @@ async function submitEdit(){
   const hasResize = (!isNaN(newWidth) && newWidth > 0) || (!isNaN(newDepth) && newDepth > 0);
 
   if(!editDesc && !hasMarkup && !hasResize){
-    alert('Describe the change, mark it up on the image, or set a new booth size first.');
+    await customAlert('Describe the change, mark it up on the image, or set a new booth size first.', 'Edit Image');
     return;
   }
 
@@ -5326,12 +5404,12 @@ function wireModifyDesignCanvasEvents(canvas){
   canvas.ontouchend = (e) => { e.preventDefault(); canvas.onmouseup(); };
 }
 
-function submitModifyDesign(){
+async function submitModifyDesign(){
   const canvas = document.getElementById('modifyDesignMarkupCanvas');
   const hasMarkup = modifyDesignCanvasHasMarkup(canvas);
 
   if(!hasMarkup){
-    alert('Mark the area you want DesignsLab to redesign before submitting.');
+    await customAlert('Mark the area you want DesignsLab to redesign before submitting.', 'Modify Design');
     return;
   }
 
@@ -5799,7 +5877,7 @@ async function submitSnapshotEdit(){
   const hasMarkup = lumaCanvasHasMarkup(canvas);
 
   if(!editDesc){
-    alert('Describe the change you want for this snapshot before saving it.');
+    await customAlert('Describe the change you want for this snapshot before saving it.', 'Modify Snapshot');
     return;
   }
   if(activeSnapshotEditIndex === null) return;
@@ -6062,31 +6140,6 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
    direction hint (its own materials/geometry were explicitly ignored in the prompt anyway), so
    it added conversion time and cost without a corresponding benefit. Approving now goes straight
    to picking camera angles, using only the approved photo as the reference. */
-async function generateConceptFromApprovedImage(imageDataUrl){
-  const compressed = await compressDataUrl(imageDataUrl, 1024, 0.85);
-  const { mime, base64 } = dataUrlParts(compressed);
-  const response = await fetch('/api/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system: `You are a professional exhibition booth designer writing a short concept description for a client-facing presentation deck, in the space usually labeled "Concept here" under the rendered views. Look carefully at the attached image — the client's approved final booth design — and describe the actual design idea, mood, materials, and colors you see in it, and why it suits the brand. This is marketing/creative copy, not a technical description: write in natural, confident, professional language, as a designer would describe the concept to a client. Keep it genuinely short — target 60-90 words. Do not pad it with filler to reach a length; stop as soon as the idea is clearly and completely expressed. Never mention AI, prompts, or the generation process. Respond with ONLY the concept text itself — no title, no labels, no quotation marks, no markdown.`,
-      messages: [
-        { role: 'user', content: [
-          { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
-          { type: 'text', text: 'Write the concept description for this approved exhibition booth design.' }
-        ] }
-      ],
-      max_tokens: 300
-    })
-  });
-  const data = await response.json().catch(() => ({}));
-  if(!response.ok){
-    throw new Error((data.error && data.error.message) || 'Could not generate the concept description.');
-  }
-  const text = (data.content && data.content[0] && data.content[0].text) || '';
-  return text.trim();
-}
-
 function approveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
@@ -6100,21 +6153,8 @@ async function confirmApproveDesign(){
   const statusEl = document.getElementById('actionStatus');
   const approveBtn = document.getElementById('approveDesignBtn');
   if(approveBtn) approveBtn.disabled = true;
-  statusEl.textContent = 'Reading your approved picture and writing the concept description...';
 
   const heroImage = opt.gallery[opt.activeGalleryIndex].image;
-
-  try{
-    opt.conceptDescription = await generateConceptFromApprovedImage(heroImage);
-  }catch(err){
-    console.error('Could not generate concept description:', err);
-  }
-
-  const descBlockCamera = document.getElementById('conceptDescriptionBlockCamera');
-  if(opt.conceptDescription){
-    document.getElementById('conceptDescriptionTextCamera').textContent = opt.conceptDescription;
-    descBlockCamera.style.display = 'block';
-  }
 
   statusEl.textContent = 'Generating a 360° video of your booth with DesignsLab... this can take a minute or two.';
   try{
@@ -6594,7 +6634,7 @@ function openProject(id){
     })
     .catch(err => {
       console.error('Could not open project:', err);
-      alert('Could not open that project: ' + (err.message || 'unknown error'));
+      customAlert('Could not open that project: ' + (err.message || 'unknown error'), 'Open Project');
     });
 }
 
@@ -6619,8 +6659,9 @@ function renameProjectPrompt(id){
     .catch(err => console.error('Could not rename project:', err));
 }
 
-function deleteProjectPrompt(id){
-  if(!confirm('Delete this saved project? This cannot be undone.')) return;
+async function deleteProjectPrompt(id){
+  const confirmed = await customConfirm('Delete this saved project? This cannot be undone.', 'Delete Project', 'Delete');
+  if(!confirmed) return;
   dbDeleteProject(id)
     .then(() => {
       if(currentProjectId === id){
@@ -6631,7 +6672,7 @@ function deleteProjectPrompt(id){
     })
     .catch(err => {
       console.error('Could not delete project:', err);
-      alert('Could not delete that project: ' + (err.message || 'unknown error'));
+      customAlert('Could not delete that project: ' + (err.message || 'unknown error'), 'Delete Project');
     });
 }
 
