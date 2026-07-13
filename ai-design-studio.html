@@ -39,6 +39,7 @@
   .project-usage-indicator:empty{display:none;margin-bottom:0;}
   .project-usage-indicator.near-limit{background:#fff3cd;color:#7a5c00;opacity:1;}
   .project-usage-indicator.at-limit{background:#fde2e2;color:#8a1f1f;opacity:1;}
+  .project-save-error{font-size:11.5px;font-weight:600;padding:8px 10px;border-radius:2px;margin-bottom:14px;background:#fde2e2;color:#8a1f1f;line-height:1.4;}
   .sidebar-header h2{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:15px;color:var(--navy);margin:0;}
   .project-list{display:flex;flex-direction:column;gap:6px;}
   .project-item{display:flex;align-items:center;gap:4px;}
@@ -248,11 +249,12 @@
   .result-layout-grid{
     display:grid;
     grid-template-columns: 1fr;
-    grid-template-areas: "history" "approved" "actionbar" "threed" "camerapanel" "generated";
+    grid-template-areas: "history" "approved" "conceptbox" "actionbar" "threed" "camerapanel" "generated";
     gap:0;
   }
   .grid-area-history{grid-area:history;min-width:0;}
   .grid-area-approved{grid-area:approved;min-width:0;}
+  .grid-area-conceptbox{grid-area:conceptbox;min-width:0;}
   .grid-area-actionbar{grid-area:actionbar;min-width:0;}
   .grid-area-threed{grid-area:threed;min-width:0;}
   .grid-area-camerapanel{grid-area:camerapanel;min-width:0;}
@@ -379,6 +381,7 @@
     </div>
     <div id="projectUsageIndicator" class="project-usage-indicator"></div>
     <div id="modifyUsageIndicator" class="project-usage-indicator"></div>
+    <div id="projectSaveError" class="project-save-error" style="display:none;"></div>
     <div id="projectList" class="project-list"></div>
     <div class="sidebar-note">Projects save automatically to your account and are available from any device. They stay saved unless you delete them.</div>
 
@@ -1636,6 +1639,14 @@ Replace only the materials and graphics."></textarea>
         <div class="render-frame-caption">Picture approved</div>
       </div>
 
+      <div class="grid-area-conceptbox">
+        <div class="concept-description-block concept-description-block-compact" id="conceptDescriptionBlockCamera" style="display:none;">
+          <div class="concept-description-label">Concept write-up — for your presentation deck's "Concept here" text box</div>
+          <p class="concept-description-text" id="conceptDescriptionTextCamera"></p>
+          <button type="button" class="ghost small" onclick="copyConceptDescription()">Copy text</button>
+        </div>
+      </div>
+
       <div class="grid-area-actionbar">
         <div class="action-bar" id="actionBar">
           <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;">Download image</button>
@@ -1701,11 +1712,6 @@ Replace only the materials and graphics."></textarea>
       </div>
 
       <div class="grid-area-camerapanel">
-        <div class="concept-description-block concept-description-block-compact" id="conceptDescriptionBlockCamera" style="display:none;">
-          <div class="concept-description-label">Concept write-up — for your presentation deck's "Concept here" text box</div>
-          <p class="concept-description-text" id="conceptDescriptionTextCamera"></p>
-          <button type="button" class="ghost small" onclick="copyConceptDescription()">Copy text</button>
-        </div>
       </div>
     </div>
   </div>
@@ -1733,6 +1739,17 @@ Replace only the materials and graphics."></textarea>
       <div style="display:flex;gap:10px;">
         <button class="ghost" onclick="document.getElementById('modifyNoticeOverlay').style.display='none';" style="flex:1;">Cancel</button>
         <button class="primary" onclick="document.getElementById('modifyNoticeOverlay').style.display='none'; confirmSubmitModifyDesign();" style="flex:1;">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="gen-notice-overlay" id="approveNoticeOverlay">
+    <div class="gen-notice-card">
+      <h3>Approve this design?</h3>
+      <p>Are you sure you want to approve this design? Once approved, no further changes can be made to the concept itself — only the rendered views can still be edited afterward, using Modify Design or Other option.</p>
+      <div style="display:flex;gap:10px;">
+        <button class="ghost" onclick="document.getElementById('approveNoticeOverlay').style.display='none';" style="flex:1;">Cancel</button>
+        <button class="primary" onclick="document.getElementById('approveNoticeOverlay').style.display='none'; confirmApproveDesign();" style="flex:1;">OK, approve</button>
       </div>
     </div>
   </div>
@@ -6070,7 +6087,13 @@ async function generateConceptFromApprovedImage(imageDataUrl){
   return text.trim();
 }
 
-async function approveDesign(){
+function approveDesign(){
+  const opt = optionResults[activeOptionIndex];
+  if(!opt || opt.status !== 'done') return;
+  document.getElementById('approveNoticeOverlay').style.display = 'flex';
+}
+
+async function confirmApproveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
 
@@ -6514,8 +6537,19 @@ function saveCurrentProject(){
     editDesignApprovedCount: editDesignApprovedCount || 0
   };
   return dbPutProject(project)
-    .then(() => renderProjectSidebar())
-    .catch(err => console.error('Could not save project:', err));
+    .then(() => {
+      const errEl = document.getElementById('projectSaveError');
+      if(errEl) errEl.style.display = 'none';
+      return renderProjectSidebar();
+    })
+    .catch(err => {
+      console.error('Could not save project:', err);
+      const errEl = document.getElementById('projectSaveError');
+      if(errEl){
+        errEl.textContent = 'Could not save this project: ' + (err.message || 'unknown error') + '. Your generated design is still visible, but it has not been saved to your account — it will be lost if you navigate away.';
+        errEl.style.display = 'block';
+      }
+    });
 }
 
 function renderProjectSidebar(){
