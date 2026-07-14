@@ -1330,9 +1330,9 @@ Replace only the materials and graphics."></textarea>
     </div>
 
     <div class="field">
-      <label id="lblIndustryStyle">Industry style (optional)</label>
+      <label id="lblIndustryStyle">Industry style <span class="required-mark">*</span></label>
       <select id="f_industryStyle" onchange="updateIndustryStyleHint(this)">
-        <option value="" selected>None / Not Applicable</option>
+        <option value="" selected disabled>Select an industry…</option>
         <option value="Banking & Financial Services">Banking &amp; Financial Services</option>
         <option value="Technology & AI">Technology &amp; AI</option>
         <option value="Healthcare & Medical">Healthcare &amp; Medical</option>
@@ -1493,48 +1493,148 @@ Replace only the materials and graphics."></textarea>
 
       <div class="field" id="floorFinishField">
         <label>Floor Finish <span class="required-mark">*</span></label>
-        <select id="f_floorFinish" onchange="toggleCarpetType(this); toggleFloorFinishCustom(this);">
-          <option value="Carpet" selected>Carpet</option>
-          <option value="Wood / Laminate">Wood / Laminate</option>
-          <option value="Vinyl Flooring">Vinyl Flooring</option>
-          <option value="PVC Flooring">PVC Flooring</option>
-          <option value="Epoxy Finish">Epoxy Finish</option>
-          <option value="Marble Effect">Marble Effect</option>
-          <option value="Stone Effect">Stone Effect</option>
-          <option value="Artificial Grass">Artificial Grass</option>
-          <option value="Custom">Custom</option>
-        </select>
-        <input type="text" id="f_floorFinishCustom" placeholder="Describe the custom floor finish" style="display:none;margin-top:8px;">
-      </div>
-
-      <div class="field" id="carpetTypeField">
-        <label>Carpet Type <span class="required-mark">*</span></label>
-        <select id="f_carpetType" onchange="toggleCarpetTypeCustom(this)">
+        <select id="f_floorFinish" onchange="updateFloorFinishSections(this)">
           <option value="Exhibition Carpet" selected>Exhibition Carpet</option>
+          <option value="Needle Punch Carpet">Needle Punch Carpet</option>
           <option value="Premium Carpet">Premium Carpet</option>
           <option value="Printed Carpet">Printed Carpet</option>
-          <option value="Custom Color">Custom Color</option>
+          <option value="Carpet Tiles">Carpet Tiles</option>
+          <option value="Wood Laminate">Wood Laminate</option>
+          <option value="Herringbone Wood">Herringbone Wood</option>
+          <option value="Natural Oak">Natural Oak</option>
+          <option value="Walnut Wood">Walnut Wood</option>
+          <option value="Dark Wood Veneer">Dark Wood Veneer</option>
+          <option value="Luxury Vinyl Tile (LVT)">Luxury Vinyl Tile (LVT)</option>
+          <option value="Vinyl Flooring">Vinyl Flooring</option>
+          <option value="PVC Flooring">PVC Flooring</option>
+          <option value="Epoxy Resin">Epoxy Resin</option>
+          <option value="High Gloss Epoxy">High Gloss Epoxy</option>
+          <option value="Matte Epoxy">Matte Epoxy</option>
+          <option value="Polished Concrete">Polished Concrete</option>
+          <option value="Microcement">Microcement</option>
+          <option value="Marble Effect">Marble Effect</option>
+          <option value="White Marble">White Marble</option>
+          <option value="Black Marble">Black Marble</option>
+          <option value="Travertine Effect">Travertine Effect</option>
+          <option value="Terrazzo">Terrazzo</option>
+          <option value="Porcelain Tiles">Porcelain Tiles</option>
+          <option value="Ceramic Tiles">Ceramic Tiles</option>
+          <option value="Stone Tiles">Stone Tiles</option>
+          <option value="Granite Effect">Granite Effect</option>
+          <option value="Artificial Grass">Artificial Grass</option>
+          <option value="Outdoor Decking">Outdoor Decking</option>
+          <option value="Composite Decking">Composite Decking</option>
+          <option value="Rubber Flooring">Rubber Flooring</option>
+          <option value="LED Glass Floor">LED Glass Floor</option>
+          <option value="Glass Floor Panels">Glass Floor Panels</option>
+          <option value="Raised Access Floor">Raised Access Floor</option>
+          <option value="Custom Finish">Custom Finish</option>
         </select>
-        <input type="text" id="f_carpetTypeCustom" placeholder="Describe the custom carpet color" style="display:none;margin-top:8px;">
-        <div class="hint">Only applies when Floor Finish is Carpet.</div>
+        <input type="text" id="f_floorFinishCustom" placeholder="Describe the custom floor finish" style="display:none;margin-top:8px;">
+        <div class="hint">Choosing a Carpet, Wood, Marble, or Epoxy finish reveals its own texture/color/sheen options below — every other finish is applied exactly as named.</div>
+      </div>
+
+      <div class="field" id="carpetTypeField" style="display:none;">
+        <label>Carpet Type <span class="required-mark">*</span></label>
+        <select id="f_carpetType">
+          <option value="Exhibition Carpet" selected>Exhibition Carpet</option>
+          <option value="Needle Punch">Needle Punch</option>
+          <option value="Velour">Velour</option>
+          <option value="Tufted">Tufted</option>
+          <option value="Printed Carpet">Printed Carpet</option>
+          <option value="Premium Carpet">Premium Carpet</option>
+        </select>
+        <div class="hint">Only applies when Floor Finish is a carpet finish.</div>
+      </div>
+
+      <div class="field" id="carpetColorField" style="display:none;">
+        <label>Carpet Color</label>
+        <div class="color-row">
+          <input type="color" id="f_carpetColorPicker" class="color-picker" value="#8B1E2B" oninput="syncColorHex(this)">
+          <input type="text" id="f_carpetColorHex" class="color-hex" value="#8B1E2B" placeholder="#RRGGBB" oninput="syncColorPicker(this)" onchange="syncColorPicker(this)">
+        </div>
+        <div class="hint">Only applies when Floor Finish is a carpet finish — coordinate with the brand color palette unless a specific color is wanted.</div>
+      </div>
+
+      <div class="field" id="woodTypeField" style="display:none;">
+        <label>Wood Type <span class="required-mark">*</span></label>
+        <select id="f_woodType">
+          <option value="Oak" selected>Oak</option>
+          <option value="Walnut">Walnut</option>
+          <option value="Ash">Ash</option>
+          <option value="Maple">Maple</option>
+          <option value="Teak">Teak</option>
+          <option value="Bamboo">Bamboo</option>
+        </select>
+        <div class="hint">Only applies when Floor Finish is a wood finish.</div>
+      </div>
+
+      <div class="field" id="woodFinishField" style="display:none;">
+        <label>Wood Finish <span class="required-mark">*</span></label>
+        <select id="f_woodFinish">
+          <option value="Matte" selected>Matte</option>
+          <option value="Satin">Satin</option>
+          <option value="Gloss">Gloss</option>
+        </select>
+        <div class="hint">Only applies when Floor Finish is a wood finish.</div>
+      </div>
+
+      <div class="field" id="marbleColorField" style="display:none;">
+        <label>Marble Color <span class="required-mark">*</span></label>
+        <select id="f_marbleColor" onchange="toggleMarbleColorCustom(this)">
+          <option value="White" selected>White</option>
+          <option value="Black">Black</option>
+          <option value="Grey">Grey</option>
+          <option value="Beige">Beige</option>
+          <option value="Green">Green</option>
+          <option value="Custom">Custom</option>
+        </select>
+        <input type="text" id="f_marbleColorCustom" placeholder="Describe the custom marble color" style="display:none;margin-top:8px;">
+        <div class="hint">Only applies when Floor Finish is a marble finish.</div>
+      </div>
+
+      <div class="field" id="epoxyFinishField" style="display:none;">
+        <label>Epoxy Finish <span class="required-mark">*</span></label>
+        <select id="f_epoxyFinish">
+          <option value="Matte" selected>Matte</option>
+          <option value="Satin">Satin</option>
+          <option value="High Gloss">High Gloss</option>
+        </select>
+        <div class="hint">Only applies when Floor Finish is an epoxy finish.</div>
       </div>
 
       <div class="field" id="floorEdgeFinishField">
         <label>Floor Edge Finish <span class="required-mark">*</span></label>
         <select id="f_floorEdgeFinish">
           <option value="Straight Edge" selected>Straight Edge</option>
-          <option value="Chamfered Edge">Chamfered Edge</option>
+          <option value="Beveled Edge">Beveled Edge</option>
+          <option value="Aluminum Trim">Aluminum Trim</option>
+          <option value="Stainless Steel Trim">Stainless Steel Trim</option>
+          <option value="LED Edge">LED Edge</option>
+          <option value="Glass Edge">Glass Edge</option>
           <option value="Curved Edge">Curved Edge</option>
-          <option value="Illuminated Edge (Hidden LED)">Illuminated Edge (Hidden LED)</option>
-          <option value="Metal Trim">Metal Trim</option>
-          <option value="Wood Trim">Wood Trim</option>
+          <option value="Invisible Edge">Invisible Edge</option>
         </select>
         <div class="hint">How the raised floor's visible perimeter edge is finished — irrelevant when Floor Type is Venue Floor (no platform edge exists).</div>
       </div>
 
-      <div class="field" id="floorLightingField">
-        <label class="check-item-compact"><input type="checkbox" id="f_floorLighting"> Hidden Floor Lighting (LED strip around the raised floor's edge)</label>
-        <div class="hint">Optional — leave unchecked if not wanted, no need to select anything either way.</div>
+      <div class="field" id="floorFeaturesField">
+        <label>Optional Floor Features</label>
+        <div class="requirements-grid">
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Hidden LED Strip"> Hidden LED Strip</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Underfloor RGB Lighting"> Underfloor RGB Lighting</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Illuminated Glass Inserts"> Illuminated Glass Inserts</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Cable Management System"> Cable Management System</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Floor Boxes"> Floor Boxes</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Integrated Power Outlets"> Integrated Power Outlets</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Flush Access Panels"> Flush Access Panels</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Accessible Ramp"> Accessible Ramp</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Anti-slip Finish"> Anti-slip Finish</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Waterproof Finish"> Waterproof Finish</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Acoustic Flooring"> Acoustic Flooring</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Sustainable Materials"> Sustainable Materials</label>
+        </div>
+        <div class="hint">Optional — select any that apply, no need to select anything if none are wanted.</div>
       </div>
 
       <div class="section-headline" id="requirementsHeadline" style="display:none;">Requirements</div>
@@ -3130,7 +3230,7 @@ The booth should be recognized by its architectural identity first and its graph
 const EPS_015 = `FLOORING RULES
 
 GENERAL RULE
-The floor is not a passive background — it is a structural and visual decision that changes how premium the booth reads, how the raised platform's edge is detailed, and how light behaves across the space. Never render a generic gray floor by default; always reflect the client's specified Floor Type, Floor Finish, Carpet Type, Raised Floor Height, Floor Edge Finish, and Hidden Floor Lighting exactly, using the visual guidance below. Where the client has left flooring unspecified, default to a raised floor with premium exhibition carpet and a straight edge — never bare venue concrete.
+The floor is not a passive background — it is an important architectural design element, not simply a surface material. It changes how premium the booth reads, how the raised platform's edge is detailed, and how light behaves across the space. The client's flooring selection must visibly influence: the material description used in the render, the color palette, how the surface reflects light, its texture, the realism of the render, the overall architectural mood, how it interacts with the booth's lighting design, and the visitor's experience of walking through the space. Never render a generic gray floor by default; always reflect the client's specified Floor Type, Floor Finish (and its material-specific sub-choice — Carpet Type/Color, Wood Type/Finish, Marble Color, or Epoxy Finish), Raised Floor Height, Floor Edge Finish, and Optional Floor Features exactly, using the visual guidance below. Where the client has left flooring unspecified, default to a raised floor with Exhibition Carpet and a straight edge — never bare venue concrete.
 
 FLOOR TYPE — WHAT EACH LOOKS LIKE
 • Venue Floor (No Platform): the booth finish sits directly on the venue's own floor with zero height change — no visible step, no edge trim, no raised-floor lighting. Furniture and walls read as standing directly on the hall floor.
@@ -3138,36 +3238,90 @@ FLOOR TYPE — WHAT EACH LOOKS LIKE
 • Double Raised Floor: two distinct platform levels at different heights within the same booth (e.g. a lower general circulation platform and a higher VIP/stage platform), each with its own edge — use this to reinforce hierarchy between general and premium zones, never as a decorative afterthought.
 • Custom: follow the client's stated custom description exactly for the platform configuration.
 
-FLOOR FINISH — VISUAL CHARACTER OF EACH
-• Carpet: soft, matte, acoustic-dampening surface — the default premium exhibition choice; see Carpet Type below for the exact look.
-• Wood / Laminate: warm-toned linear or herringbone plank pattern, satin sheen, reads upscale and hospitality-like — pairs well with Luxury and Corporate architectural styles.
-• Vinyl Flooring: smooth, seamless, low-sheen commercial finish — practical and clean, common for technology and medical booths.
-• PVC Flooring: similar to vinyl but often shown in bold solid colors or interlocking tile patterns — used where a modern, slightly industrial-clean look is wanted.
-• Epoxy Finish: high-gloss, seamless, reflective resin surface — reads highly premium and futuristic, throws sharp light reflections; strong pairing with Futuristic and Luxury styles.
-• Marble Effect: polished stone-look surface with visible veining, light-colored and reflective — reads luxury and formality, common for Government and Luxury booths.
-• Stone Effect: matte, textured stone-look surface (unlike the polished sheen of Marble Effect) — reads grounded and natural rather than glossy-premium.
-• Artificial Grass: green synthetic turf texture — used deliberately for outdoor, lifestyle, automotive, or eco-themed concepts, never as a default.
-• Custom: follow the client's stated custom description exactly.
-
-CARPET TYPE (only relevant when Floor Finish is Carpet)
-• Exhibition Carpet: flat, solid-color commercial-grade carpet tile — the standard, cost-efficient default look.
+FLOOR FINISH — VISUAL CHARACTER OF EACH (35 options, grouped into families; the client's brief states the exact one chosen)
+Carpet family — soft, matte, acoustic-dampening surfaces; see CARPET SUB-SPECIFICATION below for the exact texture and color:
+• Exhibition Carpet: flat, solid-color commercial-grade carpet — the standard, cost-efficient default look.
+• Needle Punch Carpet: dense, flat, felt-like non-woven texture — hard-wearing and low-pile, common for budget and high-traffic zones.
 • Premium Carpet: thicker pile, richer color saturation, slightly plush appearance — visibly more upscale than Exhibition Carpet.
 • Printed Carpet: carries a custom printed pattern or brand graphic across its surface — treat this as an additional branding surface, not just a floor.
-• Custom Color: solid-color carpet in the client's specified custom color — coordinate this color with the booth's brand color palette unless the client states otherwise.
+• Carpet Tiles: visible modular grid seams in a repeating tile pattern rather than one continuous surface — reads practical and modern.
+
+Wood family — warm-toned, satin-to-gloss plank surfaces; see WOOD SUB-SPECIFICATION below for the exact species and sheen:
+• Wood Laminate: clean linear plank pattern, even tone, satin sheen — upscale and hospitality-like, pairs well with Luxury and Corporate architectural styles.
+• Herringbone Wood: planks laid in a zig-zag herringbone pattern — reads as a distinctly premium, boutique architectural detail.
+• Natural Oak: light, warm, visible natural wood grain.
+• Walnut Wood: rich dark-brown tone with pronounced grain — reads premium and formal.
+• Dark Wood Veneer: near-black stained wood surface with a fine sheen — dramatic and premium, pairs well with Luxury and Executive brand personalities.
+
+Resin/Concrete family — seamless, high-performance surfaces:
+• Epoxy Resin, High Gloss Epoxy, Matte Epoxy: seamless reflective resin surface; see EPOXY SUB-SPECIFICATION below for the exact sheen. High Gloss reads highly premium and futuristic with sharp mirror-like light reflections; Matte reads clean and clinical with a soft, low-reflectivity surface.
+• Polished Concrete: smooth, subtly reflective grey concrete surface with faint aggregate texture — reads industrial-premium, common for Automotive, Industrial, and Artistic concepts.
+• Microcement: ultra-smooth seamless matte surface with no visible joints — reads minimal and architectural.
+
+Marble/Stone family — light-reflecting, formal surfaces; see MARBLE SUB-SPECIFICATION below when a Marble option is chosen:
+• Marble Effect, White Marble, Black Marble: polished stone-look surface with visible veining, high reflectivity — reads luxury and formality, common for Government, Banking, and Luxury booths. White Marble reads bright and premium; Black Marble reads dramatic and exclusive.
+• Travertine Effect: matte-to-satin natural stone surface with visible pitting/texture, warmer and less reflective than polished marble — reads grounded, natural, and upscale.
+• Terrazzo: speckled aggregate-in-resin surface with a distinctive mottled pattern, satin sheen — reads artistic and contemporary.
+• Porcelain Tiles, Ceramic Tiles: visible grid of grout lines, smooth low-to-satin sheen surface — practical, clean, common for Technology and Medical booths.
+• Stone Tiles: matte, textured natural-stone-look tile surface — reads grounded and natural rather than glossy-premium.
+• Granite Effect: polished speckled stone surface, high reflectivity — reads durable and premium.
+
+Outdoor/Specialty family:
+• Artificial Grass: green synthetic turf texture — used deliberately for outdoor, lifestyle, automotive, or eco-themed concepts, never as a default.
+• Outdoor Decking, Composite Decking: linear wood-look or composite plank surface rated for outdoor use — reads natural and appropriate for outdoor pavilions and terraces.
+• Rubber Flooring: matte, slightly textured, impact-absorbing surface — reads practical, safe, and technical, common for fitness/sports and industrial concepts.
+• LED Glass Floor: a glass floor surface with embedded LED lighting beneath it, glowing from within — a dramatic, futuristic architectural statement floor, not a background material; use sparingly and only where the client's brief supports a bold digital-first or futuristic identity.
+• Glass Floor Panels: transparent or frosted structural glass panels, unlit — reads modern, high-tech, and architecturally daring.
+• Raised Access Floor: a modular panel flooring system (visible fine seams in a regular grid) built specifically to conceal cable routing and services beneath it — reads technical and professional, common in technology, data, and broadcast-heavy booths; distinct from the Raised Floor Type above (that is the platform's construction method; this is the floor's own visible finish).
+• Custom Finish: follow the client's stated custom description exactly.
+
+CARPET SUB-SPECIFICATION (only relevant when Floor Finish is a carpet-family finish)
+Carpet Type — the weave/texture: Exhibition Carpet (flat commercial-grade), Needle Punch (dense felt-like), Velour (soft cut-pile with a subtle sheen), Tufted (visible looped pile texture), Printed Carpet (custom printed pattern/graphic), Premium Carpet (thicker, richer pile).
+Carpet Color — a specific hex color the carpet must render in; coordinate this with the booth's brand color palette unless the client's brief clearly intends a different, deliberate accent color.
+
+WOOD SUB-SPECIFICATION (only relevant when Floor Finish is a wood-family finish)
+Wood Type — the species and grain character: Oak (light, warm, visible grain), Walnut (rich dark brown), Ash (pale, subtle straight grain), Maple (light, fine, uniform grain), Teak (warm golden-brown, oily sheen, tropical hardwood character), Bamboo (linear, light, slightly striated).
+Wood Finish — the sheen: Matte (no shine, natural texture visible), Satin (soft, low sheen), Gloss (high shine, strong reflections).
+
+MARBLE SUB-SPECIFICATION (only relevant when Floor Finish is a marble-family finish)
+Marble Color: White (bright, premium, formal), Black (dramatic, exclusive), Grey (cool, corporate, understated), Beige (warm, soft, hospitality-like), Green (distinctive, luxurious, rare), Custom (follow the client's stated custom color exactly).
+
+EPOXY SUB-SPECIFICATION (only relevant when Floor Finish is an epoxy-family finish)
+Finish: Matte (soft, low-reflectivity, clean and clinical), Satin (moderate sheen, balanced reflectivity), High Gloss (mirror-like sheen, sharp reflections, highly premium and futuristic).
 
 RAISED FLOOR HEIGHT — RENDER SCALE
 The stated height (50mm / 100mm / 150mm / custom) must read as a genuine, visible step at the platform's perimeter edge, proportional to a real person's shoe/ankle height standing beside it — never render it as a flush, invisible transition, and never exaggerate it into a tall stage-like riser unless the client's stated height is unusually large.
 
 FLOOR EDGE FINISH — ONLY APPLIES WHEN A RAISED OR DOUBLE RAISED FLOOR EXISTS (irrelevant for Venue Floor, since there is no platform edge to finish)
 • Straight Edge: a plain vertical flat face at the platform's perimeter — the clean, default treatment.
-• Chamfered Edge: the vertical face is cut at a 45-degree bevel instead of a flat vertical drop — softer, safer-looking, common in premium builds.
+• Beveled Edge: the vertical face is cut at an angled bevel instead of a flat vertical drop — softer, safer-looking, common in premium builds.
+• Aluminum Trim: a thin brushed or polished aluminum strip caps the edge — reads light, modern, industrial-premium.
+• Stainless Steel Trim: a polished stainless-steel strip caps the edge — reads heavier, more formal and premium than aluminum.
+• LED Edge: the edge face itself is lit from within by a concealed LED strip, making the platform appear to visually float — this is a distinct architectural treatment from the separate Hidden LED Strip floor feature below (that feature washes light onto the surrounding venue floor; this one lights the edge face itself) and both may be specified together.
+• Glass Edge: a glass fascia panel caps the edge — reads modern, high-tech, and visually light.
 • Curved Edge: the edge is rounded/radiused rather than angular — reads soft and modern.
-• Illuminated Edge (Hidden LED): the edge face itself is lit from within by a concealed LED strip, making the platform appear to visually float — this is a distinct architectural treatment from the separate Hidden Floor Lighting rule below (that rule lights the surrounding floor; this one lights the edge face itself) and both may be specified together.
-• Metal Trim: a thin brushed or polished metal strip caps the edge — reads industrial-premium.
-• Wood Trim: a wood strip caps the edge, coordinating with any wood elements elsewhere in the booth.
+• Invisible Edge: the edge is finished flush and unobtrusively, minimizing its visual presence as much as a raised platform allows — reads deliberately minimal and clean.
 
-HIDDEN FLOOR LIGHTING
-When specified YES, include a continuous concealed LED light strip recessed at the base of the raised floor's perimeter, washing light outward/downward onto the surrounding venue floor — this reads as a premium architectural signature and should be visible in the render as a soft glowing line at floor level along the booth's boundary. When NO, the floor's edge should show no such lighting effect.`;
+OPTIONAL FLOOR FEATURES — any combination of these may be explicitly requested by the client; treat each as a real, visible architectural/technical detail, not a suggestion
+• Hidden LED Strip: continuous concealed LED light recessed at the base of the raised floor's perimeter, washing light outward/downward onto the surrounding venue floor — reads as a premium architectural signature, visible as a soft glowing line at floor level along the booth's boundary.
+• Underfloor RGB Lighting: color-changeable LED lighting beneath a translucent section of flooring — reads dynamic, digital-first, and futuristic.
+• Illuminated Glass Inserts: discrete backlit glass panels set into the floor surface — a refined, premium accent rather than a full glass floor.
+• Cable Management System: visible or implied floor-level cable channels/covers — reads organized and professional, common in technology-heavy booths.
+• Floor Boxes: flush recessed floor outlets/access points set into the floor surface at functional locations (near counters, AV stations).
+• Integrated Power Outlets: power outlets built into the floor or floor edge, flush and unobtrusive.
+• Flush Access Panels: removable panels set flush with the floor surface for under-floor service access, visually seamless with the surrounding finish.
+• Accessible Ramp: a code-compliant sloped ramp providing step-free access onto a raised floor.
+• Anti-slip Finish: a visibly textured, matte, safety-oriented surface treatment rather than a high-gloss one.
+• Waterproof Finish: a sealed, moisture-resistant surface appearance, relevant for outdoor or food/beverage-adjacent booths.
+• Acoustic Flooring: a surface that reads soft and sound-dampening (thicker carpet, cushioned underlay) rather than hard and reflective.
+• Sustainable Materials: a visibly natural, low-impact material character (reclaimed wood tones, natural fiber carpet texture) supporting a Sustainable or Eco Friendly brand personality.
+
+FLOORING AS A DESIGN DECISION — WORKED EXAMPLES (illustrative, not an exhaustive list; always follow the client's own stated flooring choice first, and only reach for these pairings when the client has left flooring unspecified and industry/brand context suggests a default)
+• Luxury Banking: White Marble finish with Aluminum or Stainless Steel Trim edge — reads formal, premium, trustworthy.
+• Healthcare: Matte Epoxy or Vinyl Flooring — reads clean, clinical, hygienic, bright.
+• Technology: Wood Laminate finish with an LED Edge — reads warm yet innovation-forward, a common premium-tech pairing.
+• Automotive: Polished Concrete — reads bold, industrial-premium, lets a hero vehicle or product be the visual focus.
+• Outdoor Pavilion: Composite Decking or Artificial Grass — reads appropriate to an outdoor, natural setting rather than an indoor exhibition finish.`;
 
 const ECS_001 = `EVENT PLANNING PRINCIPLES
 
@@ -3645,14 +3799,28 @@ function collectFlooringSpecification(){
   const floorType = floorTypeRaw === 'Custom' ? (document.getElementById('f_floorTypeCustom').value.trim() || 'Custom') : floorTypeRaw;
 
   const floorFinishRaw = document.getElementById('f_floorFinish').value;
-  const floorFinish = floorFinishRaw === 'Custom' ? (document.getElementById('f_floorFinishCustom').value.trim() || 'Custom') : floorFinishRaw;
+  const floorFinish = floorFinishRaw === 'Custom Finish' ? (document.getElementById('f_floorFinishCustom').value.trim() || 'Custom Finish') : floorFinishRaw;
 
   const lines = [`Floor Type: ${floorType}.`, `Floor Finish: ${floorFinish}.`];
 
-  if(floorFinishRaw === 'Carpet'){
-    const carpetTypeRaw = document.getElementById('f_carpetType').value;
-    const carpetType = carpetTypeRaw === 'Custom Color' ? (document.getElementById('f_carpetTypeCustom').value.trim() || 'a custom color') : carpetTypeRaw;
-    lines.push(`Carpet Type: ${carpetType}.`);
+  if(CARPET_FLOOR_FINISHES.includes(floorFinishRaw)){
+    lines.push(`Carpet Type: ${document.getElementById('f_carpetType').value}.`);
+    lines.push(`Carpet Color: ${document.getElementById('f_carpetColorHex').value} — coordinate this color with the booth's brand color palette unless a different specific color is clearly intended.`);
+  }
+
+  if(WOOD_FLOOR_FINISHES.includes(floorFinishRaw)){
+    lines.push(`Wood Type: ${document.getElementById('f_woodType').value}.`);
+    lines.push(`Wood Finish: ${document.getElementById('f_woodFinish').value}.`);
+  }
+
+  if(MARBLE_FLOOR_FINISHES.includes(floorFinishRaw)){
+    const marbleColorRaw = document.getElementById('f_marbleColor').value;
+    const marbleColor = marbleColorRaw === 'Custom' ? (document.getElementById('f_marbleColorCustom').value.trim() || 'a custom color') : marbleColorRaw;
+    lines.push(`Marble Color: ${marbleColor}.`);
+  }
+
+  if(EPOXY_FLOOR_FINISHES.includes(floorFinishRaw)){
+    lines.push(`Epoxy Finish: ${document.getElementById('f_epoxyFinish').value}.`);
   }
 
   if(floorTypeRaw === 'Raised Floor' || floorTypeRaw === 'Double Raised Floor'){
@@ -3662,13 +3830,14 @@ function collectFlooringSpecification(){
     lines.push(`Floor Edge Finish: ${document.getElementById('f_floorEdgeFinish').value} — this is the visible finish of the raised floor's perimeter edge, where it meets the venue floor.`);
   }
 
-  lines.push(document.getElementById('f_floorLighting').checked
-    ? 'Hidden Floor Lighting: YES — include a hidden LED light strip recessed into the raised floor edge, washing light downward/outward along the perimeter.'
-    : 'Hidden Floor Lighting: No floor-edge lighting.');
+  const floorFeatures = Array.from(document.querySelectorAll('.floor-feature-cb:checked')).map(cb => cb.value);
+  lines.push(floorFeatures.length
+    ? `Optional Floor Features — EXPLICITLY REQUESTED BY THE CLIENT: ${floorFeatures.join(', ')}.`
+    : 'Optional Floor Features: none requested.');
 
   return `
 
-FLOORING SPECIFICATION — EXPLICITLY SPECIFIED BY THE CLIENT (mandatory facts, not suggestions; apply exactly as stated, following EPS-015's guidance on what each choice looks like in the finished render):
+FLOORING SPECIFICATION — EXPLICITLY SPECIFIED BY THE CLIENT (mandatory facts, not suggestions; apply exactly as stated, following EPS-015's guidance on what each choice looks like in the finished render, and treating the floor as an important architectural design element rather than simply a surface material):
 ${lines.join('\n')}`;
 }
 
@@ -3971,8 +4140,34 @@ function toggleEventTypeCustom(select){
   document.getElementById('f_eventTypeCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
 }
 
-function toggleCarpetType(select){
-  document.getElementById('carpetTypeField').style.display = select.value === 'Carpet' ? 'block' : 'none';
+// Maps flooring option values used before the Flooring System expansion to their closest
+// equivalent in the new, larger option lists — used only when reopening an older saved
+// project whose stored value no longer exists as a real <option>, so it lands on a sensible
+// selection instead of showing blank. New projects never produce these old values.
+const LEGACY_FLOOR_FINISH_MAP = { 'Carpet': 'Exhibition Carpet', 'Wood / Laminate': 'Wood Laminate', 'Epoxy Finish': 'Epoxy Resin', 'Stone Effect': 'Stone Tiles', 'Custom': 'Custom Finish' };
+const LEGACY_CARPET_TYPE_MAP = { 'Custom Color': 'Premium Carpet' };
+const LEGACY_FLOOR_EDGE_FINISH_MAP = { 'Chamfered Edge': 'Beveled Edge', 'Illuminated Edge (Hidden LED)': 'LED Edge', 'Metal Trim': 'Aluminum Trim', 'Wood Trim': 'Straight Edge' };
+
+// Floor Finish (35 options) groups into four material families that each reveal their own
+// sub-fields — everything else applies exactly as its option name says, with no sub-fields.
+const CARPET_FLOOR_FINISHES = ['Exhibition Carpet', 'Needle Punch Carpet', 'Premium Carpet', 'Printed Carpet', 'Carpet Tiles'];
+const WOOD_FLOOR_FINISHES = ['Wood Laminate', 'Herringbone Wood', 'Natural Oak', 'Walnut Wood', 'Dark Wood Veneer'];
+const MARBLE_FLOOR_FINISHES = ['Marble Effect', 'White Marble', 'Black Marble', 'Travertine Effect'];
+const EPOXY_FLOOR_FINISHES = ['Epoxy Resin', 'High Gloss Epoxy', 'Matte Epoxy'];
+
+function updateFloorFinishSections(select){
+  const v = select.value;
+  document.getElementById('carpetTypeField').style.display = CARPET_FLOOR_FINISHES.includes(v) ? 'block' : 'none';
+  document.getElementById('carpetColorField').style.display = CARPET_FLOOR_FINISHES.includes(v) ? 'block' : 'none';
+  document.getElementById('woodTypeField').style.display = WOOD_FLOOR_FINISHES.includes(v) ? 'block' : 'none';
+  document.getElementById('woodFinishField').style.display = WOOD_FLOOR_FINISHES.includes(v) ? 'block' : 'none';
+  document.getElementById('marbleColorField').style.display = MARBLE_FLOOR_FINISHES.includes(v) ? 'block' : 'none';
+  document.getElementById('epoxyFinishField').style.display = EPOXY_FLOOR_FINISHES.includes(v) ? 'block' : 'none';
+  document.getElementById('f_floorFinishCustom').style.display = v === 'Custom Finish' ? 'block' : 'none';
+}
+
+function toggleMarbleColorCustom(select){
+  document.getElementById('f_marbleColorCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
 }
 
 function toggleRaisedFloorHeight(select){
@@ -3984,16 +4179,8 @@ function toggleFloorTypeCustom(select){
   document.getElementById('f_floorTypeCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
 }
 
-function toggleFloorFinishCustom(select){
-  document.getElementById('f_floorFinishCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
-}
-
 function toggleRaisedFloorHeightCustom(select){
   document.getElementById('f_raisedFloorHeightCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
-}
-
-function toggleCarpetTypeCustom(select){
-  document.getElementById('f_carpetTypeCustom').style.display = select.value === 'Custom Color' ? 'block' : 'none';
 }
 
 // Opening a saved project should land directly on its results — the concept box, the
@@ -4108,7 +4295,7 @@ function setMode(m){
     document.getElementById('requirementsHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('referenceImageHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('lblName').innerHTML = m==='booth' ? 'Project Name <span class="required-mark">*</span>' : 'Event name';
-    document.getElementById('lblIndustryStyle').innerHTML = 'Industry style (optional)';
+    document.getElementById('lblIndustryStyle').innerHTML = 'Industry style <span class="required-mark">*</span>';
     document.getElementById('f_name').placeholder = '';
     document.getElementById('lblDesc').innerHTML = (m==='booth'
       ? 'Describe what you want in detail: the goal, products on display, visual identity, any special requirements'
@@ -4410,8 +4597,8 @@ function getMissingRequirements(m){
   const floorTypeCustom = String(document.getElementById('f_floorTypeCustom').value).trim();
   const floorFinish = document.getElementById('f_floorFinish').value;
   const floorFinishCustom = String(document.getElementById('f_floorFinishCustom').value).trim();
-  const carpetType = document.getElementById('f_carpetType').value;
-  const carpetTypeCustom = String(document.getElementById('f_carpetTypeCustom').value).trim();
+  const marbleColor = document.getElementById('f_marbleColor').value;
+  const marbleColorCustom = String(document.getElementById('f_marbleColorCustom').value).trim();
   const raisedFloorHeight = document.getElementById('f_raisedFloorHeight').value;
   const raisedFloorHeightCustom = String(document.getElementById('f_raisedFloorHeightCustom').value).trim();
 
@@ -4432,6 +4619,11 @@ function getMissingRequirements(m){
   const outdoorSizeUnknown = document.getElementById('f_outdoorSizeUnknown').checked;
   const needsIndoorSize = environmentForSize === 'Indoor' || environmentForSize === 'Hybrid (Indoor + Outdoor)';
   const needsOutdoorSize = environmentForSize === 'Outdoor' || environmentForSize === 'Hybrid (Indoor + Outdoor)';
+
+  // Industry style is a shared field (both Booth and Event modes use the same #f_industryStyle
+  // element — see the comment above captureModeSnapshot/applyModeSnapshot) and is now mandatory
+  // in both, so it's checked once here rather than duplicated inside each mode's own block below.
+  if(!industryStyle) missing.push('an Industry style');
 
   if(m === 'event'){
     if(!desc) missing.push('a detailed description');
@@ -4458,8 +4650,8 @@ function getMissingRequirements(m){
     if(hasPosters.startsWith('yes') && posterFiles.length === 0) missing.push('at least one poster file (or switch to "No — need new designs")');
     if(selectedRequirementsCount < 2) missing.push('at least 2 selections under Requirements');
     if(floorType === 'Custom' && !floorTypeCustom) missing.push('a description for the custom floor type');
-    if(floorFinish === 'Custom' && !floorFinishCustom) missing.push('a description for the custom floor finish');
-    if(floorFinish === 'Carpet' && carpetType === 'Custom Color' && !carpetTypeCustom) missing.push('a description for the custom carpet color');
+    if(floorFinish === 'Custom Finish' && !floorFinishCustom) missing.push('a description for the custom floor finish');
+    if(MARBLE_FLOOR_FINISHES.includes(floorFinish) && marbleColor === 'Custom' && !marbleColorCustom) missing.push('a description for the custom marble color');
     if((floorType === 'Raised Floor' || floorType === 'Double Raised Floor') && raisedFloorHeight === 'Custom' && !raisedFloorHeightCustom) missing.push('a value for the custom raised floor height');
   }
 
@@ -4664,14 +4856,14 @@ async function generateDesign(){
       errBox.scrollIntoView({behavior:'smooth', block:'center'});
       return;
     }
-    if(floorFinishGen === 'Custom' && !document.getElementById('f_floorFinishCustom').value.trim()){
+    if(floorFinishGen === 'Custom Finish' && !document.getElementById('f_floorFinishCustom').value.trim()){
       errBox.textContent = 'Please describe the custom floor finish under Flooring.';
       errBox.style.display = 'block';
       errBox.scrollIntoView({behavior:'smooth', block:'center'});
       return;
     }
-    if(floorFinishGen === 'Carpet' && document.getElementById('f_carpetType').value === 'Custom Color' && !document.getElementById('f_carpetTypeCustom').value.trim()){
-      errBox.textContent = 'Please describe the custom carpet color under Flooring.';
+    if(MARBLE_FLOOR_FINISHES.includes(floorFinishGen) && document.getElementById('f_marbleColor').value === 'Custom' && !document.getElementById('f_marbleColorCustom').value.trim()){
+      errBox.textContent = 'Please describe the custom marble color under Flooring.';
       errBox.style.display = 'block';
       errBox.scrollIntoView({behavior:'smooth', block:'center'});
       return;
@@ -7189,11 +7381,16 @@ function collectFormSnapshot(){
     f_floorFinish: document.getElementById('f_floorFinish').value,
     f_floorFinishCustom: document.getElementById('f_floorFinishCustom').value,
     f_carpetType: document.getElementById('f_carpetType').value,
-    f_carpetTypeCustom: document.getElementById('f_carpetTypeCustom').value,
+    f_carpetColorHex: document.getElementById('f_carpetColorHex').value,
+    f_woodType: document.getElementById('f_woodType').value,
+    f_woodFinish: document.getElementById('f_woodFinish').value,
+    f_marbleColor: document.getElementById('f_marbleColor').value,
+    f_marbleColorCustom: document.getElementById('f_marbleColorCustom').value,
+    f_epoxyFinish: document.getElementById('f_epoxyFinish').value,
     f_raisedFloorHeight: document.getElementById('f_raisedFloorHeight').value,
     f_raisedFloorHeightCustom: document.getElementById('f_raisedFloorHeightCustom').value,
     f_floorEdgeFinish: document.getElementById('f_floorEdgeFinish').value,
-    f_floorLighting: document.getElementById('f_floorLighting').checked,
+    f_floorFeatures: Array.from(document.querySelectorAll('.floor-feature-cb:checked')).map(cb => cb.value),
     f_openSides: document.getElementById('f_openSides').value,
     f_cornerSide: document.getElementById('f_cornerSide').value,
     f_levels: document.getElementById('f_levels').value,
@@ -7257,20 +7454,33 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_desc').value = snap.f_desc || '';
   document.getElementById('f_floorType').value = snap.f_floorType || 'Venue Floor (No Platform)';
   document.getElementById('f_floorTypeCustom').value = snap.f_floorTypeCustom || '';
-  document.getElementById('f_floorFinish').value = snap.f_floorFinish || 'Carpet';
+  // Projects saved before the Flooring System expansion may carry old option values that no
+  // longer exist in these selects (e.g. plain "Carpet", "Wood / Laminate", "Custom") — map
+  // each to its closest new equivalent so an old project reopens with a sensible selection
+  // instead of a blank/unselected dropdown.
+  const rawFloorFinish = snap.f_floorFinish || 'Exhibition Carpet';
+  document.getElementById('f_floorFinish').value = LEGACY_FLOOR_FINISH_MAP[rawFloorFinish] || rawFloorFinish;
   document.getElementById('f_floorFinishCustom').value = snap.f_floorFinishCustom || '';
-  document.getElementById('f_carpetType').value = snap.f_carpetType || 'Exhibition Carpet';
-  document.getElementById('f_carpetTypeCustom').value = snap.f_carpetTypeCustom || '';
+  const rawCarpetType = snap.f_carpetType || 'Exhibition Carpet';
+  document.getElementById('f_carpetType').value = LEGACY_CARPET_TYPE_MAP[rawCarpetType] || rawCarpetType;
+  document.getElementById('f_carpetColorHex').value = snap.f_carpetColorHex || '#8B1E2B';
+  syncColorPicker(document.getElementById('f_carpetColorHex'));
+  document.getElementById('f_woodType').value = snap.f_woodType || 'Oak';
+  document.getElementById('f_woodFinish').value = snap.f_woodFinish || 'Matte';
+  document.getElementById('f_marbleColor').value = snap.f_marbleColor || 'White';
+  document.getElementById('f_marbleColorCustom').value = snap.f_marbleColorCustom || '';
+  document.getElementById('f_epoxyFinish').value = snap.f_epoxyFinish || 'Matte';
   document.getElementById('f_raisedFloorHeight').value = snap.f_raisedFloorHeight || '50 mm';
   document.getElementById('f_raisedFloorHeightCustom').value = snap.f_raisedFloorHeightCustom || '';
-  document.getElementById('f_floorEdgeFinish').value = snap.f_floorEdgeFinish || 'Straight Edge';
-  document.getElementById('f_floorLighting').checked = !!snap.f_floorLighting;
+  const rawFloorEdgeFinish = snap.f_floorEdgeFinish || 'Straight Edge';
+  document.getElementById('f_floorEdgeFinish').value = LEGACY_FLOOR_EDGE_FINISH_MAP[rawFloorEdgeFinish] || rawFloorEdgeFinish;
+  const savedFloorFeatures = new Set(snap.f_floorFeatures || (snap.f_floorLighting ? ['Hidden LED Strip'] : []));
+  document.querySelectorAll('.floor-feature-cb').forEach(cb => { cb.checked = savedFloorFeatures.has(cb.value); });
   toggleRaisedFloorHeight(document.getElementById('f_floorType'));
   toggleFloorTypeCustom(document.getElementById('f_floorType'));
-  toggleCarpetType(document.getElementById('f_floorFinish'));
-  toggleFloorFinishCustom(document.getElementById('f_floorFinish'));
+  updateFloorFinishSections(document.getElementById('f_floorFinish'));
+  toggleMarbleColorCustom(document.getElementById('f_marbleColor'));
   toggleRaisedFloorHeightCustom(document.getElementById('f_raisedFloorHeight'));
-  toggleCarpetTypeCustom(document.getElementById('f_carpetType'));
   document.getElementById('f_openSides').value = snap.f_openSides || '2';
   toggleCornerSide(document.getElementById('f_openSides'));
   document.getElementById('f_cornerSide').value = snap.f_cornerSide || 'right';
