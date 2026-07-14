@@ -36,7 +36,11 @@
   .app-layout{display:flex;min-height:100vh;align-items:flex-start;}
   .sidebar{width:250px;flex-shrink:0;background:#fff;border-right:1.5px solid var(--navy);padding:24px 16px;box-sizing:border-box;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
   .sidebar-top-fixed{flex-shrink:0;}
-  .sidebar-projects-scroll{flex:0 1 6.25%;min-height:0;overflow-y:auto;padding-right:2px;}
+  /* Sized to show exactly 3 project rows (each ~50px including its 6px gap) before
+     scrolling kicks in — 1 or 2 saved projects just take their own natural, smaller
+     height; a 4th and beyond scroll within this same fixed area instead of pushing the
+     rest of the sidebar (upload-existing, account/usage section) further down the page. */
+  .sidebar-projects-scroll{flex:0 1 auto;max-height:162px;min-height:0;overflow-y:auto;padding-right:2px;}
   .sidebar-bottom-fixed{flex-shrink:0;padding-top:16px;}
 
   .buy-more-prompt{
