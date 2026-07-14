@@ -93,7 +93,7 @@
 
   /* tabs */
   .tabs{display:flex;gap:10px;margin-bottom:28px;}
-  .show-form-bar{margin-bottom:28px;}
+  .show-form-bar{margin-bottom:8px;}
   .tab{
     flex:1;padding:14px 16px;border:2px solid var(--navy);background:transparent;
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--navy);
@@ -232,7 +232,7 @@
   .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:1.5px;color:var(--teal);text-transform:uppercase;margin-bottom:6px;}
   .concept-title{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:24px;color:var(--navy);margin:0 0 2px;}
   .concept-subtitle{font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:13.5px;color:var(--teal);margin:0 0 14px;}
-  .concept-description-block{background:var(--paper);border:1.5px solid var(--line);border-radius:2px;padding:14px 16px;margin:0 0 6px;}
+  .concept-description-block{background:var(--paper);border:1.5px solid var(--line);border-radius:2px;padding:14px 16px;margin:0 0 4px;}
   .concept-description-block-compact{margin:0 0 20px;}
   .concept-description-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);opacity:.6;margin-bottom:8px;}
   .concept-description-text{font-family:'Space Grotesk',sans-serif;font-size:13.5px;line-height:1.55;color:var(--ink);margin:0 0 10px;}
@@ -265,7 +265,7 @@
   .result-layout-grid{
     display:grid;
     grid-template-columns: 1fr;
-    grid-template-areas: "history" "approved" "actionbar" "threed" "camerapanel" "generated";
+    grid-template-areas: "approved" "history" "actionbar" "threed" "camerapanel" "generated";
     gap:0;
   }
   .grid-area-history{grid-area:history;min-width:0;}
@@ -460,7 +460,7 @@
   </div>
 
   <div class="show-form-bar" id="showFormBar" style="display:none;">
-    <button type="button" class="ghost small" onclick="showFormAndTabs()">◀ Show project details &amp; form</button>
+    <button type="button" class="ghost small" onclick="startNewProject()">🏠 Home Page</button>
   </div>
 
   <div class="card" id="displayStandCard" style="display:none;">
@@ -1660,10 +1660,17 @@ Replace only the materials and graphics."></textarea>
     <div class="concept-description-block" id="conceptDescriptionBlockCamera" style="display:none;">
       <div class="concept-description-label">Concept of the Design</div>
       <p class="concept-description-text" id="conceptDescriptionTextCamera"></p>
-      <button type="button" class="ghost small" onclick="copyConceptDescription()">Copy text</button>
     </div>
 
     <div class="result-layout-grid" id="resultLayoutGrid">
+      <div class="grid-area-approved">
+        <div class="render-status" id="renderSlotStatus"></div>
+        <div class="render-frame" id="renderSlotFrame">
+          <img id="renderSlotImg" alt="AI rendered concept" style="display:none;" onclick="openImageLightbox(this.src)">
+        </div>
+        <div class="render-frame-caption">Picture approved</div>
+      </div>
+
       <div class="grid-area-history">
         <div id="galleryStrip" class="gallery-strip"></div>
 
@@ -1674,20 +1681,12 @@ Replace only the materials and graphics."></textarea>
         </div>
       </div>
 
-      <div class="grid-area-approved">
-        <div class="render-status" id="renderSlotStatus"></div>
-        <div class="render-frame" id="renderSlotFrame">
-          <img id="renderSlotImg" alt="AI rendered concept" style="display:none;" onclick="openImageLightbox(this.src)">
-        </div>
-        <div class="render-frame-caption">Picture approved</div>
-      </div>
-
       <div class="grid-area-actionbar">
         <div class="action-bar" id="actionBar">
           <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;">Download image</button>
           <button class="ghost small" onclick="openModifyDesignPanel()">Modify design</button>
           <button class="primary small" id="approveDesignBtn" onclick="approveDesign()">Approve</button>
-          <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()">Other option</button>
+          <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()" style="margin-left:auto;">Other option</button>
         </div>
         <div class="action-status" id="actionStatus"></div>
       </div>
@@ -4260,7 +4259,7 @@ async function generateDesign(){
   pendingGenerateAction = async function proceedWithGeneration(){
   lockForm();
   document.getElementById('loading').style.display = 'flex';
-  document.getElementById('loadingText').textContent = 'Analyzing your brief and writing rendering prompts...';
+  document.getElementById('loadingText').textContent = 'Analyzing your brief and generating concept and design...';
   document.getElementById('result').style.display = 'none';
   saveCurrentProject();
 
@@ -4803,14 +4802,6 @@ function renderOptionTabsV2(){
   }).join('');
 }
 
-function copyConceptDescription(){
-  const text = document.getElementById('conceptDescriptionTextCamera').textContent;
-  if(!text) return;
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).catch(() => {});
-  }
-}
-
 function showOptionV2(i){
   activeOptionIndex = i;
   renderOptionTabsV2();
@@ -4905,6 +4896,9 @@ async function removeGalleryEntry(i){
     await customAlert('You need to keep at least one version — this is the only one left.', 'Remove Version');
     return;
   }
+
+  const confirmed = await customConfirm('Delete this version? This cannot be undone.', 'Remove Version', 'Delete');
+  if(!confirmed) return;
 
   const removingActive = (i === opt.activeGalleryIndex);
   opt.gallery.splice(i, 1);
@@ -5555,7 +5549,6 @@ async function confirmSubmitModifyDesign(){
   const canvas = document.getElementById('modifyDesignMarkupCanvas');
   const baseImg = document.getElementById('modifyDesignBaseImg');
   const guidance = document.getElementById('modifyDesignText').value.trim();
-  const statusEl = document.getElementById('modifyDesignStatus');
 
   const composite = document.createElement('canvas');
   composite.width = canvas.width;
@@ -5586,7 +5579,11 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
     additionalReferenceImages.push({ data: attachedParts.base64, mimeType: attachedParts.mime });
   }
 
-  statusEl.textContent = 'Sending to DesignsLab — this can take a moment...';
+  // Close the panel and return to the picture view immediately — the loading state and
+  // any error live under the main image from here on, not inside the (now closed) panel.
+  closeModifyDesignPanel();
+  const mainStatusEl = document.getElementById('actionStatus');
+  setStatusError(mainStatusEl, 'Sending to DesignsLab — this can take a moment...');
 
   try{
     const response = await fetch('/api/generate-image-gemini', {
@@ -5616,12 +5613,11 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
       renderModifyUsageIndicator();
     }
 
-    setStatusError(statusEl, '');
-    closeModifyDesignPanel();
+    if(activeOptionIndex === idx) setStatusError(mainStatusEl, '');
     saveCurrentProject();
   }catch(err){
     console.error('Modify design failed:', err);
-    setStatusError(statusEl, 'Could not modify that area: ' + (err.message || 'unknown error'));
+    if(activeOptionIndex === idx) setStatusError(mainStatusEl, 'Could not modify that area: ' + (err.message || 'unknown error'));
   }
 }
 

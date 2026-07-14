@@ -101,7 +101,7 @@ async function extractImages(node, projectId, uploadedCountRef) {
     const pathname = `projects/${projectId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
     const blob = await put(pathname, buffer, { access: 'public', contentType: mime, addRandomSuffix: false });
     uploadedCountRef.count++;
-    return 'blob:' + blob.pathname;
+    return 'blob:' + blob.url;
   }
   return node;
 }
@@ -122,7 +122,20 @@ async function inlineImages(node) {
   if (typeof node === 'string') {
     const match = node.match(BLOB_REF_RE);
     if (match) {
-      const pathname = match[1];
+      const ref = match[1];
+      // New format: the full public URL was stored directly — no server-side round trip
+      // needed at all, since the browser can fetch a public blob URL itself. This is both
+      // faster (the project payload no longer embeds megabytes of base64) and more
+      // reliable (removes an entire class of failure around get()'s access-mode matching).
+      if (/^https?:\/\//.test(ref)) {
+        return ref;
+      }
+      // Old format (projects saved before this change): ref is a bare pathname, which
+      // needs the original fetch-and-inline approach. Left in place for backward
+      // compatibility — if the blob store has since been disconnected or replaced, this
+      // will still fail the same way it always could, but that's a data-availability
+      // issue for that specific old project, not something this code path can fix.
+      const pathname = ref;
       try {
         const result = await get(pathname, { access: 'public' });
         if (!result || result.statusCode !== 200 || !result.stream) return node; // leave the marker if not found, don't crash the whole load
