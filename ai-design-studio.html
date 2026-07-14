@@ -36,12 +36,12 @@
   .app-layout{display:flex;min-height:100vh;align-items:flex-start;}
   .sidebar{width:250px;flex-shrink:0;background:#fff;border-right:1.5px solid var(--navy);padding:24px 16px;box-sizing:border-box;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
   .sidebar-top-fixed{flex-shrink:0;}
-  .sidebar-projects-scroll{flex:1 1 35%;min-height:0;overflow-y:auto;padding-right:2px;}
+  .sidebar-projects-scroll{flex:1 1 25%;min-height:0;overflow-y:auto;padding-right:2px;}
   .sidebar-bottom-fixed{flex-shrink:0;margin-top:auto;padding-top:16px;}
 
   .buy-more-prompt{
-    margin-top:10px;font-size:11px;line-height:1.55;color:var(--ink);opacity:.75;
-    padding:10px 12px;border:1.3px dashed var(--line);border-radius:2px;background:var(--paper);
+    margin-top:10px;font-size:11px;line-height:1.4;color:var(--ink);opacity:.8;font-weight:600;text-align:center;
+    padding:8px 12px;border:1.3px dashed var(--line);border-radius:2px;background:var(--paper);
   }
 
   .sidebar-account-section{margin-top:14px;padding-top:14px;border-top:1.5px solid var(--line);}
@@ -115,7 +115,7 @@
 
   /* tabs */
   .tabs{display:flex;gap:10px;margin-bottom:28px;}
-  .show-form-bar{margin-bottom:2px;}
+  .show-form-bar{margin-bottom:1px;}
   .tab{
     flex:1;padding:14px 16px;border:2px solid var(--navy);background:transparent;
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--navy);
@@ -283,6 +283,13 @@
   .action-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 6px;padding:12px;background:#fff;border:1.5px solid var(--line);border-radius:2px;}
   .action-bar select{padding:8px 10px;border:1.5px solid var(--line);border-radius:2px;font-family:'Space Grotesk',sans-serif;font-size:12.5px;background:#fff;}
   .action-status{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--navy);opacity:.75;min-height:16px;margin:6px 0 14px;}
+
+  .approve-progress{margin:6px 0 14px;}
+  .approve-progress-header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px;}
+  .approve-progress-message{font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:600;color:var(--navy);}
+  .approve-progress-percent{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gold);font-weight:700;flex-shrink:0;}
+  .approve-progress-track{width:100%;height:6px;background:var(--navy-soft);border-radius:3px;overflow:hidden;}
+  .approve-progress-fill{height:100%;background:linear-gradient(90deg, var(--teal), var(--gold));border-radius:3px;transition:width .5s ease;}
   .action-status.is-limit-error, .edit-status.is-limit-error{color:#8a2f1c;opacity:1;font-weight:600;}
   .result-layout-grid{
     display:grid;
@@ -458,7 +465,7 @@
       </div>
 
       <div class="buy-more-prompt" id="buyMorePrompt" style="display:none;">
-        You're nearing the capacity included in your current plan. Expanded plans will be available soon.
+        Buy more usage — coming soon.
       </div>
 
       <div class="sidebar-account-section" id="sidebarAccountSection" style="display:none;">
@@ -1733,6 +1740,15 @@ Replace only the materials and graphics."></textarea>
           <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()" style="margin-left:auto;">Other option</button>
         </div>
         <div class="action-status" id="actionStatus"></div>
+        <div class="approve-progress" id="approveProgress" style="display:none;">
+          <div class="approve-progress-header">
+            <span class="approve-progress-message" id="approveProgressMessage"></span>
+            <span class="approve-progress-percent" id="approveProgressPercent">0%</span>
+          </div>
+          <div class="approve-progress-track">
+            <div class="approve-progress-fill" id="approveProgressFill" style="width:0%;"></div>
+          </div>
+        </div>
       </div>
 
       <div class="grid-area-threed">
@@ -5768,7 +5784,7 @@ function pollLumaGeneration(generationId, onProgress){
           return;
         }
         consecutiveFailures = 0;
-        if(onProgress) onProgress(data.state);
+        if(onProgress) onProgress(data.state, attempts, maxAttempts);
 
         if(data.state === 'completed' && data.videoUrl){
           resolve(data.videoUrl);
@@ -5832,10 +5848,21 @@ async function generateLumaVideo(heroImage){
   document.getElementById('lumaTabs').style.display = 'flex';
   switchLumaTab('video');
 
-  const videoUrl = await pollLumaGeneration(genData.generationId);
+  const videoUrl = await pollLumaGeneration(genData.generationId, (state, attempts, maxAttempts) => {
+    // This is a gentle, honest approximation, not a claim of exact precision — Luma
+    // doesn't expose a true completion percentage, so this eases toward (but deliberately
+    // never quite reaches) 50% while waiting, then the actual "completed" state below
+    // takes it the rest of the way. That keeps the bar always visibly moving without ever
+    // implying "almost done" when the video might still take a while.
+    const stageLabel = state === 'queued' ? 'Queued and about to start' : 'Rendering the orbit';
+    const eased = 8 + Math.min(38, (attempts / maxAttempts) * 38);
+    updateApproveProgress(eased, `Creating your 360° video — ${stageLabel.toLowerCase()}...`);
+  });
+  updateApproveProgress(50, 'Your 360° video is ready — now generating the individual camera views.');
   await loadLumaVideoIntoPlayer(videoUrl);
   document.getElementById('lumaVideoActionsRow').style.display = 'flex';
   await generateLumaSnapshotStrip();
+  updateApproveProgress(100, 'All views are ready.');
 }
 
 /* ================= Luma frame edit: pause the video, mark up the frame, send to Luma ================= */
@@ -5876,6 +5903,7 @@ async function generateLumaSnapshotStrip(){
   for(let i = 0; i < LUMA_SNAPSHOT_COUNT; i++){
     const frameIndex = Math.round((i / LUMA_SNAPSHOT_COUNT) * duration * 24);
     const timeSeconds = frameIndex / 24;
+    updateApproveProgress(50 + (i / LUMA_SNAPSHOT_COUNT) * 50, `Creating camera view ${i + 1} of ${LUMA_SNAPSHOT_COUNT}...`);
     try{
       const rawFrameDataUrl = await captureVideoFrameAtTime(player, timeSeconds);
       const cleanedDataUrl = await cleanUpVideoFrameWithOpenAI(rawFrameDataUrl);
@@ -5905,11 +5933,26 @@ async function cleanUpVideoFrameWithOpenAI(rawFrameDataUrl){
 
   const prompt = `This image is a single frame captured from a video of an exhibition booth. Clean it up into a crisp, professional architectural visualization still: remove any motion blur, video-compression artifacts, or graininess from the video capture, while preserving the EXACT same camera angle, framing, composition, materials, colors, branding, and every design element exactly as shown — this must remain the identical booth from the identical viewpoint, just rendered as a sharp, clean still image instead of a compressed video frame. Do not redesign, add, or remove anything.` + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX;
 
-  const response = await fetch('/api/edit-image-openai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, referenceImage: base64, referenceMimeType: mime, preferSpeed: shouldPreferSpeedForCurrentBooth(), size: '1536x1024' })
-  });
+  // A hard timeout here, independent of any server-side limit — without this, a stalled
+  // request would hang this specific snapshot (and therefore the whole sequential strip)
+  // indefinitely, with nothing visible ever changing on screen.
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => abortController.abort(), 45000);
+
+  let response;
+  try{
+    response = await fetch('/api/edit-image-openai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, referenceImage: base64, referenceMimeType: mime, preferSpeed: shouldPreferSpeedForCurrentBooth(), size: '1536x1024' }),
+      signal: abortController.signal
+    });
+  }catch(err){
+    console.error('OpenAI snapshot cleanup request failed or timed out, falling back to the raw frame:', err.message || err);
+    return rawFrameDataUrl;
+  }finally{
+    clearTimeout(timeoutId);
+  }
   const rawText = await response.text();
   let data = {};
   try{ data = JSON.parse(rawText); }catch(e){ /* leave as {} */ }
@@ -6150,8 +6193,7 @@ function approveLumaVideo(){
 
 function captureVideoFrameAtTime(videoEl, timeSeconds){
   return new Promise((resolve, reject) => {
-    const onSeeked = () => {
-      videoEl.removeEventListener('seeked', onSeeked);
+    const captureNow = () => {
       const canvas = document.createElement('canvas');
       canvas.width = videoEl.videoWidth;
       canvas.height = videoEl.videoHeight;
@@ -6162,6 +6204,35 @@ function captureVideoFrameAtTime(videoEl, timeSeconds){
       }catch(err){
         reject(err);
       }
+    };
+
+    // Browsers do NOT fire 'seeked' when the requested time already equals the video's
+    // current time — no actual seek occurs. This is exactly what happens for the very
+    // first snapshot (time 0, on a freshly-loaded video that's still sitting at time 0),
+    // which is what was silently hanging the whole snapshot strip forever: the very first
+    // iteration of the loop would await an event that could never fire.
+    if(Math.abs(videoEl.currentTime - timeSeconds) < 0.05){
+      captureNow();
+      return;
+    }
+
+    let settled = false;
+    // A second safety net, independent of the above — if 'seeked' still doesn't fire for
+    // any other reason (a stalled video element, a browser quirk, etc.), capture whatever
+    // frame is currently showing rather than hanging the entire process indefinitely.
+    const timeoutId = setTimeout(() => {
+      if(settled) return;
+      settled = true;
+      videoEl.removeEventListener('seeked', onSeeked);
+      captureNow();
+    }, 3000);
+
+    const onSeeked = () => {
+      if(settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      videoEl.removeEventListener('seeked', onSeeked);
+      captureNow();
     };
     videoEl.addEventListener('seeked', onSeeked);
     videoEl.currentTime = timeSeconds;
@@ -6335,6 +6406,29 @@ function approveDesign(){
   document.getElementById('approveNoticeOverlay').style.display = 'flex';
 }
 
+// A friendly, honest progress readout for the approve -> 360 video -> camera views flow.
+// The first half of the bar tracks the video generation (an external process whose exact
+// completion time we can't know in advance, so this is a gentle, capped approximation
+// rather than a claim of precision); the second half advances one even step per camera
+// view as they're actually produced, which IS exact.
+function updateApproveProgress(percent, message){
+  const wrap = document.getElementById('approveProgress');
+  const fill = document.getElementById('approveProgressFill');
+  const pct = document.getElementById('approveProgressPercent');
+  const msg = document.getElementById('approveProgressMessage');
+  if(!wrap) return;
+  wrap.style.display = 'block';
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  if(fill) fill.style.width = clamped + '%';
+  if(pct) pct.textContent = clamped + '%';
+  if(msg) msg.textContent = message;
+}
+
+function hideApproveProgress(){
+  const wrap = document.getElementById('approveProgress');
+  if(wrap) wrap.style.display = 'none';
+}
+
 async function confirmApproveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
@@ -6350,13 +6444,16 @@ async function confirmApproveDesign(){
 
   const heroImage = opt.gallery[opt.activeGalleryIndex].image;
 
-  statusEl.textContent = 'Generating a 360° video of your booth with DesignsLab... this can take a minute or two.';
+  statusEl.textContent = '';
+  updateApproveProgress(2, 'Generating a 360° video with multi views of your booth with DesignsLab... this can take a minute or two.');
   try{
     await generateLumaVideo(heroImage);
-    statusEl.textContent = '';
+    await new Promise(r => setTimeout(r, 800)); // let the 100% completion state actually register before it disappears
+    hideApproveProgress();
     document.getElementById('lumaVideoWrap').scrollIntoView({behavior:'smooth', block:'start'});
   }catch(err){
     console.error('Luma 360 video generation failed:', err);
+    hideApproveProgress();
     statusEl.textContent = 'Could not generate the 360° video (' + (err.message || 'unknown error') + '). Please try approving again.';
   }
 
