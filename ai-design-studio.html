@@ -250,7 +250,7 @@
   #errorBox{display:none;background:#fff3ec;border:1.5px solid #c0432b;color:#8a2f1c;padding:14px 16px;border-radius:2px;font-size:13.5px;margin-top:16px;}
 
   /* result */
-  #result{display:none;margin-top:36px;}
+  #result{display:none;margin-top:18px;}
   .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:1.5px;color:var(--teal);text-transform:uppercase;margin-bottom:6px;}
   .concept-title{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:24px;color:var(--navy);margin:0 0 2px;}
   .concept-subtitle{font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:13.5px;color:var(--teal);margin:0 0 14px;}
@@ -303,7 +303,6 @@
   .grid-area-threed{grid-area:threed;min-width:0;}
   .grid-area-camerapanel{grid-area:camerapanel;min-width:0;}
   .grid-area-generated{grid-area:generated;min-width:0;}
-  .render-frame-caption{display:block;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink);opacity:.6;text-align:center;margin:6px 0 0;}
   .section-label-light{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink);opacity:.65;margin:16px 0 8px;}
   .viewer3d-camera-panel{margin-top:16px;}
   .viewer3d-camera-checks-light{display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:6px;margin-bottom:10px;}
@@ -1719,7 +1718,6 @@ Replace only the materials and graphics."></textarea>
         <div class="render-frame" id="renderSlotFrame">
           <img id="renderSlotImg" alt="AI rendered concept" style="display:none;" onclick="openImageLightbox(this.src)">
         </div>
-        <div class="render-frame-caption">Picture approved</div>
       </div>
 
       <div class="grid-area-history">
@@ -5009,19 +5007,43 @@ function selectGalleryEntry(i){
   renderGalleryNav();
 }
 
-function downloadCurrentRender(){
+async function downloadCurrentRender(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || !opt.gallery || !opt.gallery[opt.activeGalleryIndex]) return;
   const entry = opt.gallery[opt.activeGalleryIndex];
   const optLetter = String.fromCharCode(65 + activeOptionIndex);
   const safeTitle = (opt.title || 'design').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 40);
   const safeViewLabel = (entry.label || 'view').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const filename = `${safeTitle}-option-${optLetter}-${safeViewLabel}.png`;
+
+  // The download attribute below only reliably forces an actual file download for
+  // same-origin, data:, or blob: URLs — a cross-origin URL (like a public Blob CDN link,
+  // which is what entry.image now often is) gets its download attribute silently ignored
+  // by most browsers, which just navigate to/open the image in the same tab instead. To
+  // force a real download regardless of where the image actually lives, fetch it and
+  // convert it to a same-origin blob: URL first.
+  let downloadUrl = entry.image;
+  let objectUrlToRevoke = null;
+  if(/^https?:\/\//.test(entry.image)){
+    try{
+      const response = await fetch(entry.image);
+      const blob = await response.blob();
+      downloadUrl = URL.createObjectURL(blob);
+      objectUrlToRevoke = downloadUrl;
+    }catch(err){
+      console.error('Could not fetch the image for download, falling back to a direct link:', err);
+      // Fall back to the direct URL — worst case this opens in a new tab instead of
+      // downloading, same as before this fix, rather than failing silently.
+    }
+  }
+
   const a = document.createElement('a');
-  a.href = entry.image;
-  a.download = `${safeTitle}-option-${optLetter}-${safeViewLabel}.png`;
+  a.href = downloadUrl;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  if(objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
 }
 
 /* ---------- other view: re-render the current image from a different angle ---------- */
@@ -5053,23 +5075,37 @@ function dataUrlParts(dataUrl){
 function compressDataUrl(dataUrl, maxDim, quality){
   return new Promise((resolve, reject) => {
     const img = new Image();
+    // entry.image is now often a remote (cross-origin) Blob URL rather than an embedded
+    // data: URL — without this, drawing it to a canvas "taints" the canvas, and
+    // canvas.toDataURL() throws inside this onload callback. Because that throw happens
+    // in an event handler rather than the Promise executor itself, it does NOT reject
+    // this promise — it silently becomes an unhandled error while the await hangs
+    // forever. crossOrigin='anonymous' plus the try/catch below are both needed: the
+    // former prevents the taint in the first place (as long as the source sends the
+    // right CORS header, which public Blob URLs do); the latter is the safety net for
+    // if it doesn't, ensuring a definite reject instead of a silent, permanent hang.
+    if(!dataUrl.startsWith('data:')) img.crossOrigin = 'anonymous';
     img.onload = () => {
-      let width = img.naturalWidth || img.width;
-      let height = img.naturalHeight || img.height;
-      const limit = maxDim || 1536;
-      if(width > limit || height > limit){
-        const scale = limit / Math.max(width, height);
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
+      try{
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+        const limit = maxDim || 1536;
+        if(width > limit || height > limit){
+          const scale = limit / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality || 0.88));
+      }catch(err){
+        reject(err);
       }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', quality || 0.88));
     };
     img.onerror = () => reject(new Error('Could not load image for compression.'));
     img.src = dataUrl;
@@ -5240,6 +5276,10 @@ function openEditPanel(camId, isStandalone){
     editCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
     wireCanvasEvents(canvas);
   };
+  // sourceImage can now be a remote (cross-origin) Blob URL rather than an embedded
+  // data: URL — without this, the canvas this image later gets drawn into (when the
+  // edit is submitted) would be "tainted" and fail to export.
+  if(!sourceImage.startsWith('data:')) baseImg.crossOrigin = 'anonymous';
   baseImg.src = sourceImage;
   if(baseImg.complete && baseImg.naturalWidth){ baseImg.onload(); }
 
@@ -5498,6 +5538,10 @@ function openModifyDesignPanel(){
     modifyEditCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
     wireModifyDesignCanvasEvents(canvas);
   };
+  // sourceImage can now be a remote (cross-origin) Blob URL rather than an embedded
+  // data: URL — without this, the canvas this image later gets drawn into (when the
+  // modification is submitted) would be "tainted" and fail to export.
+  if(!sourceImage.startsWith('data:')) baseImg.crossOrigin = 'anonymous';
   baseImg.src = sourceImage;
   if(baseImg.complete && baseImg.naturalWidth){ baseImg.onload(); }
 
@@ -6030,6 +6074,10 @@ function openSnapshotEditPanel(frameIndex){
     lumaEditCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
     wireLumaCanvasEvents(canvas);
   };
+  // frame.imageDataUrl can now be a remote (cross-origin) Blob URL rather than an
+  // embedded data: URL — without this, the canvas this image later gets drawn into
+  // (when the edit is submitted) would be "tainted" and fail to export.
+  if(!frame.imageDataUrl.startsWith('data:')) baseImg.crossOrigin = 'anonymous';
   baseImg.src = frame.imageDataUrl;
   if(baseImg.complete && baseImg.naturalWidth){ baseImg.onload(); }
 
