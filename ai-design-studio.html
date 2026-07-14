@@ -449,8 +449,8 @@
       <div class="usage-summary" id="usageSummaryPanel" style="display:none;">
         <div class="usage-summary-eyebrow">Account Usage</div>
         <div id="projectUsageIndicator" class="usage-row"></div>
-        <div id="editUsageIndicator" class="usage-row"></div>
         <div id="modifyUsageIndicator" class="usage-row"></div>
+        <div id="editUsageIndicator" class="usage-row"></div>
       </div>
 
       <div class="buy-more-prompt" id="buyMorePrompt" style="display:none;">
@@ -1076,7 +1076,7 @@ Replace only the materials and graphics."></textarea>
     <div class="section-headline" id="boothDetailsHeadline" style="display:none;margin-top:0;">Booth Details</div>
     <div class="field">
       <label id="lblName">Project Name</label>
-      <input type="text" id="f_name" placeholder="e.g. Riyadh International Tech Expo">
+      <input type="text" id="f_name" placeholder="">
     </div>
 
     <div id="eventDetailsFields" style="display:none;">
@@ -3691,7 +3691,46 @@ function showFormAndTabs(){
   setMode(mode); // re-applies the current mode's own card visibility correctly
 }
 
+// Architectural style, Industry style, Construction style, and Brand personality are one
+// shared set of DOM fields used by both Booth and Event modes (so every other part of the
+// app — generation, saving, the Modify Design tab — can keep reading the same field IDs
+// regardless of mode). Left alone, that means picking a style while in Booth mode would
+// still show that same choice after switching to Event mode, and vice versa, even though
+// the person never intended to set it for both. These snapshots capture each mode's own
+// values on the way out and restore them on the way back in, so the two stay genuinely
+// independent from the person's point of view despite sharing the underlying fields.
+let boothStyleSnapshot = { archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
+let eventStyleSnapshot = { archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
+
+function captureStyleSnapshot(){
+  return {
+    archStyle: document.getElementById('f_archStyle').value,
+    industryStyle: document.getElementById('f_industryStyle').value,
+    constructionStyle: document.getElementById('f_constructionStyle').value,
+    brandPersonality: document.getElementById('f_brandPersonality').value
+  };
+}
+
+function applyStyleSnapshot(snapshot){
+  document.getElementById('f_archStyle').value = snapshot.archStyle;
+  document.getElementById('f_industryStyle').value = snapshot.industryStyle;
+  document.getElementById('f_constructionStyle').value = snapshot.constructionStyle;
+  document.getElementById('f_brandPersonality').value = snapshot.brandPersonality;
+  updateArchStyleHint(document.getElementById('f_archStyle'));
+}
+
 function setMode(m){
+  // Save the outgoing mode's style choices, and load the incoming mode's own — only when
+  // actually moving between booth and event, since those are the two modes that share
+  // these fields. Moving to/from Display Stand or Edit Design doesn't touch this at all.
+  if((mode === 'booth' || mode === 'event') && mode !== m){
+    if(mode === 'booth') boothStyleSnapshot = captureStyleSnapshot();
+    else eventStyleSnapshot = captureStyleSnapshot();
+  }
+  if((m === 'booth' || m === 'event') && mode !== m){
+    applyStyleSnapshot(m === 'booth' ? boothStyleSnapshot : eventStyleSnapshot);
+  }
+
   mode = m;
   document.getElementById('tabBooth').classList.toggle('active', m==='booth');
   document.getElementById('tabEvent').classList.toggle('active', m==='event');
@@ -3740,7 +3779,7 @@ function setMode(m){
     document.getElementById('referenceImageHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('lblName').innerHTML = m==='booth' ? 'Project Name <span class="required-mark">*</span>' : 'Event name';
     document.getElementById('lblIndustryStyle').innerHTML = 'Industry style (optional)';
-    document.getElementById('f_name').placeholder = m==='booth' ? 'e.g. Riyadh International Tech Expo' : 'e.g. Product launch / Annual conference';
+    document.getElementById('f_name').placeholder = '';
     document.getElementById('lblDesc').innerHTML = (m==='booth'
       ? 'Describe what you want in detail: the goal, products on display, visual identity, any special requirements'
       : 'Describe what you want in detail: the event goal, overall mood, activities or sessions, visual identity' + ' <span class="required-mark">*</span>');
@@ -6600,6 +6639,10 @@ function openProject(id){
       if(!project) return;
       currentProjectId = project.id;
       restoreFormSnapshot(project.formSnapshot);
+      // Reset AFTER restoreFormSnapshot, not before — see the identical comment in
+      // startNewProject() for why the order matters here.
+      boothStyleSnapshot = { archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
+      eventStyleSnapshot = { archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
       restoreLogoAndPosters(project);
       restoreResultsView(project);
       renderProjectSidebar();
@@ -6723,6 +6766,12 @@ function startNewProject(){
   activeOptionIndex = 0;
 
   restoreFormSnapshot({});
+  // Reset AFTER restoreFormSnapshot, not before — that function calls setMode() internally,
+  // which would otherwise capture the outgoing mode's (possibly stale, leftover-from-a-
+  // different-project) field values right back into the snapshot before this reset could
+  // actually take effect.
+  boothStyleSnapshot = { archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
+  eventStyleSnapshot = { archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
   logoDataUrl = null;
   logoMediaType = null;
   document.getElementById('logoPreview').style.display = 'none';
