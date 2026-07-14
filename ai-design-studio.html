@@ -1840,6 +1840,18 @@ Replace only the materials and graphics."></textarea>
     </div>
   </div>
 
+  <div class="gen-notice-overlay" id="otherOptionNoticeOverlay">
+    <div class="gen-notice-card">
+      <div class="gen-notice-eyebrow">Other Option</div>
+      <h3>Generate another option?</h3>
+      <p id="otherOptionNoticeText"></p>
+      <div style="display:flex;gap:10px;">
+        <button class="ghost" onclick="document.getElementById('otherOptionNoticeOverlay').style.display='none';" style="flex:1;">Cancel</button>
+        <button class="primary" onclick="document.getElementById('otherOptionNoticeOverlay').style.display='none'; confirmRegenerateOtherOption();" style="flex:1;">OK</button>
+      </div>
+    </div>
+  </div>
+
   <div class="gen-notice-overlay" id="approveNoticeOverlay">
     <div class="gen-notice-card">
       <div class="gen-notice-eyebrow">Approve Design</div>
@@ -5151,6 +5163,28 @@ async function regenerateOtherOption(){
     statusEl.textContent = '"Other option" needs a design that was generated in this tool — this picture was uploaded directly, so there\'s no prompt to regenerate from.';
     return;
   }
+
+  // Other option counts against the modify quota on the backend, same as Modify Design's
+  // Submit — so it gets the same "this will use 1 of your modifications" confirmation
+  // before it runs, not just Modify Design.
+  const noticeText = document.getElementById('otherOptionNoticeText');
+  if(isAdminUser){
+    noticeText.textContent = 'This will generate a new variation of the current design.';
+  }else if(currentUserModifyLimit == null){
+    noticeText.textContent = `This will use 1 of your modifications — you've used ${currentUserModifyCount != null ? currentUserModifyCount : 0} so far, with no set limit.`;
+  }else{
+    const remainingAfterThis = currentUserModifyLimit - currentUserModifyCount - 1;
+    noticeText.textContent = `This will use 1 of your allowed modifications — you'll have ${Math.max(0, remainingAfterThis)} remaining after this one.`;
+  }
+  document.getElementById('otherOptionNoticeOverlay').style.display = 'flex';
+}
+
+async function confirmRegenerateOtherOption(){
+  const idx = activeOptionIndex;
+  const opt = optionResults[idx];
+  if(!opt) return;
+
+  const statusEl = document.getElementById('actionStatus');
 
   const btn = document.getElementById('otherOptionBtn');
   if(btn) btn.disabled = true;
