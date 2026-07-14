@@ -5893,11 +5893,11 @@ async function generateCameraViewsFromHero(heroImage){
   initCardHistory('CAM01', compressedFront);
   renderGeneratedViewCard('CAM01', 'done', compressedFront);
   let previousViewDataUrl = compressedFront;
-  updateApproveProgress(10, 'Creating camera view 1 of 12...');
+  updateApproveProgress(10, 'Creating All Views — 1 of 12...');
 
   for(let i = 1; i < CAMERA_SPECS.length; i++){
     const spec = CAMERA_SPECS[i];
-    updateApproveProgress(10 + (i / CAMERA_SPECS.length) * 85, `Creating camera view ${i + 1} of ${CAMERA_SPECS.length}...`);
+    updateApproveProgress(10 + (i / CAMERA_SPECS.length) * 85, `Creating All Views — ${i + 1} of ${CAMERA_SPECS.length}...`);
     try{
       let resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false);
 
@@ -6134,12 +6134,6 @@ function goToNextCardView(camId){
   renderGeneratedViewCard(camId, 'done', hist.images[hist.activeIndex]);
 }
 
-function removeGeneratedViewCard(camId){
-  const card = document.getElementById('genCard-' + camId);
-  if(card && card.remove) card.remove();
-  delete viewCardHistories[camId];
-}
-
 // Turns a camera label like "1 o'clock — Front Right" into a clean, filesystem-safe
 // filename — dropping apostrophes, swapping the em dash for a plain hyphen, and
 // collapsing whitespace, so downloaded files read by position ("Front (12 o'clock)")
@@ -6171,13 +6165,15 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
 
   if(state === 'failed'){
     card.className = 'viewer3d-generated-card-light failed';
+    // No "Remove" option here on purpose — every one of the 12 views is a permanent part of
+    // this project; a failed one can only be retried, never dropped, so the full set always
+    // stays intact for the user to come back and finish later.
     const retryBtn = camId !== 'CAM01' ? `<button class="ghost small" onclick="retryGeneratedView('${camId}')">Retry</button>` : '';
     card.innerHTML = `
       <div class="viewer3d-generated-card-label failed-label">${label} — failed</div>
       <div style="padding:12px;">${imageOrMsg || 'Could not generate that view.'}</div>
       <div class="viewer3d-generated-card-actions" style="justify-content:flex-start;padding:0 12px 12px;">
         ${retryBtn}
-        <button class="ghost small" onclick="removeGeneratedViewCard('${camId}')">Remove</button>
       </div>
     `;
     return;
@@ -6193,7 +6189,6 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
     </div>
     <div style="padding:0 12px;"><button class="primary small" style="width:100%;margin-top:8px;" onclick="approveCardVersion('${camId}')">Approve this version (clears earlier edits)</button></div>
   ` : '';
-  const retryAction = camId !== 'CAM01' ? `<button class="ghost small" onclick="retryGeneratedView('${camId}')">Retry</button>` : '';
 
   card.innerHTML = `
     <div class="viewer3d-generated-card-label">${label}</div>
@@ -6202,7 +6197,6 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
     <div class="viewer3d-generated-card-actions">
       <a href="${imageOrMsg}" download="${cameraViewFilename(label)}.jpg" class="ghost small">Download</a>
       <button class="ghost small" onclick="openEditPanel('${camId}')">Edit</button>
-      ${retryAction}
     </div>
   `;
 }
