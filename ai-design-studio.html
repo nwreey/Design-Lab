@@ -978,8 +978,46 @@
       <select id="f_mdBrandPersonality">
         <option value="Elegant">Elegant</option>
         <option value="Innovative">Innovative</option>
-        <option value="Eco Friendly">Eco Friendly</option>
         <option value="Luxury">Luxury</option>
+        <option value="Premium">Premium</option>
+        <option value="Corporate">Corporate</option>
+        <option value="Professional">Professional</option>
+        <option value="Modern">Modern</option>
+        <option value="Minimalist">Minimalist</option>
+        <option value="Futuristic">Futuristic</option>
+        <option value="High-Tech">High-Tech</option>
+        <option value="Friendly">Friendly</option>
+        <option value="Welcoming">Welcoming</option>
+        <option value="Luxury Hospitality">Luxury Hospitality</option>
+        <option value="Bold">Bold</option>
+        <option value="Dynamic">Dynamic</option>
+        <option value="Creative">Creative</option>
+        <option value="Inspirational">Inspirational</option>
+        <option value="Sustainable">Sustainable</option>
+        <option value="Eco Friendly">Eco Friendly</option>
+        <option value="Natural">Natural</option>
+        <option value="Clean">Clean</option>
+        <option value="Clinical">Clinical</option>
+        <option value="Trustworthy">Trustworthy</option>
+        <option value="Exclusive">Exclusive</option>
+        <option value="Sophisticated">Sophisticated</option>
+        <option value="Warm">Warm</option>
+        <option value="Calm">Calm</option>
+        <option value="Vibrant">Vibrant</option>
+        <option value="Youthful">Youthful</option>
+        <option value="Playful">Playful</option>
+        <option value="Family Friendly">Family Friendly</option>
+        <option value="Interactive">Interactive</option>
+        <option value="Immersive">Immersive</option>
+        <option value="Smart">Smart</option>
+        <option value="Digital First">Digital First</option>
+        <option value="Industrial">Industrial</option>
+        <option value="Artistic">Artistic</option>
+        <option value="Cultural">Cultural</option>
+        <option value="Heritage">Heritage</option>
+        <option value="Executive">Executive</option>
+        <option value="Prestige">Prestige</option>
+        <option value="Visionary">Visionary</option>
       </select>
     </div>
 
@@ -1353,13 +1391,51 @@ Replace only the materials and graphics."></textarea>
 
     <div class="field">
       <label>Brand personality <span class="required-mark">*</span></label>
-      <select id="f_brandPersonality">
+      <select id="f_brandPersonality" onchange="updateBrandPersonalityHint(this)">
         <option value="Elegant" selected>Elegant</option>
         <option value="Innovative">Innovative</option>
-        <option value="Eco Friendly">Eco Friendly</option>
         <option value="Luxury">Luxury</option>
+        <option value="Premium">Premium</option>
+        <option value="Corporate">Corporate</option>
+        <option value="Professional">Professional</option>
+        <option value="Modern">Modern</option>
+        <option value="Minimalist">Minimalist</option>
+        <option value="Futuristic">Futuristic</option>
+        <option value="High-Tech">High-Tech</option>
+        <option value="Friendly">Friendly</option>
+        <option value="Welcoming">Welcoming</option>
+        <option value="Luxury Hospitality">Luxury Hospitality</option>
+        <option value="Bold">Bold</option>
+        <option value="Dynamic">Dynamic</option>
+        <option value="Creative">Creative</option>
+        <option value="Inspirational">Inspirational</option>
+        <option value="Sustainable">Sustainable</option>
+        <option value="Eco Friendly">Eco Friendly</option>
+        <option value="Natural">Natural</option>
+        <option value="Clean">Clean</option>
+        <option value="Clinical">Clinical</option>
+        <option value="Trustworthy">Trustworthy</option>
+        <option value="Exclusive">Exclusive</option>
+        <option value="Sophisticated">Sophisticated</option>
+        <option value="Warm">Warm</option>
+        <option value="Calm">Calm</option>
+        <option value="Vibrant">Vibrant</option>
+        <option value="Youthful">Youthful</option>
+        <option value="Playful">Playful</option>
+        <option value="Family Friendly">Family Friendly</option>
+        <option value="Interactive">Interactive</option>
+        <option value="Immersive">Immersive</option>
+        <option value="Smart">Smart</option>
+        <option value="Digital First">Digital First</option>
+        <option value="Industrial">Industrial</option>
+        <option value="Artistic">Artistic</option>
+        <option value="Cultural">Cultural</option>
+        <option value="Heritage">Heritage</option>
+        <option value="Executive">Executive</option>
+        <option value="Prestige">Prestige</option>
+        <option value="Visionary">Visionary</option>
       </select>
-      <div class="hint">Adds an emotional/brand layer on top of the styles above.</div>
+      <div class="hint" id="brandPersonalityHint">Adds an emotional/brand layer on top of the styles above — never overrides them.</div>
     </div>
 
     <div id="boothOnlyFields">
@@ -2513,6 +2589,56 @@ const INDUSTRY_STYLE_ATTRIBUTES = {
   'Non-Profit / NGO': 'warm approachable materials, storytelling impact displays, natural inviting palette, soft even community-forward lighting'
 };
 
+// Shared between EPS-004's LEVEL 4 style taxonomy (sent to the model) and the brand-personality
+// dropdown's own on-page hint (updateBrandPersonalityHint) — one list, so the two can never
+// drift out of sync. Every entry is an emotional/expression layer on top of whatever
+// architectural style and industry style the client already chose — it must enhance, never
+// override, either of them (see EPS-004's own instruction never to contradict an earlier level).
+const BRAND_PERSONALITY_ATTRIBUTES = {
+  'Elegant': 'clean lines, premium finishes, warm lighting, refined proportions, understated graphic style',
+  'Innovative': 'dynamic geometry, floating elements, interactive technology, energetic accent lighting',
+  'Luxury': 'marble, bronze, wood veneer, rich hospitality-grade materials, warm dramatic lighting',
+  'Premium': 'refined materials, tailored proportions, restrained decoration, confident quality cues',
+  'Corporate': 'organized layout, balanced proportions, clear circulation, understated professional palette',
+  'Professional': 'structured layout, functional furniture, neutral tones, clear way-finding',
+  'Modern': 'clean geometry, minimal ornament, crisp lighting, contemporary furniture',
+  'Minimalist': 'fewer elements, large open spaces, restrained material palette, quiet color intensity',
+  'Futuristic': 'sculptural forms, glowing accents, dynamic LED lighting, high-tech furniture',
+  'High-Tech': 'sleek metallic and glass surfaces, integrated screens, precise engineered detailing, cool lighting',
+  'Friendly': 'open seating, welcoming reception, softer forms, warm approachable lighting',
+  'Welcoming': 'inviting entrance, comfortable lounge, soft warm lighting, gentle color palette',
+  'Luxury Hospitality': 'lounge-style seating, rich textiles, warm ambient lighting, attentive service staging',
+  'Bold': 'large architectural gestures, strong focal points, dramatic forms, saturated color intensity',
+  'Dynamic': 'angular shapes, energetic circulation, layered lighting, vibrant graphic style',
+  'Creative': 'playful forms, unconventional material mixes, expressive graphics, varied lighting',
+  'Inspirational': 'uplifting proportions, feature lighting, motivational graphic walls, open sightlines',
+  'Sustainable': 'natural materials, visible eco-conscious detailing, soft daylight-style lighting, muted earthy palette',
+  'Eco Friendly': 'wood, green walls, plants, sustainable materials, soft natural light',
+  'Natural': 'organic textures, earthy tones, daylight-style lighting, informal furniture',
+  'Clean': 'crisp surfaces, restrained palette, bright even lighting, tidy circulation',
+  'Clinical': 'white finishes, hygienic materials, bright lighting, precision detailing',
+  'Trustworthy': 'solid grounded forms, calm palette, even reassuring lighting, clear signage',
+  'Exclusive': 'private zones, refined materials, low dramatic lighting, restrained branding',
+  'Sophisticated': 'tailored proportions, muted premium palette, layered ambient lighting, refined graphics',
+  'Warm': 'soft curves, warm-toned materials, amber lighting, cozy furniture',
+  'Calm': 'quiet forms, soft neutral palette, gentle diffused lighting, uncluttered layout',
+  'Vibrant': 'saturated colors, energetic graphics, dynamic accent lighting, lively circulation',
+  'Youthful': 'playful shapes, bright accent colors, casual furniture, energetic graphic style',
+  'Playful': 'whimsical forms, bold color pops, interactive elements, informal furniture',
+  'Family Friendly': 'open safe layout, soft rounded forms, bright cheerful lighting, durable comfortable furniture',
+  'Interactive': 'touch-driven stations, responsive lighting cues, flexible furniture, engaging graphic walls',
+  'Immersive': 'enveloping surfaces, layered ambient and theatrical lighting, large-scale visuals, sensory-rich materials',
+  'Smart': 'integrated sensors and screens, clean minimal forms, adaptive lighting, tech-forward furniture',
+  'Digital First': 'screen-dominant surfaces, minimal physical clutter, dynamic digital lighting, sleek furniture',
+  'Industrial': 'exposed structure, raw materials (concrete, steel, wood), focused task lighting, utilitarian furniture',
+  'Artistic': 'expressive forms, gallery-style display, curated accent lighting, statement furniture',
+  'Cultural': 'heritage-inspired motifs, regional materials, warm storytelling lighting, curated display',
+  'Heritage': 'classic proportions, traditional materials, warm dignified lighting, timeless furniture',
+  'Executive': 'refined private meeting areas, dark premium palette, focused formal lighting, tailored furniture',
+  'Prestige': 'grand proportions, luxurious materials, dramatic feature lighting, ceremonial circulation',
+  'Visionary': 'bold sculptural forms, forward-looking materials, dynamic statement lighting, aspirational graphic walls'
+};
+
 const EPS_004 = `STYLE TAXONOMY — four independent style dimensions the client can specify. When a value is given for any of these dimensions, apply the listed attributes automatically and consistently, even if the client's free-text description does not repeat them explicitly. These four levels can combine freely (e.g. Modern + Medical + Wood Modular + Innovative) — apply every attribute from every level the client selected, layered together, never contradicting EPS-001, EPS-002, or EPS-003 above.
 
 LEVEL 1 — ARCHITECTURAL STYLE (the single most important style dimension)
@@ -2531,11 +2657,8 @@ LEVEL 3 — CONSTRUCTION STYLE (defines material quality and build complexity �
 - Premium Custom Build: complex woodwork, hidden joints, premium finishes, decorative ceilings.
 - Budget Modular: simple walls, limited graphics, standard furniture.
 
-LEVEL 4 — BRAND PERSONALITY (adds an emotional/brand layer on top of the levels above)
-- Elegant: soft lighting, warm colors, premium furniture.
-- Innovative: large LED, motion graphics, floating ceiling.
-- Eco Friendly: wood, green walls, plants, sustainable materials.
-- Luxury: brass, marble, warm light, VIP.`;
+LEVEL 4 — BRAND PERSONALITY (the emotional character of the booth — influences overall architectural mood, shape language, material selection, lighting atmosphere, furniture style, decorative elements, visitor experience, color intensity, and graphic style. This level only ever ADDS an emotional/expressive layer on top of Levels 1-3 and the client's own brand colors; it must never override, replace, or contradict the architectural style or industry style already established. Optional — the client may leave this unset if not applicable.)
+${Object.entries(BRAND_PERSONALITY_ATTRIBUTES).map(([name, attrs]) => `- ${name}: ${attrs}.`).join('\n')}`;
 
 const EPS_005 = `EXHIBITION BOOTH DIMENSION & SPACE PLANNING STANDARD
 
@@ -3239,6 +3362,15 @@ function updateIndustryStyleHint(sel){
     ? 'Adds on top of the architectural style (never overrides it or the brand colors): ' + attrs + '.'
     : 'Adds industry-specific design language on top of the architectural style — never overrides it or the brand colors.';
 }
+
+function updateBrandPersonalityHint(sel){
+  const hint = document.getElementById('brandPersonalityHint');
+  if(!hint) return;
+  const attrs = BRAND_PERSONALITY_ATTRIBUTES[sel.value];
+  hint.textContent = attrs
+    ? 'Adds an emotional layer on top of the styles above (never overrides them): ' + attrs + '.'
+    : 'Adds an emotional/brand layer on top of the styles above.';
+}
 let logoDataUrl = null;
 let logoMediaType = null;
 let referenceImageDataUrl = null;
@@ -3914,6 +4046,7 @@ function applyModeSnapshot(snapshot){
   document.getElementById('f_brandPersonality').value = snapshot.brandPersonality;
   updateArchStyleHint(document.getElementById('f_archStyle'));
   updateIndustryStyleHint(document.getElementById('f_industryStyle'));
+  updateBrandPersonalityHint(document.getElementById('f_brandPersonality'));
 }
 
 function setMode(m){
@@ -4619,7 +4752,7 @@ ${mode==='booth' ? 'Number of posters to feature: ' + (posterCount || 'not speci
 Architectural style: ${archStyle} — typical colors/materials for this style: ${ARCH_STYLE_COLORS[archStyle] || ''}
 ${industryStyle ? 'Industry style: ' + industryStyle + ' — industry-specific design language to layer on top of the architectural style above (never replacing it or the brand colors): ' + (INDUSTRY_STYLE_ATTRIBUTES[industryStyle] || '') : ''}
 Construction style: ${constructionStyle}
-Brand personality: ${brandPersonality}
+Brand personality: ${brandPersonality} — emotional/expressive layer to apply across architectural mood, shape language, materials, lighting atmosphere, furniture style, decorative elements, visitor experience, color intensity, and graphic style (enhancing the architectural style and industry style above, never overriding either): ${BRAND_PERSONALITY_ATTRIBUTES[brandPersonality] || ''}
 Client's detailed description: """${desc}"""
 ${modularWallLayout ? MODULAR_WALL_LAYOUT_TEXT : ''}
 ${mode==='booth' ? formatSpaceAllocationForPrompt(computeSpaceAllocation(width, depth, levels)) : ''}
@@ -7084,6 +7217,7 @@ function restoreFormSnapshot(snap){
   updateIndustryStyleHint(document.getElementById('f_industryStyle'));
   document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || 'Premium Custom Build';
   document.getElementById('f_brandPersonality').value = snap.f_brandPersonality || 'Elegant';
+  updateBrandPersonalityHint(document.getElementById('f_brandPersonality'));
   document.getElementById('f_attendees').value = snap.f_attendees || '';
   document.getElementById('f_eventType').value = snap.f_eventType || '';
   document.getElementById('f_eventTypeCustom').value = snap.f_eventTypeCustom || '';
@@ -7570,6 +7704,7 @@ function startNewProject(){
 
 updateArchStyleHint(document.getElementById('f_archStyle'));
 updateIndustryStyleHint(document.getElementById('f_industryStyle'));
+updateBrandPersonalityHint(document.getElementById('f_brandPersonality'));
 renderProjectSidebar();
 adminCheckPromise = checkAdminAccess();
 setMode('booth'); // must run once on load — otherwise every element whose correct visibility depends on setMode() (the new section headlines included) stays at its raw HTML default until a tab is actually clicked
