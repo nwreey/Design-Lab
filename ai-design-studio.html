@@ -34,7 +34,29 @@
     background-position: -1px -1px;
   }
   .app-layout{display:flex;min-height:100vh;align-items:flex-start;}
-  .sidebar{width:250px;flex-shrink:0;background:#fff;border-right:1.5px solid var(--navy);padding:24px 16px;min-height:100vh;box-sizing:border-box;position:sticky;top:0;overflow-y:auto;max-height:100vh;}
+  .sidebar{width:250px;flex-shrink:0;background:#fff;border-right:1.5px solid var(--navy);padding:24px 16px;box-sizing:border-box;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+  .sidebar-top-fixed{flex-shrink:0;}
+  .sidebar-projects-scroll{flex:1 1 45%;min-height:0;overflow-y:auto;padding-right:2px;}
+  .sidebar-bottom-fixed{flex-shrink:0;margin-top:auto;padding-top:16px;}
+
+  .buy-more-prompt{
+    margin-top:10px;font-size:11px;line-height:1.55;color:var(--ink);opacity:.75;
+    padding:10px 12px;border:1.3px dashed var(--line);border-radius:2px;background:var(--paper);
+  }
+
+  .sidebar-account-section{margin-top:14px;padding-top:14px;border-top:1.5px solid var(--line);}
+  .sidebar-account-btn{
+    width:100%;display:flex;align-items:center;gap:10px;padding:8px;
+    background:transparent;border:1.5px solid transparent;border-radius:2px;cursor:default;text-align:left;
+  }
+  .sidebar-account-avatar{
+    flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--navy);color:var(--paper);
+    display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;
+  }
+  .sidebar-account-info{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .sidebar-account-name{font-size:12.5px;font-weight:700;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sidebar-account-role{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.5px;color:var(--ink);opacity:.55;text-transform:uppercase;margin-top:1px;}
+  .sidebar-account-gear{flex-shrink:0;font-size:14px;color:var(--ink);opacity:.35;}
   .sidebar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
   .usage-summary{background:var(--paper);border:1.5px solid var(--navy);border-radius:2px;padding:16px 18px 14px;margin-top:20px;position:relative;}
   .usage-summary::before{content:'';position:absolute;top:-1px;left:-1px;width:12px;height:12px;border-top:2px solid var(--gold);border-left:2px solid var(--gold);}
@@ -93,7 +115,7 @@
 
   /* tabs */
   .tabs{display:flex;gap:10px;margin-bottom:28px;}
-  .show-form-bar{margin-bottom:8px;}
+  .show-form-bar{margin-bottom:4px;}
   .tab{
     flex:1;padding:14px 16px;border:2px solid var(--navy);background:transparent;
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--navy);
@@ -401,12 +423,17 @@
 <body>
 <div class="app-layout">
   <aside class="sidebar">
-    <div class="sidebar-header">
-      <h2>Projects</h2>
-      <button class="ghost small" onclick="startNewProject()">+ New</button>
+    <div class="sidebar-top-fixed">
+      <div class="sidebar-header">
+        <h2>Projects</h2>
+        <button class="ghost small" onclick="startNewProject()">+ New</button>
+      </div>
+      <div id="projectSaveError" class="project-save-error" style="display:none;"></div>
     </div>
-    <div id="projectSaveError" class="project-save-error" style="display:none;"></div>
-    <div id="projectList" class="project-list"></div>
+
+    <div class="sidebar-projects-scroll">
+      <div id="projectList" class="project-list"></div>
+    </div>
     <div class="sidebar-note">Projects save automatically to your account and are available from any device. They stay saved unless you delete them.</div>
 
     <div class="sidebar-upload-existing">
@@ -422,11 +449,28 @@
       <div class="sidebar-note">Already have a finished design? Enter its size above (optional), then upload it here to skip the form and go straight to camera views. The size helps the app pick faster settings for large or double-deck booths.</div>
     </div>
 
-    <div class="usage-summary" id="usageSummaryPanel" style="display:none;">
-      <div class="usage-summary-eyebrow">Account Usage</div>
-      <div id="projectUsageIndicator" class="usage-row"></div>
-      <div id="editUsageIndicator" class="usage-row"></div>
-      <div id="modifyUsageIndicator" class="usage-row"></div>
+    <div class="sidebar-bottom-fixed">
+      <div class="usage-summary" id="usageSummaryPanel" style="display:none;">
+        <div class="usage-summary-eyebrow">Account Usage</div>
+        <div id="projectUsageIndicator" class="usage-row"></div>
+        <div id="editUsageIndicator" class="usage-row"></div>
+        <div id="modifyUsageIndicator" class="usage-row"></div>
+      </div>
+
+      <div class="buy-more-prompt" id="buyMorePrompt" style="display:none;">
+        You're nearing the capacity included in your current plan. Expanded plans will be available soon.
+      </div>
+
+      <div class="sidebar-account-section" id="sidebarAccountSection" style="display:none;">
+        <button type="button" class="sidebar-account-btn" id="sidebarAccountBtn" onclick="void 0">
+          <span class="sidebar-account-avatar" id="sidebarAccountInitial"></span>
+          <span class="sidebar-account-info">
+            <span class="sidebar-account-name" id="sidebarAccountName"></span>
+            <span class="sidebar-account-role" id="sidebarAccountRole"></span>
+          </span>
+          <span class="sidebar-account-gear" aria-hidden="true">⚙</span>
+        </button>
+      </div>
     </div>
   </aside>
 
@@ -3419,9 +3463,23 @@ async function checkAdminAccess(){
     renderProjectUsageIndicator();
     renderModifyUsageIndicator();
     renderEditUsageIndicator();
+    renderSidebarAccountSection(data);
   }catch(err){
     console.error('Could not check admin access:', err);
   }
+}
+
+// A lightweight placeholder for the account area — real settings/profile forms don't
+// exist yet, so this only surfaces what's already available (username, role) in a way
+// that leaves obvious room to grow into an actual settings panel later, without needing
+// to restructure the sidebar again when that's built.
+function renderSidebarAccountSection(data){
+  const section = document.getElementById('sidebarAccountSection');
+  if(!section || !data.username) return;
+  document.getElementById('sidebarAccountName').textContent = data.username;
+  document.getElementById('sidebarAccountRole').textContent = data.role === 'admin' ? 'Administrator' : 'Team member';
+  document.getElementById('sidebarAccountInitial').textContent = data.username.charAt(0).toUpperCase();
+  section.style.display = 'block';
 }
 
 // Hides the whole grouped panel when there's genuinely nothing to show (admins, or before
@@ -3434,6 +3492,15 @@ function updateUsageSummaryVisibility(){
     .filter(Boolean);
   const hasContent = rows.some(el => el.textContent !== '');
   panel.style.display = hasContent ? 'block' : 'none';
+
+  // Surface the upsell prompt whenever any of the three is approaching or has reached
+  // its limit — not clickable yet (no plan/billing flow exists to link it to), but the
+  // person should still see, at a glance, that they're running low.
+  const buyMoreEl = document.getElementById('buyMorePrompt');
+  if(buyMoreEl){
+    const anyNearOrAtLimit = rows.some(el => el.classList.contains('near-limit') || el.classList.contains('at-limit'));
+    buyMoreEl.style.display = (hasContent && anyNearOrAtLimit) ? 'block' : 'none';
+  }
 }
 
 function renderProjectUsageIndicator(){
@@ -6271,6 +6338,11 @@ function approveDesign(){
 async function confirmApproveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
+
+  // Approving locks in the design — from here on this reads as "the project," not "a form
+  // in progress," so the form and tabs step aside the same way they do when reopening an
+  // already-finished saved project.
+  hideFormAndTabs();
 
   const statusEl = document.getElementById('actionStatus');
   const approveBtn = document.getElementById('approveDesignBtn');
