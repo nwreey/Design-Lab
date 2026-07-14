@@ -93,6 +93,7 @@
 
   /* tabs */
   .tabs{display:flex;gap:10px;margin-bottom:28px;}
+  .show-form-bar{margin-bottom:28px;}
   .tab{
     flex:1;padding:14px 16px;border:2px solid var(--navy);background:transparent;
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--navy);
@@ -451,11 +452,15 @@
     </div>
   </header>
 
-  <div class="tabs">
+  <div class="tabs" id="modeTabs">
     <button class="tab active" id="tabBooth" onclick="setMode('booth')">Exhibition Booth</button>
     <button class="tab" id="tabEvent" onclick="setMode('event')">Event Concept</button>
     <button class="tab" id="tabDisplayStand" onclick="setMode('displaystand')">Display Stand</button>
     <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')">Modify Design</button>
+  </div>
+
+  <div class="show-form-bar" id="showFormBar" style="display:none;">
+    <button type="button" class="ghost small" onclick="showFormAndTabs()">◀ Show project details &amp; form</button>
   </div>
 
   <div class="card" id="displayStandCard" style="display:none;">
@@ -3632,6 +3637,25 @@ function toggleCarpetTypeCustom(select){
   document.getElementById('f_carpetTypeCustom').style.display = select.value === 'Custom Color' ? 'block' : 'none';
 }
 
+// Opening a saved project should land directly on its results — the concept box, the
+// picture, everything already done on it — rather than showing the input form
+// underneath too. These two functions toggle between that focused "just show me the
+// project" view and the normal "form + tabs" view, without discarding anything: the form
+// fields stay populated the whole time, this only ever hides/shows them.
+function hideFormAndTabs(){
+  document.getElementById('modeTabs').style.display = 'none';
+  document.getElementById('formCard').style.display = 'none';
+  document.getElementById('displayStandCard').style.display = 'none';
+  document.getElementById('modifyDesignFormCard').style.display = 'none';
+  document.getElementById('showFormBar').style.display = 'block';
+}
+
+function showFormAndTabs(){
+  document.getElementById('modeTabs').style.display = 'flex';
+  document.getElementById('showFormBar').style.display = 'none';
+  setMode(mode); // re-applies the current mode's own card visibility correctly
+}
+
 function setMode(m){
   mode = m;
   document.getElementById('tabBooth').classList.toggle('active', m==='booth');
@@ -6738,6 +6762,12 @@ function openProject(id){
       restoreLogoAndPosters(project);
       restoreResultsView(project);
       renderProjectSidebar();
+      // Only land directly on the results view when there actually IS a finished result —
+      // a project saved before generating, or one stuck mid prompt-review, has nothing to
+      // show there, so the form has to stay visible in those cases.
+      if(project.optionResult){
+        hideFormAndTabs();
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
       updateGenerateButtonState();
     })
@@ -6871,6 +6901,7 @@ function startNewProject(){
   approvedDesignDecisions = [];
   editDesignApprovedCount = 0;
   unlockForm();
+  showFormAndTabs();
   renderProjectSidebar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   updateGenerateButtonState();
