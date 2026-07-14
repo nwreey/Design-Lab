@@ -6241,6 +6241,25 @@ function hideApproveProgress(){
   if(wrap) wrap.style.display = 'none';
 }
 
+// Once a design is approved, the concept itself is permanently locked — Modify design,
+// Approve, and Other option all disappear for good, and the only thing left editable is
+// the generated camera views themselves (via each view card's own Edit/Retry). This same
+// lock has to be re-applied every time this project is reopened (including after a fresh
+// login on another day, or in a new browser tab) since these are plain DOM elements freshly
+// rendered from the HTML template on each page load — nothing about "approved" survives a
+// reload unless we explicitly re-hide these buttons ourselves. See confirmApproveDesign
+// (first approval, same session) and restoreGeneratedViewsIfSaved (reopening an
+// already-approved project) — both funnel through here so the lock can never drift out of
+// sync between the two paths.
+function lockApprovedActionBar(){
+  const modifyBtn = document.querySelector('.action-bar button[onclick="openModifyDesignPanel()"]');
+  if(modifyBtn) modifyBtn.style.display = 'none';
+  const otherOptionBtnEl = document.getElementById('otherOptionBtn');
+  if(otherOptionBtnEl) otherOptionBtnEl.style.display = 'none';
+  const approveBtn = document.getElementById('approveDesignBtn');
+  if(approveBtn) approveBtn.style.display = 'none';
+}
+
 async function confirmApproveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
@@ -6263,14 +6282,8 @@ async function confirmApproveDesign(){
     await new Promise(r => setTimeout(r, 800)); // let the 100% completion state actually register before it disappears
     hideApproveProgress();
     // Once approved, the design is locked — no more modifications or regenerated
-    // options are possible. Download stays available since it's still useful; Approve
-    // itself is hidden too, since clicking it again would wastefully re-run the whole
-    // view-generation process on an already-approved design.
-    const modifyBtn = document.querySelector('.action-bar button[onclick="openModifyDesignPanel()"]');
-    if(modifyBtn) modifyBtn.style.display = 'none';
-    const otherOptionBtnEl = document.getElementById('otherOptionBtn');
-    if(otherOptionBtnEl) otherOptionBtnEl.style.display = 'none';
-    if(approveBtn) approveBtn.style.display = 'none';
+    // options are possible. Download stays available since it's still useful.
+    lockApprovedActionBar();
   }catch(err){
     console.error('Camera view generation failed:', err);
     hideApproveProgress();
@@ -6657,6 +6670,14 @@ function restoreGeneratedViewsIfSaved(project){
   currentRatingValue = 0;
   previewRatingStars(0);
   document.getElementById('rateUsBar').style.display = 'flex';
+
+  // Camera views only ever exist because this project already went through Approve (or the
+  // upload-existing-design shortcut, which finalizes the same way) — so reopening a project
+  // that has them means the concept is locked, exactly as it was the moment it was first
+  // approved. Without this, refreshing the page or logging back in later would silently
+  // restore Modify/Approve/Other option, letting someone regenerate or re-approve a design
+  // that was supposed to be finished for good.
+  lockApprovedActionBar();
 }
 
 function saveCurrentProject(){
