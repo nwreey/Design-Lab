@@ -36,7 +36,7 @@
   .app-layout{display:flex;min-height:100vh;align-items:flex-start;}
   .sidebar{width:250px;flex-shrink:0;background:#fff;border-right:1.5px solid var(--navy);padding:24px 16px;box-sizing:border-box;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
   .sidebar-top-fixed{flex-shrink:0;}
-  .sidebar-projects-scroll{flex:1 1 45%;min-height:0;overflow-y:auto;padding-right:2px;}
+  .sidebar-projects-scroll{flex:1 1 35%;min-height:0;overflow-y:auto;padding-right:2px;}
   .sidebar-bottom-fixed{flex-shrink:0;margin-top:auto;padding-top:16px;}
 
   .buy-more-prompt{
@@ -80,8 +80,8 @@
   .project-item-delete{width:26px;height:26px;flex-shrink:0;border:1.5px solid var(--line);background:#fff;border-radius:2px;cursor:pointer;font-size:13px;color:var(--ink);line-height:1;}
   .project-item-delete:hover{border-color:#c0432b;color:#c0432b;background:#fff3ec;}
   .project-empty-hint{font-size:11.5px;color:var(--ink);opacity:.6;padding:10px 0;line-height:1.5;}
-  .sidebar-note{font-size:10.5px;color:var(--ink);opacity:.5;margin-top:18px;line-height:1.5;}
-  .sidebar-upload-existing{margin-top:24px;padding-top:18px;border-top:1.5px solid var(--line);}
+  .sidebar-note{font-size:10.5px;color:var(--ink);opacity:.5;margin-top:10px;line-height:1.5;}
+  .sidebar-upload-existing{margin-top:14px;padding-top:12px;border-top:1.5px solid var(--line);}
   .sidebar-upload-divider{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);opacity:.4;margin-bottom:12px;}
   .sidebar-upload-dims-label{font-size:11px;font-weight:600;color:var(--navy);margin-bottom:6px;}
   .sidebar-upload-dims-row{display:flex;gap:6px;margin-bottom:10px;}
@@ -115,7 +115,7 @@
 
   /* tabs */
   .tabs{display:flex;gap:10px;margin-bottom:28px;}
-  .show-form-bar{margin-bottom:4px;}
+  .show-form-bar{margin-bottom:2px;}
   .tab{
     flex:1;padding:14px 16px;border:2px solid var(--navy);background:transparent;
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--navy);
@@ -434,7 +434,7 @@
     <div class="sidebar-projects-scroll">
       <div id="projectList" class="project-list"></div>
     </div>
-    <div class="sidebar-note">Projects save automatically to your account and are available from any device. They stay saved unless you delete them.</div>
+    <div class="sidebar-note">Projects save automatically and sync across devices.</div>
 
     <div class="sidebar-upload-existing">
       <div class="sidebar-upload-divider">or</div>
@@ -446,7 +446,7 @@
       </div>
       <input type="file" id="existingDesignUpload" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleExistingDesignUpload(this)">
       <button class="ghost small" style="width:100%;" onclick="document.getElementById('existingDesignUpload').click()">Upload an existing design</button>
-      <div class="sidebar-note">Already have a finished design? Enter its size above (optional), then upload it here to skip the form and go straight to camera views. The size helps the app pick faster settings for large or double-deck booths.</div>
+      <div class="sidebar-note">Already have a finished design? Upload it to skip the form and jump straight to camera views.</div>
     </div>
 
     <div class="sidebar-bottom-fixed">
