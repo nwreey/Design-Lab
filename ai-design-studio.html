@@ -325,6 +325,19 @@
     text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;
     color:var(--navy);margin-top:22px;letter-spacing:-0.01em;
   }
+  .rate-us-bar{
+    margin-top:20px;padding-top:20px;border-top:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;
+  }
+  .rate-us-label{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;color:var(--ink);opacity:.75;transition:opacity .2s ease;}
+  .rate-us-label.rate-us-thanks{opacity:1;color:#B4791F;}
+  .rate-us-stars{display:flex;gap:4px;}
+  .rate-star{
+    background:none;border:none;cursor:pointer;padding:2px;font-size:26px;line-height:1;
+    color:var(--line);transition:color .12s ease, transform .12s ease;
+  }
+  .rate-star:hover{transform:scale(1.15);}
+  .rate-star.rate-star-filled{color:#E1A13B;}
   .viewer3d-generated-card-light{background:#fff;border:1.5px solid var(--line);border-radius:3px;padding:0;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(11,20,32,0.06);transition:box-shadow .18s ease, transform .18s ease;}
   .viewer3d-generated-card-light:not(.pending):not(.failed):hover{box-shadow:0 6px 18px rgba(11,20,32,0.12);transform:translateY(-1px);}
   .viewer3d-generated-card-light img{width:100%;display:block;cursor:zoom-in;aspect-ratio:4/3;object-fit:cover;}
@@ -1755,6 +1768,16 @@ Replace only the materials and graphics."></textarea>
       <div class="section-label-light">Final Views — click any image to preview full size</div>
       <div class="viewer3d-generated-grid-light" id="viewer3dGeneratedGrid"></div>
       <div class="good-luck-message" id="goodLuckMessage" style="display:none;">Good Luck with Your Project</div>
+      <div class="rate-us-bar" id="rateUsBar" style="display:none;">
+        <div class="rate-us-label" id="rateUsLabel">How would you rate this design?</div>
+        <div class="rate-us-stars" id="rateUsStars" onmouseleave="previewRatingStars(currentRatingValue || 0)">
+          <button type="button" class="rate-star" data-value="1" aria-label="1 star" onclick="submitRatingStars(1)" onmouseenter="previewRatingStars(1)">★</button>
+          <button type="button" class="rate-star" data-value="2" aria-label="2 stars" onclick="submitRatingStars(2)" onmouseenter="previewRatingStars(2)">★</button>
+          <button type="button" class="rate-star" data-value="3" aria-label="3 stars" onclick="submitRatingStars(3)" onmouseenter="previewRatingStars(3)">★</button>
+          <button type="button" class="rate-star" data-value="4" aria-label="4 stars" onclick="submitRatingStars(4)" onmouseenter="previewRatingStars(4)">★</button>
+          <button type="button" class="rate-star" data-value="5" aria-label="5 stars" onclick="submitRatingStars(5)" onmouseenter="previewRatingStars(5)">★</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -4782,10 +4805,22 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
   showOptionV2(0);
 
   optionResults.forEach((opt, i) => {
+    const requestBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: !!isUserInitiatedEdit };
+    // Attach the actual logo file as a reference image — without this, Gemini only ever
+    // saw a text description of the logo (written by OpenAI's earlier vision pass) and had
+    // to invent its actual appearance from scratch each time, which is exactly why it could
+    // drift to a different-looking logo. Seeing the real pixels lets it reproduce them
+    // exactly instead of guessing. SVG is excluded since it's not a format Gemini's vision
+    // input accepts directly, matching the same gate already used for the OpenAI call.
+    if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+      requestBody.referenceImage = logoDataUrl.split(',')[1];
+      requestBody.referenceMimeType = logoMediaType;
+      requestBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
+    }
     fetch('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: !!isUserInitiatedEdit })
+      body: JSON.stringify(requestBody)
     })
       .then(res => res.json().catch(() => ({})).then(data => ({ ok: res.ok, data })))
       .then(async ({ ok, data }) => {
@@ -5184,10 +5219,16 @@ async function confirmRegenerateOtherOption(){
   if(activeOptionIndex === idx) setStatusError(statusEl, 'Generating another option... this can take up to a minute. Your existing pictures and views are untouched.');
 
   try{
+    const otherOptionBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: true, isFreeFirstModification };
+    if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+      otherOptionBody.referenceImage = logoDataUrl.split(',')[1];
+      otherOptionBody.referenceMimeType = logoMediaType;
+      otherOptionBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
+    }
     const response = await fetch('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: true, isFreeFirstModification })
+      body: JSON.stringify(otherOptionBody)
     });
     const data = await response.json().catch(() => ({}));
     if(!response.ok || !data.image){
@@ -5738,6 +5779,11 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
     const attachedParts = dataUrlParts(attachedCompressed);
     additionalReferenceImages.push({ data: attachedParts.base64, mimeType: attachedParts.mime });
   }
+  let modifyPrompt = prompt;
+  if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+    additionalReferenceImages.push({ data: logoDataUrl.split(',')[1], mimeType: logoMediaType });
+    modifyPrompt += '\n\nThe last attached image is the exact, authoritative company logo — wherever the logo appears in the design, it must match this exactly, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
+  }
 
   // Captured before the request, since opt.usedFreeModification changes as a result of it.
   const isFreeFirstModification = !opt.usedFreeModification;
@@ -5752,7 +5798,7 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
     const response = await fetch('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: true, isFreeFirstModification })
+      body: JSON.stringify({ prompt: modifyPrompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: true, isFreeFirstModification })
     });
     const rawText = await response.text();
     let data = {};
@@ -5797,6 +5843,7 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
 
 function resetLumaState(){
   document.getElementById('goodLuckMessage').style.display = 'none';
+  resetRatingBar();
 }
 
 function computeImageSimilarity(dataUrlA, dataUrlB){
@@ -5878,6 +5925,7 @@ async function generateCameraViewsFromHero(heroImage){
   document.getElementById('viewer3dGeneratedCard').style.display = 'block';
   document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
   document.getElementById('goodLuckMessage').style.display = 'none';
+  document.getElementById('rateUsBar').style.display = 'none';
   CAMERA_SPECS.forEach(spec => renderGeneratedViewCard(spec.camId, 'pending', null));
   document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
 
@@ -5912,6 +5960,11 @@ async function generateCameraViewsFromHero(heroImage){
   }
 
   document.getElementById('goodLuckMessage').style.display = 'block';
+  document.getElementById('rateUsLabel').textContent = 'How would you rate this design?';
+  document.getElementById('rateUsLabel').classList.remove('rate-us-thanks');
+  currentRatingValue = 0;
+  previewRatingStars(0);
+  document.getElementById('rateUsBar').style.display = 'flex';
   saveCurrentProject();
   updateApproveProgress(100, 'All views are ready.');
 }
@@ -5976,6 +6029,52 @@ function buildCameraViewPrompt(spec, isWiderRetry){
 Camera position (absolute, not a suggestion): ${spec.label}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens. Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
 
 The booth itself is completely static and unchanged from the reference — only the camera has moved to this new position. Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image — new side surfaces, structural elements, or depth — never a near-repeat of the reference from a marginally different angle.${widerNote} The attached photo may show only one side or angle of the booth — for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.`;
+}
+
+/* Star rating: hovering previews a value without committing it; clicking submits
+   immediately (no separate Submit button, matching the quick, lightweight feel of an
+   app-store-style rating prompt) and can be changed afterward — the backend treats a
+   second submission for the same project as an update, not a duplicate. */
+let currentRatingValue = 0;
+
+function previewRatingStars(n){
+  document.querySelectorAll('#rateUsStars .rate-star').forEach(btn => {
+    btn.classList.toggle('rate-star-filled', Number(btn.dataset.value) <= n);
+  });
+}
+
+function resetRatingBar(){
+  currentRatingValue = 0;
+  const bar = document.getElementById('rateUsBar');
+  const label = document.getElementById('rateUsLabel');
+  if(bar) bar.style.display = 'none';
+  if(label){
+    label.textContent = 'How would you rate this design?';
+    label.classList.remove('rate-us-thanks');
+  }
+  previewRatingStars(0);
+}
+
+async function submitRatingStars(n){
+  currentRatingValue = n;
+  previewRatingStars(n);
+  const label = document.getElementById('rateUsLabel');
+  if(label){
+    label.textContent = 'Thanks for your feedback!';
+    label.classList.add('rate-us-thanks');
+  }
+  try{
+    await fetch('/api/ratings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId: currentProjectId, projectName: currentProjectName, stars: n })
+    });
+  }catch(err){
+    console.error('Could not submit rating:', err);
+    // Deliberately silent to the user — a failed rating submission shouldn't interrupt
+    // or alarm someone who just finished their project; it's low-stakes feedback, not a
+    // core action, and the star selection itself still visually reflects their tap.
+  }
 }
 
 function openImageLightbox(src){
@@ -6565,6 +6664,11 @@ function restoreGeneratedViewsIfSaved(project){
     }
   });
   document.getElementById('goodLuckMessage').style.display = 'block';
+  document.getElementById('rateUsLabel').textContent = 'How would you rate this design?';
+  document.getElementById('rateUsLabel').classList.remove('rate-us-thanks');
+  currentRatingValue = 0;
+  previewRatingStars(0);
+  document.getElementById('rateUsBar').style.display = 'flex';
 }
 
 function saveCurrentProject(){

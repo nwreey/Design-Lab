@@ -47,6 +47,11 @@
   .usage{font-family:'IBM Plex Mono',monospace;font-size:12px;}
   .usage.over{color:var(--error);font-weight:600;}
 
+  .ratings-avg-number{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:24px;color:var(--ink);}
+  .ratings-avg-stars{color:#E1A13B;font-size:18px;letter-spacing:1px;}
+  .ratings-avg-count{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink);opacity:.6;}
+  .table-stars{color:#E1A13B;letter-spacing:1px;}
+
   input[type=text],input[type=password],input[type=number]{
     padding:8px 10px;border:1.5px solid var(--line);border-radius:2px;font-family:'Space Grotesk',sans-serif;font-size:13px;width:100%;
   }
@@ -166,6 +171,23 @@
       </table>
       <div class="status-msg" id="lockoutsStatus"></div>
     </div>
+    <div class="card">
+      <h2>Ratings</h2>
+      <div class="hint" style="margin-bottom:14px;">Ratings of each finished design's result — not the platform itself — submitted by users once their project's views finish generating.</div>
+      <div id="ratingsSummary" style="display:flex;align-items:baseline;gap:10px;margin-bottom:16px;"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>User</th>
+            <th>Rating</th>
+            <th>Submitted</th>
+          </tr>
+        </thead>
+        <tbody id="ratingsTableBody"></tbody>
+      </table>
+      <div class="status-msg" id="ratingsStatus"></div>
+    </div>
   </div>
 
   <div class="modal-overlay" id="editLimitsModal">
@@ -240,6 +262,7 @@ async function init(){
     document.getElementById('adminContent').style.display = 'block';
     await loadUsers();
     await loadLockouts();
+    await loadRatings();
   }catch(err){
     showGate('Could not verify access: ' + (err.message || 'unknown error'));
   }
@@ -588,6 +611,60 @@ async function unlockAttempt(encodedAttemptKey){
     lockoutsStatus.className = 'status-msg error';
     lockoutsStatus.textContent = err.message || 'Could not unlock that account.';
   }
+}
+
+async function loadRatings(){
+  const ratingsStatus = document.getElementById('ratingsStatus');
+  ratingsStatus.textContent = 'Loading...';
+  try{
+    const response = await fetch('/api/ratings');
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load ratings.');
+    renderRatingsSummary(data.average, data.count);
+    renderRatingsTable(data.ratings);
+    ratingsStatus.textContent = '';
+  }catch(err){
+    ratingsStatus.className = 'status-msg error';
+    ratingsStatus.textContent = err.message || 'Could not load ratings.';
+  }
+}
+
+function starsToText(stars, total){
+  total = total || 5;
+  return '★'.repeat(stars) + '☆'.repeat(Math.max(0, total - stars));
+}
+
+function renderRatingsSummary(average, count){
+  const el = document.getElementById('ratingsSummary');
+  if(!count){
+    el.innerHTML = '<span class="hint">No ratings submitted yet.</span>';
+    return;
+  }
+  const rounded = Math.round(average * 10) / 10;
+  el.innerHTML = `
+    <span class="ratings-avg-number">${rounded}</span>
+    <span class="ratings-avg-stars">${starsToText(Math.round(average))}</span>
+    <span class="ratings-avg-count">${count} rating${count === 1 ? '' : 's'}</span>
+  `;
+}
+
+function renderRatingsTable(rows){
+  const body = document.getElementById('ratingsTableBody');
+  if(rows.length === 0){
+    body.innerHTML = '<tr><td colspan="4" class="hint">No ratings submitted yet.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(r => {
+    const submitted = new Date(r.updatedAt || r.createdAt).toLocaleString();
+    return `
+      <tr>
+        <td>${escapeHtml(r.projectName || '(untitled project)')}</td>
+        <td>${escapeHtml(r.username || r.userId)}</td>
+        <td class="table-stars" title="${r.stars} of 5">${starsToText(r.stars)}</td>
+        <td class="master-note">${submitted}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
 init();
