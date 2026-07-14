@@ -325,21 +325,20 @@
     text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;
     color:var(--navy);margin-top:22px;letter-spacing:-0.01em;
   }
-  .viewer3d-generated-card-light{background:#fff;border:1.5px solid var(--line);border-radius:2px;padding:8px;position:relative;}
-  .viewer3d-card-remove{position:absolute;top:6px;right:6px;z-index:5;width:22px;height:22px;line-height:1;border-radius:50%;border:1.5px solid var(--navy);background:#fff;color:var(--navy);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
-  .viewer3d-card-remove:hover{background:var(--navy);color:#fff;}
-  .viewer3d-generated-card-light img{width:100%;border-radius:2px;margin-bottom:8px;display:block;cursor:zoom-in;}
-  .viewer3d-generated-card-actions{display:flex;gap:8px;flex-wrap:wrap;}
-  .viewer3d-card-history-nav{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:8px 0;}
+  .viewer3d-generated-card-light{background:#fff;border:1.5px solid var(--line);border-radius:3px;padding:0;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(11,20,32,0.06);transition:box-shadow .18s ease, transform .18s ease;}
+  .viewer3d-generated-card-light:not(.pending):not(.failed):hover{box-shadow:0 6px 18px rgba(11,20,32,0.12);transform:translateY(-1px);}
+  .viewer3d-generated-card-light img{width:100%;display:block;cursor:zoom-in;aspect-ratio:4/3;object-fit:cover;}
+  .viewer3d-generated-card-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px 12px;}
+  .viewer3d-card-history-nav{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 12px 0;}
   .viewer3d-card-history-nav button{padding:5px 10px;font-size:11px;}
   .viewer3d-card-history-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink);opacity:.6;white-space:nowrap;}
-  .viewer3d-generated-card-light-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);opacity:.7;margin-bottom:6px;}
-  .viewer3d-generated-card-light.pending{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:140px;color:var(--ink);opacity:.65;font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center;padding:14px;}
+  .viewer3d-generated-card-label{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12.5px;color:var(--navy);padding:9px 12px;border-bottom:1px solid var(--line);background:#FAF9F6;}
+  .viewer3d-generated-card-light.pending{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:180px;color:var(--ink);opacity:.65;font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center;padding:14px;box-shadow:none;}
   .viewer3d-building-icon{font-size:28px;animation:viewerBuildingPulse 1.6s ease-in-out infinite;}
   .viewer3d-building-label{opacity:.8;}
   @keyframes viewerBuildingPulse{0%,100%{opacity:.4;transform:scale(1);}50%{opacity:1;transform:scale(1.12);}}
-  .viewer3d-generated-card-light.failed{border-color:#c0432b;}
-  .viewer3d-generated-card-light-label.failed-label{color:#c0432b;}
+  .viewer3d-generated-card-light.failed{border-color:#c0432b;box-shadow:none;}
+  .viewer3d-generated-card-label.failed-label{color:#c0432b;}
   #renderSlotImg{cursor:zoom-in;}
   .lightbox-overlay{display:none;position:fixed;inset:0;background:rgba(10,14,26,0.92);z-index:9999;align-items:center;justify-content:center;padding:40px;cursor:zoom-out;}
   .gen-notice-overlay{display:none;position:fixed;inset:0;background:rgba(11,12,16,0.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:9998;align-items:center;justify-content:center;padding:24px;animation:genNoticeFadeIn .18s ease;}
@@ -5841,15 +5840,70 @@ function loadLumaVideoIntoPlayer(videoUrl){
   });
 }
 
-async function generateLumaVideo(heroImage){
-  const compressedHero = await compressDataUrl(heroImage, 1536, 0.88);
-  const { mime, base64 } = dataUrlParts(compressedHero);
+/* A practical, dependency-free approximation of "visually similar" for two rendered views:
+   downscale both to a small grayscale thumbnail (detail differences average out at this
+   size, leaving mainly the broad shapes/composition that matter for "did the camera
+   actually move to a meaningfully different position"), then compare average pixel
+   difference. Returns 0 (completely different) to 1 (identical). If the comparison itself
+   fails for any reason, resolves to 0 rather than blocking the flow on a similarity check. */
+function computeImageSimilarity(dataUrlA, dataUrlB){
+  return new Promise((resolve) => {
+    const SIZE = 24;
+    const imgA = new Image();
+    const imgB = new Image();
+    let loaded = 0;
+    let settled = false;
+    const finish = (value) => { if(!settled){ settled = true; resolve(value); } };
+    const onBothLoaded = () => {
+      try{
+        const canvas = document.createElement('canvas');
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imgA, 0, 0, SIZE, SIZE);
+        const dataA = ctx.getImageData(0, 0, SIZE, SIZE).data;
+        ctx.clearRect(0, 0, SIZE, SIZE);
+        ctx.drawImage(imgB, 0, 0, SIZE, SIZE);
+        const dataB = ctx.getImageData(0, 0, SIZE, SIZE).data;
+        let totalDiff = 0;
+        const pixelCount = SIZE * SIZE;
+        for(let i = 0; i < dataA.length; i += 4){
+          const grayA = (dataA[i] + dataA[i+1] + dataA[i+2]) / 3;
+          const grayB = (dataB[i] + dataB[i+1] + dataB[i+2]) / 3;
+          totalDiff += Math.abs(grayA - grayB);
+        }
+        const avgDiff = totalDiff / pixelCount; // 0-255
+        finish(Math.max(0, Math.min(1, 1 - (avgDiff / 255))));
+      }catch(e){
+        finish(0);
+      }
+    };
+    imgA.onload = () => { loaded++; if(loaded === 2) onBothLoaded(); };
+    imgB.onload = () => { loaded++; if(loaded === 2) onBothLoaded(); };
+    imgA.onerror = () => finish(0);
+    imgB.onerror = () => finish(0);
+    if(!dataUrlA.startsWith('data:')) imgA.crossOrigin = 'anonymous';
+    if(!dataUrlB.startsWith('data:')) imgB.crossOrigin = 'anonymous';
+    imgA.src = dataUrlA;
+    imgB.src = dataUrlB;
+  });
+}
 
+function buildLumaOrbitPrompt(useWiderFovVariant){
+  const base = 'A smooth, constant-speed, COMPLETE 360-degree clockwise turntable orbit around this exhibition booth, forming a seamless loop — starting facing the front of the booth directly. This is a physical camera move, not a subtle or partial rotation: the camera must travel the entire way around the booth and return to facing the front again by the very end of the clip, completing one full circle — not a partial rotation, not a back-and-forth motion, not a slight wobble or sway, a single continuous full loop all the way around, covering the complete 360 degrees. The booth itself remains completely fixed and static at the center of the scene throughout — it never moves, rotates, or shifts. Only the camera moves, and it does so by physically circling the booth: at every point along this orbit, the camera is at a different absolute position around the booth, always pointed inward toward the booth\'s center, at a steady eye-level height and constant, unchanging distance from the booth the entire time. Divide the orbit into 12 evenly-spaced positions, 30 degrees apart from each other — treat these as fixed waypoints the camera physically passes through, not a general sense of turning. Because the camera actually relocates to a new position every 30 degrees, each of these points must reveal genuinely new architectural information about the booth — new surfaces, new structural elements, a materially different vantage point — never a near-repeat of the previous position from a marginally different angle.';
+  // Used only as a one-time fallback if the extracted views come back too visually similar
+  // to each other — asks for a wider view and slightly greater orbit radius, which gives
+  // each 30-degree step more room to actually look different from its neighbor.
+  const widerFovAddendum = useWiderFovVariant ? ' Use a noticeably WIDER field of view than a standard lens, and orbit at a slightly GREATER distance from the booth than usual — pull back enough that each 30-degree step reveals a clearly distinct vantage point, with obviously more of the booth\'s side and depth visible at each position rather than a series of near-identical crops of the same facade.' : '';
+  const rest = ' The attached photo shows only one side of the booth — as the camera reveals the sides and rear that are not visible in that photo, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle — never as a generic or mismatched surface. ENVIRONMENT: the booth sits inside one single, large, enclosed professional exhibition hall — the same hall, with the exact same architecture, ceiling, lighting, and flooring visible in every single frame of this orbit, never changing or shifting between angles, as if it is genuinely one continuous physical space filmed in one take. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. The exhibition hall floor surrounding the booth (outside the booth\'s own footprint) is a dark gray carpet, consistent throughout the hall in every frame. The booth\'s own raised floor platform must have a clearly visible, crisp, sharp edge where it meets the hall\'s dark gray carpet — this boundary line must be unambiguous and clearly readable at every angle, so the booth\'s exact footprint and corners are always precisely visible, never blurred or unclear. Photorealistic, professional exhibition lighting. Do not add any people, visitors, or staff anywhere.';
+  return base + widerFovAddendum + rest;
+}
+
+async function requestAndPollLumaVideo(base64, mime, useWiderFovVariant, onProgress){
   const genResponse = await fetch('/api/luma-generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      prompt: 'A smooth, constant-speed, COMPLETE 360-degree clockwise turntable orbit around this exhibition booth, forming a seamless loop — starting facing the front of the booth directly. The camera must travel the entire way around the booth and return to facing the front again by the very end of the clip, completing one full circle — not a partial rotation, not a back-and-forth motion, a single continuous full loop all the way around. The booth itself stays completely static and unchanged throughout — only the camera moves, circling the booth at a steady eye-level height and constant distance from it the whole time. The attached photo shows only one side of the booth — as the camera reveals the sides and rear that are not visible in that photo, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle — never as a generic or mismatched surface. ENVIRONMENT: the booth sits inside one single, large, enclosed professional exhibition hall — the same hall, with the exact same architecture, ceiling, lighting, and flooring visible in every single frame of this orbit, never changing or shifting between angles, as if it is genuinely one continuous physical space filmed in one take. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. The exhibition hall floor surrounding the booth (outside the booth\'s own footprint) is a dark gray carpet, consistent throughout the hall in every frame. The booth\'s own raised floor platform must have a clearly visible, crisp, sharp edge where it meets the hall\'s dark gray carpet — this boundary line must be unambiguous and clearly readable at every angle, so the booth\'s exact footprint and corners are always precisely visible, never blurred or unclear. Photorealistic, professional exhibition lighting. Do not add any people, visitors, or staff anywhere.',
+      prompt: buildLumaOrbitPrompt(useWiderFovVariant),
       imageBase64: base64,
       mimeType: mime
     })
@@ -5862,22 +5916,41 @@ async function generateLumaVideo(heroImage){
   }
 
   lumaState.generationId = genData.generationId;
+  return pollLumaGeneration(genData.generationId, onProgress);
+}
 
-  const videoUrl = await pollLumaGeneration(genData.generationId, (state, attempts, maxAttempts) => {
-    // This is a gentle, honest approximation, not a claim of exact precision — Luma
-    // doesn't expose a true completion percentage, so this eases toward (but deliberately
-    // never quite reaches) 50% while waiting, then the actual "completed" state below
-    // takes it the rest of the way. That keeps the bar always visibly moving without ever
-    // implying "almost done" when the video might still take a while.
-    const stageLabel = state === 'queued' ? 'Queued and about to start' : 'Rendering the orbit';
-    const eased = 8 + Math.min(38, (attempts / maxAttempts) * 38);
-    updateApproveProgress(eased, `Creating your 360° video — ${stageLabel.toLowerCase()}...`);
-  });
-  updateApproveProgress(50, 'Your 360° video is ready — now generating the individual camera views.');
-  // The video loads into the player element purely so frames can be extracted from it —
-  // the player itself is never shown; only the resulting views are.
-  await loadLumaVideoIntoPlayer(videoUrl);
-  await generateLumaSnapshotStrip();
+/* Runs the generate-and-extract flow, and — matching the explicit requirement that any two
+   adjacent views more than 80% visually similar must be regenerated with a wider field of
+   view or greater camera distance — retries the ENTIRE video ONCE, with that wider-FOV
+   prompt variant, if generateLumaSnapshotStrip reports the first attempt came back too
+   similar. Since every view is extracted from one single video rather than generated
+   independently, the video itself is the only lever available for this correction. Capped
+   at one retry rather than looping indefinitely: a second video is a real, costly
+   generation, and there's no guarantee further attempts would converge. */
+async function generateLumaVideo(heroImage){
+  const compressedHero = await compressDataUrl(heroImage, 1536, 0.88);
+  const { mime, base64 } = dataUrlParts(compressedHero);
+
+  for(let attempt = 0; attempt < 2; attempt++){
+    const useWiderFovVariant = attempt > 0;
+    const videoUrl = await requestAndPollLumaVideo(base64, mime, useWiderFovVariant, (state, attempts, maxAttempts) => {
+      // This is a gentle, honest approximation, not a claim of exact precision — Luma
+      // doesn't expose a true completion percentage, so this eases toward (but deliberately
+      // never quite reaches) 50% while waiting, then the actual "completed" state below
+      // takes it the rest of the way. That keeps the bar always visibly moving without ever
+      // implying "almost done" when the video might still take a while.
+      const stageLabel = state === 'queued' ? 'Queued and about to start' : 'Rendering the orbit';
+      const eased = 8 + Math.min(38, (attempts / maxAttempts) * 38);
+      updateApproveProgress(eased, `Preparing your booth views — ${stageLabel.toLowerCase()}...`);
+    });
+    updateApproveProgress(50, 'Now generating the individual camera views.');
+    // The video loads into the player element purely so frames can be extracted from it —
+    // the player itself is never shown; only the resulting views are.
+    await loadLumaVideoIntoPlayer(videoUrl);
+    const { tooSimilar } = await generateLumaSnapshotStrip();
+    if(!tooSimilar || attempt > 0) break;
+    updateApproveProgress(52, 'A couple of adjacent views looked too similar — widening the shot and trying again...');
+  }
   updateApproveProgress(100, 'All views are ready.');
 }
 
@@ -5919,9 +5992,14 @@ async function generateLumaSnapshotStrip(){
     try{
       const rawFrameDataUrl = await captureVideoFrameAtTime(player, timeSeconds);
       const cleanedDataUrl = await cleanUpVideoFrameWithOpenAI(rawFrameDataUrl);
-      lumaSnapshotFrames.push({ index: frameIndex, imageDataUrl: cleanedDataUrl });
-      initCardHistory(camId, cleanedDataUrl);
-      renderGeneratedViewCard(camId, 'done', cleanedDataUrl);
+      // Compressed before storing — 12 of these are saved together in a single request,
+      // so each needs a tighter budget than a lone image would (see compressDataUrlToTarget's
+      // default 800KB elsewhere): 12 × 300KB stays comfortably under Vercel's request body
+      // ceiling, whereas 12 × 800KB would not.
+      const compressedDataUrl = await compressDataUrlToTarget(cleanedDataUrl, 300 * 1024);
+      lumaSnapshotFrames.push({ index: frameIndex, imageDataUrl: compressedDataUrl });
+      initCardHistory(camId, compressedDataUrl);
+      renderGeneratedViewCard(camId, 'done', compressedDataUrl);
     }catch(err){
       console.error('Could not prepare snapshot at', timeSeconds, err);
       renderGeneratedViewCard(camId, 'failed', err.message || 'Could not generate that view.');
@@ -6153,8 +6231,8 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
     card.className = 'viewer3d-generated-card-light failed';
     card.innerHTML = `
       <div class="viewer3d-generated-card-label failed-label">${label} — failed</div>
-      <div>${imageOrMsg || 'Could not generate that view.'}</div>
-      <button class="ghost small" onclick="removeGeneratedViewCard('${camId}')">Remove</button>
+      <div style="padding:12px;">${imageOrMsg || 'Could not generate that view.'}</div>
+      <div style="padding:0 12px 12px;"><button class="ghost small" onclick="removeGeneratedViewCard('${camId}')">Remove</button></div>
     `;
     return;
   }
@@ -6167,17 +6245,16 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
       <span>${hist.activeIndex + 1} of ${hist.images.length}</span>
       <button class="ghost small" onclick="goToNextCardView('${camId}')">Forward ›</button>
     </div>
-    <button class="primary small" style="width:100%;margin-bottom:8px;" onclick="approveCardVersion('${camId}')">Approve this version (clears earlier edits)</button>
+    <div style="padding:0 12px;"><button class="primary small" style="width:100%;margin-top:8px;" onclick="approveCardVersion('${camId}')">Approve this version (clears earlier edits)</button></div>
   ` : '';
 
   card.innerHTML = `
     <div class="viewer3d-generated-card-label">${label}</div>
     <img src="${imageOrMsg}" onclick="openImageLightbox('${imageOrMsg}')">
     ${historyNav}
-    <div class="viewer3d-card-actions">
+    <div class="viewer3d-generated-card-actions">
       <a href="${imageOrMsg}" download="${camId}.jpg" class="ghost small">Download</a>
       <button class="ghost small" onclick="openEditPanel('${camId}')">Edit</button>
-      <button class="ghost small" onclick="removeGeneratedViewCard('${camId}')">×</button>
     </div>
   `;
 }
@@ -6232,11 +6309,20 @@ async function confirmApproveDesign(){
   const heroImage = opt.gallery[opt.activeGalleryIndex].image;
 
   statusEl.textContent = '';
-  updateApproveProgress(2, 'Generating a 360° video with multi views of your booth with DesignsLab... this can take a minute or two.');
+  updateApproveProgress(2, 'Creating multiple views of your booth with DesignsLab... this can take a minute or two.');
   try{
     await generateLumaVideo(heroImage);
     await new Promise(r => setTimeout(r, 800)); // let the 100% completion state actually register before it disappears
     hideApproveProgress();
+    // Once approved, the design is locked — no more modifications or regenerated
+    // options are possible. Download stays available since it's still useful; Approve
+    // itself is hidden too, since clicking it again would wastefully re-run the whole
+    // view-generation process on an already-approved design.
+    const modifyBtn = document.querySelector('.action-bar button[onclick="openModifyDesignPanel()"]');
+    if(modifyBtn) modifyBtn.style.display = 'none';
+    const otherOptionBtnEl = document.getElementById('otherOptionBtn');
+    if(otherOptionBtnEl) otherOptionBtnEl.style.display = 'none';
+    if(approveBtn) approveBtn.style.display = 'none';
   }catch(err){
     console.error('Luma 360 video generation failed:', err);
     hideApproveProgress();
