@@ -1743,7 +1743,6 @@ Replace only the materials and graphics."></textarea>
       </div>
 
       <div class="grid-area-threed">
-        <video id="lumaVideoPlayer" playsinline crossorigin="anonymous" style="display:none;"></video>
       </div>
 
       <div class="grid-area-camerapanel">
@@ -5753,99 +5752,10 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
    own guidance is strongest for discrete objects, not full room interiors — this may not
    work equally well for every design. */
 
-let lumaState = { generationId: null, videoUrl: null, videoDurationSeconds: 5 };
-
 function resetLumaState(){
-  lumaState = { generationId: null, videoUrl: null, videoDurationSeconds: 5 };
-  const player = document.getElementById('lumaVideoPlayer');
-  if(player){
-    player.pause();
-    player.removeAttribute('src');
-    player.load();
-  }
-  lumaSnapshotFrames = [];
   document.getElementById('goodLuckMessage').style.display = 'none';
 }
 
-/* Retry-tolerant polling for Luma generations (both initial video and video_edit) — mirrors
-   the same tolerant pattern used previously for Tripo: several consecutive failed status
-   checks are forgiven before giving up, since a network blip shouldn't abandon a generation
-   that's still genuinely in progress. Luma's own docs note a 5s/720p generation typically
-   completes in well under two minutes. */
-function pollLumaGeneration(generationId, onProgress){
-  return new Promise((resolve, reject) => {
-    let attempts = 0;
-    let consecutiveFailures = 0;
-    const maxAttempts = 90;
-    const intervalMs = 4000;
-
-    const poll = async () => {
-      attempts++;
-      if(attempts > maxAttempts){
-        reject(new Error('The video generation is taking longer than expected. Please try again.'));
-        return;
-      }
-      try{
-        const response = await fetch('/api/luma-status?generationId=' + encodeURIComponent(generationId));
-        const rawText = await response.text();
-        let data = {};
-        try{ data = JSON.parse(rawText); }catch(e){ /* leave as {} */ }
-
-        if(!response.ok){
-          consecutiveFailures++;
-          if(consecutiveFailures >= 5){
-            reject(new Error((data.error && data.error.message) || 'Could not check the video generation status.'));
-            return;
-          }
-          setTimeout(poll, intervalMs);
-          return;
-        }
-        consecutiveFailures = 0;
-        if(onProgress) onProgress(data.state, attempts, maxAttempts);
-
-        if(data.state === 'completed' && data.videoUrl){
-          resolve(data.videoUrl);
-        }else if(data.state === 'failed'){
-          reject(new Error(data.failureReason || 'The video generation failed. Please try again.'));
-        }else{
-          setTimeout(poll, intervalMs);
-        }
-      }catch(err){
-        consecutiveFailures++;
-        if(consecutiveFailures >= 5){
-          reject(err);
-          return;
-        }
-        setTimeout(poll, intervalMs);
-      }
-    };
-    poll();
-  });
-}
-
-function loadLumaVideoIntoPlayer(videoUrl){
-  return new Promise((resolve, reject) => {
-    const player = document.getElementById('lumaVideoPlayer');
-    const proxiedUrl = '/api/luma-video-proxy?url=' + encodeURIComponent(videoUrl);
-    lumaState.videoUrl = proxiedUrl;
-    player.onloadedmetadata = () => {
-      lumaState.videoDurationSeconds = player.duration || 5;
-      resolve();
-    };
-    player.onerror = () => {
-      reject(new Error('Could not load the generated video.'));
-    };
-    player.src = proxiedUrl;
-    player.load();
-  });
-}
-
-/* A practical, dependency-free approximation of "visually similar" for two rendered views:
-   downscale both to a small grayscale thumbnail (detail differences average out at this
-   size, leaving mainly the broad shapes/composition that matter for "did the camera
-   actually move to a meaningfully different position"), then compare average pixel
-   difference. Returns 0 (completely different) to 1 (identical). If the comparison itself
-   fails for any reason, resolves to 0 rather than blocking the flow on a similarity check. */
 function computeImageSimilarity(dataUrlA, dataUrlB){
   return new Promise((resolve) => {
     const SIZE = 24;
@@ -5888,229 +5798,87 @@ function computeImageSimilarity(dataUrlA, dataUrlB){
   });
 }
 
-function buildLumaOrbitPrompt(useWiderFovVariant){
-  const base = 'A smooth, constant-speed, COMPLETE 360-degree clockwise turntable orbit around this exhibition booth, forming a seamless loop — starting facing the front of the booth directly. This is a physical camera move, not a subtle or partial rotation: the camera must travel the entire way around the booth and return to facing the front again by the very end of the clip, completing one full circle — not a partial rotation, not a back-and-forth motion, not a slight wobble or sway, a single continuous full loop all the way around, covering the complete 360 degrees. The booth itself remains completely fixed and static at the center of the scene throughout — it never moves, rotates, or shifts. Only the camera moves, and it does so by physically circling the booth: at every point along this orbit, the camera is at a different absolute position around the booth, always pointed inward toward the booth\'s center, at a steady eye-level height and constant, unchanging distance from the booth the entire time. Divide the orbit into 12 evenly-spaced positions, 30 degrees apart from each other — treat these as fixed waypoints the camera physically passes through, not a general sense of turning. Because the camera actually relocates to a new position every 30 degrees, each of these points must reveal genuinely new architectural information about the booth — new surfaces, new structural elements, a materially different vantage point — never a near-repeat of the previous position from a marginally different angle.';
-  // Used only as a one-time fallback if the extracted views come back too visually similar
-  // to each other — asks for a wider view and slightly greater orbit radius, which gives
-  // each 30-degree step more room to actually look different from its neighbor.
-  const widerFovAddendum = useWiderFovVariant ? ' Use a noticeably WIDER field of view than a standard lens, and orbit at a slightly GREATER distance from the booth than usual — pull back enough that each 30-degree step reveals a clearly distinct vantage point, with obviously more of the booth\'s side and depth visible at each position rather than a series of near-identical crops of the same facade.' : '';
-  const rest = ' The attached photo shows only one side of the booth — as the camera reveals the sides and rear that are not visible in that photo, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle — never as a generic or mismatched surface. ENVIRONMENT: the booth sits inside one single, large, enclosed professional exhibition hall — the same hall, with the exact same architecture, ceiling, lighting, and flooring visible in every single frame of this orbit, never changing or shifting between angles, as if it is genuinely one continuous physical space filmed in one take. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. The exhibition hall floor surrounding the booth (outside the booth\'s own footprint) is a dark gray carpet, consistent throughout the hall in every frame. The booth\'s own raised floor platform must have a clearly visible, crisp, sharp edge where it meets the hall\'s dark gray carpet — this boundary line must be unambiguous and clearly readable at every angle, so the booth\'s exact footprint and corners are always precisely visible, never blurred or unclear. Photorealistic, professional exhibition lighting. Do not add any people, visitors, or staff anywhere.';
-  return base + widerFovAddendum + rest;
-}
-
-async function requestAndPollLumaVideo(base64, mime, useWiderFovVariant, onProgress){
-  const genResponse = await fetch('/api/luma-generate', {
+async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry){
+  const response = await fetch('/api/edit-image-openai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      prompt: buildLumaOrbitPrompt(useWiderFovVariant),
-      imageBase64: base64,
-      mimeType: mime
+      prompt: buildCameraViewPrompt(spec, isWiderRetry) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX,
+      referenceImage: base64,
+      referenceMimeType: mime,
+      size: '1536x1024',
+      isUserInitiatedEdit: false
     })
   });
-  const genRawText = await genResponse.text();
-  let genData = {};
-  try{ genData = JSON.parse(genRawText); }catch(e){ /* leave as {} */ }
-  if(!genResponse.ok || !genData.generationId){
-    throw new Error((genData.error && genData.error.message) || 'Could not start the 360° video generation.');
-  }
-
-  lumaState.generationId = genData.generationId;
-  return pollLumaGeneration(genData.generationId, onProgress);
-}
-
-/* Runs the generate-and-extract flow, and — matching the explicit requirement that any two
-   adjacent views more than 80% visually similar must be regenerated with a wider field of
-   view or greater camera distance — retries the ENTIRE video ONCE, with that wider-FOV
-   prompt variant, if generateLumaSnapshotStrip reports the first attempt came back too
-   similar. Since every view is extracted from one single video rather than generated
-   independently, the video itself is the only lever available for this correction. Capped
-   at one retry rather than looping indefinitely: a second video is a real, costly
-   generation, and there's no guarantee further attempts would converge. */
-async function generateLumaVideo(heroImage){
-  const compressedHero = await compressDataUrl(heroImage, 1536, 0.88);
-  const { mime, base64 } = dataUrlParts(compressedHero);
-
-  for(let attempt = 0; attempt < 2; attempt++){
-    const useWiderFovVariant = attempt > 0;
-    const videoUrl = await requestAndPollLumaVideo(base64, mime, useWiderFovVariant, (state, attempts, maxAttempts) => {
-      // This is a gentle, honest approximation, not a claim of exact precision — Luma
-      // doesn't expose a true completion percentage, so this eases toward (but deliberately
-      // never quite reaches) 50% while waiting, then the actual "completed" state below
-      // takes it the rest of the way. That keeps the bar always visibly moving without ever
-      // implying "almost done" when the video might still take a while.
-      const stageLabel = state === 'queued' ? 'Queued and about to start' : 'Rendering the orbit';
-      const eased = 8 + Math.min(38, (attempts / maxAttempts) * 38);
-      updateApproveProgress(eased, `Preparing your booth views — ${stageLabel.toLowerCase()}...`);
-    });
-    updateApproveProgress(50, 'Now generating the individual camera views.');
-    // The video loads into the player element purely so frames can be extracted from it —
-    // the player itself is never shown; only the resulting views are.
-    await loadLumaVideoIntoPlayer(videoUrl);
-    const { tooSimilar } = await generateLumaSnapshotStrip();
-    if(!tooSimilar || attempt > 0) break;
-    updateApproveProgress(52, 'A couple of adjacent views looked too similar — widening the shot and trying again...');
-  }
-  updateApproveProgress(100, 'All views are ready.');
-}
-
-let lumaSnapshotFrames = []; // [{ index, imageDataUrl }] — used only transiently during extraction
-const LUMA_SNAPSHOT_COUNT = 12;
-
-/* Extracts a fixed number of evenly-spaced frames across the video, then has OpenAI clean
-   each one up into a proper still image (see cleanUpVideoFrameWithOpenAI below) — these
-   become the final camera-view images directly, populated straight into the same grid and
-   Edit system (openEditPanel) that every other view uses. The Luma video itself is
-   generated once, purely to extract frames from, and is never shown or re-rendered. */
-async function generateLumaSnapshotStrip(){
-  const player = document.getElementById('lumaVideoPlayer');
-  if(!player || !player.src) return;
-
-  const wasPaused = player.paused;
-  const originalTime = player.currentTime;
-  const duration = lumaState.videoDurationSeconds || player.duration || 5;
-
-  lumaSnapshotFrames = [];
-
-  // Show the final grid immediately, with every card in its pending ("building") state up
-  // front — this is what lets the person see all 12 slots right away, then watch each one
-  // fill in as it's actually ready, rather than waiting for all of them before seeing any.
-  document.getElementById('viewer3dGeneratedCard').style.display = 'block';
-  document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
-  document.getElementById('goodLuckMessage').style.display = 'none';
-  for(let i = 0; i < LUMA_SNAPSHOT_COUNT; i++){
-    const camId = 'CAM' + String(i + 1).padStart(2, '0');
-    renderGeneratedViewCard(camId, 'pending', null);
-  }
-  document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
-
-  for(let i = 0; i < LUMA_SNAPSHOT_COUNT; i++){
-    const camId = 'CAM' + String(i + 1).padStart(2, '0');
-    const frameIndex = Math.round((i / LUMA_SNAPSHOT_COUNT) * duration * 24);
-    const timeSeconds = frameIndex / 24;
-    updateApproveProgress(50 + (i / LUMA_SNAPSHOT_COUNT) * 50, `Creating camera view ${i + 1} of ${LUMA_SNAPSHOT_COUNT}...`);
-    try{
-      const rawFrameDataUrl = await captureVideoFrameAtTime(player, timeSeconds);
-      const cleanedDataUrl = await cleanUpVideoFrameWithOpenAI(rawFrameDataUrl);
-      // Compressed before storing — 12 of these are saved together in a single request,
-      // so each needs a tighter budget than a lone image would (see compressDataUrlToTarget's
-      // default 800KB elsewhere): 12 × 300KB stays comfortably under Vercel's request body
-      // ceiling, whereas 12 × 800KB would not.
-      const compressedDataUrl = await compressDataUrlToTarget(cleanedDataUrl, 300 * 1024);
-      lumaSnapshotFrames.push({ index: frameIndex, imageDataUrl: compressedDataUrl });
-      initCardHistory(camId, compressedDataUrl);
-      renderGeneratedViewCard(camId, 'done', compressedDataUrl);
-    }catch(err){
-      console.error('Could not prepare snapshot at', timeSeconds, err);
-      renderGeneratedViewCard(camId, 'failed', err.message || 'Could not generate that view.');
-    }
-  }
-
-  player.currentTime = originalTime;
-  if(!wasPaused) player.play();
-
-  document.getElementById('goodLuckMessage').style.display = 'block';
-  saveCurrentProject();
-}
-
-
-/* Raw video frames carry motion blur and video-compression artifacts that a purpose-made
-   still image doesn't have. Rather than showing that raw frame directly, we hand it to
-   OpenAI with an instruction to clean it up into a crisp still — same exact camera angle,
-   composition, and design, just rendered as a sharp architectural visualization instead of
-   a compressed video frame. This is a real OpenAI call per snapshot, so it costs the same
-   as any other OpenAI edit call — the tradeoff for meaningfully better snapshot quality. */
-async function cleanUpVideoFrameWithOpenAI(rawFrameDataUrl){
-  const compressed = await compressDataUrl(rawFrameDataUrl, 1536, 0.9);
-  const { mime, base64 } = dataUrlParts(compressed);
-
-  const prompt = `This image is a single frame captured from a video of an exhibition booth. Clean it up into a crisp, professional architectural visualization still: remove any motion blur, video-compression artifacts, or graininess from the video capture, while preserving the EXACT same camera angle, framing, composition, materials, colors, branding, and every design element exactly as shown — this must remain the identical booth from the identical viewpoint, just rendered as a sharp, clean still image instead of a compressed video frame. Do not redesign, add, or remove anything.` + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX;
-
-  // A hard timeout here, independent of any server-side limit — without this, a stalled
-  // request would hang this specific snapshot (and therefore the whole sequential strip)
-  // indefinitely, with nothing visible ever changing on screen.
-  const abortController = new AbortController();
-  const timeoutId = setTimeout(() => abortController.abort(), 45000);
-
-  let response;
-  try{
-    response = await fetch('/api/edit-image-openai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, referenceImage: base64, referenceMimeType: mime, preferSpeed: shouldPreferSpeedForCurrentBooth(), size: '1536x1024' }),
-      signal: abortController.signal
-    });
-  }catch(err){
-    console.error('OpenAI snapshot cleanup request failed or timed out, falling back to the raw frame:', err.message || err);
-    return rawFrameDataUrl;
-  }finally{
-    clearTimeout(timeoutId);
-  }
   const rawText = await response.text();
   let data = {};
   try{ data = JSON.parse(rawText); }catch(e){ /* leave as {} */ }
   if(!response.ok || !data.image){
-    console.error('OpenAI snapshot cleanup failed, falling back to the raw frame:', (data.error && data.error.message) || rawText.slice(0, 200));
-    return rawFrameDataUrl;
+    throw new Error((data.error && data.error.message) || 'Could not generate that camera view.');
   }
   return data.image;
 }
 
-function captureVideoFrameAtTime(videoEl, timeSeconds){
-  return new Promise((resolve, reject) => {
-    const captureNow = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoEl.videoWidth;
-      canvas.height = videoEl.videoHeight;
-      const ctx = canvas.getContext('2d');
-      try{
-        ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.98));
-      }catch(err){
-        reject(err);
+/* Generates all 12 camera views directly from the approved hero image — see the comment
+   above buildCameraViewPrompt for why this replaced extracting frames from a generated
+   orbit video. CAM01 ("Front") is the hero image itself, completely unmodified — it's
+   already the exact, approved 0-degree view, so there's no reason to route it through
+   another AI call that could (even if rarely) introduce drift; every other position is an
+   independent edit of that same reference. Each new view is compared against the previous
+   one — matching the explicit "if two adjacent views are more than 80% visually similar,
+   regenerate using a wider field of view" requirement — with a single, cheap one-view retry
+   (not a whole video) if needed. */
+async function generateCameraViewsFromHero(heroImage){
+  const compressedHero = await compressDataUrl(heroImage, 1536, 0.88);
+  const { mime, base64 } = dataUrlParts(compressedHero);
+
+  document.getElementById('viewer3dGeneratedCard').style.display = 'block';
+  document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
+  document.getElementById('goodLuckMessage').style.display = 'none';
+  CAMERA_SPECS.forEach(spec => renderGeneratedViewCard(spec.camId, 'pending', null));
+  document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
+
+  const SIMILARITY_THRESHOLD = 0.8;
+  const compressedFront = await compressDataUrlToTarget(compressedHero, 300 * 1024);
+  initCardHistory('CAM01', compressedFront);
+  renderGeneratedViewCard('CAM01', 'done', compressedFront);
+  let previousViewDataUrl = compressedFront;
+  updateApproveProgress(10, 'Creating camera view 1 of 12...');
+
+  for(let i = 1; i < CAMERA_SPECS.length; i++){
+    const spec = CAMERA_SPECS[i];
+    updateApproveProgress(10 + (i / CAMERA_SPECS.length) * 85, `Creating camera view ${i + 1} of ${CAMERA_SPECS.length}...`);
+    try{
+      let resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false);
+
+      const similarity = await computeImageSimilarity(previousViewDataUrl, resultDataUrl);
+      if(similarity > SIMILARITY_THRESHOLD){
+        const retryDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, true);
+        const retrySimilarity = await computeImageSimilarity(previousViewDataUrl, retryDataUrl);
+        if(retrySimilarity < similarity) resultDataUrl = retryDataUrl;
       }
-    };
 
-    // Browsers do NOT fire 'seeked' when the requested time already equals the video's
-    // current time — no actual seek occurs. This is exactly what happens for the very
-    // first snapshot (time 0, on a freshly-loaded video that's still sitting at time 0),
-    // which is what was silently hanging the whole snapshot strip forever: the very first
-    // iteration of the loop would await an event that could never fire.
-    if(Math.abs(videoEl.currentTime - timeSeconds) < 0.05){
-      captureNow();
-      return;
+      const compressedResult = await compressDataUrlToTarget(resultDataUrl, 300 * 1024);
+      initCardHistory(spec.camId, compressedResult);
+      renderGeneratedViewCard(spec.camId, 'done', compressedResult);
+      previousViewDataUrl = compressedResult;
+    }catch(err){
+      console.error('Could not generate view for', spec.camId, err);
+      renderGeneratedViewCard(spec.camId, 'failed', err.message || 'Could not generate that view.');
     }
+  }
 
-    let settled = false;
-    // A second safety net, independent of the above — if 'seeked' still doesn't fire for
-    // any other reason (a stalled video element, a browser quirk, etc.), capture whatever
-    // frame is currently showing rather than hanging the entire process indefinitely.
-    const timeoutId = setTimeout(() => {
-      if(settled) return;
-      settled = true;
-      videoEl.removeEventListener('seeked', onSeeked);
-      captureNow();
-    }, 3000);
-
-    const onSeeked = () => {
-      if(settled) return;
-      settled = true;
-      clearTimeout(timeoutId);
-      videoEl.removeEventListener('seeked', onSeeked);
-      captureNow();
-    };
-    videoEl.addEventListener('seeked', onSeeked);
-    videoEl.currentTime = timeSeconds;
-  });
+  document.getElementById('goodLuckMessage').style.display = 'block';
+  saveCurrentProject();
+  updateApproveProgress(100, 'All views are ready.');
 }
 
-
-/* The camera set for the Luma orbit-video pipeline is intentionally smaller than the old
-   Tripo/Gemini pipeline's 28 options. A single horizontal 360° orbit video only ever passes
-   through points on ONE ring around the booth at roughly eye level — it has no frame that
-   shows the top, the interior, or any named room, so those camera types were dropped rather
-   than faked. These 8 are genuinely extractable as real frames from the orbit video, with no
-   further AI generation call needed. */
+/* This ring of 12 camera positions is intentionally smaller than the old Tripo/Gemini
+   pipeline's 28 options — it covers one horizontal orbit around the booth at a constant
+   eye-level elevation, not the top, interior, or any named room, so those camera types
+   were dropped rather than faked. Each of these 12 is now an independent, explicitly
+   positioned render generated directly from the approved hero image (see
+   generateCameraViewsFromHero above), not a frame extracted from a video. */
 const VIEWER_CAMERA_LABELS = {
   CAM01: 'Front (12 o\'clock)', CAM02: '1 o\'clock — Front Right', CAM03: '2 o\'clock — Right Front',
   CAM04: 'Right (3 o\'clock)', CAM05: '4 o\'clock — Right Rear', CAM06: '5 o\'clock — Rear Right',
@@ -6128,6 +5896,44 @@ const CAMERA_DEGREES = {
   CAM01: 0, CAM02: 30, CAM03: 60, CAM04: 90, CAM05: 120, CAM06: 150,
   CAM07: 180, CAM08: 210, CAM09: 240, CAM10: 270, CAM11: 300, CAM12: 330
 };
+
+/* Every clock position is an absolute camera location, not a loosely-interpreted prompt —
+   see buildCameraViewPrompt below. Elevation, radius, and lens stay constant across all 12
+   (matching "distance from booth remains constant" / "camera height remains constant"),
+   since only azimuth is meant to change position to position. target is always the booth's
+   own center — the camera reframes around a fixed point, the booth never moves. */
+const CAMERA_SPECS = Object.keys(VIEWER_CAMERA_LABELS).map((camId, i) => ({
+  camId,
+  clock: i + 1,
+  label: VIEWER_CAMERA_LABELS[camId],
+  azimuth: CAMERA_DEGREES[camId],
+  elevation: 15,
+  radius: 8,
+  target: 'booth_center',
+  lens: 35
+}));
+
+function cameraSpecToJSON(spec){
+  return JSON.stringify({ camera: { clock: spec.clock, azimuth: spec.azimuth, elevation: spec.elevation, radius: spec.radius, target: spec.target, lens: spec.lens } });
+}
+
+/* Generates each of the 12 camera views as an independent edit of the SAME approved hero
+   image, rather than extracting frames from a generated video. This is a deliberate
+   architecture choice: a video model asked to "orbit around a booth" is not guaranteed to
+   preserve the exact design at every point along that orbit — it can drift toward a
+   generic, self-consistent-but-wrong interpretation partway through, especially past the
+   very first frame. Anchoring every single view directly to the one already-approved
+   reference image, through the same edit pipeline already proven reliable elsewhere in
+   this app (Edit, Modify Design), guarantees every view is actually a photo of the correct,
+   approved design — never a drifted reinterpretation of it. */
+function buildCameraViewPrompt(spec, isWiderRetry){
+  const widerNote = isWiderRetry ? ' The previous attempt at this angle came out too similar to the neighboring view — for this attempt, pull the camera back further than usual and widen the field of view noticeably, so this position reveals a clearly distinct amount of new surface and depth.' : '';
+  return `Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific camera position.
+
+Camera position (absolute, not a suggestion): ${spec.label}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens. Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
+
+The booth itself is completely static and unchanged from the reference — only the camera has moved to this new position. Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image — new side surfaces, structural elements, or depth — never a near-repeat of the reference from a marginally different angle.${widerNote} The attached photo may show only one side or angle of the booth — for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.`;
+}
 
 function openImageLightbox(src){
   document.getElementById('lightboxImg').src = src;
@@ -6210,6 +6016,18 @@ function removeGeneratedViewCard(camId){
   delete viewCardHistories[camId];
 }
 
+// Turns a camera label like "1 o'clock — Front Right" into a clean, filesystem-safe
+// filename — dropping apostrophes, swapping the em dash for a plain hyphen, and
+// collapsing whitespace, so downloaded files read by position ("Front (12 o'clock)")
+// rather than by internal ID ("CAM01").
+function cameraViewFilename(label){
+  return label
+    .replace(/'/g, '')
+    .replace(/—/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function renderGeneratedViewCard(camId, state, imageOrMsg){
   const grid = document.getElementById('viewer3dGeneratedGrid');
   let card = document.getElementById('genCard-' + camId);
@@ -6253,7 +6071,7 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
     <img src="${imageOrMsg}" onclick="openImageLightbox('${imageOrMsg}')">
     ${historyNav}
     <div class="viewer3d-generated-card-actions">
-      <a href="${imageOrMsg}" download="${camId}.jpg" class="ghost small">Download</a>
+      <a href="${imageOrMsg}" download="${cameraViewFilename(label)}.jpg" class="ghost small">Download</a>
       <button class="ghost small" onclick="openEditPanel('${camId}')">Edit</button>
     </div>
   `;
@@ -6311,7 +6129,7 @@ async function confirmApproveDesign(){
   statusEl.textContent = '';
   updateApproveProgress(2, 'Creating multiple views of your booth with DesignsLab... this can take a minute or two.');
   try{
-    await generateLumaVideo(heroImage);
+    await generateCameraViewsFromHero(heroImage);
     await new Promise(r => setTimeout(r, 800)); // let the 100% completion state actually register before it disappears
     hideApproveProgress();
     // Once approved, the design is locked — no more modifications or regenerated
@@ -6324,9 +6142,9 @@ async function confirmApproveDesign(){
     if(otherOptionBtnEl) otherOptionBtnEl.style.display = 'none';
     if(approveBtn) approveBtn.style.display = 'none';
   }catch(err){
-    console.error('Luma 360 video generation failed:', err);
+    console.error('Camera view generation failed:', err);
     hideApproveProgress();
-    statusEl.textContent = 'Could not generate the 360° video (' + (err.message || 'unknown error') + '). Please try approving again.';
+    statusEl.textContent = 'Could not generate the camera views (' + (err.message || 'unknown error') + '). Please try approving again.';
   }
 
   if(approveBtn) approveBtn.disabled = false;
@@ -6664,7 +6482,7 @@ function restoreResultsView(project){
     unlockForm();
   }
 
-  restoreLumaVideoIfSaved(project);
+  restoreGeneratedViewsIfSaved(project);
 }
 
 /* Presigned Luma video URLs expire after 1 hour, but the underlying generation itself
@@ -6676,57 +6494,34 @@ function restoreResultsView(project){
    restore the saved images directly, which is both instant and free. The video-fetch
    path below is now only a fallback for a project saved before that finished (e.g. the
    person navigated away mid-generation). */
-async function restoreLumaVideoIfSaved(project){
-  if(!project.lumaGenerationId) return;
-
-  lumaState.generationId = project.lumaGenerationId;
-  lumaState.videoDurationSeconds = project.lumaVideoDurationSeconds || 5;
-
+/* Renders whatever camera views were already saved with this project. There's no video or
+   generation to re-fetch or resume — every view is a plain, already-finished image, so
+   restoring is just redrawing them. A project with nothing saved yet (very old, or one
+   where approval never finished) is simply left as-is; the person can click Approve to
+   generate views the normal way. */
+function restoreGeneratedViewsIfSaved(project){
   const savedHistories = project.viewCardHistories || {};
   const hasSavedViews = Object.keys(savedHistories).some(camId => {
     const hist = savedHistories[camId];
     return hist && hist.images && hist.images.length > 0;
   });
+  if(!hasSavedViews) return;
 
-  if(hasSavedViews){
-    viewCardHistories = savedHistories;
-    approvedDesignDecisions = project.approvedDesignDecisions || [];
-    editDesignApprovedCount = project.editDesignApprovedCount || 0;
-    document.getElementById('viewer3dGeneratedCard').style.display = 'block';
-    document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
-    Object.keys(viewCardHistories).forEach(camId => {
-      const hist = viewCardHistories[camId];
-      if(hist && hist.images && hist.images.length){
-        if(camId.startsWith('EDITDESIGN_') && !VIEWER_CAMERA_LABELS[camId]){
-          VIEWER_CAMERA_LABELS[camId] = 'Uploaded Design ' + camId.replace('EDITDESIGN_', '');
-        }
-        renderGeneratedViewCard(camId, 'done', hist.images[hist.activeIndex]);
+  viewCardHistories = savedHistories;
+  approvedDesignDecisions = project.approvedDesignDecisions || [];
+  editDesignApprovedCount = project.editDesignApprovedCount || 0;
+  document.getElementById('viewer3dGeneratedCard').style.display = 'block';
+  document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
+  Object.keys(viewCardHistories).forEach(camId => {
+    const hist = viewCardHistories[camId];
+    if(hist && hist.images && hist.images.length){
+      if(camId.startsWith('EDITDESIGN_') && !VIEWER_CAMERA_LABELS[camId]){
+        VIEWER_CAMERA_LABELS[camId] = 'Uploaded Design ' + camId.replace('EDITDESIGN_', '');
       }
-    });
-    document.getElementById('goodLuckMessage').style.display = 'block';
-    return;
-  }
-
-  const statusEl = document.getElementById('actionStatus');
-  if(statusEl) statusEl.textContent = 'Restoring your previously generated 360° video...';
-
-  try{
-    const response = await fetch('/api/luma-status?generationId=' + encodeURIComponent(project.lumaGenerationId));
-    const rawText = await response.text();
-    let data = {};
-    try{ data = JSON.parse(rawText); }catch(e){ /* leave as {} */ }
-    if(!response.ok || !data.videoUrl){
-      throw new Error((data.error && data.error.message) || 'Could not retrieve the saved video.');
+      renderGeneratedViewCard(camId, 'done', hist.images[hist.activeIndex]);
     }
-
-    await loadLumaVideoIntoPlayer(data.videoUrl);
-    await generateLumaSnapshotStrip();
-
-    if(statusEl) statusEl.textContent = '';
-  }catch(err){
-    console.error('Could not restore the saved video:', err);
-    if(statusEl) statusEl.textContent = 'Could not restore your previous 360° video (' + (err.message || 'unknown error') + '). You can click Approve again to generate a new one.';
-  }
+  });
+  document.getElementById('goodLuckMessage').style.display = 'block';
 }
 
 function saveCurrentProject(){
@@ -6744,8 +6539,6 @@ function saveCurrentProject(){
     posterFiles: (posterFiles || []).map(pf => ({ name: pf.name, size: pf.size, type: pf.type, file: pf.file })),
     promptResult: pendingPromptResult || null,
     optionResult: (optionResults && optionResults[0]) ? optionResults[0] : null,
-    lumaGenerationId: lumaState.generationId || null,
-    lumaVideoDurationSeconds: lumaState.videoDurationSeconds || 5,
     cameraPanelApproved: document.getElementById('viewer3dGeneratedCard').style.display === 'block',
     viewCardHistories: viewCardHistories || {},
     approvedDesignDecisions: approvedDesignDecisions || [],
