@@ -172,6 +172,7 @@
     display:inline-block;text-decoration:none;box-sizing:border-box;
   }
   button.ghost:hover, a.ghost:hover{background:var(--navy-soft);}
+  button.ghost:disabled{opacity:.6;cursor:not-allowed;background:transparent;}
   button.ghost.small, a.ghost.small{padding:7px 14px;font-size:12.5px;}
   button.secondary{
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;
@@ -6265,7 +6266,15 @@ async function confirmApproveDesign(){
 
   const statusEl = document.getElementById('actionStatus');
   const approveBtn = document.getElementById('approveDesignBtn');
+  const modifyBtn = document.querySelector('.action-bar button[onclick="openModifyDesignPanel()"]');
+  const otherOptionBtnEl = document.getElementById('otherOptionBtn');
+  // Lock Modify design and Other option the instant Approve is clicked — not just Approve
+  // itself — since view generation can take a minute or two, and either one is still
+  // clickable during that whole window otherwise, able to change the very concept the views
+  // are being generated from mid-flight.
   if(approveBtn) approveBtn.disabled = true;
+  if(modifyBtn) modifyBtn.disabled = true;
+  if(otherOptionBtnEl) otherOptionBtnEl.disabled = true;
 
   const heroImage = opt.gallery[opt.activeGalleryIndex].image;
 
@@ -6282,6 +6291,10 @@ async function confirmApproveDesign(){
     console.error('Camera view generation failed:', err);
     hideApproveProgress();
     statusEl.textContent = 'Could not generate the camera views (' + (err.message || 'unknown error') + '). Please try approving again.';
+    // Generation didn't finish — hand Modify design and Other option back so the user isn't
+    // stuck with a permanently locked project over a failed attempt they can just retry.
+    if(modifyBtn) modifyBtn.disabled = false;
+    if(otherOptionBtnEl) otherOptionBtnEl.disabled = false;
   }
 
   if(approveBtn) approveBtn.disabled = false;
