@@ -1503,7 +1503,13 @@ Replace only the materials and graphics."></textarea>
         </div>
 
         <label class="check-item-compact"><input type="checkbox" id="addreq_openmeeting"> Open Meeting Area</label>
-        <label class="check-item-compact"><input type="checkbox" id="addreq_lounge"> Lounge Area</label>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_lounge" onchange="toggleAdditionalReqSection('lounge', this.checked)"> Lounge Area</label>
+        <div id="addreq_lounge_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_lounge_capacity">Lounge area capacity — how many people does it fit?</label>
+          <input type="number" min="1" id="addreq_lounge_capacity" placeholder="e.g. 6">
+        </div>
+
         <label class="check-item-compact"><input type="checkbox" id="addreq_coffeebar"> Coffee Bar / Hospitality</label>
 
         <div class="subarea-label" style="margin-top:8px;">Product Display</div>
@@ -1532,7 +1538,12 @@ Replace only the materials and graphics."></textarea>
           <input type="number" min="1" id="addreq_pedestals_count" placeholder="e.g. 3">
         </div>
 
-        <label class="check-item-compact"><input type="checkbox" id="addreq_interactivedisplay"> Interactive Product Display</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_interactivedisplay" onchange="toggleAdditionalReqSection('interactivedisplay', this.checked)"> Interactive Product Display</label>
+        <div id="addreq_interactivedisplay_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_interactivedisplay_count">How many interactive product displays?</label>
+          <input type="number" min="1" id="addreq_interactivedisplay_count" placeholder="e.g. 1">
+        </div>
+
         <label class="check-item-compact"><input type="checkbox" id="addreq_brochurestand"> Brochure Stand</label>
         <label class="check-item-compact"><input type="checkbox" id="addreq_literaturerack"> Literature Rack</label>
 
@@ -1560,7 +1571,13 @@ Replace only the materials and graphics."></textarea>
         </div>
 
         <label class="check-item-compact"><input type="checkbox" id="addreq_kiosk"> Interactive Kiosk</label>
-        <label class="check-item-compact"><input type="checkbox" id="addreq_digitaltotem"> Digital Totem</label>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_digitaltotem" onchange="toggleAdditionalReqSection('digitaltotem', this.checked)"> Digital Totem</label>
+        <div id="addreq_digitaltotem_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_digitaltotem_count">How many digital totems?</label>
+          <input type="number" min="1" id="addreq_digitaltotem_count" placeholder="e.g. 1">
+        </div>
+
         <label class="check-item-compact"><input type="checkbox" id="addreq_chargingstation"> Charging Station</label>
         <label class="check-item-compact"><input type="checkbox" id="addreq_qrdisplay"> QR Code Display</label>
 
@@ -1574,7 +1591,13 @@ Replace only the materials and graphics."></textarea>
         </div>
 
         <label class="check-item-compact"><input type="checkbox" id="addreq_pantry"> Pantry</label>
-        <label class="check-item-compact"><input type="checkbox" id="addreq_staffarea"> Staff Area</label>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_staffarea" onchange="toggleAdditionalReqSection('staffarea', this.checked)"> Staff Area</label>
+        <div id="addreq_staffarea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_staffarea_capacity">Staff area capacity — how many staff does it fit?</label>
+          <input type="number" min="1" id="addreq_staffarea_capacity" placeholder="e.g. 2">
+        </div>
+
         <label class="check-item-compact"><input type="checkbox" id="addreq_lockablecabinet"> Lockable Cabinet</label>
         <label class="check-item-compact"><input type="checkbox" id="addreq_hiddenstorage"> Hidden Storage</label>
 
@@ -3434,6 +3457,8 @@ function collectAdditionalRequirements(){
     ['displaytables', 'DISPLAY TABLES', 'display table(s)'],
     ['glasscabinets', 'GLASS DISPLAY CABINETS', 'glass display cabinet(s)'],
     ['pedestals', 'PRODUCT PEDESTALS', 'product pedestal(s)'],
+    ['interactivedisplay', 'INTERACTIVE PRODUCT DISPLAY', 'interactive product display(s)'],
+    ['digitaltotem', 'DIGITAL TOTEM', 'digital totem(s)'],
   ];
   for(const [id, title, unitLabel] of quantityOnlyItems){
     if(document.getElementById('addreq_' + id).checked){
@@ -3444,12 +3469,28 @@ function collectAdditionalRequirements(){
     }
   }
 
+  // Capacity-only items — a single room/area whose people-capacity the client specified
+  // directly, rather than a count of how many of them exist.
+  const capacityOnlyItems = [
+    ['lounge', 'lounge_capacity', 'LOUNGE AREA', 'the lounge area'],
+    ['staffarea', 'staffarea_capacity', 'STAFF AREA', 'the staff area'],
+  ];
+  for(const [id, fieldId, title, areaLabel] of capacityOnlyItems){
+    if(document.getElementById('addreq_' + id).checked){
+      const capField = document.getElementById('addreq_' + fieldId);
+      const capacity = Math.max(0, parseInt(capField && capField.value) || 0);
+      if(capacity > 0){
+        lines.push(`${title} — EXACT CLIENT SPECIFICATION (overrides computed/default capacity): ${areaLabel} must accommodate exactly ${capacity} people.`);
+      }
+    }
+  }
+
   // Simple checkboxes with no quantity — grouped by category for a clearer, better-organized brief.
   const simpleGroups = [
-    ['Visitor Experience', [['addreq_openmeeting', 'Open Meeting Area'], ['addreq_lounge', 'Lounge Area'], ['addreq_coffeebar', 'Coffee Bar / Hospitality']]],
-    ['Product Display', [['addreq_interactivedisplay', 'Interactive Product Display'], ['addreq_brochurestand', 'Brochure Stand'], ['addreq_literaturerack', 'Literature Rack']]],
-    ['Digital & Technology', [['addreq_kiosk', 'Interactive Kiosk'], ['addreq_digitaltotem', 'Digital Totem'], ['addreq_chargingstation', 'Charging Station'], ['addreq_qrdisplay', 'QR Code Display']]],
-    ['Functional Spaces', [['addreq_pantry', 'Pantry'], ['addreq_staffarea', 'Staff Area'], ['addreq_lockablecabinet', 'Lockable Cabinet'], ['addreq_hiddenstorage', 'Hidden Storage']]],
+    ['Visitor Experience', [['addreq_openmeeting', 'Open Meeting Area'], ['addreq_coffeebar', 'Coffee Bar / Hospitality']]],
+    ['Product Display', [['addreq_brochurestand', 'Brochure Stand'], ['addreq_literaturerack', 'Literature Rack']]],
+    ['Digital & Technology', [['addreq_kiosk', 'Interactive Kiosk'], ['addreq_chargingstation', 'Charging Station'], ['addreq_qrdisplay', 'QR Code Display']]],
+    ['Functional Spaces', [['addreq_pantry', 'Pantry'], ['addreq_lockablecabinet', 'Lockable Cabinet'], ['addreq_hiddenstorage', 'Hidden Storage']]],
     ['Lighting', [['addreq_ambientlighting', 'Ambient Lighting'], ['addreq_spotlights', 'Spotlights'], ['addreq_hiddenledlighting', 'Hidden LED Lighting'], ['addreq_covelighting', 'Cove Lighting'], ['addreq_accentlighting', 'Product Accent Lighting'], ['addreq_decorativelighting', 'Decorative Lighting']]],
     ['Decorative Elements', [['addreq_planters', 'Planters'], ['addreq_greenwall', 'Green Wall'], ['addreq_decorativepanels', 'Decorative Panels'], ['addreq_brandgraphics', 'Brand Graphics'], ['addreq_hangingdecor', 'Hanging Decorations'], ['addreq_sculpture', 'Feature Sculpture']]],
   ];
@@ -4961,6 +5002,93 @@ function unlockForm(){
   document.querySelectorAll('#formCard input, #formCard select, #formCard textarea, #formCard button').forEach(el => { el.disabled = false; });
 }
 
+/* ================= BIE-001 — Brand Integrity Engine =================
+   Purpose: guarantee every generated design uses the client's ORIGINAL branding assets
+   exactly as uploaded. Gemini's job is architecture and an approximate logo placement —
+   it is never trusted to redraw a logo or recreate typography, since generative models
+   routinely drift a wordmark's shape, spacing, or color even when explicitly told not to.
+   BIE-001's job is branding accuracy: it runs as one automatic OpenAI edit call immediately
+   after every Gemini render, using that render as its reference and the real uploaded logo
+   file as a second reference, and replaces every detected logo placement with the exact
+   uploaded artwork — never a redraw, never a regeneration, never a reinterpretation.
+
+   Current pipeline this sits in: Form → Project Analysis Engine → Prompt Writer → Gemini →
+   Brand Integrity Engine (here) → OpenAI Editing (per-view edits / Modify Design / Other
+   option, all of which inherit the corrected logo from whatever reference they edit from).
+   Note: Luma has no role anywhere in this app anymore — the 12 camera views are independent
+   OpenAI edits of the approved hero image, not frames extracted from a generated video (see
+   generateCameraViewsFromHero's own comment) — so BIE-001 only ever needs to run right after
+   a Gemini render, not before some separate video stage.
+
+   QC (section 10 of the BIE-001 spec) is enforced as strict instructions inside this same
+   single call, not a separate verify-and-retry pass — that keeps this at the same one-call
+   cost/latency/reliability profile as the rest of the app's edit-based steps, at the cost of
+   relying on the model to actually follow the checklist rather than a second pass confirming
+   it did. Multi-logo variants (primary/secondary/vertical/horizontal/mono/white/dark,
+   auto-selected by background) are intentionally out of scope for now — only a single
+   uploaded logo exists today; that's its own future feature, not folded in here.
+
+   Fails open: if this pass itself errors out, the original Gemini render is returned as-is
+   rather than blocking generation over a correction step, not a hard requirement. Only runs
+   in booth mode with a real uploaded logo — event mode and logo-less projects have nothing
+   to correct. */
+async function runBrandIntegrityEngine(imageDataUrl){
+  if(!(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType))) return imageDataUrl;
+  try{
+    const compressed = await compressDataUrl(imageDataUrl, 1536, 0.9);
+    const { mime, base64 } = dataUrlParts(compressed);
+    const logoBase64 = logoDataUrl.split(',')[1];
+
+    const prompt = `You are BIE-001, the Brand Integrity Engine. This image is an already-finished, approved photorealistic exhibition booth render produced by another model. That model's job was architecture only — any logo it drew is just an approximate placeholder, never the client's real artwork. Your ONLY job is branding accuracy: find every place a logo was rendered and replace it with the client's exact uploaded logo, provided as the second attached reference image. The final result must look as though the real client artwork was professionally installed on the booth — sharp, correctly proportioned, physically integrated — never like a sticker pasted on top.
+
+1. DETECT every logo placement in the image, wherever it appears — including but not limited to: reception counter, wall branding, ceiling feature, hanging sign, lightbox, display totem, digital screen branding, poster, graphic wall, and glass graphics. Check the entire image; a booth can have more than one logo placement.
+
+2. REPLACE every detected placement with the second attached reference image's logo. Never redraw it. Never regenerate it. Never recreate its typography from scratch — copy the actual provided artwork's pixels/shape as faithfully as an edit can.
+
+3. PERSPECTIVE: match whatever surface the logo sits on automatically — an angled wall, a curved panel, a reception desk, a hanging cube, or anything else — the replacement must follow that same real-world perspective and curvature, not be pasted on flat.
+
+4. LIGHTING: the replacement must inherit the reflections, shadows, highlights, and ambient lighting already present at that location in the render, so it reads as physically installed under the same light, not floating above it.
+
+5. MATERIAL: respect whatever material the logo placement is rendered in — backlit acrylic, vinyl, fabric, LED lightbox, printed panel, frosted glass, or brushed metal — the replacement must look correct for that specific material's appearance (glow, texture, translucency, reflectivity) rather than a generic flat sticker.
+
+6. NEVER MODIFY anything about the uploaded artwork itself: company name, font, Arabic typography, English typography, letter spacing, letter proportions, trademark or registered symbols, or the brand icon. Everything about the logo must remain identical to the uploaded file.
+
+7. COLOR PROTECTION: never alter or approximate the brand's colors — always use the exact colors from the uploaded artwork, never a rendering-model approximation of them.
+
+8. PLACEMENT: respect the architectural placement Gemini already created — only replace the artwork at each location, do not relocate a logo, UNLESS it currently overlaps or is cropped by another object, in which case reposition it minimally just enough to sit cleanly.
+
+9. BEFORE FINALIZING, verify: the logo is sharp with no AI-generated artifacts; proportions are correct (not stretched or squashed); colors are correct; there are no spelling mistakes and no duplicated logos; any Arabic text and any English text are both rendered correctly and legibly.
+
+10. BRAND SAFETY — absolute rules with zero exceptions: never invent a logo that isn't the uploaded one; never translate any text in the logo; never simplify any part of the logo; never recreate its typography by hand; never hallucinate text that isn't actually in the uploaded artwork; never modify the uploaded brand identity in any way.
+
+Do not change anything else anywhere in the image: same architecture, same materials, same colors, same layout, same furniture, same camera angle, same lighting elsewhere in the scene — only the logo placements themselves may change.`;
+
+    const response = await fetch('/api/edit-image-openai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: prompt + HARD_CONSTRAINTS_SUFFIX,
+        referenceImage: base64,
+        referenceMimeType: mime,
+        additionalReferenceImages: [{ data: logoBase64, mimeType: logoMediaType }],
+        size: '1536x1024',
+        isUserInitiatedEdit: false
+      })
+    });
+    const rawText = await response.text();
+    let data = {};
+    try{ data = JSON.parse(rawText); }catch(e){ /* leave data as {} */ }
+    if(!response.ok || !data.image){
+      console.error('BIE-001 (Brand Integrity Engine) pass failed:', (data.error && data.error.message) || ('HTTP ' + response.status));
+      return imageDataUrl;
+    }
+    return data.image;
+  }catch(err){
+    console.error('BIE-001 (Brand Integrity Engine) pass failed:', err);
+    return imageDataUrl;
+  }
+}
+
 function startRenderSession(promptOptions, isUserInitiatedEdit){
   if(mode === 'booth' || mode === 'event') lastGeneratedMode = mode;
   resetLumaState();
@@ -5012,7 +5140,8 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
           optionResults[i].status = 'error';
           optionResults[i].errorMsg = (data.error && data.error.message) || 'Image generation failed.';
         }else{
-          const compressed = await compressDataUrlToTarget(data.image);
+          const correctedImage = await runBrandIntegrityEngine(data.image);
+          const compressed = await compressDataUrlToTarget(correctedImage);
           optionResults[i].status = 'done';
           optionResults[i].gallery = [{ label: 'Original', image: compressed }];
           optionResults[i].activeGalleryIndex = 0;
@@ -5418,7 +5547,8 @@ async function confirmRegenerateOtherOption(){
     if(!response.ok || !data.image){
       throw new Error((data.error && data.error.message) || 'Image generation failed.');
     }
-    const compressed = await compressDataUrlToTarget(data.image);
+    const correctedImage = await runBrandIntegrityEngine(data.image);
+    const compressed = await compressDataUrlToTarget(correctedImage);
     opt.status = 'done';
     opt.gallery.push({ label: 'Other option', image: compressed });
     opt.activeGalleryIndex = opt.gallery.length - 1;
@@ -5964,7 +6094,8 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
       throw new Error((data.error && data.error.message) || 'Could not modify that area.');
     }
 
-    opt.gallery.push({ label: 'Modified by DesignsLab', image: data.image });
+    const correctedImage = await runBrandIntegrityEngine(data.image);
+    opt.gallery.push({ label: 'Modified by DesignsLab', image: correctedImage });
     opt.activeGalleryIndex = opt.gallery.length - 1;
     if(activeOptionIndex === idx){
       document.getElementById('renderSlotImg').src = data.image;
