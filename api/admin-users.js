@@ -1,6 +1,22 @@
 import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
+import { del } from '@vercel/blob';
+
+// Duplicated from api/projects.js rather than shared — each serverless function here is
+// independent, and this small amount of logic is simpler to keep self-contained per file
+// than to introduce a cross-file import path, matching the pattern already used elsewhere
+// in this project (see that file's own comment on the same tradeoff).
+function collectBlobPaths(node, out) {
+  if (Array.isArray(node)) {
+    node.forEach(item => collectBlobPaths(item, out));
+  } else if (node && typeof node === 'object') {
+    Object.keys(node).forEach(key => collectBlobPaths(node[key], out));
+  } else if (typeof node === 'string') {
+    const match = node.match(/^blob:(.+)$/);
+    if (match) out.push(match[1]);
+  }
+}
 
 /* Role protection is already enforced by middleware.js (ADMIN_ONLY_PATHS), but this
    endpoint re-derives the caller's role independently here too — defense in depth, so a
@@ -196,11 +212,25 @@ export default async function handler(req, res) {
       res.status(400).json({ error: { message: 'The master admin account cannot be deleted.' } });
       return;
     }
+
+    // Deleting a user now also removes all of their projects, and every image/video-frame
+    // asset those projects reference in Blob storage — a deliberate reversal of this
+    // project's earlier "leave projects ownerless" behavior (see prior comment history),
+    // per an explicit request that a deleted user's projects should not linger at all.
+    const userProjects = await sql`SELECT data FROM projects WHERE user_id = ${id};`;
+    const blobPaths = [];
+    userProjects.rows.forEach(row => collectBlobPaths(row.data, blobPaths));
+    if (blobPaths.length > 0) {
+      try {
+        await Promise.all(blobPaths.map(p => del(p)));
+      } catch (err) {
+        // Don't block the user deletion itself on cleanup failing — an orphaned blob
+        // file is a minor storage cost, a user that won't delete is worse.
+        console.error('Could not clean up some blob files for user', id, err);
+      }
+    }
+    await sql`DELETE FROM projects WHERE user_id = ${id};`;
     await sql`DELETE FROM users WHERE id = ${id};`;
-    // Note: this project intentionally leaves that user's existing projects in place
-    // (ownerless) rather than deleting them — removing someone's access shouldn't
-    // destroy work they already produced. An admin can still see them via the "all
-    // projects" admin view.
     res.status(200).json({ ok: true });
     return;
   }
