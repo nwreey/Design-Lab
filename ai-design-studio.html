@@ -6402,6 +6402,46 @@ function escapeHtml(s){
   return (s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
+function escapeRegExp(s){
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/* If `desiredName` exactly matches another saved project's name, both get numbered
+   ("Name 1", "Name 2", ...) so the sidebar always shows two distinguishable entries — the
+   existing project is renamed in place the first time this happens, and every later
+   duplicate just claims the next free number. A name that doesn't collide with anything is
+   returned completely untouched, exactly as typed — this only ever kicks in on an actual
+   duplicate, never to a project with a genuinely different name.
+   `prefetchedProjects` lets a caller that already has the project list (e.g.
+   renameProjectPrompt) skip a redundant fetch; if omitted, this fetches it itself. */
+async function ensureUniqueProjectName(desiredName, excludeId, prefetchedProjects){
+  const trimmed = (desiredName || '').trim();
+  if(!trimmed) return trimmed;
+
+  let projects = prefetchedProjects;
+  if(!projects){
+    try{ projects = await dbGetAllProjects(); }catch(err){ return trimmed; } // fail open — a lookup hiccup shouldn't block saving
+  }
+
+  const others = projects.filter(p => p.id !== excludeId);
+  const plainMatch = others.find(p => p.name === trimmed);
+  const suffixPattern = new RegExp('^' + escapeRegExp(trimmed) + ' (\\d+)$');
+  const numberedMatches = others
+    .map(p => { const m = p.name.match(suffixPattern); return m ? parseInt(m[1], 10) : null; })
+    .filter(n => n !== null);
+
+  if(!plainMatch && numberedMatches.length === 0) return trimmed; // genuinely unique — leave as-is
+
+  if(plainMatch && numberedMatches.length === 0){
+    // First time this name collides: the existing project claims "1", this one becomes "2".
+    try{ await dbRenameProject(plainMatch.id, trimmed + ' 1'); }catch(err){ console.error('Could not renumber existing project:', err); }
+    return trimmed + ' 2';
+  }
+
+  const nextNumber = Math.max(...numberedMatches, plainMatch ? 1 : 0) + 1;
+  return trimmed + ' ' + nextNumber;
+}
+
 function formatSavedDate(iso){
   try{
     const d = new Date(iso);
@@ -6680,12 +6720,21 @@ function restoreGeneratedViewsIfSaved(project){
   lockApprovedActionBar();
 }
 
-function saveCurrentProject(){
+async function saveCurrentProject(){
   const isNewProject = !currentProjectId;
   if(!currentProjectId) currentProjectId = generateProjectId();
+
+  let projectName = (document.getElementById('f_name').value || '').trim() || currentProjectName || 'Untitled Project';
+  if(isNewProject){
+    // Only de-duplicate at the moment a project is first created — after that, its name
+    // only ever changes through the deliberate rename flow, which does its own check.
+    projectName = await ensureUniqueProjectName(projectName, currentProjectId);
+    currentProjectName = projectName;
+  }
+
   const project = {
     id: currentProjectId,
-    name: (document.getElementById('f_name').value || '').trim() || currentProjectName || 'Untitled Project',
+    name: projectName,
     savedAt: new Date().toISOString(),
     formSnapshot: collectFormSnapshot(),
     logoDataUrl: logoDataUrl,
@@ -6778,25 +6827,27 @@ function openProject(id){
     });
 }
 
-function renameProjectPrompt(id){
-  return dbGetAllProjects()
-    .then(projects => {
-      const project = projects.find(p => p.id === id);
-      if(!project) return;
-      const newName = prompt('Rename project:', project.name);
-      if(newName === null) return;
-      const trimmed = newName.trim();
-      if(!trimmed) return;
-      return dbRenameProject(id, trimmed).then(() => {
-        if(currentProjectId === id){
-          currentProjectName = trimmed;
-          const titleEl = document.getElementById('resConceptTitle');
-          if(titleEl) titleEl.textContent = trimmed;
-        }
-        return renderProjectSidebar();
-      });
-    })
-    .catch(err => console.error('Could not rename project:', err));
+async function renameProjectPrompt(id){
+  try{
+    const projects = await dbGetAllProjects();
+    const project = projects.find(p => p.id === id);
+    if(!project) return;
+    const newName = prompt('Rename project:', project.name);
+    if(newName === null) return;
+    const trimmed = newName.trim();
+    if(!trimmed) return;
+
+    const uniqueName = await ensureUniqueProjectName(trimmed, id, projects);
+    await dbRenameProject(id, uniqueName);
+    if(currentProjectId === id){
+      currentProjectName = uniqueName;
+      const titleEl = document.getElementById('resConceptTitle');
+      if(titleEl) titleEl.textContent = uniqueName;
+    }
+    return renderProjectSidebar();
+  }catch(err){
+    console.error('Could not rename project:', err);
+  }
 }
 
 async function deleteProjectPrompt(id){
