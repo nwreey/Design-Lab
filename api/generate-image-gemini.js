@@ -88,13 +88,18 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, isUserInitiatedEdit } = req.body || {};
+    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, isUserInitiatedEdit, isFreeFirstModification } = req.body || {};
     if (!prompt || typeof prompt !== 'string') {
       res.status(400).json({ error: { message: 'Request body must include a "prompt" string.' } });
       return;
     }
 
-    if (isUserInitiatedEdit) {
+    // The very first modification on a freshly generated design doesn't count against the
+    // modify quota at all — occasionally the initial render needs a quick correction, and
+    // that shouldn't cost the person anything. This bypasses both the limit check and the
+    // increment below, not just the increment: someone already at their limit should still
+    // get this one free adjustment, since it isn't meant to be quota-conditional.
+    if (isUserInitiatedEdit && !isFreeFirstModification) {
       const quotaError = await checkModifyQuota(caller);
       if (quotaError) {
         res.status(403).json({ error: { message: quotaError } });
@@ -152,7 +157,7 @@ module.exports = async (req, res) => {
     }
 
     const mime = imagePart.inlineData.mimeType || 'image/png';
-    if (isUserInitiatedEdit) await incrementModifyCount(caller);
+    if (isUserInitiatedEdit && !isFreeFirstModification) await incrementModifyCount(caller);
     res.status(200).json({ image: `data:${mime};base64,${imagePart.inlineData.data}` });
   } catch (err) {
     res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });

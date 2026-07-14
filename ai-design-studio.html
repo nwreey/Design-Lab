@@ -282,6 +282,12 @@
 
   .action-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 6px;padding:12px;background:#fff;border:1.5px solid var(--line);border-radius:2px;}
   .action-bar select{padding:8px 10px;border:1.5px solid var(--line);border-radius:2px;font-family:'Space Grotesk',sans-serif;font-size:12.5px;background:#fff;}
+  .free-modification-note{
+    font-size:12.5px;line-height:1.55;color:#7a5c00;
+    border:1.3px solid #E1A13B;border-radius:2px;background:#FFFBF0;
+    padding:10px 14px;margin:10px 0 0;
+  }
+
   .action-status{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--navy);opacity:.75;min-height:16px;margin:6px 0 14px;}
 
   .approve-progress{margin:6px 0 14px;}
@@ -313,7 +319,12 @@
   .check-item-compact input{margin:0;}
   .viewer3d-camera-row-light{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
   .viewer3d-generated-wrap-light{margin-top:4px;}
-  .viewer3d-generated-grid-light{display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:14px;}
+  .viewer3d-generated-grid-light{display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;}
+  @media(max-width:760px){.viewer3d-generated-grid-light{grid-template-columns:1fr;}}
+  .good-luck-message{
+    text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;
+    color:var(--navy);margin-top:22px;letter-spacing:-0.01em;
+  }
   .viewer3d-generated-card-light{background:#fff;border:1.5px solid var(--line);border-radius:2px;padding:8px;position:relative;}
   .viewer3d-card-remove{position:absolute;top:6px;right:6px;z-index:5;width:22px;height:22px;line-height:1;border-radius:50%;border:1.5px solid var(--navy);background:#fff;color:var(--navy);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
   .viewer3d-card-remove:hover{background:var(--navy);color:#fff;}
@@ -323,7 +334,10 @@
   .viewer3d-card-history-nav button{padding:5px 10px;font-size:11px;}
   .viewer3d-card-history-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink);opacity:.6;white-space:nowrap;}
   .viewer3d-generated-card-light-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);opacity:.7;margin-bottom:6px;}
-  .viewer3d-generated-card-light.pending{display:flex;align-items:center;justify-content:center;min-height:140px;color:var(--ink);opacity:.55;font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center;padding:14px;}
+  .viewer3d-generated-card-light.pending{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:140px;color:var(--ink);opacity:.65;font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center;padding:14px;}
+  .viewer3d-building-icon{font-size:28px;animation:viewerBuildingPulse 1.6s ease-in-out infinite;}
+  .viewer3d-building-label{opacity:.8;}
+  @keyframes viewerBuildingPulse{0%,100%{opacity:.4;transform:scale(1);}50%{opacity:1;transform:scale(1.12);}}
   .viewer3d-generated-card-light.failed{border-color:#c0432b;}
   .viewer3d-generated-card-light-label.failed-label{color:#c0432b;}
   #renderSlotImg{cursor:zoom-in;}
@@ -344,31 +358,8 @@
   .lightbox-close{position:absolute;top:20px;right:28px;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer;background:transparent;border:1.5px solid #fff;padding:8px 16px;border-radius:2px;}
   .lightbox-close:hover{background:#fff;color:var(--navy);}
 
-  .luma-tabs{display:flex;gap:4px;margin-bottom:10px;}
-  .luma-tab{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;padding:9px 18px;border:1.5px solid var(--navy);border-bottom:none;border-radius:2px 2px 0 0;background:var(--paper);color:var(--ink);cursor:pointer;opacity:.6;}
-  .luma-tab.active{opacity:1;background:#0B0C10;color:#fff;}
-  .luma-snapshots-tab{margin:0 0 20px;padding:12px;border:1.5px solid var(--navy);border-radius:2px;background:#0B0C10;}
-  .luma-video-wrap{margin:0 0 20px;padding:12px;border:1.5px solid var(--navy);border-radius:2px;background:#0B0C10;}
   .viewer3d-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#fff;opacity:.75;margin-bottom:8px;}
   .viewer3d-label.is-limit-error{color:#ff7a68;opacity:1;font-weight:600;}
-  #lumaVideoPlayer{width:100%;max-height:480px;border-radius:2px;background:#000;display:block;}
-  .luma-video-actions{display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
-  .viewer3d-status-overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;height:420px;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:12.5px;text-align:center;padding:20px;gap:10px;}
-  .viewer3d-status-bar{width:220px;height:6px;background:rgba(255,255,255,0.15);border-radius:3px;overflow:hidden;}
-  .viewer3d-status-bar-fill{height:100%;background:var(--gold);transition:width .3s ease;}
-  @keyframes lumaProgressPulse{0%{opacity:.35;}50%{opacity:1;}100%{opacity:.35;}}
-  #lumaFrameEditCanvasWrap{position:relative;width:100%;background:#000;border-radius:2px;overflow:hidden;}
-  #lumaFrameEditBaseImg{width:100%;display:block;}
-  #lumaFrameMarkupCanvas{position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;}
-  .luma-snapshots-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
-  .luma-snapshot-thumb{position:relative;width:96px;height:64px;border-radius:2px;border:2px solid rgba(255,255,255,0.2);cursor:pointer;overflow:hidden;flex-shrink:0;background:#000;}
-  .luma-snapshot-thumb:hover{border-color:var(--gold);}
-  .luma-snapshot-thumb.edited{border-color:var(--gold);border-width:2.5px;}
-  .luma-snapshot-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
-  .luma-snapshot-badge{position:absolute;top:2px;right:2px;background:var(--navy);color:var(--paper);font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;padding:1px 4px;border-radius:2px;}
-  .luma-snapshot-history-nav{position:absolute;bottom:2px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(13,20,32,0.85);padding:2px 4px;}
-  .luma-snapshot-history-nav button{padding:0 6px;min-width:auto;line-height:1.4;font-size:11px;}
-  .luma-snapshot-history-nav span{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#fff;}
 
   .gallery-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
   .gallery-thumb{width:84px;height:64px;border-radius:2px;border:2px solid var(--line);cursor:pointer;overflow:hidden;position:relative;flex-shrink:0;background:#0B0C10;}
@@ -1737,6 +1728,9 @@ Replace only the materials and graphics."></textarea>
           <button class="primary small" id="approveDesignBtn" onclick="approveDesign()">Approve</button>
           <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()" style="margin-left:auto;">Other option</button>
         </div>
+        <div class="free-modification-note" id="freeModificationNote" style="display:none;">
+          ✦ Your first modification on this design is on us — occasionally the initial render needs a quick adjustment, and that one won't count against your usage.
+        </div>
         <div class="action-status" id="actionStatus"></div>
         <div class="approve-progress" id="approveProgress" style="display:none;">
           <div class="approve-progress-header">
@@ -1750,57 +1744,7 @@ Replace only the materials and graphics."></textarea>
       </div>
 
       <div class="grid-area-threed">
-        <div class="luma-tabs" id="lumaTabs" style="display:none;">
-          <button class="luma-tab active" id="lumaTabVideoBtn" onclick="switchLumaTab('video')">360° Video</button>
-          <button class="luma-tab" id="lumaTabSnapshotsBtn" onclick="switchLumaTab('snapshots')">Snapshots</button>
-        </div>
-
-        <div class="luma-video-wrap" id="lumaVideoWrap" style="display:none;">
-          <div class="viewer3d-label">Your approved 360° booth video — the snapshots on the other tab are extracted directly from this.</div>
-          <video id="lumaVideoPlayer" controls playsinline crossorigin="anonymous"></video>
-        </div>
-
-        <div class="luma-snapshots-tab" id="lumaSnapshotsTab" style="display:none;">
-          <div class="viewer3d-label">Click any snapshot to mark it up and describe a change — each edit applies directly to that one image. The video itself is never touched or re-rendered.</div>
-          <div class="luma-snapshots-strip" id="lumaSnapshotsStrip"></div>
-        </div>
-
-        <div class="luma-video-actions" id="lumaVideoActionsRow" style="display:none;">
-          <button class="primary small" id="lumaApproveVideoBtn" onclick="approveLumaVideo()">Approve Snapshots</button>
-        </div>
-        <div id="lumaEditProgressWrap" style="display:none;">
-          <div class="viewer3d-status-bar" style="width:100%;margin-top:10px;">
-            <div class="viewer3d-status-bar-fill" id="lumaEditProgressFill" style="width:100%;animation:lumaProgressPulse 1.4s ease-in-out infinite;"></div>
-          </div>
-          <div class="viewer3d-label" id="lumaEditProgressLabel" style="margin-top:6px;margin-bottom:0;">Applying your edit...</div>
-        </div>
-
-        <div id="lumaFrameEditPanel" class="edit-panel" style="display:none;">
-          <div class="edit-canvas-wrap" id="lumaFrameEditCanvasWrap">
-            <img id="lumaFrameEditBaseImg" alt="Paused video frame being edited">
-            <canvas id="lumaFrameMarkupCanvas"></canvas>
-          </div>
-          <div class="edit-toolbar">
-            <button class="ghost small active" id="lumaPenOnBtn" onclick="setLumaPenMode(true)">Pen</button>
-            <button class="ghost small" id="lumaPanOnBtn" onclick="setLumaPenMode(false)">No draw</button>
-            <button class="ghost small" onclick="clearLumaMarkup()">Clear markup</button>
-            <div class="markup-color-picker" id="lumaMarkupColorPicker">
-              <button type="button" class="markup-color-swatch active" data-color="#E1355C" style="background:#E1355C;" onclick="setLumaMarkupColor('#E1355C', this)" title="Red"></button>
-              <button type="button" class="markup-color-swatch" data-color="#2E6BE1" style="background:#2E6BE1;" onclick="setLumaMarkupColor('#2E6BE1', this)" title="Blue"></button>
-              <button type="button" class="markup-color-swatch" data-color="#2E9E5C" style="background:#2E9E5C;" onclick="setLumaMarkupColor('#2E9E5C', this)" title="Green"></button>
-              <button type="button" class="markup-color-swatch" data-color="#E8B923" style="background:#E8B923;" onclick="setLumaMarkupColor('#E8B923', this)" title="Yellow"></button>
-            </div>
-            <span class="hint" style="margin:0;">Draw on the frame to mark the area, then describe the change below.</span>
-          </div>
-          <textarea id="lumaEditText" placeholder="Describe the change you want (e.g. make the reception counter blue, remove the extra plant)"></textarea>
-
-          <label class="check-item-compact" style="margin-top:8px;"><input type="checkbox" id="lumaEditModularWallLayout"> Modular Wall Layout — equal spacing, identical repeated panels, mandatory symmetry</label>
-          <div class="edit-actions">
-            <button class="ghost small" onclick="closeLumaFrameEditPanel()">Cancel</button>
-            <button class="primary small" onclick="submitSnapshotEdit()">Apply edit to this snapshot</button>
-          </div>
-          <div class="edit-status" id="lumaEditStatus"></div>
-        </div>
+        <video id="lumaVideoPlayer" playsinline crossorigin="anonymous" style="display:none;"></video>
       </div>
 
       <div class="grid-area-camerapanel">
@@ -1812,6 +1756,7 @@ Replace only the materials and graphics."></textarea>
     <div class="viewer3d-generated-wrap-light" id="viewer3dGeneratedWrap" style="display:block;">
       <div class="section-label-light">Final Views — click any image to preview full size</div>
       <div class="viewer3d-generated-grid-light" id="viewer3dGeneratedGrid"></div>
+      <div class="good-luck-message" id="goodLuckMessage" style="display:none;">Good Luck with Your Project</div>
     </div>
   </div>
 
@@ -4783,7 +4728,8 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
     gallery: [],
     activeGalleryIndex: 0,
     status: 'loading',
-    errorMsg: ''
+    errorMsg: '',
+    usedFreeModification: false
   }));
   activeOptionIndex = 0;
 
@@ -4923,6 +4869,7 @@ function showOptionV2(i){
     dlBtn.style.display = 'none';
     actionBar.style.display = 'none';
     actionStatus.textContent = '';
+    document.getElementById('freeModificationNote').style.display = 'none';
     status.textContent = 'Generating this rendered concept... this can take up to a minute.';
     document.getElementById('galleryStrip').innerHTML = '';
   }else if(opt.status === 'error'){
@@ -4930,6 +4877,7 @@ function showOptionV2(i){
     dlBtn.style.display = 'none';
     actionBar.style.display = 'none';
     actionStatus.textContent = '';
+    document.getElementById('freeModificationNote').style.display = 'none';
     status.textContent = 'This option failed to render: ' + opt.errorMsg;
     document.getElementById('galleryStrip').innerHTML = '';
   }else{
@@ -4939,6 +4887,7 @@ function showOptionV2(i){
     dlBtn.style.display = 'inline-block';
     actionBar.style.display = 'flex';
     actionStatus.textContent = '';
+    document.getElementById('freeModificationNote').style.display = opt.usedFreeModification ? 'none' : 'block';
     status.textContent = '';
     renderGalleryStrip();
     renderGalleryNav();
@@ -5168,7 +5117,9 @@ async function regenerateOtherOption(){
   // Submit — so it gets the same "this will use 1 of your modifications" confirmation
   // before it runs, not just Modify Design.
   const noticeText = document.getElementById('otherOptionNoticeText');
-  if(isAdminUser){
+  if(!opt.usedFreeModification){
+    noticeText.textContent = "Your first modification on this design won't count against your usage — occasionally the initial render needs a quick adjustment, and this one is on us.";
+  }else if(isAdminUser){
     noticeText.textContent = 'This will generate a new variation of the current design.';
   }else if(currentUserModifyLimit == null){
     noticeText.textContent = `This will use 1 of your modifications — you've used ${currentUserModifyCount != null ? currentUserModifyCount : 0} so far, with no set limit.`;
@@ -5185,6 +5136,7 @@ async function confirmRegenerateOtherOption(){
   if(!opt) return;
 
   const statusEl = document.getElementById('actionStatus');
+  const isFreeFirstModification = !opt.usedFreeModification;
 
   const btn = document.getElementById('otherOptionBtn');
   if(btn) btn.disabled = true;
@@ -5194,7 +5146,7 @@ async function confirmRegenerateOtherOption(){
     const response = await fetch('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: true })
+      body: JSON.stringify({ prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: true, isFreeFirstModification })
     });
     const data = await response.json().catch(() => ({}));
     if(!response.ok || !data.image){
@@ -5204,10 +5156,13 @@ async function confirmRegenerateOtherOption(){
     opt.status = 'done';
     opt.gallery.push({ label: 'Other option', image: compressed });
     opt.activeGalleryIndex = opt.gallery.length - 1;
-    // Other option already counts against the modify quota on the backend (same
-    // isUserInitiatedEdit path as Modify Design's Submit) — keep the sidebar's local
-    // count in sync immediately here too, not just after a Modify Design submission.
-    if(!isAdminUser && currentUserModifyCount != null){
+    if(isFreeFirstModification){
+      opt.usedFreeModification = true;
+      if(activeOptionIndex === idx) document.getElementById('freeModificationNote').style.display = 'none';
+    }else if(!isAdminUser && currentUserModifyCount != null){
+      // Other option already counts against the modify quota on the backend (same
+      // isUserInitiatedEdit path as Modify Design's Submit) — keep the sidebar's local
+      // count in sync immediately here too, not just after a Modify Design submission.
       currentUserModifyCount++;
       renderModifyUsageIndicator();
     }
@@ -5690,8 +5645,11 @@ async function submitModifyDesign(){
     return;
   }
 
+  const opt = optionResults[activeOptionIndex];
   const noticeText = document.getElementById('modifyNoticeText');
-  if(isAdminUser){
+  if(opt && !opt.usedFreeModification){
+    noticeText.textContent = "Your first modification on this design won't count against your usage — occasionally the initial render needs a quick adjustment, and this one is on us.";
+  }else if(isAdminUser){
     noticeText.textContent = 'Submit this modification?';
   }else if(currentUserModifyLimit == null){
     noticeText.textContent = `This will use 1 of your modifications — you've used ${currentUserModifyCount != null ? currentUserModifyCount : 0} so far, with no set limit.`;
@@ -5740,6 +5698,9 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
     additionalReferenceImages.push({ data: attachedParts.base64, mimeType: attachedParts.mime });
   }
 
+  // Captured before the request, since opt.usedFreeModification changes as a result of it.
+  const isFreeFirstModification = !opt.usedFreeModification;
+
   // Close the panel and return to the picture view immediately — the loading state and
   // any error live under the main image from here on, not inside the (now closed) panel.
   closeModifyDesignPanel();
@@ -5750,7 +5711,7 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
     const response = await fetch('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: true })
+      body: JSON.stringify({ prompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: true, isFreeFirstModification })
     });
     const rawText = await response.text();
     let data = {};
@@ -5767,9 +5728,12 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
       renderGalleryNav();
     }
 
-    // Keep the sidebar indicator in sync immediately, without waiting for a page reload
-    // or another /api/me round trip — the backend already incremented the real count.
-    if(!isAdminUser && currentUserModifyCount != null){
+    if(isFreeFirstModification){
+      opt.usedFreeModification = true;
+      if(activeOptionIndex === idx) document.getElementById('freeModificationNote').style.display = 'none';
+    }else if(!isAdminUser && currentUserModifyCount != null){
+      // Keep the sidebar indicator in sync immediately, without waiting for a page reload
+      // or another /api/me round trip — the backend already incremented the real count.
       currentUserModifyCount++;
       renderModifyUsageIndicator();
     }
@@ -5792,24 +5756,6 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
 
 let lumaState = { generationId: null, videoUrl: null, videoDurationSeconds: 5 };
 
-function switchLumaTab(tab){
-  const videoWrap = document.getElementById('lumaVideoWrap');
-  const snapshotsTab = document.getElementById('lumaSnapshotsTab');
-  const videoBtn = document.getElementById('lumaTabVideoBtn');
-  const snapshotsBtn = document.getElementById('lumaTabSnapshotsBtn');
-  if(tab === 'snapshots'){
-    videoWrap.style.display = 'none';
-    snapshotsTab.style.display = 'block';
-    videoBtn.classList.remove('active');
-    snapshotsBtn.classList.add('active');
-  }else{
-    videoWrap.style.display = 'block';
-    snapshotsTab.style.display = 'none';
-    videoBtn.classList.add('active');
-    snapshotsBtn.classList.remove('active');
-  }
-}
-
 function resetLumaState(){
   lumaState = { generationId: null, videoUrl: null, videoDurationSeconds: 5 };
   const player = document.getElementById('lumaVideoPlayer');
@@ -5818,14 +5764,8 @@ function resetLumaState(){
     player.removeAttribute('src');
     player.load();
   }
-  document.getElementById('lumaVideoWrap').style.display = 'none';
-  document.getElementById('lumaTabs').style.display = 'none';
-  document.getElementById('lumaSnapshotsTab').style.display = 'none';
-  document.getElementById('lumaVideoActionsRow').style.display = 'none';
   lumaSnapshotFrames = [];
-  const strip = document.getElementById('lumaSnapshotsStrip');
-  if(strip) strip.innerHTML = '';
-  closeLumaFrameEditPanel();
+  document.getElementById('goodLuckMessage').style.display = 'none';
 }
 
 /* Retry-tolerant polling for Luma generations (both initial video and video_edit) — mirrors
@@ -5923,9 +5863,6 @@ async function generateLumaVideo(heroImage){
 
   lumaState.generationId = genData.generationId;
 
-  document.getElementById('lumaTabs').style.display = 'flex';
-  switchLumaTab('video');
-
   const videoUrl = await pollLumaGeneration(genData.generationId, (state, attempts, maxAttempts) => {
     // This is a gentle, honest approximation, not a claim of exact precision — Luma
     // doesn't expose a true completion percentage, so this eases toward (but deliberately
@@ -5937,35 +5874,21 @@ async function generateLumaVideo(heroImage){
     updateApproveProgress(eased, `Creating your 360° video — ${stageLabel.toLowerCase()}...`);
   });
   updateApproveProgress(50, 'Your 360° video is ready — now generating the individual camera views.');
+  // The video loads into the player element purely so frames can be extracted from it —
+  // the player itself is never shown; only the resulting views are.
   await loadLumaVideoIntoPlayer(videoUrl);
-  document.getElementById('lumaVideoActionsRow').style.display = 'flex';
   await generateLumaSnapshotStrip();
   updateApproveProgress(100, 'All views are ready.');
 }
 
-/* ================= Luma frame edit: pause the video, mark up the frame, send to Luma ================= */
-
-let lumaEditCanvasCtx = null;
-let lumaIsDrawingMarkup = false;
-let lumaPenModeOn = true;
-let lumaMarkupColor = '#E1355C';
-let lumaMarkupColorsUsed = new Set();
-
-let lumaSnapshotFrames = []; // [{ index, imageDataUrl }]
-let activeSnapshotEditIndex = null;
+let lumaSnapshotFrames = []; // [{ index, imageDataUrl }] — used only transiently during extraction
 const LUMA_SNAPSHOT_COUNT = 12;
 
 /* Extracts a fixed number of evenly-spaced frames across the video, then has OpenAI clean
    each one up into a proper still image (see cleanUpVideoFrameWithOpenAI below) — these
-   become the final camera-view images directly. Editing any one of them (via
-   submitSnapshotEdit) only ever touches that single snapshot through OpenAI; the Luma
-   video itself is generated once and never re-rendered. */
-/* Namespaced so a snapshot's edit history never collides with the final-views-grid history
-   keys (which use plain CAM01-style ids) — both live in the same viewCardHistories object. */
-function snapshotHistoryKey(frameIndex){
-  return 'snap-' + frameIndex;
-}
-
+   become the final camera-view images directly, populated straight into the same grid and
+   Edit system (openEditPanel) that every other view uses. The Luma video itself is
+   generated once, purely to extract frames from, and is never shown or re-rendered. */
 async function generateLumaSnapshotStrip(){
   const player = document.getElementById('lumaVideoPlayer');
   if(!player || !player.src) return;
@@ -5975,10 +5898,21 @@ async function generateLumaSnapshotStrip(){
   const duration = lumaState.videoDurationSeconds || player.duration || 5;
 
   lumaSnapshotFrames = [];
-  const strip = document.getElementById('lumaSnapshotsStrip');
-  if(strip) strip.innerHTML = '<div class="viewer3d-label">Reading the video and generating clean snapshots...</div>';
+
+  // Show the final grid immediately, with every card in its pending ("building") state up
+  // front — this is what lets the person see all 12 slots right away, then watch each one
+  // fill in as it's actually ready, rather than waiting for all of them before seeing any.
+  document.getElementById('viewer3dGeneratedCard').style.display = 'block';
+  document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
+  document.getElementById('goodLuckMessage').style.display = 'none';
+  for(let i = 0; i < LUMA_SNAPSHOT_COUNT; i++){
+    const camId = 'CAM' + String(i + 1).padStart(2, '0');
+    renderGeneratedViewCard(camId, 'pending', null);
+  }
+  document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
 
   for(let i = 0; i < LUMA_SNAPSHOT_COUNT; i++){
+    const camId = 'CAM' + String(i + 1).padStart(2, '0');
     const frameIndex = Math.round((i / LUMA_SNAPSHOT_COUNT) * duration * 24);
     const timeSeconds = frameIndex / 24;
     updateApproveProgress(50 + (i / LUMA_SNAPSHOT_COUNT) * 50, `Creating camera view ${i + 1} of ${LUMA_SNAPSHOT_COUNT}...`);
@@ -5986,16 +5920,19 @@ async function generateLumaSnapshotStrip(){
       const rawFrameDataUrl = await captureVideoFrameAtTime(player, timeSeconds);
       const cleanedDataUrl = await cleanUpVideoFrameWithOpenAI(rawFrameDataUrl);
       lumaSnapshotFrames.push({ index: frameIndex, imageDataUrl: cleanedDataUrl });
-      initCardHistory(snapshotHistoryKey(frameIndex), cleanedDataUrl);
+      initCardHistory(camId, cleanedDataUrl);
+      renderGeneratedViewCard(camId, 'done', cleanedDataUrl);
     }catch(err){
       console.error('Could not prepare snapshot at', timeSeconds, err);
+      renderGeneratedViewCard(camId, 'failed', err.message || 'Could not generate that view.');
     }
   }
 
   player.currentTime = originalTime;
   if(!wasPaused) player.play();
 
-  renderSnapshotThumbnails();
+  document.getElementById('goodLuckMessage').style.display = 'block';
+  saveCurrentProject();
 }
 
 
@@ -6039,238 +5976,6 @@ async function cleanUpVideoFrameWithOpenAI(rawFrameDataUrl){
     return rawFrameDataUrl;
   }
   return data.image;
-}
-
-function renderSnapshotThumbnails(){
-  const strip = document.getElementById('lumaSnapshotsStrip');
-  if(!strip) return;
-  strip.innerHTML = lumaSnapshotFrames.map(frame => {
-    const hist = viewCardHistories[snapshotHistoryKey(frame.index)];
-    const historyNav = (hist && hist.images.length > 1) ? `
-      <div class="luma-snapshot-history-nav">
-        <button class="ghost small" onclick="event.stopPropagation(); goToPreviousSnapshotView(${frame.index})">‹</button>
-        <span>${hist.activeIndex + 1}/${hist.images.length}</span>
-        <button class="ghost small" onclick="event.stopPropagation(); goToNextSnapshotView(${frame.index})">›</button>
-      </div>
-    ` : '';
-    return `
-      <div class="luma-snapshot-thumb" onclick="openSnapshotEditPanel(${frame.index})">
-        <img src="${frame.imageDataUrl}">
-        ${historyNav}
-      </div>
-    `;
-  }).join('');
-}
-
-function goToPreviousSnapshotView(frameIndex){
-  const key = snapshotHistoryKey(frameIndex);
-  const hist = viewCardHistories[key];
-  if(!hist || hist.activeIndex <= 0) return;
-  hist.activeIndex--;
-  const frame = lumaSnapshotFrames.find(f => f.index === frameIndex);
-  if(frame) frame.imageDataUrl = hist.images[hist.activeIndex];
-  renderSnapshotThumbnails();
-}
-
-function goToNextSnapshotView(frameIndex){
-  const key = snapshotHistoryKey(frameIndex);
-  const hist = viewCardHistories[key];
-  if(!hist || hist.activeIndex >= hist.images.length - 1) return;
-  hist.activeIndex++;
-  const frame = lumaSnapshotFrames.find(f => f.index === frameIndex);
-  if(frame) frame.imageDataUrl = hist.images[hist.activeIndex];
-  renderSnapshotThumbnails();
-}
-
-function openSnapshotEditPanel(frameIndex){
-  const frame = lumaSnapshotFrames.find(f => f.index === frameIndex);
-  if(!frame) return;
-  activeSnapshotEditIndex = frameIndex;
-
-  const baseImg = document.getElementById('lumaFrameEditBaseImg');
-  const canvas = document.getElementById('lumaFrameMarkupCanvas');
-
-  document.getElementById('lumaEditText').value = '';
-  document.getElementById('lumaEditStatus').textContent = '';
-  lumaPenModeOn = true;
-  document.getElementById('lumaPenOnBtn').classList.add('active');
-  document.getElementById('lumaPanOnBtn').classList.remove('active');
-  lumaMarkupColor = '#E1355C';
-  lumaMarkupColorsUsed = new Set();
-  document.querySelectorAll('#lumaMarkupColorPicker .markup-color-swatch').forEach(el => el.classList.remove('active'));
-  const firstSwatch = document.querySelector('#lumaMarkupColorPicker .markup-color-swatch');
-  if(firstSwatch) firstSwatch.classList.add('active');
-
-  baseImg.onload = function(){
-    canvas.width = baseImg.naturalWidth;
-    canvas.height = baseImg.naturalHeight;
-    lumaEditCanvasCtx = canvas.getContext('2d');
-    lumaEditCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-    wireLumaCanvasEvents(canvas);
-  };
-  // frame.imageDataUrl can now be a remote (cross-origin) Blob URL rather than an
-  // embedded data: URL — without this, the canvas this image later gets drawn into
-  // (when the edit is submitted) would be "tainted" and fail to export.
-  if(!frame.imageDataUrl.startsWith('data:')) baseImg.crossOrigin = 'anonymous';
-  baseImg.src = frame.imageDataUrl;
-  if(baseImg.complete && baseImg.naturalWidth){ baseImg.onload(); }
-
-  document.getElementById('lumaFrameEditPanel').style.display = 'block';
-  document.getElementById('lumaFrameEditPanel').scrollIntoView({behavior:'smooth', block:'center'});
-}
-
-function closeLumaFrameEditPanel(){
-  const panel = document.getElementById('lumaFrameEditPanel');
-  if(panel) panel.style.display = 'none';
-  activeSnapshotEditIndex = null;
-}
-
-function setLumaPenMode(on){
-  lumaPenModeOn = on;
-  document.getElementById('lumaPenOnBtn').classList.toggle('active', on);
-  document.getElementById('lumaPanOnBtn').classList.toggle('active', !on);
-}
-
-function setLumaMarkupColor(color, btn){
-  lumaMarkupColor = color;
-  document.querySelectorAll('#lumaMarkupColorPicker .markup-color-swatch').forEach(el => el.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-}
-
-function clearLumaMarkup(){
-  if(!lumaEditCanvasCtx) return;
-  const canvas = document.getElementById('lumaFrameMarkupCanvas');
-  lumaEditCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-  lumaMarkupColorsUsed = new Set();
-}
-
-function lumaCanvasHasMarkup(canvas){
-  if(!lumaEditCanvasCtx) return false;
-  try{
-    const imgData = lumaEditCanvasCtx.getImageData(0, 0, canvas.width, canvas.height).data;
-    for(let p = 3; p < imgData.length; p += 4){
-      if(imgData[p] !== 0) return true;
-    }
-  }catch(e){ /* ignore */ }
-  return false;
-}
-
-function wireLumaCanvasEvents(canvas){
-  canvas.onmousedown = (e) => {
-    if(!lumaPenModeOn) return;
-    lumaIsDrawingMarkup = true;
-    const p = getCanvasPos(canvas, e);
-    lumaEditCanvasCtx.beginPath();
-    lumaEditCanvasCtx.moveTo(p.x, p.y);
-  };
-  canvas.onmousemove = (e) => {
-    if(!lumaIsDrawingMarkup || !lumaPenModeOn) return;
-    const p = getCanvasPos(canvas, e);
-    lumaEditCanvasCtx.lineTo(p.x, p.y);
-    lumaEditCanvasCtx.strokeStyle = lumaMarkupColor;
-    lumaEditCanvasCtx.lineWidth = Math.max(4, canvas.width / 150);
-    lumaEditCanvasCtx.lineCap = 'round';
-    lumaEditCanvasCtx.stroke();
-    lumaMarkupColorsUsed.add(lumaMarkupColor);
-  };
-  canvas.onmouseup = () => { lumaIsDrawingMarkup = false; };
-  canvas.onmouseleave = () => { lumaIsDrawingMarkup = false; };
-  canvas.ontouchstart = (e) => { e.preventDefault(); canvas.onmousedown(e); };
-  canvas.ontouchmove = (e) => { e.preventDefault(); canvas.onmousemove(e); };
-  canvas.ontouchend = (e) => { e.preventDefault(); canvas.onmouseup(); };
-}
-
-async function submitSnapshotEdit(){
-  const editDesc = document.getElementById('lumaEditText').value.trim();
-  const canvas = document.getElementById('lumaFrameMarkupCanvas');
-  const baseImg = document.getElementById('lumaFrameEditBaseImg');
-  const hasMarkup = lumaCanvasHasMarkup(canvas);
-
-  if(!editDesc){
-    await customAlert('Describe the change you want for this snapshot before saving it.', 'Modify Snapshot');
-    return;
-  }
-  if(activeSnapshotEditIndex === null) return;
-
-  const composite = document.createElement('canvas');
-  composite.width = canvas.width;
-  composite.height = canvas.height;
-  const cctx = composite.getContext('2d');
-  cctx.drawImage(baseImg, 0, 0, composite.width, composite.height);
-  cctx.drawImage(canvas, 0, 0);
-  const compositeDataUrl = composite.toDataURL('image/png');
-
-  const colorsUsedList = Array.from(lumaMarkupColorsUsed).map(c => MARKUP_COLOR_NAMES[c] || c);
-  const markupDescription = colorsUsedList.length > 1
-    ? `The attached image includes hand-drawn markings in ${colorsUsedList.length} different colors (${colorsUsedList.join(', ')}) — treat each color as marking a separate, distinct change.`
-    : colorsUsedList.length === 1
-      ? `The attached image includes a hand-drawn ${colorsUsedList[0]} marking indicating exactly where this change should be applied.`
-      : '';
-
-  const modularWallLayout = document.getElementById('lumaEditModularWallLayout').checked;
-  const fullPrompt = (`Using the attached image as the exact reference for this exhibition booth still, apply this requested change while keeping everything else identical: "${editDesc}". ${hasMarkup ? markupDescription : ''}`).trim() + buildApprovedDecisionsText() + (modularWallLayout ? MODULAR_WALL_LAYOUT_TEXT : '') + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX;
-
-  const editingIndex = activeSnapshotEditIndex;
-  closeLumaFrameEditPanel();
-
-  // This edits ONLY this one snapshot, directly via OpenAI — the video itself is never
-  // touched or re-rendered, so this is fast and each edit costs only a single OpenAI call.
-  const progressWrap = document.getElementById('lumaEditProgressWrap');
-  const progressLabel = document.getElementById('lumaEditProgressLabel');
-  if(progressWrap) progressWrap.style.display = 'block';
-  if(progressLabel) setStatusError(progressLabel, 'Applying your edit to this snapshot...');
-
-  try{
-    const compressed = await compressDataUrl(compositeDataUrl, 1536, 0.88);
-    const { mime, base64 } = dataUrlParts(compressed);
-
-    const response = await fetch('/api/edit-image-openai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: fullPrompt, referenceImage: base64, referenceMimeType: mime, preferSpeed: shouldPreferSpeedForCurrentBooth(), size: '1536x1024', isUserInitiatedEdit: true })
-    });
-    const rawText = await response.text();
-    let data = {};
-    try{ data = JSON.parse(rawText); }catch(e){ /* leave as {} */ }
-    if(!response.ok || !data.image){
-      throw new Error((data.error && data.error.message) || 'Could not apply that edit.');
-    }
-
-    pushCardHistory(snapshotHistoryKey(editingIndex), data.image);
-    const frame = lumaSnapshotFrames.find(f => f.index === editingIndex);
-    if(frame) frame.imageDataUrl = data.image;
-    if(!isAdminUser && currentUserEditCount != null){
-      currentUserEditCount++;
-      renderEditUsageIndicator();
-    }
-
-    if(progressWrap) progressWrap.style.display = 'none';
-    renderSnapshotThumbnails();
-    saveCurrentProject();
-  }catch(err){
-    console.error('Snapshot edit failed:', err);
-    if(progressLabel){
-      setStatusError(progressLabel, 'Could not apply that edit (' + (err.message || 'unknown error') + ').');
-    }
-    if(progressWrap) progressWrap.style.display = 'block';
-  }
-}
-
-/* ================= Approve the snapshots — they become the final views directly ================= */
-
-function approveLumaVideo(){
-  if(!lumaState.videoUrl && !lumaState.generationId) return;
-  if(lumaSnapshotFrames.length === 0) return;
-
-  document.getElementById('viewer3dGeneratedCard').style.display = 'block';
-  lumaSnapshotFrames.forEach((frame, i) => {
-    const camId = 'CAM' + String(i + 1).padStart(2, '0');
-    initCardHistory(camId, frame.imageDataUrl);
-    renderGeneratedViewCard(camId, 'done', frame.imageDataUrl);
-  });
-
-  document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
-  saveCurrentProject();
 }
 
 function captureVideoFrameAtTime(videoEl, timeSeconds){
@@ -6440,7 +6145,7 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
 
   if(state === 'pending'){
     card.className = 'viewer3d-generated-card-light pending';
-    card.innerHTML = `<div class="viewer3d-generated-card-label">${label}</div><div>Extracting from video...</div>`;
+    card.innerHTML = `<div class="viewer3d-generated-card-label">${label}</div><div class="viewer3d-building-icon">🏗️</div><div class="viewer3d-building-label">Building this view...</div>`;
     return;
   }
 
@@ -6532,7 +6237,6 @@ async function confirmApproveDesign(){
     await generateLumaVideo(heroImage);
     await new Promise(r => setTimeout(r, 800)); // let the 100% completion state actually register before it disappears
     hideApproveProgress();
-    document.getElementById('lumaVideoWrap').scrollIntoView({behavior:'smooth', block:'start'});
   }catch(err){
     console.error('Luma 360 video generation failed:', err);
     hideApproveProgress();
@@ -6601,7 +6305,7 @@ function dbPutProject(project){
     body: JSON.stringify(payload)
   }).then(async response => {
     const data = await response.json().catch(() => ({}));
-    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not save project.');
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'The server did not respond with a clear reason — this can happen if the save took too long (a project with many images can take a moment)');
     if(data.storedProject) zipUpdateBlobRefCache(project, data.storedProject);
     return data;
   });
@@ -6880,12 +6584,42 @@ function restoreResultsView(project){
 /* Presigned Luma video URLs expire after 1 hour, but the underlying generation itself
    never does — so on reload, we re-poll for a fresh URL using the saved generationId
    rather than storing (and eventually reusing a dead) URL, and rather than ever
-   re-generating the video, which would cost money for something we already have. */
+   re-generating the video, which would cost money for something we already have.
+   That said, the common case now is that all 12 views were already extracted and saved
+   the first time — in that case we skip touching Luma or OpenAI entirely and just
+   restore the saved images directly, which is both instant and free. The video-fetch
+   path below is now only a fallback for a project saved before that finished (e.g. the
+   person navigated away mid-generation). */
 async function restoreLumaVideoIfSaved(project){
   if(!project.lumaGenerationId) return;
 
   lumaState.generationId = project.lumaGenerationId;
   lumaState.videoDurationSeconds = project.lumaVideoDurationSeconds || 5;
+
+  const savedHistories = project.viewCardHistories || {};
+  const hasSavedViews = Object.keys(savedHistories).some(camId => {
+    const hist = savedHistories[camId];
+    return hist && hist.images && hist.images.length > 0;
+  });
+
+  if(hasSavedViews){
+    viewCardHistories = savedHistories;
+    approvedDesignDecisions = project.approvedDesignDecisions || [];
+    editDesignApprovedCount = project.editDesignApprovedCount || 0;
+    document.getElementById('viewer3dGeneratedCard').style.display = 'block';
+    document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
+    Object.keys(viewCardHistories).forEach(camId => {
+      const hist = viewCardHistories[camId];
+      if(hist && hist.images && hist.images.length){
+        if(camId.startsWith('EDITDESIGN_') && !VIEWER_CAMERA_LABELS[camId]){
+          VIEWER_CAMERA_LABELS[camId] = 'Uploaded Design ' + camId.replace('EDITDESIGN_', '');
+        }
+        renderGeneratedViewCard(camId, 'done', hist.images[hist.activeIndex]);
+      }
+    });
+    document.getElementById('goodLuckMessage').style.display = 'block';
+    return;
+  }
 
   const statusEl = document.getElementById('actionStatus');
   if(statusEl) statusEl.textContent = 'Restoring your previously generated 360° video...';
@@ -6899,27 +6633,8 @@ async function restoreLumaVideoIfSaved(project){
       throw new Error((data.error && data.error.message) || 'Could not retrieve the saved video.');
     }
 
-    document.getElementById('lumaTabs').style.display = 'flex';
-    switchLumaTab('video');
     await loadLumaVideoIntoPlayer(data.videoUrl);
-    document.getElementById('lumaVideoActionsRow').style.display = 'flex';
     await generateLumaSnapshotStrip();
-
-    if(project.cameraPanelApproved){
-      viewCardHistories = project.viewCardHistories || {};
-      approvedDesignDecisions = project.approvedDesignDecisions || [];
-      editDesignApprovedCount = project.editDesignApprovedCount || 0;
-      Object.keys(viewCardHistories).forEach(camId => {
-        const hist = viewCardHistories[camId];
-        if(hist && hist.images && hist.images.length){
-          if(camId.startsWith('EDITDESIGN_') && !VIEWER_CAMERA_LABELS[camId]){
-            VIEWER_CAMERA_LABELS[camId] = 'Uploaded Design ' + camId.replace('EDITDESIGN_', '');
-          }
-          document.getElementById('viewer3dGeneratedCard').style.display = 'block';
-          renderGeneratedViewCard(camId, 'done', hist.images[hist.activeIndex]);
-        }
-      });
-    }
 
     if(statusEl) statusEl.textContent = '';
   }catch(err){
@@ -7098,7 +6813,8 @@ function handleExistingDesignUpload(input){
       gallery: [{ label: 'Original', image: e.target.result }],
       activeGalleryIndex: 0,
       status: 'done',
-      errorMsg: ''
+      errorMsg: '',
+      usedFreeModification: true
     }];
     activeOptionIndex = 0;
 

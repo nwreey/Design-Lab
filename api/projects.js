@@ -81,15 +81,13 @@ const BLOB_REF_RE = /^blob:(.+)$/;
 
 async function extractImages(node, projectId, uploadedCountRef) {
   if (Array.isArray(node)) {
-    const out = [];
-    for (const item of node) out.push(await extractImages(item, projectId, uploadedCountRef));
-    return out;
+    return Promise.all(node.map(item => extractImages(item, projectId, uploadedCountRef)));
   }
   if (node && typeof node === 'object') {
+    const keys = Object.keys(node);
+    const values = await Promise.all(keys.map(key => extractImages(node[key], projectId, uploadedCountRef)));
     const out = {};
-    for (const key of Object.keys(node)) {
-      out[key] = await extractImages(node[key], projectId, uploadedCountRef);
-    }
+    keys.forEach((key, i) => { out[key] = values[i]; });
     return out;
   }
   if (typeof node === 'string' && DATA_URL_RE.test(node)) {
@@ -108,15 +106,13 @@ async function extractImages(node, projectId, uploadedCountRef) {
 
 async function inlineImages(node) {
   if (Array.isArray(node)) {
-    const out = [];
-    for (const item of node) out.push(await inlineImages(item));
-    return out;
+    return Promise.all(node.map(item => inlineImages(item)));
   }
   if (node && typeof node === 'object') {
+    const keys = Object.keys(node);
+    const values = await Promise.all(keys.map(key => inlineImages(node[key])));
     const out = {};
-    for (const key of Object.keys(node)) {
-      out[key] = await inlineImages(node[key]);
-    }
+    keys.forEach((key, i) => { out[key] = values[i]; });
     return out;
   }
   if (typeof node === 'string') {
