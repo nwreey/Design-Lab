@@ -5002,66 +5002,134 @@ function unlockForm(){
   document.querySelectorAll('#formCard input, #formCard select, #formCard textarea, #formCard button').forEach(el => { el.disabled = false; });
 }
 
-/* ================= BIE-001 — Brand Integrity Engine =================
-   Purpose: guarantee every generated design uses the client's ORIGINAL branding assets
-   exactly as uploaded. Gemini's job is architecture and an approximate logo placement —
-   it is never trusted to redraw a logo or recreate typography, since generative models
-   routinely drift a wordmark's shape, spacing, or color even when explicitly told not to.
-   BIE-001's job is branding accuracy: it runs as one automatic OpenAI edit call immediately
-   after every Gemini render, using that render as its reference and the real uploaded logo
-   file as a second reference, and replaces every detected logo placement with the exact
-   uploaded artwork — never a redraw, never a regeneration, never a reinterpretation.
+/* ================= BIE-001 — Brand Asset Integrity Engine =================
+   Purpose: guarantee every generated design uses the client's ORIGINAL brand assets exactly
+   as uploaded, not an AI approximation of them. Gemini's (and every downstream edit's) job is
+   architecture, layout, and an approximate placement of branding — it is never trusted to
+   redraw a logo, rewrite a poster, or recreate typography, since generative models routinely
+   drift a wordmark's shape, spacing, or color even when explicitly told not to. BIE-001's job
+   is brand accuracy only: it runs as one automatic OpenAI edit call immediately after every
+   Gemini render, using that render as its base reference plus one reference image per real
+   uploaded brand asset, and replaces every detected placement of that asset type with the
+   exact uploaded original — never a redraw, never a regeneration, never a reinterpretation.
+
+   MODULAR DESIGN — this is the part of the spec that matters most for how this function is
+   built: BIE-001 is not "the logo replacer," it's a small engine that runs whatever brand-asset
+   PROVIDERS are actually active for this project. Each provider (see BRAND_ASSET_PROVIDERS
+   below) knows how to detect if its own asset type was actually uploaded, and if so contributes
+   (a) one or more reference images and (b) its own prompt section describing what to detect and
+   how to replace it, matched and perspective/lighting/material-corrected against those images.
+   collectActiveBrandAssetProviders() runs every provider and keeps only the ones that found a
+   real uploaded asset to enforce; those get composed into ONE prompt and ONE OpenAI edit call —
+   still a single-call pass, just covering however many asset types are actually active. Adding a
+   new asset type later is adding one more provider function of the same shape and one more line
+   in BRAND_ASSET_PROVIDERS — nothing else about this function needs to change.
+
+   Wired and active today: Company Logo and Posters — both already have real upload fields
+   elsewhere in this form (logoDataUrl / posterFiles). Every other asset type BIE-001's spec
+   lists — event logo, sponsor/partner logos, product images, LED/TV/touchscreen/kiosk/totem
+   screen content, QR codes, wayfinding/directional signs, safety icons, certification logos,
+   award badges, social media icons, campaign artwork, promotional graphics — has no upload
+   field anywhere in this app yet, so there is no real "original uploaded asset" for a provider
+   to enforce for them. There's nothing to build for those today beyond a provider stub that
+   never activates; each becomes real the moment its own upload UI exists, following this same
+   provider shape.
 
    Current pipeline this sits in: Form → Project Analysis Engine → Prompt Writer → Gemini →
-   Brand Integrity Engine (here) → OpenAI Editing (per-view edits / Modify Design / Other
-   option, all of which inherit the corrected logo from whatever reference they edit from).
+   Brand Asset Integrity Engine (here) → OpenAI Editing (per-view edits / Modify Design / Other
+   option, all of which inherit the corrected render from whatever reference they edit from).
    Note: Luma has no role anywhere in this app anymore — the 12 camera views are independent
    OpenAI edits of the approved hero image, not frames extracted from a generated video (see
-   generateCameraViewsFromHero's own comment) — so BIE-001 only ever needs to run right after
-   a Gemini render, not before some separate video stage.
+   generateCameraViewsFromHero's own comment) — so this engine only ever needs to run right
+   after a Gemini render, not before some separate video stage.
 
-   QC (section 10 of the BIE-001 spec) is enforced as strict instructions inside this same
-   single call, not a separate verify-and-retry pass — that keeps this at the same one-call
-   cost/latency/reliability profile as the rest of the app's edit-based steps, at the cost of
-   relying on the model to actually follow the checklist rather than a second pass confirming
-   it did. Multi-logo variants (primary/secondary/vertical/horizontal/mono/white/dark,
-   auto-selected by background) are intentionally out of scope for now — only a single
-   uploaded logo exists today; that's its own future feature, not folded in here.
+   QC is enforced as strict instructions inside this same single call, not a separate
+   verify-and-retry pass — that keeps this at the same one-call cost/latency/reliability
+   profile as the rest of the app's edit-based steps, at the cost of relying on the model to
+   actually follow the checklist rather than a second pass confirming it did. Multi-logo
+   variants (primary/secondary/vertical/horizontal/mono/white/dark, auto-selected by background)
+   are intentionally out of scope for now — only a single uploaded logo exists today; that's
+   its own future feature, not folded in here.
 
-   Fails open: if this pass itself errors out, the original Gemini render is returned as-is
-   rather than blocking generation over a correction step, not a hard requirement. Only runs
-   in booth mode with a real uploaded logo — event mode and logo-less projects have nothing
+   ARCHITECTURAL RULE: this engine only ever touches brand assets — logos, posters, and (later)
+   whatever other asset types get their own provider. It must never move, resize, or restyle the
+   architecture itself: walls, reception counters, ceiling, furniture, lighting, and structure
+   stay exactly where the Gemini render placed them.
+
+   Fails open: if this pass itself errors out, or if no provider finds anything to correct, the
+   original Gemini render is returned as-is rather than blocking generation over a correction
+   step that isn't a hard requirement. Only runs in booth mode — event mode has no brand assets
    to correct. */
-async function runBrandIntegrityEngine(imageDataUrl){
-  if(!(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType))) return imageDataUrl;
+
+async function buildLogoBrandAssetProvider(){
+  if(!(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType))) return null;
+  return {
+    name: 'Company Logo',
+    images: [{ data: logoDataUrl.split(',')[1], mimeType: logoMediaType }],
+    describe: (refLabel) => `LOGO — ${refLabel} is the client's exact uploaded company logo. Detect every place a logo was rendered anywhere in the image — including but not limited to: reception counter, wall branding, ceiling feature, hanging sign, lightbox, display totem, digital screen branding, poster, graphic wall, and glass graphics (a booth can have more than one logo placement; check the entire image). Replace every one of them with this exact artwork — never redraw it, never regenerate it, never recreate its typography from scratch. Match whatever surface it sits on (angled wall, curved panel, reception desk, hanging cube, etc.) so the replacement follows that same real-world perspective and curvature rather than sitting pasted on flat. Inherit the reflections, shadows, highlights, and ambient lighting already present at that location so it reads as physically installed under the same light. Respect whatever material the placement is rendered in — backlit acrylic, vinyl, fabric, LED lightbox, printed panel, frosted glass, brushed metal — so the logo looks correct for that specific material's glow, texture, translucency, and reflectivity rather than a generic flat sticker. Never modify the logo's company name, font, Arabic typography, English typography, letter spacing, letter proportions, trademark or registered symbols, or brand icon — reproduce it exactly as uploaded, including its exact colors. Do not relocate a logo from where Gemini already placed it unless it currently overlaps or is cropped by another object, in which case reposition it minimally just enough to sit cleanly.`
+  };
+}
+
+async function buildPosterBrandAssetProvider(){
+  const hasPostersEl = document.getElementById('f_hasPosters');
+  const hasPostersVal = hasPostersEl ? hasPostersEl.value : '';
+  if(!(mode === 'booth' && hasPostersVal.startsWith('yes') && posterFiles.length)) return null;
+  const images = [];
+  for(const pf of posterFiles){
+    if(pf.file && visionCompatibleTypes.includes(pf.type)){
+      try{
+        const dataUrl = await readFileAsDataURL(pf.file);
+        const parts = dataUrlParts(dataUrl);
+        images.push({ data: parts.base64, mimeType: parts.mime });
+      }catch(e){ console.error('Could not read poster file for BIE-001:', pf.name, e); }
+    }
+  }
+  if(!images.length) return null;
+  return {
+    name: 'Posters',
+    images,
+    describe: (refLabel) => `POSTERS — ${refLabel} ${images.length > 1 ? 'are the client\'s exact uploaded poster artworks, in order' : 'is the client\'s exact uploaded poster artwork'}. Detect every AI-generated poster or printed marketing-graphic panel in the image and replace its content with the matching uploaded artwork${images.length > 1 ? ' (match each poster to the frame it visually corresponds to; use the order provided if the match is otherwise ambiguous)' : ''} — never redraw, rewrite, retype, or regenerate the poster's own content. Preserve the poster frame or panel exactly as rendered: its position, size, perspective, mounting, surrounding lighting, cast shadows, and any glass or acrylic reflection over it. The replaced poster must look physically printed and mounted in that frame under the scene's existing light, not pasted flat on top of it.`
+  };
+}
+
+/* One entry per brand-asset type BIE-001 can correct. Add a new provider function above (same
+   shape: return null if nothing is uploaded for it, otherwise { name, images, describe }) and
+   list it here to wire it in — no other part of runBrandAssetIntegrityEngine needs to change. */
+const BRAND_ASSET_PROVIDERS = [buildLogoBrandAssetProvider, buildPosterBrandAssetProvider];
+
+async function collectActiveBrandAssetProviders(){
+  const results = await Promise.all(BRAND_ASSET_PROVIDERS.map(fn => fn()));
+  return results.filter(Boolean);
+}
+
+async function runBrandAssetIntegrityEngine(imageDataUrl){
+  const providers = await collectActiveBrandAssetProviders();
+  if(providers.length === 0) return imageDataUrl; // nothing uploaded to enforce for this project
+
   try{
     const compressed = await compressDataUrl(imageDataUrl, 1536, 0.9);
     const { mime, base64 } = dataUrlParts(compressed);
-    const logoBase64 = logoDataUrl.split(',')[1];
 
-    const prompt = `You are BIE-001, the Brand Integrity Engine. This image is an already-finished, approved photorealistic exhibition booth render produced by another model. That model's job was architecture only — any logo it drew is just an approximate placeholder, never the client's real artwork. Your ONLY job is branding accuracy: find every place a logo was rendered and replace it with the client's exact uploaded logo, provided as the second attached reference image. The final result must look as though the real client artwork was professionally installed on the booth — sharp, correctly proportioned, physically integrated — never like a sticker pasted on top.
+    const additionalReferenceImages = [];
+    const providerSections = [];
+    let nextRefIndex = 2; // reference image 1 is always the rendered booth image itself
+    providers.forEach(p => {
+      const startIdx = nextRefIndex;
+      p.images.forEach(img => additionalReferenceImages.push(img));
+      nextRefIndex += p.images.length;
+      const refLabel = p.images.length === 1 ? `Reference image ${startIdx}` : `Reference images ${startIdx}-${nextRefIndex - 1}`;
+      providerSections.push(p.describe(refLabel));
+    });
 
-1. DETECT every logo placement in the image, wherever it appears — including but not limited to: reception counter, wall branding, ceiling feature, hanging sign, lightbox, display totem, digital screen branding, poster, graphic wall, and glass graphics. Check the entire image; a booth can have more than one logo placement.
+    const prompt = `You are BIE-001, the Brand Asset Integrity Engine. Reference image 1 is an already-finished, approved photorealistic exhibition booth render produced by another model whose job was architecture, layout, lighting, and space planning only — any branding or graphic content it drew is just an approximate placeholder, never the client's real uploaded artwork. Your ONLY job is brand accuracy: find every place a brand asset below was rendered and replace it with the client's exact uploaded original, per the reference images and instructions for each asset type.
 
-2. REPLACE every detected placement with the second attached reference image's logo. Never redraw it. Never regenerate it. Never recreate its typography from scratch — copy the actual provided artwork's pixels/shape as faithfully as an edit can.
+${providerSections.join('\n\n')}
 
-3. PERSPECTIVE: match whatever surface the logo sits on automatically — an angled wall, a curved panel, a reception desk, a hanging cube, or anything else — the replacement must follow that same real-world perspective and curvature, not be pasted on flat.
+GENERAL RULES — apply to every asset type above: never redraw, regenerate, rewrite, retype, translate, or simplify anything from an uploaded reference — reproduce it exactly as provided, including its exact colors. Never invent a brand asset that wasn't uploaded, and never hallucinate text or graphics that aren't actually present in the uploaded files. Before finalizing, verify for every replaced asset: sharp with no AI-generated artifacts; correctly proportioned (not stretched or squashed); correct in color; free of spelling mistakes; not duplicated; any Arabic and any English text both rendered legibly and correctly.
 
-4. LIGHTING: the replacement must inherit the reflections, shadows, highlights, and ambient lighting already present at that location in the render, so it reads as physically installed under the same light, not floating above it.
+ARCHITECTURAL RULE: never move, resize, or alter the architecture itself — walls, reception counters, ceiling, furniture, lighting, and structure must remain exactly where and how the original render placed them. Only the brand assets described above may change. Do not change anything else anywhere in the image: same materials, same colors, same layout, same camera angle, same lighting elsewhere in the scene.
 
-5. MATERIAL: respect whatever material the logo placement is rendered in — backlit acrylic, vinyl, fabric, LED lightbox, printed panel, frosted glass, or brushed metal — the replacement must look correct for that specific material's appearance (glow, texture, translucency, reflectivity) rather than a generic flat sticker.
-
-6. NEVER MODIFY anything about the uploaded artwork itself: company name, font, Arabic typography, English typography, letter spacing, letter proportions, trademark or registered symbols, or the brand icon. Everything about the logo must remain identical to the uploaded file.
-
-7. COLOR PROTECTION: never alter or approximate the brand's colors — always use the exact colors from the uploaded artwork, never a rendering-model approximation of them.
-
-8. PLACEMENT: respect the architectural placement Gemini already created — only replace the artwork at each location, do not relocate a logo, UNLESS it currently overlaps or is cropped by another object, in which case reposition it minimally just enough to sit cleanly.
-
-9. BEFORE FINALIZING, verify: the logo is sharp with no AI-generated artifacts; proportions are correct (not stretched or squashed); colors are correct; there are no spelling mistakes and no duplicated logos; any Arabic text and any English text are both rendered correctly and legibly.
-
-10. BRAND SAFETY — absolute rules with zero exceptions: never invent a logo that isn't the uploaded one; never translate any text in the logo; never simplify any part of the logo; never recreate its typography by hand; never hallucinate text that isn't actually in the uploaded artwork; never modify the uploaded brand identity in any way.
-
-Do not change anything else anywhere in the image: same architecture, same materials, same colors, same layout, same furniture, same camera angle, same lighting elsewhere in the scene — only the logo placements themselves may change.`;
+The final result should look as though a real exhibition contractor installed the client's original, unmodified artwork on the booth — never like a sticker pasted on top, and never like something an AI generated.`;
 
     const response = await fetch('/api/edit-image-openai', {
       method: 'POST',
@@ -5070,7 +5138,7 @@ Do not change anything else anywhere in the image: same architecture, same mater
         prompt: prompt + HARD_CONSTRAINTS_SUFFIX,
         referenceImage: base64,
         referenceMimeType: mime,
-        additionalReferenceImages: [{ data: logoBase64, mimeType: logoMediaType }],
+        additionalReferenceImages,
         size: '1536x1024',
         isUserInitiatedEdit: false
       })
@@ -5079,12 +5147,12 @@ Do not change anything else anywhere in the image: same architecture, same mater
     let data = {};
     try{ data = JSON.parse(rawText); }catch(e){ /* leave data as {} */ }
     if(!response.ok || !data.image){
-      console.error('BIE-001 (Brand Integrity Engine) pass failed:', (data.error && data.error.message) || ('HTTP ' + response.status));
+      console.error('BIE-001 (Brand Asset Integrity Engine) pass failed:', (data.error && data.error.message) || ('HTTP ' + response.status));
       return imageDataUrl;
     }
     return data.image;
   }catch(err){
-    console.error('BIE-001 (Brand Integrity Engine) pass failed:', err);
+    console.error('BIE-001 (Brand Asset Integrity Engine) pass failed:', err);
     return imageDataUrl;
   }
 }
@@ -5140,7 +5208,7 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
           optionResults[i].status = 'error';
           optionResults[i].errorMsg = (data.error && data.error.message) || 'Image generation failed.';
         }else{
-          const correctedImage = await runBrandIntegrityEngine(data.image);
+          const correctedImage = await runBrandAssetIntegrityEngine(data.image);
           const compressed = await compressDataUrlToTarget(correctedImage);
           optionResults[i].status = 'done';
           optionResults[i].gallery = [{ label: 'Original', image: compressed }];
@@ -5547,7 +5615,7 @@ async function confirmRegenerateOtherOption(){
     if(!response.ok || !data.image){
       throw new Error((data.error && data.error.message) || 'Image generation failed.');
     }
-    const correctedImage = await runBrandIntegrityEngine(data.image);
+    const correctedImage = await runBrandAssetIntegrityEngine(data.image);
     const compressed = await compressDataUrlToTarget(correctedImage);
     opt.status = 'done';
     opt.gallery.push({ label: 'Other option', image: compressed });
@@ -6094,7 +6162,7 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
       throw new Error((data.error && data.error.message) || 'Could not modify that area.');
     }
 
-    const correctedImage = await runBrandIntegrityEngine(data.image);
+    const correctedImage = await runBrandAssetIntegrityEngine(data.image);
     opt.gallery.push({ label: 'Modified by DesignsLab', image: correctedImage });
     opt.activeGalleryIndex = opt.gallery.length - 1;
     if(activeOptionIndex === idx){
