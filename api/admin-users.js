@@ -55,6 +55,28 @@ async function ensureSchema() {
   // earlier, so modify_limit/modify_count need their own explicit, idempotent migration.
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS modify_limit INTEGER;`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS modify_count INTEGER NOT NULL DEFAULT 0;`;
+
+  // project_count is a PERMANENT, increment-only consumption counter — unlike the project
+  // quota check this replaces (which used to count currently-existing rows), deleting a
+  // project must NOT free up a slot, or a user could bypass their limit indefinitely by
+  // creating and deleting projects. Backfill existing users' starting count from their
+  // current live project total, but ONLY the first time this column is added — checking
+  // information_schema first (rather than just guarding on project_count = 0) avoids ever
+  // re-running the backfill and silently overwriting a correctly-tracked count back down
+  // to a stale, currently-live number for a user who has since deleted a project.
+  const colCheck = await sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'project_count';`;
+  const columnAlreadyExisted = colCheck.rows.length > 0;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS project_count INTEGER NOT NULL DEFAULT 0;`;
+  if (!columnAlreadyExisted) {
+    try {
+      await sql`UPDATE users SET project_count = (SELECT COUNT(*)::int FROM projects WHERE projects.user_id = users.id);`;
+    } catch (err) {
+      // The projects table (owned by a different serverless function's schema) may not
+      // exist yet on a brand-new deployment — in that case everyone genuinely has zero
+      // projects, so leaving project_count at its DEFAULT 0 is already correct.
+      console.error('Could not backfill project_count (projects table may not exist yet):', err);
+    }
+  }
 }
 
 function generateUserId() {
@@ -81,15 +103,13 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'GET') {
-    // Includes each user's live project count alongside their limit, so the admin panel
-    // can show "3 / 10 projects" without a second round trip per user.
+    // project_count is the persistent, increment-only counter (see ensureSchema) — it
+    // reflects how many projects actually count against this user's limit, which is not
+    // necessarily the same as how many they currently have saved if any were deleted.
     const result = await sql`
-      SELECT u.id, u.username, u.role, u.project_limit, u.edit_limit, u.edit_count, u.modify_limit, u.modify_count, u.created_at,
-             COUNT(p.id)::int AS project_count
-      FROM users u
-      LEFT JOIN projects p ON p.user_id = u.id
-      GROUP BY u.id
-      ORDER BY u.created_at ASC;
+      SELECT id, username, role, project_limit, project_count, edit_limit, edit_count, modify_limit, modify_count, created_at
+      FROM users
+      ORDER BY created_at ASC;
     `;
     res.status(200).json(result.rows);
     return;

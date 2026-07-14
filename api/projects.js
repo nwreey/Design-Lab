@@ -50,6 +50,20 @@ async function ensureSchema() {
   // Adds the column if this table already existed from before multi-user support —
   // CREATE TABLE IF NOT EXISTS above won't add columns to an existing table by itself.
   await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_id TEXT;`;
+
+  // users.project_count is a permanent, increment-only quota counter (see the matching,
+  // more detailed migration comment in api/admin-users.js) — this file needs to read and
+  // write it too, and can't assume that file's migration has already run, since each
+  // serverless function is independent and either one could be the first hit after a
+  // deployment. Whichever file actually adds the column first must also be the one that
+  // backfills it — otherwise the other file would see the column already exists and skip
+  // its own backfill, permanently stranding existing users at project_count = 0.
+  const colCheck = await sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'project_count';`;
+  const columnAlreadyExisted = colCheck.rows.length > 0;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS project_count INTEGER NOT NULL DEFAULT 0;`;
+  if (!columnAlreadyExisted) {
+    await sql`UPDATE users SET project_count = (SELECT COUNT(*)::int FROM projects WHERE projects.user_id = users.id);`;
+  }
 }
 
 /* ================= Image extraction (save) / inlining (load) ================= */
@@ -200,12 +214,14 @@ export default async function handler(req, res) {
     } else if (caller.role !== 'admin') {
       // Enforce the project quota only when actually creating a NEW project — editing an
       // existing one you already own should never be blocked by a creation limit.
-      const countResult = await sql`SELECT COUNT(*)::int AS count FROM projects WHERE user_id = ${caller.userId};`;
-      const limitResult = await sql`SELECT project_limit FROM users WHERE id = ${caller.userId};`;
-      const currentCount = countResult.rows[0].count;
-      const limit = limitResult.rows.length > 0 ? limitResult.rows[0].project_limit : null;
+      // Uses the PERMANENT project_count counter, not a live COUNT(*) of currently-existing
+      // rows — deleting a project must not free up a slot, or the limit could be bypassed
+      // indefinitely by creating and deleting projects.
+      const userResult = await sql`SELECT project_limit, project_count FROM users WHERE id = ${caller.userId};`;
+      const limit = userResult.rows.length > 0 ? userResult.rows[0].project_limit : null;
+      const currentCount = userResult.rows.length > 0 ? userResult.rows[0].project_count : 0;
       if (limit != null && currentCount >= limit) {
-        res.status(403).json({ error: { message: `You've reached your project limit (${limit}). Please contact your administrator to increase this limit, or remove an old project first.` } });
+        res.status(403).json({ error: { message: `You've reached your project limit (${limit}). Please contact your administrator to increase this limit.` } });
         return;
       }
     }
@@ -227,6 +243,9 @@ export default async function handler(req, res) {
       VALUES (${project.id}, ${project.name}, ${savedAt}, ${JSON.stringify(storedData)}::jsonb, ${ownerForInsert})
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, saved_at = EXCLUDED.saved_at, data = EXCLUDED.data;
     `;
+    if (isNewProject && caller.role !== 'admin') {
+      await sql`UPDATE users SET project_count = project_count + 1 WHERE id = ${caller.userId};`;
+    }
 
     res.status(200).json({ ok: true, id: project.id, uploadedImageCount: uploadedCountRef.count, storedProject: storedData });
     return;

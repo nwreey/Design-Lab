@@ -3406,6 +3406,7 @@ async function checkAdminAccess(){
       if(link) link.style.display = 'inline-block';
     }
     currentUserProjectLimit = data.projectLimit != null ? data.projectLimit : null;
+    lastKnownProjectCount = data.projectCount != null ? data.projectCount : lastKnownProjectCount;
     currentUserModifyLimit = data.modifyLimit != null ? data.modifyLimit : null;
     currentUserModifyCount = data.modifyCount != null ? data.modifyCount : 0;
     currentUserEditLimit = data.editLimit != null ? data.editLimit : null;
@@ -6657,6 +6658,7 @@ async function restoreLumaVideoIfSaved(project){
 }
 
 function saveCurrentProject(){
+  const isNewProject = !currentProjectId;
   if(!currentProjectId) currentProjectId = generateProjectId();
   const project = {
     id: currentProjectId,
@@ -6681,6 +6683,14 @@ function saveCurrentProject(){
     .then(() => {
       const errEl = document.getElementById('projectSaveError');
       if(errEl) errEl.style.display = 'none';
+      // Project count is a PERMANENT, increment-only consumption counter on the backend —
+      // deleting a project later must not free this slot back up, so this only ever goes
+      // up here, immediately on a successful save, keeping the sidebar in sync without
+      // waiting on a full re-fetch (matching how edit/modify counts are already handled).
+      if(isNewProject && !isAdminUser && lastKnownProjectCount != null){
+        lastKnownProjectCount++;
+        renderProjectUsageIndicator();
+      }
       return renderProjectSidebar();
     })
     .catch(err => {
@@ -6697,8 +6707,6 @@ function renderProjectSidebar(){
   return dbGetAllProjects()
     .then(projects => {
       projects.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
-      lastKnownProjectCount = projects.length;
-      renderProjectUsageIndicator();
       const wrap = document.getElementById('projectList');
       if(projects.length === 0){
         wrap.innerHTML = '<div class="project-empty-hint">No saved projects yet. Fill in the form and click Generate to start one.</div>';
