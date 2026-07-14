@@ -1293,15 +1293,52 @@ Replace only the materials and graphics."></textarea>
 
     <div class="field">
       <label id="lblIndustryStyle">Industry style (optional)</label>
-      <select id="f_industryStyle">
-        <option value="" selected>None / not applicable</option>
-        <option value="Medical">Medical</option>
-        <option value="Technology">Technology</option>
+      <select id="f_industryStyle" onchange="updateIndustryStyleHint(this)">
+        <option value="" selected>None / Not Applicable</option>
+        <option value="Banking & Financial Services">Banking &amp; Financial Services</option>
+        <option value="Technology & AI">Technology &amp; AI</option>
+        <option value="Healthcare & Medical">Healthcare &amp; Medical</option>
+        <option value="Pharmaceutical">Pharmaceutical</option>
         <option value="Government">Government</option>
+        <option value="Education">Education</option>
+        <option value="Telecommunications">Telecommunications</option>
+        <option value="Energy & Utilities">Energy &amp; Utilities</option>
+        <option value="Oil & Gas">Oil &amp; Gas</option>
+        <option value="Construction & Real Estate">Construction &amp; Real Estate</option>
+        <option value="Architecture & Interior Design">Architecture &amp; Interior Design</option>
         <option value="Automotive">Automotive</option>
-        <option value="Jewelry">Jewelry</option>
+        <option value="Aviation & Aerospace">Aviation &amp; Aerospace</option>
+        <option value="Logistics & Supply Chain">Logistics &amp; Supply Chain</option>
+        <option value="Manufacturing & Industrial">Manufacturing &amp; Industrial</option>
+        <option value="Food & Beverage">Food &amp; Beverage</option>
+        <option value="Hospitality & Tourism">Hospitality &amp; Tourism</option>
+        <option value="Retail & E-commerce">Retail &amp; E-commerce</option>
+        <option value="Luxury & Fashion">Luxury &amp; Fashion</option>
+        <option value="Jewelry & Watches">Jewelry &amp; Watches</option>
+        <option value="Beauty & Cosmetics">Beauty &amp; Cosmetics</option>
+        <option value="Furniture & Home">Furniture &amp; Home</option>
+        <option value="Sports & Fitness">Sports &amp; Fitness</option>
+        <option value="Gaming & Esports">Gaming &amp; Esports</option>
+        <option value="Media & Broadcasting">Media &amp; Broadcasting</option>
+        <option value="Entertainment">Entertainment</option>
+        <option value="Finance & Investment">Finance &amp; Investment</option>
+        <option value="Insurance">Insurance</option>
+        <option value="FinTech">FinTech</option>
+        <option value="Smart Cities">Smart Cities</option>
+        <option value="Sustainability & Green Energy">Sustainability &amp; Green Energy</option>
+        <option value="Agriculture">Agriculture</option>
+        <option value="Marine & Maritime">Marine &amp; Maritime</option>
+        <option value="Security & Defense">Security &amp; Defense</option>
+        <option value="Robotics & Automation">Robotics &amp; Automation</option>
+        <option value="Electronics & Consumer Tech">Electronics &amp; Consumer Tech</option>
+        <option value="Artificial Intelligence">Artificial Intelligence</option>
+        <option value="Cloud Computing">Cloud Computing</option>
+        <option value="Data Centers">Data Centers</option>
+        <option value="Cybersecurity">Cybersecurity</option>
+        <option value="Software & SaaS">Software &amp; SaaS</option>
+        <option value="Non-Profit / NGO">Non-Profit / NGO</option>
       </select>
-      <div class="hint">Adds industry-specific visual language on top of the architectural style.</div>
+      <div class="hint" id="industryStyleHint">Adds industry-specific design language on top of the architectural style — never overrides it or the brand colors.</div>
     </div>
 
     <div class="field">
@@ -1797,6 +1834,9 @@ Replace only the materials and graphics."></textarea>
     <div class="viewer3d-generated-wrap-light" id="viewer3dGeneratedWrap" style="display:block;">
       <div class="section-label-light">Final Views — click any image to preview full size</div>
       <div class="viewer3d-generated-grid-light" id="viewer3dGeneratedGrid"></div>
+      <div class="tech-board-actions" id="techBoardActions" style="display:none;margin-top:14px;">
+        <button class="ghost small" onclick="generateTechnicalBoard()">Generate Technical Board</button>
+      </div>
       <div class="good-luck-message" id="goodLuckMessage" style="display:none;">Good Luck with Your Project</div>
       <div class="rate-us-bar" id="rateUsBar" style="display:none;">
         <div class="rate-us-label" id="rateUsLabel">How would you rate this design?</div>
@@ -2400,6 +2440,56 @@ const A4_LANDSCAPE_COMPOSITION_TEXT = `
 
 PAGE COMPOSITION: compose this as a landscape A4 page layout (approximately 297mm wide by 210mm tall, roughly a 1.4:1 width-to-height ratio). The complete booth design must be fully visible and entirely contained within the frame — nothing cropped off at any edge, nothing bleeding past the border. Leave a clean, even margin of empty space around all four sides of the booth within the frame, and center the booth within that landscape composition, the way a rendering would be laid out on a printed page.`;
 
+// Shared between EPS-004's LEVEL 2 style taxonomy (sent to the model) and the industry-style
+// dropdown's own on-page hint (updateIndustryStyleHint) — one list, so the two can never
+// drift out of sync. Every entry is deliberately a layer ON TOP of whatever architectural
+// style and brand colors the client already chose, never a replacement for either — see
+// EPS-004's own instruction below never to contradict an earlier level.
+const INDUSTRY_STYLE_ATTRIBUTES = {
+  'Banking & Financial Services': 'premium hospitality, trust and privacy, elegant private meeting suites, marble and brass accents, subdued formal lighting',
+  'Technology & AI': 'innovation-forward, interactive touchscreens and demo stations, dynamic LED accent lighting, sleek glossy surfaces',
+  'Healthcare & Medical': 'clean and clinical, white and soft blue tones, informative signage, hygienic materials, bright reassuring lighting',
+  'Pharmaceutical': 'sterile precision, laboratory-inspired finishes, informative product displays, cool clean lighting, scientific credibility',
+  'Government': 'formal prestige, national identity accents, large ceremonial reception, symmetrical grandeur, dignified lighting',
+  'Education': 'open collaborative layout, interactive learning stations, approachable materials, bright even lighting, informative displays',
+  'Telecommunications': 'connectivity-themed graphics, dynamic LED network motifs, interactive demo zones, modern glossy finishes',
+  'Energy & Utilities': 'sustainable materials, dynamic infographic displays, robust engineering feel, warm efficient lighting',
+  'Oil & Gas': 'heavy-duty industrial materials, engineering precision, large-scale model displays, dark confident palette, focused technical lighting',
+  'Construction & Real Estate': 'architectural model displays, structural material samples, blueprint-inspired graphics, warm inviting lighting',
+  'Architecture & Interior Design': 'gallery-like presentation, refined material palette, portfolio display walls, minimalist composition, curated lighting',
+  'Automotive': 'bold dynamic forms, large open hero product area, dramatic spot lighting, sleek glossy surfaces, dynamic circulation',
+  'Aviation & Aerospace': 'sweeping aerodynamic forms, precision engineering finishes, large-scale model displays, cool metallic palette, dramatic uplighting',
+  'Logistics & Supply Chain': 'efficient modular layout, network and route graphics, robust practical materials, clean functional lighting',
+  'Manufacturing & Industrial': 'raw industrial materials, exposed structural elements, functional product staging, focused task lighting',
+  'Food & Beverage': 'warm hospitality, tasting counters, inviting textures, rich ambient lighting, sensory-driven displays',
+  'Hospitality & Tourism': 'welcoming lounge areas, warm natural materials, immersive destination graphics, soft ambient lighting',
+  'Retail & E-commerce': 'vibrant product staging, flexible display fixtures, engaging digital touchpoints, bright energetic lighting',
+  'Luxury & Fashion': 'refined premium materials, minimalist composition, runway-inspired circulation, dramatic accent lighting, exclusive VIP feel',
+  'Jewelry & Watches': 'secure glass display cases, warm spot lighting, intimate scale, glossy reflective premium materials',
+  'Beauty & Cosmetics': 'soft elegant palette, mirrored and glossy finishes, inviting try-it displays, flattering warm lighting',
+  'Furniture & Home': 'lifestyle vignette staging, natural warm materials, comfortable seating displays, soft homely lighting',
+  'Sports & Fitness': 'dynamic energetic forms, bold graphics, interactive activity zones, athletic materials, high-energy lighting',
+  'Gaming & Esports': 'immersive dark ambience, dynamic RGB accent lighting, large screen walls, interactive play stations',
+  'Media & Broadcasting': 'studio-inspired staging, large video walls, dynamic broadcast lighting, sleek modern finishes',
+  'Entertainment': 'immersive experiential staging, bold theatrical lighting, dynamic multimedia walls, playful engaging circulation',
+  'Finance & Investment': 'refined trustworthy materials, understated premium palette, private consultation areas, confident formal lighting',
+  'Insurance': 'reassuring approachable materials, informative consultation zones, calm trustworthy palette, soft even lighting',
+  'FinTech': 'sleek digital-forward materials, interactive data displays, modern minimal palette, dynamic accent lighting',
+  'Smart Cities': 'futuristic connected graphics, interactive city-model displays, sustainable materials, dynamic ambient lighting',
+  'Sustainability & Green Energy': 'natural sustainable materials, living green walls, eco-conscious finishes, soft natural lighting',
+  'Agriculture': 'natural organic materials, warm earthy palette, informative product displays, soft natural lighting',
+  'Marine & Maritime': 'nautical-inspired forms, weathered premium materials, model and vessel displays, cool blue accent lighting',
+  'Security & Defense': 'robust fortified materials, restrained authoritative palette, controlled discreet displays, focused precise lighting',
+  'Robotics & Automation': 'futuristic precision forms, interactive robotic demo zones, sleek metallic finishes, dynamic accent lighting',
+  'Electronics & Consumer Tech': 'sleek glossy displays, interactive product stations, vibrant dynamic lighting, modern minimal palette',
+  'Artificial Intelligence': 'futuristic dynamic forms, glowing interactive demo zones, sleek minimal palette, innovation-driven graphics',
+  'Cloud Computing': 'abstract network-inspired graphics, sleek minimal materials, interactive data visualizations, cool dynamic lighting',
+  'Data Centers': 'precision engineered materials, secure controlled staging, cool technical palette, focused ambient lighting',
+  'Cybersecurity': 'fortified restrained palette, secure discreet displays, dynamic digital accent lighting, trust-forward graphics',
+  'Software & SaaS': 'clean minimal digital displays, interactive product demos, modern bright palette, dynamic accent lighting',
+  'Non-Profit / NGO': 'warm approachable materials, storytelling impact displays, natural inviting palette, soft even community-forward lighting'
+};
+
 const EPS_004 = `STYLE TAXONOMY — four independent style dimensions the client can specify. When a value is given for any of these dimensions, apply the listed attributes automatically and consistently, even if the client's free-text description does not repeat them explicitly. These four levels can combine freely (e.g. Modern + Medical + Wood Modular + Innovative) — apply every attribute from every level the client selected, layered together, never contradicting EPS-001, EPS-002, or EPS-003 above.
 
 LEVEL 1 — ARCHITECTURAL STYLE (the single most important style dimension)
@@ -2410,12 +2500,8 @@ LEVEL 1 — ARCHITECTURAL STYLE (the single most important style dimension)
 - Corporate: professional, balanced, functional, clean branding, meeting focused.
 - Industrial: concrete, black, wood, raw textures, open ceiling.
 
-LEVEL 2 — INDUSTRY STYLE (adds industry-specific visual language on top of Level 1; optional — the client may leave this unset if not applicable)
-- Medical: white, blue, clinical, hygienic, bright, scientific.
-- Technology: interactive, LED, screens, innovation, dynamic graphics.
-- Government: prestige, formal, elegant, large reception, national identity.
-- Automotive: large open space, spot lighting, hero product area, dynamic circulation.
-- Jewelry: glass, luxury, security, warm lighting.
+LEVEL 2 — INDUSTRY STYLE (adds industry-specific design language — architectural language, material selection, color accents, display strategy, visitor experience, product presentation, lighting mood, digital technology integration, and decorative elements — on top of Level 1 and the client's own brand colors. This level only ever ADDS a layer; it must never override, replace, or contradict the architectural style or the brand identity already established. Optional — the client may leave this unset if not applicable.)
+${Object.entries(INDUSTRY_STYLE_ATTRIBUTES).map(([name, attrs]) => `- ${name}: ${attrs}.`).join('\n')}
 
 LEVEL 3 — CONSTRUCTION STYLE (defines material quality and build complexity — very important for construction feasibility)
 - Wood Modular: MDF, plywood, melamine, laminate, easy assembly.
@@ -3121,6 +3207,15 @@ function updateArchStyleHint(sel){
   const hint = document.getElementById('archStyleHint');
   hint.textContent = ARCH_STYLE_COLORS[sel.value] || '';
 }
+
+function updateIndustryStyleHint(sel){
+  const hint = document.getElementById('industryStyleHint');
+  if(!hint) return;
+  const attrs = INDUSTRY_STYLE_ATTRIBUTES[sel.value];
+  hint.textContent = attrs
+    ? 'Adds on top of the architectural style (never overrides it or the brand colors): ' + attrs + '.'
+    : 'Adds industry-specific design language on top of the architectural style — never overrides it or the brand colors.';
+}
 let logoDataUrl = null;
 let logoMediaType = null;
 let referenceImageDataUrl = null;
@@ -3777,6 +3872,7 @@ function applyModeSnapshot(snapshot){
   document.getElementById('f_constructionStyle').value = snapshot.constructionStyle;
   document.getElementById('f_brandPersonality').value = snapshot.brandPersonality;
   updateArchStyleHint(document.getElementById('f_archStyle'));
+  updateIndustryStyleHint(document.getElementById('f_industryStyle'));
 }
 
 function setMode(m){
@@ -4480,7 +4576,7 @@ ${mode==='booth' ? 'Required brand colors: ' + colorHexes.join(', ') : ''}
 ${mode==='booth' ? 'Poster artwork status: ' + hasPosters : ''}
 ${mode==='booth' ? 'Number of posters to feature: ' + (posterCount || 'not specified') : ''}
 Architectural style: ${archStyle} — typical colors/materials for this style: ${ARCH_STYLE_COLORS[archStyle] || ''}
-${industryStyle ? 'Industry style: ' + industryStyle : ''}
+${industryStyle ? 'Industry style: ' + industryStyle + ' — industry-specific design language to layer on top of the architectural style above (never replacing it or the brand colors): ' + (INDUSTRY_STYLE_ATTRIBUTES[industryStyle] || '') : ''}
 Construction style: ${constructionStyle}
 Brand personality: ${brandPersonality}
 Client's detailed description: """${desc}"""
@@ -5904,6 +6000,7 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
 
 function resetLumaState(){
   document.getElementById('goodLuckMessage').style.display = 'none';
+  document.getElementById('techBoardActions').style.display = 'none';
   resetRatingBar();
 }
 
@@ -5992,6 +6089,7 @@ async function generateCameraViewsFromHero(heroImage){
   document.getElementById('viewer3dGeneratedCard').style.display = 'block';
   document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
   document.getElementById('goodLuckMessage').style.display = 'none';
+  document.getElementById('techBoardActions').style.display = 'none';
   document.getElementById('rateUsBar').style.display = 'none';
   CAMERA_SPECS.forEach(spec => renderGeneratedViewCard(spec.camId, 'pending', null));
   document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
@@ -6027,6 +6125,7 @@ async function generateCameraViewsFromHero(heroImage){
   }
 
   document.getElementById('goodLuckMessage').style.display = 'block';
+  document.getElementById('techBoardActions').style.display = 'flex';
   document.getElementById('rateUsLabel').textContent = 'How would you rate this design?';
   document.getElementById('rateUsLabel').classList.remove('rate-us-thanks');
   currentRatingValue = 0;
@@ -6041,6 +6140,13 @@ async function generateCameraViewsFromHero(heroImage){
 // quick "try this angle again" option on an already-succeeded card, without touching the
 // other 11 views or spending a full re-approve.
 async function retryGeneratedView(camId){
+  // The Technical Board isn't one of the 12 camera-angle views — it has its own regeneration
+  // path (same annotate-the-hero-image flow "Generate Technical Board" itself uses), so a
+  // failed attempt's Retry button routes there instead of the camera-view logic below.
+  if(camId === TECHBOARD_ID){
+    await generateTechnicalBoard();
+    return;
+  }
   const spec = CAMERA_SPECS.find(s => s.camId === camId);
   if(!spec || !cameraViewsHeroRef){
     await customAlert('This view can no longer be retried — reopen the design to regenerate all views.', 'Retry view');
@@ -6101,6 +6207,137 @@ const CAMERA_SPECS = Object.keys(VIEWER_CAMERA_LABELS).map((camId, i) => ({
 
 function cameraSpecToJSON(spec){
   return JSON.stringify({ camera: { clock: spec.clock, azimuth: spec.azimuth, elevation: spec.elevation, radius: spec.radius, target: spec.target, lens: spec.lens } });
+}
+
+/* ================= Technical Board ================= */
+/* A presentation-board version of the approved hero image: the same design, unchanged,
+   with clean architectural callout arrows and short specification labels added over it —
+   for client presentations, not for further editing. Built as two model calls, deliberately
+   kept separate for the same reason the Project Analysis Engine (see generateDesign/
+   promptWriterSystem above) is split in two: the label/spec text is grounded in the
+   approved design's own written brief plus the actual rendered image, so the image-editing
+   call is handed exact, already-decided text to overlay rather than guessing labels and
+   numbers straight from pixels. Rendered as one more card in the same Final Views grid as
+   the 12 camera views, so Download/Edit/Retry and cross-session persistence all come for
+   free from that existing infrastructure — this only needs its own generation + retry path. */
+const TECHBOARD_ID = 'TECHBOARD';
+
+// Exactly the 18 categories requested, in this fixed order — every technical board always
+// checks all 18 and only labels the ones genuinely present in this specific design.
+const TECHBOARD_LABEL_CATEGORIES = [
+  'Reception Counter', 'Information Counter', 'Meeting Area', 'VIP Room', 'Lounge Area',
+  'Coffee Bar', 'Product Display', 'LED Screen', 'Touch Screen', 'Interactive Kiosk',
+  'Storage Room', 'Hidden Storage', 'Lighting Features', 'Ceiling Feature', 'Hanging Sign',
+  'Flooring Type', 'Decorative Elements', 'Brand Logo Locations'
+];
+
+const technicalBoardAnalysisSystem = `SYSTEM
+
+You are a senior exhibition architect preparing a technical presentation board for an exhibition booth design that has already been finalized and approved. Your only job here is to identify and summarize what is genuinely present in THIS specific design — never invent, add, or assume an element that isn't actually part of it.
+
+You are given two things: the finished design's own written brief (already organized by section — this is the authoritative source for exact facts: dimensions, counts, materials, colors) and the actual rendered image of the approved booth. Cross-reference both — the brief gives you the exact numbers and material names; the image confirms what's actually visible and roughly where.
+
+For each of the following exactly 18 categories, in this exact order, decide whether it genuinely applies to this design, and if so extract 1-3 short specification lines exactly as they would appear on a professional architectural presentation board — terse and factual, numeric wherever possible (e.g. "2.0 m Wide", "4 Tables", "16 Seats", "100 mm", "Wood Laminate", "Hidden LED Strip"). Never write a full sentence and never use marketing language.
+
+Reception Counter
+Information Counter
+Meeting Area
+VIP Room
+Lounge Area
+Coffee Bar
+Product Display
+LED Screen
+Touch Screen
+Interactive Kiosk
+Storage Room
+Hidden Storage
+Lighting Features
+Ceiling Feature
+Hanging Sign
+Flooring Type
+Decorative Elements
+Brand Logo Locations
+
+If a category genuinely does not apply to this design (e.g. there is no VIP Room or hanging sign), mark it not present with an empty specs list rather than inventing a placeholder. Flooring Type applies to every booth — always fill it in from the brief's flooring specification. Never mention AI, prompts, or the generation process anywhere in your output.
+
+Respond in JSON only, with no explanation outside the JSON and no Markdown fences, using exactly this shape:
+{
+  "labels": [
+    { "name": "Reception Counter", "present": true, "specs": ["short spec line", "short spec line"] }
+  ]
+}
+Include exactly one entry per category listed above, in that exact order, using the exact category name given as "name".`;
+
+function buildTechnicalBoardEditPrompt(labels){
+  const labelBlocks = labels.map(l => `${l.name}\n${l.specs.join('\n')}`).join('\n\n');
+  return `Using the attached image as the exact, unchanged reference for this approved exhibition booth design, produce a clean, professional architectural presentation-board version of the SAME image: add thin, precise leader-line arrows pointing from a small label to each element actually visible in the design, with these exact labels and specification lines:
+
+${labelBlocks}
+
+Style: clean architectural presentation-board / portfolio graphics — thin dark leader lines with a small dot or arrowhead at the exact point on the element being labeled, minimal sans-serif label typography, a subtle semi-transparent white background behind each label so the text stays legible without hiding the design behind it. Arrange labels so none overlap each other or cover an important part of the design; where several labeled elements sit close together, route the leader lines cleanly so each one stays unambiguous.
+
+Do NOT alter the booth design itself in any way — same materials, same colors, same layout, same camera angle, same lighting, everything already in the reference image stays exactly as it is. The ONLY change allowed is the added arrows, label boxes, and specification text described above. Do not add any people. This is a technical presentation annotation overlay, not a redesign.`;
+}
+
+async function generateTechnicalBoard(){
+  const opt = optionResults[activeOptionIndex];
+  const heroHist = viewCardHistories['CAM01'];
+  const heroImage = (heroHist && heroHist.images[heroHist.activeIndex])
+    || (opt && opt.gallery && opt.gallery[opt.activeGalleryIndex] && opt.gallery[opt.activeGalleryIndex].image);
+  if(!heroImage){
+    await customAlert('Approve a design first — the Technical Board is generated from the approved booth rendering.', 'Technical Board');
+    return;
+  }
+
+  VIEWER_CAMERA_LABELS[TECHBOARD_ID] = 'Technical Board';
+  renderGeneratedViewCard(TECHBOARD_ID, 'pending', null);
+  document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
+
+  try{
+    const { mime, base64 } = dataUrlParts(await compressDataUrl(heroImage, 1536, 0.88));
+    const briefText = (opt && opt.image_prompt) ? opt.image_prompt : (lastGeneratedBrief || '');
+
+    const analysisContent = [
+      { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
+      { type: 'text', text: `APPROVED DESIGN'S OWN WRITTEN BRIEF:\n${briefText}` }
+    ];
+    const analysis = await callPromptWriterApi(technicalBoardAnalysisSystem, analysisContent);
+    const rawLabels = Array.isArray(analysis && analysis.labels) ? analysis.labels : [];
+    const presentLabels = TECHBOARD_LABEL_CATEGORIES
+      .map(name => rawLabels.find(l => l && l.name === name))
+      .filter(l => l && l.present && Array.isArray(l.specs) && l.specs.length);
+
+    if(presentLabels.length === 0){
+      throw new Error('Could not identify any labeled elements for the technical board.');
+    }
+
+    const editPrompt = buildTechnicalBoardEditPrompt(presentLabels);
+    const response = await fetch('/api/edit-image-openai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: editPrompt + HARD_CONSTRAINTS_SUFFIX,
+        referenceImage: base64,
+        referenceMimeType: mime,
+        size: '1536x1024',
+        isUserInitiatedEdit: false
+      })
+    });
+    const rawText = await response.text();
+    let data = {};
+    try{ data = JSON.parse(rawText); }catch(e){ /* leave data as {} */ }
+    if(!response.ok || !data.image){
+      throw new Error((data.error && data.error.message) || 'Could not generate the technical board.');
+    }
+
+    const compressedResult = await compressDataUrlToTarget(data.image, 300 * 1024);
+    initCardHistory(TECHBOARD_ID, compressedResult);
+    renderGeneratedViewCard(TECHBOARD_ID, 'done', compressedResult);
+    saveCurrentProject();
+  }catch(err){
+    console.error('Could not generate technical board:', err);
+    renderGeneratedViewCard(TECHBOARD_ID, 'failed', err.message || 'Could not generate the technical board.');
+  }
 }
 
 /* Generates each of the 12 camera views as an independent edit of the SAME approved hero
@@ -6645,6 +6882,7 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_archStyle').value = snap.f_archStyle || 'Modern';
   updateArchStyleHint(document.getElementById('f_archStyle'));
   document.getElementById('f_industryStyle').value = snap.f_industryStyle || '';
+  updateIndustryStyleHint(document.getElementById('f_industryStyle'));
   document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || 'Premium Custom Build';
   document.getElementById('f_brandPersonality').value = snap.f_brandPersonality || 'Elegant';
   document.getElementById('f_attendees').value = snap.f_attendees || '';
@@ -6831,10 +7069,14 @@ function restoreGeneratedViewsIfSaved(project){
       if(camId.startsWith('EDITDESIGN_') && !VIEWER_CAMERA_LABELS[camId]){
         VIEWER_CAMERA_LABELS[camId] = 'Uploaded Design ' + camId.replace('EDITDESIGN_', '');
       }
+      if(camId === TECHBOARD_ID && !VIEWER_CAMERA_LABELS[camId]){
+        VIEWER_CAMERA_LABELS[camId] = 'Technical Board';
+      }
       renderGeneratedViewCard(camId, 'done', hist.images[hist.activeIndex]);
     }
   });
   document.getElementById('goodLuckMessage').style.display = 'block';
+  document.getElementById('techBoardActions').style.display = 'flex';
   document.getElementById('rateUsLabel').textContent = 'How would you rate this design?';
   document.getElementById('rateUsLabel').classList.remove('rate-us-thanks');
   currentRatingValue = 0;
@@ -7128,6 +7370,7 @@ function startNewProject(){
 }
 
 updateArchStyleHint(document.getElementById('f_archStyle'));
+updateIndustryStyleHint(document.getElementById('f_industryStyle'));
 renderProjectSidebar();
 adminCheckPromise = checkAdminAccess();
 setMode('booth'); // must run once on load — otherwise every element whose correct visibility depends on setMode() (the new section headlines included) stays at its raw HTML default until a tab is actually clicked
