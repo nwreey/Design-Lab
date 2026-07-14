@@ -165,13 +165,14 @@
   button.primary:hover{background:var(--paper);color:var(--navy);}
   button.primary:disabled{opacity:.6;cursor:not-allowed;}
   button.primary.small{padding:8px 18px;font-size:13px;}
-  button.ghost{
+  button.ghost, a.ghost{
     font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;
     background:transparent;color:var(--navy);border:1.5px solid var(--navy);
     padding:9px 16px;border-radius:2px;cursor:pointer;
+    display:inline-block;text-decoration:none;box-sizing:border-box;
   }
-  button.ghost:hover{background:var(--navy-soft);}
-  button.ghost.small{padding:7px 14px;font-size:12.5px;}
+  button.ghost:hover, a.ghost:hover{background:var(--navy-soft);}
+  button.ghost.small, a.ghost.small{padding:7px 14px;font-size:12.5px;}
   button.secondary{
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;
     background:var(--navy);color:var(--paper);border:2px solid var(--navy);
@@ -1865,27 +1866,6 @@ Replace only the materials and graphics."></textarea>
       <span class="hint" style="margin:0;">Draw on the image to mark the area, then describe the change below. Use different colors to mark separate changes, and explain what each color means in the text.</span>
     </div>
     <textarea id="editText" placeholder="Describe the change you want (e.g. make the reception counter taller, change the screen wall color to gold)"></textarea>
-
-    <label class="check-item-compact" style="margin-top:8px;"><input type="checkbox" id="editModularWallLayout"> Modular Wall Layout — equal spacing, identical repeated panels, mandatory symmetry</label>
-
-    <div class="edit-resize-section">
-      <label class="sublabel">Resize the booth (optional) — changes the physical dimensions, keeps the same design theme</label>
-      <div class="edit-resize-row">
-        <div class="edit-resize-field">
-          <label for="editNewWidth">New width (m)</label>
-          <input type="number" id="editNewWidth" placeholder="e.g. 8" min="1" step="0.1">
-        </div>
-        <div class="edit-resize-field">
-          <label for="editNewDepth">New depth (m)</label>
-          <input type="number" id="editNewDepth" placeholder="e.g. 5" min="1" step="0.1">
-        </div>
-        <div class="edit-resize-field">
-          <label for="editNewHeight">New height (m)</label>
-          <input type="number" id="editNewHeight" placeholder="optional" min="1" step="0.1">
-        </div>
-      </div>
-      <div class="hint">Leave blank to keep the current size. If you set a new size, the AI keeps the same design concept, materials, colors, and branding, and intelligently adds, removes, or resizes furniture and elements inside to fit the new footprint at realistic human scale — it will not just stretch the existing picture.</div>
-    </div>
 
     <div class="edit-reference-upload">
       <label class="sublabel" for="editReferenceInput">Optional reference image (e.g. a material, color, or style to match)</label>
@@ -5328,9 +5308,6 @@ function openEditPanel(camId, isStandalone){
   }
 
   document.getElementById('editText').value = '';
-  document.getElementById('editNewWidth').value = '';
-  document.getElementById('editNewDepth').value = '';
-  document.getElementById('editNewHeight').value = '';
   clearEditReference();
   penModeOn = true;
   document.getElementById('penOnBtn').classList.add('active');
@@ -5431,13 +5408,8 @@ async function submitEdit(){
   const baseImg = document.getElementById('editBaseImg');
   const hasMarkup = canvasHasMarkup(canvas);
 
-  const newWidth = parseFloat(document.getElementById('editNewWidth').value);
-  const newDepth = parseFloat(document.getElementById('editNewDepth').value);
-  const newHeight = parseFloat(document.getElementById('editNewHeight').value);
-  const hasResize = (!isNaN(newWidth) && newWidth > 0) || (!isNaN(newDepth) && newDepth > 0);
-
-  if(!editDesc && !hasMarkup && !hasResize){
-    await customAlert('Describe the change, mark it up on the image, or set a new booth size first.', 'Edit Image');
+  if(!editDesc && !hasMarkup){
+    await customAlert('Describe the change or mark it up on the image first.', 'Edit Image');
     return;
   }
 
@@ -5470,17 +5442,6 @@ ${buildApprovedDecisionsText()}
     promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for this booth design.`;
   }
 
-  if(hasResize){
-    const currentWidth = document.getElementById('f_width').value || 'its current width';
-    const currentDepth = document.getElementById('f_depth').value || 'its current depth';
-    const widthPart = (!isNaN(newWidth) && newWidth > 0) ? `${newWidth}m wide` : 'the same width';
-    const depthPart = (!isNaN(newDepth) && newDepth > 0) ? `${newDepth}m deep` : 'the same depth';
-    const heightPart = (!isNaN(newHeight) && newHeight > 0) ? `, and the height to ${newHeight}m` : '';
-    promptText += `
-
-RESIZE THIS BOOTH: the client wants to change the physical footprint from approximately ${currentWidth}m × ${currentDepth}m to ${widthPart} × ${depthPart}${heightPart}. Keep the exact same design concept, architectural style, materials, color palette, branding, and overall theme — this must still clearly read as the same design, just built at the new size. Do NOT simply stretch, compress, or distort the existing image to fit the new dimensions. Instead, intelligently re-plan what is inside the booth for the new footprint: if the new size is smaller, remove or reduce furniture, displays, and decorative elements as needed so the space stays realistic, uncrowded, and at correct human scale — preserve circulation, reception, and any meeting area first, and simplify decorative elements before removing anything functional. If the new size is larger, you may add appropriately-scaled additional furniture or space so the booth doesn't feel empty, using the same design language as the rest of the booth. Every object must remain at realistic human scale regardless of the new size — do not just scale furniture up or down to fill space unrealistically.`;
-  }
-
   const statusEl = document.getElementById('actionStatus');
   statusEl.textContent = 'Preparing your edit...';
   closeEditPanel();
@@ -5496,9 +5457,6 @@ RESIZE THIS BOOTH: the client wants to change the physical footprint from approx
       const refParts = dataUrlParts(compressedRef);
       requestBody.additionalReferenceImages = [{ data: refParts.base64, mimeType: refParts.mime }];
       requestBody.prompt += ` A second reference image is also attached, showing an additional material, color, or style the client wants reflected in this change — incorporate its relevant qualities into the edit without copying it exactly unless the change explicitly calls for that.`;
-    }
-    if(document.getElementById('editModularWallLayout').checked){
-      requestBody.prompt += MODULAR_WALL_LAYOUT_TEXT;
     }
     requestBody.prompt += HARD_CONSTRAINTS_SUFFIX;
   }catch(err){
@@ -5539,13 +5497,8 @@ RESIZE THIS BOOTH: the client wants to change the physical footprint from approx
       renderEditDesignView();
       statusEl.textContent = '';
     }else{
-      opt.gallery.push({ label: hasResize ? 'Resized' : 'Edited', image: compressedResult });
+      opt.gallery.push({ label: 'Edited', image: compressedResult });
       opt.activeGalleryIndex = opt.gallery.length - 1;
-      if(hasResize){
-        if(!isNaN(newWidth) && newWidth > 0) document.getElementById('f_width').value = newWidth;
-        if(!isNaN(newDepth) && newDepth > 0) document.getElementById('f_depth').value = newDepth;
-        if(!isNaN(newHeight) && newHeight > 0) document.getElementById('f_totalHeight').value = newHeight;
-      }
       if(activeOptionIndex === idx){
         document.getElementById('renderSlotImg').src = compressedResult;
         renderGalleryStrip();
@@ -5918,9 +5871,15 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry){
    one — matching the explicit "if two adjacent views are more than 80% visually similar,
    regenerate using a wider field of view" requirement — with a single, cheap one-view retry
    (not a whole video) if needed. */
+// Kept around after the initial 12-view generation finishes so a single failed (or
+// unwanted) view can be retried later without recompressing/resending the hero image again
+// and without regenerating the other 11 views.
+let cameraViewsHeroRef = null;
+
 async function generateCameraViewsFromHero(heroImage){
   const compressedHero = await compressDataUrl(heroImage, 1536, 0.88);
   const { mime, base64 } = dataUrlParts(compressedHero);
+  cameraViewsHeroRef = { base64, mime };
 
   document.getElementById('viewer3dGeneratedCard').style.display = 'block';
   document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
@@ -5967,6 +5926,29 @@ async function generateCameraViewsFromHero(heroImage){
   document.getElementById('rateUsBar').style.display = 'flex';
   saveCurrentProject();
   updateApproveProgress(100, 'All views are ready.');
+}
+
+// Regenerates a single camera view — used both for the "Retry" button on a failed card
+// (most often a transient OpenAI/network hiccup, per requestCameraViewFromOpenAI) and as a
+// quick "try this angle again" option on an already-succeeded card, without touching the
+// other 11 views or spending a full re-approve.
+async function retryGeneratedView(camId){
+  const spec = CAMERA_SPECS.find(s => s.camId === camId);
+  if(!spec || !cameraViewsHeroRef){
+    await customAlert('This view can no longer be retried — reopen the design to regenerate all views.', 'Retry view');
+    return;
+  }
+  renderGeneratedViewCard(camId, 'pending', null);
+  try{
+    const resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false);
+    const compressedResult = await compressDataUrlToTarget(resultDataUrl, 300 * 1024);
+    pushCardHistory(camId, compressedResult, 'Retry');
+    renderGeneratedViewCard(camId, 'done', compressedResult);
+    saveCurrentProject();
+  }catch(err){
+    console.error('Retry failed for', camId, err);
+    renderGeneratedViewCard(camId, 'failed', err.message || 'Could not generate that view.');
+  }
 }
 
 /* This ring of 12 camera positions is intentionally smaller than the old Tripo/Gemini
@@ -6189,10 +6171,14 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
 
   if(state === 'failed'){
     card.className = 'viewer3d-generated-card-light failed';
+    const retryBtn = camId !== 'CAM01' ? `<button class="ghost small" onclick="retryGeneratedView('${camId}')">Retry</button>` : '';
     card.innerHTML = `
       <div class="viewer3d-generated-card-label failed-label">${label} — failed</div>
       <div style="padding:12px;">${imageOrMsg || 'Could not generate that view.'}</div>
-      <div style="padding:0 12px 12px;"><button class="ghost small" onclick="removeGeneratedViewCard('${camId}')">Remove</button></div>
+      <div class="viewer3d-generated-card-actions" style="justify-content:flex-start;padding:0 12px 12px;">
+        ${retryBtn}
+        <button class="ghost small" onclick="removeGeneratedViewCard('${camId}')">Remove</button>
+      </div>
     `;
     return;
   }
@@ -6207,6 +6193,7 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
     </div>
     <div style="padding:0 12px;"><button class="primary small" style="width:100%;margin-top:8px;" onclick="approveCardVersion('${camId}')">Approve this version (clears earlier edits)</button></div>
   ` : '';
+  const retryAction = camId !== 'CAM01' ? `<button class="ghost small" onclick="retryGeneratedView('${camId}')">Retry</button>` : '';
 
   card.innerHTML = `
     <div class="viewer3d-generated-card-label">${label}</div>
@@ -6215,6 +6202,7 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
     <div class="viewer3d-generated-card-actions">
       <a href="${imageOrMsg}" download="${cameraViewFilename(label)}.jpg" class="ghost small">Download</a>
       <button class="ghost small" onclick="openEditPanel('${camId}')">Edit</button>
+      ${retryAction}
     </div>
   `;
 }
