@@ -133,7 +133,7 @@ module.exports = async (req, res) => {
         contents: [{ parts: requestParts }],
         generationConfig: {
           responseModalities: ['TEXT', 'IMAGE'],
-          imageConfig: { imageSize: '2K' },
+          imageConfig: { imageSize: '2K', aspectRatio: '16:9' },
         },
       }),
     });
