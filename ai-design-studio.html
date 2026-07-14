@@ -6259,6 +6259,22 @@ function lockApprovedActionBar(){
   if(approveBtn) approveBtn.style.display = 'none';
 }
 
+// The counterpart to lockApprovedActionBar — these are the same three DOM elements reused
+// across the whole session (this is a single-page app, nothing reloads between projects), so
+// once one project got locked, Modify design/Approve/Other option would stay hidden forever
+// afterward — including for a brand new, not-yet-approved project — unless something
+// explicitly puts them back. Called whenever we're about to show a project (new or reopened)
+// that hasn't been approved; restoreGeneratedViewsIfSaved re-locks them right afterward if
+// the project turns out to already be approved, so the two always stay in sync.
+function unlockApprovedActionBar(){
+  const modifyBtn = document.querySelector('.action-bar button[onclick="openModifyDesignPanel()"]');
+  if(modifyBtn){ modifyBtn.style.display = ''; modifyBtn.disabled = false; }
+  const otherOptionBtnEl = document.getElementById('otherOptionBtn');
+  if(otherOptionBtnEl){ otherOptionBtnEl.style.display = ''; otherOptionBtnEl.disabled = false; }
+  const approveBtn = document.getElementById('approveDesignBtn');
+  if(approveBtn){ approveBtn.style.display = ''; approveBtn.disabled = false; }
+}
+
 async function confirmApproveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
@@ -6815,6 +6831,11 @@ function openProject(id){
     .then(project => {
       if(!project) return;
       currentProjectId = project.id;
+      // Modify design/Approve/Other option are the same three DOM elements every project
+      // reuses — unlock them before rendering this project's own view; restoreResultsView
+      // (via restoreGeneratedViewsIfSaved) re-locks them immediately after if this
+      // particular project turns out to already be approved.
+      unlockApprovedActionBar();
       restoreFormSnapshot(project.formSnapshot);
       // Reset AFTER restoreFormSnapshot, not before — see the identical comment in
       // startNewProject() for why the order matters here.
@@ -6971,6 +6992,10 @@ function startNewProject(){
   approvedDesignDecisions = [];
   editDesignApprovedCount = 0;
   unlockForm();
+  // Same three action-bar buttons carry over from whatever project was open before —
+  // without this, once any project got approved in this session, a brand new project would
+  // start with Modify design/Approve/Other option already hidden from the last one's lock.
+  unlockApprovedActionBar();
   showFormAndTabs();
   renderProjectSidebar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
