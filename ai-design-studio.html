@@ -40,7 +40,27 @@
      scrolling kicks in — 1 or 2 saved projects just take their own natural, smaller
      height; a 4th and beyond scroll within this same fixed area instead of pushing the
      rest of the sidebar (upload-existing, account/usage section) further down the page. */
-  .sidebar-projects-scroll{flex:0 1 auto;max-height:162px;min-height:0;overflow-y:auto;padding-right:2px;}
+  .sidebar-projects-scroll-wrap{flex:0 1 auto;display:flex;flex-direction:column;}
+  .sidebar-projects-scroll{
+    max-height:162px;min-height:0;overflow-y:scroll;padding-right:2px;
+    scrollbar-width:thin;scrollbar-color:var(--navy) var(--navy-soft);
+  }
+  /* A visible, "always there" scrollbar rather than the OS's auto-hiding overlay one — the
+     whole point is that a 4th+ project is unmistakably reachable by scrolling, not just
+     something you'd discover by accidentally hovering over the list. Webkit browsers (Chrome,
+     Edge, Safari) get an explicit thin track+thumb here; Firefox falls back to the
+     scrollbar-width/scrollbar-color pair set above, which is the closest that engine allows. */
+  .sidebar-projects-scroll::-webkit-scrollbar{width:7px;}
+  .sidebar-projects-scroll::-webkit-scrollbar-track{background:var(--navy-soft);border-radius:3px;}
+  .sidebar-projects-scroll::-webkit-scrollbar-thumb{background:var(--navy);border-radius:3px;}
+  .sidebar-projects-scroll::-webkit-scrollbar-thumb:hover{background:var(--teal);}
+  .project-scroll-arrow{
+    flex-shrink:0;width:100%;background:#fff;border:1.5px solid var(--line);border-radius:2px;
+    cursor:pointer;font-size:10px;line-height:1;padding:4px 0;color:var(--navy);
+  }
+  .project-scroll-arrow:first-child{margin-bottom:5px;}
+  .project-scroll-arrow:last-child{margin-top:5px;}
+  .project-scroll-arrow:hover{background:var(--navy-soft);border-color:var(--navy);}
   .sidebar-bottom-fixed{flex-shrink:0;padding-top:16px;}
 
   .buy-more-prompt{
@@ -446,8 +466,12 @@
       <div id="projectSaveError" class="project-save-error" style="display:none;"></div>
     </div>
 
-    <div class="sidebar-projects-scroll">
-      <div id="projectList" class="project-list"></div>
+    <div class="sidebar-projects-scroll-wrap">
+      <button type="button" class="project-scroll-arrow" id="projectScrollUpBtn" onclick="scrollProjectList(-1)" aria-label="Scroll up" style="display:none;">▲</button>
+      <div class="sidebar-projects-scroll" id="projectScrollArea">
+        <div id="projectList" class="project-list"></div>
+      </div>
+      <button type="button" class="project-scroll-arrow" id="projectScrollDownBtn" onclick="scrollProjectList(1)" aria-label="Scroll down" style="display:none;">▼</button>
     </div>
     <div class="sidebar-note">Projects save automatically and sync across devices.</div>
 
@@ -6800,6 +6824,27 @@ async function saveCurrentProject(){
     });
 }
 
+// Shows the up/down scroll-arrow buttons only when there's actually something to scroll to
+// (i.e. a 4th+ project pushed the list past its 3-row cap) — with 3 or fewer projects the
+// list already shows everything, so the arrows would just be dead buttons.
+function updateProjectScrollArrows(){
+  const area = document.getElementById('projectScrollArea');
+  const upBtn = document.getElementById('projectScrollUpBtn');
+  const downBtn = document.getElementById('projectScrollDownBtn');
+  if(!area || !upBtn || !downBtn) return;
+  const canScroll = area.scrollHeight > area.clientHeight + 1; // +1 guards against sub-pixel rounding
+  upBtn.style.display = canScroll ? 'block' : 'none';
+  downBtn.style.display = canScroll ? 'block' : 'none';
+}
+
+// Scrolls roughly one project row (its ~48px height plus the 6px gap) per click, so each
+// click feels like moving from one project to the next rather than a big jarring jump.
+function scrollProjectList(direction){
+  const area = document.getElementById('projectScrollArea');
+  if(!area) return;
+  area.scrollBy({ top: direction * 54, behavior: 'smooth' });
+}
+
 function renderProjectSidebar(){
   return dbGetAllProjects()
     .then(projects => {
@@ -6807,18 +6852,19 @@ function renderProjectSidebar(){
       const wrap = document.getElementById('projectList');
       if(projects.length === 0){
         wrap.innerHTML = '<div class="project-empty-hint">No saved projects yet. Fill in the form and click Generate to start one.</div>';
-        return;
+      }else{
+        wrap.innerHTML = projects.map(p => `
+          <div class="project-item ${p.id === currentProjectId ? 'active' : ''}">
+            <button class="project-item-btn" onclick="openProject('${p.id}')">
+              <div class="project-item-name">${escapeHtml(p.name)}</div>
+              <div class="project-item-date">${formatSavedDate(p.savedAt)}</div>
+            </button>
+            <button class="project-item-rename" onclick="renameProjectPrompt('${p.id}')" aria-label="Rename project" title="Rename project">✎</button>
+            <button class="project-item-delete" onclick="deleteProjectPrompt('${p.id}')" aria-label="Delete project">×</button>
+          </div>
+        `).join('');
       }
-      wrap.innerHTML = projects.map(p => `
-        <div class="project-item ${p.id === currentProjectId ? 'active' : ''}">
-          <button class="project-item-btn" onclick="openProject('${p.id}')">
-            <div class="project-item-name">${escapeHtml(p.name)}</div>
-            <div class="project-item-date">${formatSavedDate(p.savedAt)}</div>
-          </button>
-          <button class="project-item-rename" onclick="renameProjectPrompt('${p.id}')" aria-label="Rename project" title="Rename project">✎</button>
-          <button class="project-item-delete" onclick="deleteProjectPrompt('${p.id}')" aria-label="Delete project">×</button>
-        </div>
-      `).join('');
+      updateProjectScrollArrows();
     })
     .catch(err => {
       console.error('Could not load projects:', err);
