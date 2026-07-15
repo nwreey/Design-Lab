@@ -1795,6 +1795,7 @@ Replace only the materials and graphics."></textarea>
             <option value="Lens">Lens</option>
             <option value="Ribbon">Ribbon</option>
             <option value="Floating Frame">Floating Frame</option>
+            <option value="Rectangular Frame">Rectangular Frame</option>
             <option value="Multi-Level">Multi-Level</option>
             <option value="Custom Shape">Custom Shape</option>
           </select>
@@ -1815,6 +1816,30 @@ Replace only the materials and graphics."></textarea>
         <div class="field">
           <label>Ceiling Height from floor (m)</label>
           <input type="number" min="0.1" step="0.1" id="f_ceilingHeightFromFloor" placeholder="e.g. 4.5">
+        </div>
+
+        <div class="field" id="ceilingFinishField">
+          <label>Ceiling Finish</label>
+          <select id="f_ceilingFinish" onchange="toggleCeilingFabricColor(this)">
+            <option value="Aluminum Truss" selected>Aluminum Truss</option>
+            <option value="Hidden Frame">Hidden Frame</option>
+            <option value="Fabric">Fabric</option>
+            <option value="Fabric Lightbox">Fabric Lightbox</option>
+            <option value="LED Frame">LED Frame</option>
+            <option value="Wood Finish">Wood Finish</option>
+            <option value="Mirror Finish">Mirror Finish</option>
+            <option value="Printed Graphics">Printed Graphics</option>
+            <option value="Brushed Aluminum">Brushed Aluminum</option>
+          </select>
+        </div>
+
+        <div class="field" id="ceilingFabricColorField" style="display:none;">
+          <label>Fabric Lightbox Color</label>
+          <div class="color-row">
+            <input type="color" id="f_ceilingFabricColorPicker" class="color-picker" value="#FFFFFF" oninput="syncColorHex(this)">
+            <input type="text" id="f_ceilingFabricColorHex" class="color-hex" value="#FFFFFF" placeholder="#RRGGBB" oninput="syncColorPicker(this)" onchange="syncColorPicker(this)">
+          </div>
+          <div class="hint">The color of the backlit fabric panel itself.</div>
         </div>
 
         <div class="field" id="ceilingPurposeField">
@@ -2514,9 +2539,9 @@ ARCHITECTURAL CONCEPT must open by naming the specific, industry-inspired iconic
 
 Only after both labeled blocks are presented in full, close the section with 1-2 sentences of prose on how this hero architecture becomes the visual identity of the booth. Never fall back to generic, could-be-anywhere phrasing like "modern canopy," "floating ceiling," or "tech-inspired structure" as a substitute for the concept, its narrative, its geometry, or its hero structure facts. If this design includes a hero product (a vehicle, aircraft, machinery, medical scanner, or similar physical product the booth is built around), apply EPS-013's HERO PRODUCT RULE within the Hero Structure block's Geometry/Support system/Position/Visibility facts: state explicitly how the hero architecture frames that product without obstructing it, keeps it visible from every public entrance and primary viewing angle, and enhances rather than competes with it for attention.
 
-SPACE PLANNING covers the architecture's zoning only — never what fills it (products, furniture, technology, decoration all belong in Layer 2). Open with spatial_composition.composition_strategy's eight labeled facts verbatim under their own "Spatial Composition" sub-heading (Primary architectural axis, Secondary circulation loop, Focal point hierarchy, Visual balance, Massing composition, Structural rhythm, Open vs enclosed space ratios, Architectural support strategy) — per SCE-001, this is what turns the zones below into one deliberate architectural composition instead of a list of independently placed rooms. Only after that block, list overall zoning, open circulation percentage, floor hierarchy, the architectural footprint, and the position of every zone (storage, reception, meeting, product, hospitality) — each stated as an explicit "Zone — purpose" pairing (e.g. Reception — welcoming visitors; Display Zone — hands-on demonstrations; Consultation — private discussions; Experience Zone — interactive healthcare technology; Education Zone — digital learning wall) so it's clear why each zone exists and where it sits, and how it sits within the composition just established.
+SPACE PLANNING covers the architecture's zoning only — never what fills it (products, furniture, technology, decoration all belong in Layer 2). Open with spatial_composition.composition_strategy's eight labeled facts verbatim under their own "Spatial Composition" sub-heading (Primary architectural axis, Secondary circulation loop, Focal point hierarchy, Visual balance, Massing composition, Structural rhythm, Open vs enclosed space ratios, Architectural support strategy) — per SCE-001, this is what turns the zones below into one deliberate architectural composition instead of a list of independently placed rooms. Only after that block, list overall zoning, open circulation percentage, floor hierarchy, the architectural footprint, and the position of every zone (storage, reception, meeting, product, hospitality) — each stated as an explicit "Zone — purpose" pairing (e.g. Reception — welcoming visitors; Display Zone — hands-on demonstrations; Consultation — private discussions; Experience Zone — interactive healthcare technology; Education Zone — digital learning wall) so it's clear why each zone exists and where it sits, and how it sits within the composition just established. Per EPS-016, every zone position and this composition itself must be consistent with the brief's BOOTH ORIENTATION MODEL — never contradict which sides are OPEN versus CLOSED, and never mirror, rotate, or flip that orientation for a more convenient layout.
 
-VISITOR FLOW defines the physical journey only — entry, journey, experience, and exit — how a visitor's body moves through the space and where that path is designed to slow down. This is the architectural circulation path itself; the felt, narrative experience of that same journey belongs in Layer 2's EXHIBITION STORY instead.
+VISITOR FLOW defines the physical journey only — entry, journey, experience, and exit — how a visitor's body moves through the space and where that path is designed to slow down. This is the architectural circulation path itself; the felt, narrative experience of that same journey belongs in Layer 2's EXHIBITION STORY instead. Per EPS-016, entrances may only be placed on a side the BOOTH ORIENTATION MODEL marks OPEN, and the journey must originate there — never route entry through, or describe circulation crossing, a side marked CLOSED.
 
 STRUCTURAL PLANNING generates a real-world dimension for every major architectural and furniture element actually present in this design — floor dimensions, hero structure dimensions (already stated in ARCHITECTURAL CONCEPT's Hero Structure block — repeat them here for the full dimension list, don't re-derive different numbers), reception dimensions, meeting room dimensions, storage dimensions, furniture footprints, column positions, ceiling coverage, and maximum heights — using standard exhibition-industry sizing as the baseline, for example: Reception Counter 2.5m × 0.8m, Meeting Table 1.2m diameter, VIP Room 3m × 3m, Storage 12 sqm, Information Counter 2m × 0.7m, Interactive Display 1m × 1m, Interactive Zone 3m × 4m, Display Cabinet 1.2m × 0.6m, Coffee Bar 3m × 2m, Touch Screen 42", LED Screen 3m × 2m. Whenever the client's own brief already states an exact quantity for an element (e.g. "4 LED Screens," "2 touch screens"), list that same quantity here and give each unit — or each distinct unit if sizes differ — its own dimension, exactly as this design's Additional Requirements/Digital Technology facts already specify counts and sizes; never collapse a stated quantity down to one unlabeled figure. For any other major element this design includes that isn't in the baseline examples above, estimate an equally specific, equally reasonable dimension using the same standard-sizing logic — never leave an element out for lack of an example, and never write "size not specified," "dimensions vary," or any other placeholder in place of an actual number: every element listed here always gets a real, specific dimension. Present it as a short list of element: dimension pairs, one per line, covering only elements actually part of this design. These dimensions are design guidance for the rendering model, purely to improve proportion and layout consistency — never a substitute for any exact size, quantity, or capacity the client already explicitly stated elsewhere in the brief; a client-stated exact dimension always overrides the estimate given here for that same element.
 
@@ -2524,7 +2549,7 @@ MATERIALS states the primary and secondary materials chosen to express the conce
 
 LIGHTING STRATEGY grounds every layer — ambient, architectural, accent, product, and decorative — in the industry's own lighting profile from EPS-004's LEVEL 2 taxonomy (the specific color-temperature range, spotlight/base color, and accent color for this client's industry) as the single dominant palette every layer must stay within — never randomly mix in an unrelated temperature or accent color. Present lighting.accent_lighting_palette's three labeled facts (Primary Accent, Secondary, Avoid) verbatim under their own "Accent Lighting Palette" sub-heading — per DIR-012, this is the single palette every decorative LED strip, under-counter light, edge light, and illuminated architectural detail anywhere in this design must stay within, in both Layer 1 and Layer 2, unless the client explicitly requested a different color.
 
-NEGATIVE RULES closes Layer 1 with a short list of hard constraints this design must never violate, stated as direct prohibitions — for example: never exceed the booth boundary (EPS-010); maintain open circulation; do not overlap furniture; do not block entrances; architecture dominates furniture. Include any other negative rule genuinely relevant to this specific design (e.g. no suspended rigging unless Overhead Structure = Suspended, per EPS-012; no people of any kind, per EPS-007), stated with the same direct, prohibition-first phrasing — never state a suspended-rigging prohibition on a design where Overhead Structure actually is Suspended, since that would directly contradict the architecture Layer 1 just established.
+NEGATIVE RULES closes Layer 1 with a short list of hard constraints this design must never violate, stated as direct prohibitions — for example: never exceed the booth boundary (EPS-010); maintain open circulation; do not overlap furniture; do not block entrances; architecture dominates furniture. Include any other negative rule genuinely relevant to this specific design (e.g. no suspended rigging unless Overhead Structure = Suspended, per EPS-012; no people of any kind, per EPS-007), stated with the same direct, prohibition-first phrasing — never state a suspended-rigging prohibition on a design where Overhead Structure actually is Suspended, since that would directly contradict the architecture Layer 1 just established. Always include the two EPS-016 orientation prohibitions stated against this design's actual BOOTH ORIENTATION MODEL: never enclose a side marked OPEN with a wall or structure, and never leave a side marked CLOSED open or unbuilt — and never mirror, rotate, or flip that orientation.
 
 LAYER 2 SECTION GUIDANCE:
 
@@ -3748,6 +3773,36 @@ FLOORING AS A DESIGN DECISION — WORKED EXAMPLES (illustrative, not an exhausti
 • Automotive: Polished Concrete — reads bold, industrial-premium, lets a hero vehicle or product be the visual focus.
 • Outdoor Pavilion: Composite Decking or Artificial Grass — reads appropriate to an outdoor, natural setting rather than an indoor exhibition finish.`;
 
+const EPS_016 = `BOOTH ORIENTATION & BOUNDARY ENFORCEMENT
+
+GENERAL RULE (core rule)
+Booth orientation is a hard physical constraint, never a suggestion. When the client specifies which sides are open and which sides are closed (bordering neighboring booths, back walls, or venue structure), the architecture must respect that orientation exactly, exactly as given in the brief's BOOTH ORIENTATION MODEL.
+
+NO MIRRORING, ROTATION, OR FLIPPING (core rule)
+The booth's layout may never be mirrored, rotated, or flipped from the orientation given. Left must always mean left, right must always mean right, front must always mean front, and rear must always mean rear — never swapped, never reversed, regardless of how the design might read more conventionally with a different orientation.
+
+EXAMPLE
+Front + Right Open, Left + Rear Closed means:
+• Front edge remains completely open — no wall, no structure blocking this edge.
+• Right edge remains completely open — no wall, no structure blocking this edge.
+• Left boundary must be occupied by architectural walls or booth structure — never left open.
+• Rear boundary must be occupied by architectural walls or booth structure — never left open.
+Never swap left/right or front/rear from what the brief actually states.
+
+INTERNAL ORIENTATION MODEL (core rule)
+The brief already gives this booth's BOOTH ORIENTATION MODEL — its open/closed state for all four sides, stated exactly as OPEN or CLOSED, e.g.:
+Front: OPEN
+Right: OPEN
+Rear: CLOSED
+Left: CLOSED
+Treat this model as immutable throughout the remaining pipeline — every later decision (space planning, spatial composition, architecture, materials, lighting, branding) must be generated relative to this fixed orientation, never a rotated or mirrored version of it.
+
+APPLIES TO EVERY ELEMENT (core rule)
+Every architectural element, circulation path, entrance, reception, hero structure, and visitor flow must be positioned and described relative to this fixed orientation. An entrance may only be placed on an OPEN side. A wall, backdrop, or structural boundary must occupy every CLOSED side. The hero structure's position within the booth (per EPS-013's HERO STRUCTURE RULE and the Hero Structure block's Position within booth fact) must be consistent with this orientation, never contradicting it.
+
+VALIDATION (core rule)
+Before finalizing the design, verify it does not violate the client's defined open/closed sides — reject and revise any design where an OPEN side is shown closed, a CLOSED side is shown open, or the orientation has been mirrored, rotated, or flipped from what the BOOTH ORIENTATION MODEL states.`;
+
 const ECS_001 = `EVENT PLANNING PRINCIPLES
 
 An event is not a collection of beautiful objects — it is a carefully designed visitor experience. Design experiences, not isolated spaces. Every event should guide visitors naturally from arrival to departure. Every area should support the event's actual objectives. Architecture, branding, technology, and circulation must work together as one experience, not as separate decisions made independently of each other.
@@ -4340,8 +4395,8 @@ function collectCeilingRiggingSpecification(){
   }
 
   // Per DIR-010/DIR-011, "Self-supported ceiling feature" gets its own configuration —
-  // Ceiling Shape, Ceiling Size, and Architectural Purpose — mirroring the same pattern used
-  // for the rigging sub-fields above.
+  // Ceiling Shape, Ceiling Size, Ceiling Finish, and Architectural Purpose — mirroring the
+  // same pattern used for the rigging sub-fields above.
   if(ceilingRigging === 'Self-supported ceiling feature'){
     const ceilingShapeRaw = document.getElementById('f_ceilingShape').value;
     const ceilingShape = ceilingShapeRaw === 'Custom Shape' ? (document.getElementById('f_ceilingShapeCustom').value.trim() || 'Custom Shape') : ceilingShapeRaw;
@@ -4355,6 +4410,12 @@ function collectCeilingRiggingSpecification(){
     if(ceilingDepth) ceilingSizeParts.push(`Depth ${ceilingDepth}m`);
     if(ceilingHeightFromFloor) ceilingSizeParts.push(`Height from floor ${ceilingHeightFromFloor}m`);
     lines.push(ceilingSizeParts.length ? `Ceiling Size: ${ceilingSizeParts.join(', ')}.` : 'Ceiling Size: not specified — estimate a size proportionate to the booth footprint.');
+
+    const ceilingFinish = document.getElementById('f_ceilingFinish').value;
+    lines.push(`Ceiling Finish: ${ceilingFinish}.`);
+    if(ceilingFinish === 'Fabric Lightbox'){
+      lines.push(`Fabric Lightbox Color: ${document.getElementById('f_ceilingFabricColorHex').value}.`);
+    }
 
     const ceilingPurposeRaw = document.getElementById('f_ceilingPurpose').value;
     const ceilingPurpose = ceilingPurposeRaw === 'Custom Purpose' ? (document.getElementById('f_ceilingPurposeCustom').value.trim() || 'Custom Purpose') : ceilingPurposeRaw;
@@ -4749,6 +4810,10 @@ function toggleRiggingFabricColor(select){
   document.getElementById('riggingFabricColorField').style.display = select.value === 'Fabric Lightbox' ? 'block' : 'none';
 }
 
+function toggleCeilingFabricColor(select){
+  document.getElementById('ceilingFabricColorField').style.display = select.value === 'Fabric Lightbox' ? 'block' : 'none';
+}
+
 // Opening a saved project should land directly on its results — the concept box, the
 // picture, everything already done on it — rather than showing the input form
 // underneath too. These two functions toggle between that focused "just show me the
@@ -4988,6 +5053,29 @@ function buildOpenSidesDescription(){
     return `3 open sides (peninsula booth — a wall on the ${closedSide.toLowerCase()} side only; open at the ${openSides.join(', ')} sides)`;
   }
   return '4 open sides (island booth — fully open on all sides, no walls at all)';
+}
+
+// EPS-016 — Booth Orientation & Boundary Enforcement: computes the exact OPEN/CLOSED state
+// of all four sides directly from the client's own selection, rather than relying on the
+// model to derive a structured model from a sentence. Orientation is a hard physical
+// constraint (never mirrored, rotated, or flipped), so handing over this exact, code-computed
+// fact is far more reliable than asking the model to convert natural language into it.
+function buildBoothOrientationModel(){
+  const count = document.getElementById('f_openSides').value;
+  let openSet;
+  if(count === '1'){
+    openSet = new Set([document.getElementById('f_inlineOpenSide').value]);
+  }else if(count === '2'){
+    const open = document.getElementById('f_cornerSide').value; // 'left' or 'right'
+    openSet = new Set(['Front', open === 'right' ? 'Right' : 'Left']);
+  }else if(count === '3'){
+    const closedSide = document.getElementById('f_peninsulaClosedSide').value;
+    openSet = new Set(ALL_BOOTH_SIDES.filter(s => s !== closedSide));
+  }else{
+    openSet = new Set(ALL_BOOTH_SIDES);
+  }
+  const labelFor = (side) => side === 'Back' ? 'Rear' : side;
+  return ALL_BOOTH_SIDES.map(side => `${labelFor(side)}: ${openSet.has(side) ? 'OPEN' : 'CLOSED'}`).join('\n');
 }
 
 function syncColorHex(colorInput){
@@ -5336,6 +5424,7 @@ async function generateDesign(){
   const environment = document.getElementById('f_environment').value;
   const desc = document.getElementById('f_desc').value.trim();
   const openSides = mode === 'booth' ? buildOpenSidesDescription() : '';
+  const boothOrientationModel = mode === 'booth' ? buildBoothOrientationModel() : '';
 
   const levels = document.getElementById('f_levels').value;
   const totalHeight = document.getElementById('f_totalHeight').value.trim();
@@ -5518,6 +5607,7 @@ ${mode==='event' && requiredAreas.length > 0 ? 'Required Areas (must all be incl
 ${mode==='event' && indoorRequiredAreas.length > 0 ? 'Indoor Required Areas (must all be included in the indoor part of the design): ' + indoorRequiredAreas.join(', ') : ''}
 ${mode==='event' && outdoorRequiredAreas.length > 0 ? 'Outdoor Required Areas (must all be included in the outdoor part of the design): ' + outdoorRequiredAreas.join(', ') : ''}
 ${mode==='booth' ? 'Booth configuration: ' + openSides : ''}
+${mode==='booth' ? 'BOOTH ORIENTATION MODEL — per EPS-016, this exact OPEN/CLOSED state per side is a hard physical constraint, immutable throughout the entire pipeline. Never mirror, rotate, or flip it — front always means front, left always means left, regardless of what would read more conventionally:\n' + boothOrientationModel : ''}
 ${mode==='booth' ? 'Number of levels: ' + levels + (levels==='2' ? ' (ground floor + upper floor)' : '') : ''}
 ${mode==='booth' && totalHeight ? 'Target total height: ' + totalHeight + ' m' : ''}
 ${mode==='booth' && levels==='2' && upperFloorProgram ? 'Upper floor program: ' + upperFloorProgram : ''}
@@ -5641,6 +5731,12 @@ ${EPS_015}
 
 <<EPS-015 END>>
 
+<<EPS-016 START>>
+
+${EPS_016}
+
+<<EPS-016 END>>
+
 <<APS-001 START>>
 
 ${APS_001}
@@ -5751,6 +5847,7 @@ ARCHITECTURAL PRIORITY CHECKLIST (core rule) — before finalizing image_prompt,
 ✓ Furniture supports architecture — FURNITURE in LAYER 2 reads as populating the space plan already fixed in LAYER 1, never redefining or competing with it.
 ✓ Products remain secondary — PRODUCT EXPERIENCE and DIGITAL TECHNOLOGY never overshadow the hero structure's visual primacy established in LAYER 1.
 ✓ Brand lighting consistent — every decorative LED strip, under-counter light, edge light, and illuminated architectural detail anywhere in the prompt stays within lighting.accent_lighting_palette per DIR-012, with no unrelated RGB or "technology blue" glow introduced.
+✓ Orientation respected — per EPS-016, every OPEN side in the brief's BOOTH ORIENTATION MODEL reads as genuinely open (no wall or structure), every CLOSED side is occupied by wall or structure, entrances and circulation only originate from OPEN sides, and the layout has not been mirrored, rotated, or flipped from that model.
 
 You are given two things in the user message: (1) the hidden analysis JSON, organized into modules — concept (design_objective, architectural_concept), space_planning (visitor_flow, functional_zones), spatial_composition (composition_strategy), architecture (architectural_geometry, hero_structure), materials (primary_materials), lighting (lighting_strategy, accent_lighting_palette), branding (brand_integration) — and (2) the client's original brief, included only so you can pull literal facts (exact numbers, hex codes, counts, style names) precisely. Use (1) as the architectural backbone of every section below; use (2) only to insert precise literal facts into the correct sections — never let (2) reopen a decision already settled in (1). architecture.architectural_geometry and architecture.hero_structure are already the concrete, deterministic translation of architectural_concept's narrative (per DIR-005) — carry their labeled facts into ARCHITECTURAL CONCEPT verbatim (geometry before hero structure, the same order they were decided in), never re-abstract them back into mood language or storytelling. spatial_composition.composition_strategy is likewise already decided (per SCE-001) — carry its labeled facts into SPACE PLANNING verbatim, never re-derive a different composition. lighting.accent_lighting_palette is likewise already decided (per DIR-012) — carry its labeled facts into LIGHTING STRATEGY verbatim, and enforce it on every decorative/accent lighting mention anywhere else in the prompt.
 
@@ -8109,6 +8206,8 @@ function collectFormSnapshot(){
     f_ceilingWidth: document.getElementById('f_ceilingWidth').value,
     f_ceilingDepth: document.getElementById('f_ceilingDepth').value,
     f_ceilingHeightFromFloor: document.getElementById('f_ceilingHeightFromFloor').value,
+    f_ceilingFinish: document.getElementById('f_ceilingFinish').value,
+    f_ceilingFabricColorHex: document.getElementById('f_ceilingFabricColorHex').value,
     f_ceilingPurpose: document.getElementById('f_ceilingPurpose').value,
     f_ceilingPurposeCustom: document.getElementById('f_ceilingPurposeCustom').value,
     f_openSides: document.getElementById('f_openSides').value,
@@ -8232,12 +8331,16 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_ceilingWidth').value = snap.f_ceilingWidth || '';
   document.getElementById('f_ceilingDepth').value = snap.f_ceilingDepth || '';
   document.getElementById('f_ceilingHeightFromFloor').value = snap.f_ceilingHeightFromFloor || '';
+  document.getElementById('f_ceilingFinish').value = snap.f_ceilingFinish || 'Aluminum Truss';
+  document.getElementById('f_ceilingFabricColorHex').value = snap.f_ceilingFabricColorHex || '#FFFFFF';
+  syncColorPicker(document.getElementById('f_ceilingFabricColorHex'));
   document.getElementById('f_ceilingPurpose').value = snap.f_ceilingPurpose || 'Architectural Landmark';
   document.getElementById('f_ceilingPurposeCustom').value = snap.f_ceilingPurposeCustom || '';
   toggleRiggingSubfields(document.getElementById('f_ceilingRigging'));
   toggleRiggingShapeCustom(document.getElementById('f_riggingShape'));
   toggleRiggingFabricColor(document.getElementById('f_riggingFinish'));
   toggleCeilingShapeCustom(document.getElementById('f_ceilingShape'));
+  toggleCeilingFabricColor(document.getElementById('f_ceilingFinish'));
   toggleCeilingPurposeCustom(document.getElementById('f_ceilingPurpose'));
   document.getElementById('f_openSides').value = snap.f_openSides || '2';
   document.getElementById('f_inlineOpenSide').value = snap.f_inlineOpenSide || 'Front';
