@@ -963,6 +963,7 @@
         <option value="Futuristic">Futuristic</option>
         <option value="Corporate">Corporate</option>
         <option value="Industrial">Industrial</option>
+        <option value="Organic">Organic</option>
       </select>
     </div>
     <div class="field">
@@ -1347,6 +1348,7 @@ Replace only the materials and graphics."></textarea>
         <option value="Futuristic">Futuristic</option>
         <option value="Corporate">Corporate</option>
         <option value="Industrial">Industrial</option>
+        <option value="Organic">Organic</option>
       </select>
       <div class="hint" id="archStyleHint"></div>
     </div>
@@ -1687,6 +1689,7 @@ Replace only the materials and graphics."></textarea>
             <option value="Circular" selected>Circular</option>
             <option value="Square">Square</option>
             <option value="Rectangle">Rectangle</option>
+            <option value="Rounded Rectangle">Rounded Rectangle</option>
             <option value="Oval">Oval</option>
             <option value="Triangle">Triangle</option>
             <option value="Freeform">Freeform</option>
@@ -1712,15 +1715,25 @@ Replace only the materials and graphics."></textarea>
 
         <div class="field" id="riggingFinishField">
           <label>Rigging Finish</label>
-          <select id="f_riggingFinish">
+          <select id="f_riggingFinish" onchange="toggleRiggingFabricColor(this)">
             <option value="Aluminum Truss" selected>Aluminum Truss</option>
             <option value="Hidden Frame">Hidden Frame</option>
             <option value="Fabric">Fabric</option>
+            <option value="Fabric Lightbox">Fabric Lightbox</option>
             <option value="LED Frame">LED Frame</option>
             <option value="Wood Finish">Wood Finish</option>
             <option value="Mirror Finish">Mirror Finish</option>
             <option value="Printed Graphics">Printed Graphics</option>
           </select>
+        </div>
+
+        <div class="field" id="riggingFabricColorField" style="display:none;">
+          <label>Fabric Lightbox Color</label>
+          <div class="color-row">
+            <input type="color" id="f_riggingFabricColorPicker" class="color-picker" value="#FFFFFF" oninput="syncColorHex(this)">
+            <input type="text" id="f_riggingFabricColorHex" class="color-hex" value="#FFFFFF" placeholder="#RRGGBB" oninput="syncColorPicker(this)" onchange="syncColorPicker(this)">
+          </div>
+          <div class="hint">The color of the backlit fabric panel itself.</div>
         </div>
 
         <div class="field" id="riggingElementsField">
@@ -1762,6 +1775,50 @@ Replace only the materials and graphics."></textarea>
             <option value="Double-sided hanging sign">Double-sided hanging sign</option>
           </select>
           <div class="hint">How visible the logo carried by this rigging/suspended structure should be, and from how many sides.</div>
+        </div>
+      </div>
+
+      <div id="selfSupportedCeilingFields" style="display:none;">
+        <div class="field" id="ceilingShapeField">
+          <label>Ceiling Shape</label>
+          <select id="f_ceilingShape" onchange="toggleCeilingShapeCustom(this)">
+            <option value="Rectangle" selected>Rectangle</option>
+            <option value="Rounded Rectangle">Rounded Rectangle</option>
+            <option value="Circle">Circle</option>
+            <option value="Oval">Oval</option>
+            <option value="Square">Square</option>
+            <option value="Hexagon">Hexagon</option>
+            <option value="Ring">Ring</option>
+            <option value="Wave">Wave</option>
+            <option value="Organic / Freeform">Organic / Freeform</option>
+            <option value="Lens">Lens</option>
+            <option value="Ribbon">Ribbon</option>
+            <option value="Floating Frame">Floating Frame</option>
+            <option value="Multi-Level">Multi-Level</option>
+            <option value="Custom Shape">Custom Shape</option>
+          </select>
+          <input type="text" id="f_ceilingShapeCustom" placeholder="Describe the custom ceiling shape" style="display:none;margin-top:8px;">
+          <div class="hint">The physical shape of the self-supported ceiling feature itself.</div>
+        </div>
+
+        <div class="field" id="ceilingPurposeField">
+          <label>Architectural Purpose <span class="required-mark">*</span></label>
+          <select id="f_ceilingPurpose" onchange="toggleCeilingPurposeCustom(this)">
+            <option value="Architectural Landmark" selected>Architectural Landmark</option>
+            <option value="Brand Identity">Brand Identity</option>
+            <option value="Space Definition">Space Definition</option>
+            <option value="Visitor Wayfinding">Visitor Wayfinding</option>
+            <option value="Product Highlight">Product Highlight</option>
+            <option value="Immersive Experience">Immersive Experience</option>
+            <option value="Lighting Feature">Lighting Feature</option>
+            <option value="Acoustic Treatment">Acoustic Treatment</option>
+            <option value="Exhibition Zoning">Exhibition Zoning</option>
+            <option value="Multi-function Element">Multi-function Element</option>
+            <option value="Decorative Feature">Decorative Feature</option>
+            <option value="Custom Purpose">Custom Purpose</option>
+          </select>
+          <input type="text" id="f_ceilingPurposeCustom" placeholder="Describe the custom architectural purpose" style="display:none;margin-top:8px;">
+          <div class="hint">Why this ceiling feature exists — this drives its geometry, scale, lighting, and branding integration.</div>
         </div>
       </div>
 
@@ -2449,7 +2506,7 @@ STRUCTURAL PLANNING generates a real-world dimension for every major architectur
 
 MATERIALS states the primary and secondary materials chosen to express the concept and brand personality, and how each specific finish — floor, ceiling, wall, and any glass, metal, wood, or stone actually used — is applied and where, consistent with the client's stated Construction Style and Flooring Specification.
 
-LIGHTING STRATEGY grounds every layer — ambient, architectural, accent, product, and decorative — in the industry's own lighting profile from EPS-004's LEVEL 2 taxonomy (the specific color-temperature range, spotlight/base color, and accent color for this client's industry) as the single dominant palette every layer must stay within — never randomly mix in an unrelated temperature or accent color.
+LIGHTING STRATEGY grounds every layer — ambient, architectural, accent, product, and decorative — in the industry's own lighting profile from EPS-004's LEVEL 2 taxonomy (the specific color-temperature range, spotlight/base color, and accent color for this client's industry) as the single dominant palette every layer must stay within — never randomly mix in an unrelated temperature or accent color. Present lighting.accent_lighting_palette's three labeled facts (Primary Accent, Secondary, Avoid) verbatim under their own "Accent Lighting Palette" sub-heading — per DIR-012, this is the single palette every decorative LED strip, under-counter light, edge light, and illuminated architectural detail anywhere in this design must stay within, in both Layer 1 and Layer 2, unless the client explicitly requested a different color.
 
 NEGATIVE RULES closes Layer 1 with a short list of hard constraints this design must never violate, stated as direct prohibitions — for example: never exceed the booth boundary (EPS-010); maintain open circulation; do not overlap furniture; do not block entrances; architecture dominates furniture. Include any other negative rule genuinely relevant to this specific design (e.g. no suspended rigging unless Overhead Structure = Suspended, per EPS-012; no people of any kind, per EPS-007), stated with the same direct, prohibition-first phrasing — never state a suspended-rigging prohibition on a design where Overhead Structure actually is Suspended, since that would directly contradict the architecture Layer 1 just established.
 
@@ -2459,11 +2516,11 @@ PRODUCT EXPERIENCE names the actual, specific, industry-appropriate products or 
 
 BRANDING follows EPS-013's BRANDING PLACEMENT HIERARCHY in priority order (Hero Architecture, Reception, Feature Wall, Hanging Sign, LED Screen, Totem, Product Display) — describe logo placement, graphic walls, posters, screens, and digital totems only where each genuinely applies to this design, and never place branding on planters, furniture, or small decorative objects.
 
-FURNITURE describes what furnishes the space plan already established in Layer 1 — reception furniture, meeting tables, chairs, coffee bar, lounge seating, and storage furniture — always as what completes an existing architecture, never as an independent inventory that could justify its own layout. Per DIR-006, furniture organizes around the hero architectural structure — it never rivals it, replaces it, or reads as the dominant visual element in its own right.
+FURNITURE describes what furnishes the space plan already established in Layer 1 — reception furniture, meeting tables, chairs, coffee bar, lounge seating, and storage furniture — always as what completes an existing architecture, never as an independent inventory that could justify its own layout. Per DIR-006, furniture organizes around the hero architectural structure — it never rivals it, replaces it, or reads as the dominant visual element in its own right. Any under-counter lighting or illuminated edge on this furniture (e.g. reception counter underglow) must stay within lighting.accent_lighting_palette per DIR-012 — never a color, like a generic blue underglow, that isn't actually part of this client's own brand.
 
 DIGITAL TECHNOLOGY covers LED screens, touch screens, interactive displays, QR displays, and media walls actually present in this design, consistent with whatever exact quantities and sizes the client specified. Where EPS-014 applies and the chosen signature immersive feature is technology-driven (e.g. an immersive LED tunnel, projection experience, or dynamic media ring), describe it fully here — its exact placement, how it stages or frames the flagship product, and why it reads as this booth's one emotional centerpiece rather than another screen among several.
 
-DECORATIVE ELEMENTS covers plants, feature walls, art pieces, and lighting features used purely for atmosphere — the lightest-weight layer of the whole prompt, applied only after everything structural, branded, and functional is already in place. Where EPS-014 applies and the chosen signature immersive feature is physical rather than digital (e.g. an interactive lighting floor or a suspended kinetic sculpture), describe it fully here instead of in DIGITAL TECHNOLOGY — described only once, in whichever of these two sections actually matches its nature, never split across both or multiplied into several competing features.
+DECORATIVE ELEMENTS covers plants, feature walls, art pieces, and lighting features used purely for atmosphere — the lightest-weight layer of the whole prompt, applied only after everything structural, branded, and functional is already in place. Where EPS-014 applies and the chosen signature immersive feature is physical rather than digital (e.g. an interactive lighting floor or a suspended kinetic sculpture), describe it fully here instead of in DIGITAL TECHNOLOGY — described only once, in whichever of these two sections actually matches its nature, never split across both or multiplied into several competing features. Every decorative LED strip and illuminated architectural detail described here must stay within lighting.accent_lighting_palette per DIR-012 — decorative lighting reinforces brand identity, it never introduces an unrelated color, and a generic multi-color RGB effect or default "technology blue" glow is never an acceptable substitute for the client's own brand colors unless explicitly requested.
 
 EXHIBITION STORY describes what a visitor actually experiences while moving through the completed booth — the felt, narrative counterpart to Layer 1's VISITOR FLOW — grounded in the same journey already defined there, but told as an experience rather than a circulation path.
 
@@ -3060,6 +3117,7 @@ LEVEL 1 — ARCHITECTURAL STYLE (the single most important style dimension)
 - Futuristic: floating elements, dynamic lighting, curves, LED integration, interactive screens.
 - Corporate: professional, balanced, functional, clean branding, meeting focused.
 - Industrial: concrete, black, wood, raw textures, open ceiling.
+- Organic: curved forms, natural materials (timber, rattan, stone), biophilic greenery, soft flowing lines, warm diffused lighting.
 
 LEVEL 2 — INDUSTRY STYLE (adds industry-specific design language — architectural language, material selection, color accents, display strategy, visitor experience, product presentation, lighting mood, digital technology integration, and decorative elements — on top of Level 1 and the client's own brand colors. This level only ever ADDS a layer; it must never override, replace, or contradict the architectural style or the brand identity already established. Each entry also lists example products typical of that industry, and its lighting profile — use these to decide what the product display area actually shows (describe specific, recognizable product types there, never the generic word "product" as if it were a real object) and which single color-temperature/accent-color palette the lighting design commits to, per LDS-001's own rule never to randomly mix lighting temperatures.)
 ${Object.entries(INDUSTRY_STYLE_ATTRIBUTES).map(([name, attrs]) => `- ${name}: ${attrs}. Typical products to feature in the product display area: ${INDUSTRY_EXAMPLE_PRODUCTS[name] || 'infer specific, recognizable products typical of this industry'}. Lighting profile: ${INDUSTRY_LIGHTING_PROFILES[name] || 'infer a single consistent color temperature and accent color typical of this industry'}.`).join('\n')}
@@ -3488,7 +3546,7 @@ const EPS_012 = `CEILING & RIGGING RULES
 
 GENERATION CONSTRAINTS BY OVERHEAD STRUCTURE (core rule) — the single authoritative rule for this standard. The brief's Ceiling & Rigging Specification states the client's explicit choice, which always maps to exactly one of three Overhead Structure categories. Apply the matching constraint below and no other — these three are mutually exclusive, never combined, and nothing else in this standard may override them:
 • Overhead Structure = None (client selected "No overhead structure," the default) — do not generate suspended, hanging, truss-supported, or venue-attached elements of any kind. No ceiling feature, canopy, or overhead element at all; the booth reads entirely from its floor-level architecture and walls.
-• Overhead Structure = Self-supported (client selected "Self-supported ceiling feature") — all overhead elements must be structurally supported from the booth floor, via the booth's own columns, walls, or floor-mounted structure. Never suspended from venue rigging, regardless of how the element is described.
+• Overhead Structure = Self-supported (client selected "Self-supported ceiling feature") — all overhead elements must be structurally supported from the booth floor, via the booth's own columns, walls, or floor-mounted structure. Never suspended from venue rigging, regardless of how the element is described. Per DIR-010, apply the Ceiling Shape fact given in the same specification exactly as stated — the ceiling feature's actual geometry (e.g. Ring, Wave, Organic/Freeform, Multi-Level) varies significantly and must never default to a generic flat ceiling. Per DIR-011, also apply the Architectural Purpose fact given in the same specification — this is what the ceiling feature is actually for (e.g. Architectural Landmark, Brand Identity, Visitor Wayfinding, Immersive Experience), and it must directly shape the feature's geometry, scale, lighting integration, and branding — a ceiling feature built for Brand Identity reads and integrates the logo differently than one built purely as a Decorative Feature or Acoustic Treatment.
 • Overhead Structure = Suspended (client selected "Hanging rigging / truss," "Full suspended architectural structure," or "Custom venue-approved suspension") — suspended architectural structures are permitted and should become the dominant architectural feature of the booth. Apply the Rigging Shape, Rigging Size, Rigging Finish, Integrated Elements, Rigging Lighting, and Brand Visibility facts given in the same specification exactly as stated (for Custom venue-approved suspension specifically, describe it only as broadly as the client's own free-text allows, without inventing shape/size/finish details that weren't given). Where the selection is "Full suspended architectural structure," treat the resulting structure with the full weight of the hero architectural element (see EPS-013's HERO STRUCTURE RULE).
 
 Never generate a design that both includes a suspended element and states "no suspended rigging" — check the client's actual Overhead Structure selection first, and let that single value settle the question for the entire design; no other paragraph in this standard may reintroduce a different default once that selection is known.
@@ -3853,7 +3911,8 @@ const ARCH_STYLE_COLORS = {
   Luxury: 'Warm premium palette — brass or gold trim, deep navy or burgundy, marble-look flooring, rich wood veneer, warm amber lighting.',
   Futuristic: 'Cool high-contrast palette — glossy white or black surfaces, electric blue or cyan LED accent lighting, chrome details, backlit panels.',
   Corporate: 'Professional palette — navy, grey, and white, with the brand\'s own colors as accents, matte finishes, minimal decoration.',
-  Industrial: 'Raw palette — exposed concrete grey, matte black steel, natural or reclaimed wood, visible structural elements.'
+  Industrial: 'Raw palette — exposed concrete grey, matte black steel, natural or reclaimed wood, visible structural elements.',
+  Organic: 'Earthy natural palette — curved timber, rattan/woven textures, warm terracotta and stone tones, soft biophilic greenery, diffused natural-feeling lighting.'
 };
 
 function updateArchStyleHint(sel){
@@ -4245,7 +4304,11 @@ function collectCeilingRiggingSpecification(){
     if(heightFromFloor) sizeParts.push(`Height from floor ${heightFromFloor}m`);
     lines.push(sizeParts.length ? `Rigging Size: ${sizeParts.join(', ')}.` : 'Rigging Size: not specified — estimate a size proportionate to the booth footprint.');
 
-    lines.push(`Rigging Finish: ${document.getElementById('f_riggingFinish').value}.`);
+    const riggingFinish = document.getElementById('f_riggingFinish').value;
+    lines.push(`Rigging Finish: ${riggingFinish}.`);
+    if(riggingFinish === 'Fabric Lightbox'){
+      lines.push(`Fabric Lightbox Color: ${document.getElementById('f_riggingFabricColorHex').value}.`);
+    }
 
     const riggingElements = Array.from(document.querySelectorAll('.rigging-element-cb:checked')).map(cb => cb.value);
     lines.push(riggingElements.length
@@ -4258,6 +4321,19 @@ function collectCeilingRiggingSpecification(){
       : 'Rigging Lighting: none requested.');
 
     lines.push(`Brand Visibility: ${document.getElementById('f_riggingBrandVisibility').value}.`);
+  }
+
+  // Per DIR-010/DIR-011, "Self-supported ceiling feature" gets its own configuration —
+  // Ceiling Shape and Architectural Purpose — mirroring the same pattern used for the
+  // rigging sub-fields above.
+  if(ceilingRigging === 'Self-supported ceiling feature'){
+    const ceilingShapeRaw = document.getElementById('f_ceilingShape').value;
+    const ceilingShape = ceilingShapeRaw === 'Custom Shape' ? (document.getElementById('f_ceilingShapeCustom').value.trim() || 'Custom Shape') : ceilingShapeRaw;
+    lines.push(`Ceiling Shape: ${ceilingShape}.`);
+
+    const ceilingPurposeRaw = document.getElementById('f_ceilingPurpose').value;
+    const ceilingPurpose = ceilingPurposeRaw === 'Custom Purpose' ? (document.getElementById('f_ceilingPurposeCustom').value.trim() || 'Custom Purpose') : ceilingPurposeRaw;
+    lines.push(`Architectural Purpose: ${ceilingPurpose} — this drives the ceiling feature's geometry, scale, lighting, and branding integration.`);
   }
 
   return `
@@ -4623,10 +4699,29 @@ function toggleRaisedFloorHeightCustom(select){
 function toggleRiggingSubfields(select){
   const needsDetails = select.value === 'Hanging rigging / truss' || select.value === 'Full suspended architectural structure';
   document.getElementById('riggingDetailsFields').style.display = needsDetails ? 'block' : 'none';
+
+  // Per DIR-010, "Self-supported ceiling feature" gets its own configuration fields — a
+  // self-supported ceiling isn't rigging, so it doesn't need Rigging Size/Finish/Brand
+  // Visibility, but its geometry varies just as much and previously had no configuration
+  // at all.
+  const isSelfSupported = select.value === 'Self-supported ceiling feature';
+  document.getElementById('selfSupportedCeilingFields').style.display = isSelfSupported ? 'block' : 'none';
 }
 
 function toggleRiggingShapeCustom(select){
   document.getElementById('f_riggingShapeCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
+}
+
+function toggleCeilingShapeCustom(select){
+  document.getElementById('f_ceilingShapeCustom').style.display = select.value === 'Custom Shape' ? 'block' : 'none';
+}
+
+function toggleCeilingPurposeCustom(select){
+  document.getElementById('f_ceilingPurposeCustom').style.display = select.value === 'Custom Purpose' ? 'block' : 'none';
+}
+
+function toggleRiggingFabricColor(select){
+  document.getElementById('riggingFabricColorField').style.display = select.value === 'Fabric Lightbox' ? 'block' : 'none';
 }
 
 // Opening a saved project should land directly on its results — the concept box, the
@@ -5551,6 +5646,8 @@ architecture.architectural_geometry translates concept.architectural_concept's n
 
 architecture.hero_structure then goes one step further and makes the resulting hero structure fully deterministic: ten labeled facts (Height, Width, Depth, Geometry, Support system, Primary material, Lighting integration, Brand integration, Position within booth, Visibility from all sides), each a concrete, specific answer consistent with architectural_geometry, materials.primary_materials, lighting.lighting_strategy, and branding.brand_integration — never a vague summary like "5m height" standing alone with nothing else specified. The Hero Structure is the pavilion's architectural anchor, and every one of these ten facts must actually be answered.
 
+DIR-012 — BRAND LIGHTING CONSISTENCY (core rule) — reviewing multiple generated booths has surfaced a recurring failure: decorative accent lighting sometimes introduces LED colors that have nothing to do with the brand, even when the architecture and materials are otherwise correctly on-brand (e.g. blue LED underglow on a reception counter for a client whose brand has no blue in it at all). The fix is to derive an explicit lighting.accent_lighting_palette from this client's own brand colors and architectural concept, done as one more step inside this same analysis pass, and to constrain every decorative LED strip, under-counter light, edge light, and illuminated architectural detail to that palette. For example, a red-branded client's accent palette is Primary Accent — Brand Red (its own hex code); Secondary — Neutral White; Avoid — blue RGB underglow, green lighting, purple accents (none of which belong to that brand). Decorative lighting must reinforce brand identity, never introduce an unrelated color — and unless the client explicitly requests it, generic multi-color RGB or a default "technology blue" glow are never acceptable substitutes for the client's actual brand colors.
+
 Respond in JSON only, with no explanation outside the JSON and no Markdown fences, using exactly this shape:
 {
   "concept": {
@@ -5572,7 +5669,8 @@ Respond in JSON only, with no explanation outside the JSON and no Markdown fence
     "primary_materials": "the specific materials and finishes chosen to express concept.architectural_concept and the client's brand personality and why — never a generic materials list (2-4 sentences)"
   },
   "lighting": {
-    "lighting_strategy": "how light reveals architecture.hero_structure and materials.primary_materials already decided, zone by zone. Ground this in the industry's own lighting profile from EPS-004's LEVEL 2 taxonomy (the specific color-temperature range, spotlight/base color, and accent color for this client's industry) as the single dominant palette every layer must stay within — never randomly mix in an unrelated temperature or accent color (2-4 sentences)"
+    "lighting_strategy": "how light reveals architecture.hero_structure and materials.primary_materials already decided, zone by zone. Ground this in the industry's own lighting profile from EPS-004's LEVEL 2 taxonomy (the specific color-temperature range, spotlight/base color, and accent color for this client's industry) as the single dominant palette every layer must stay within — never randomly mix in an unrelated temperature or accent color (2-4 sentences)",
+    "accent_lighting_palette": "per DIR-012, derive an explicit Accent Lighting Palette strictly from this client's own brand colors (the exact hex codes given in the brief) and concept.architectural_concept — never a generic or industry-default palette unrelated to this specific brand. Provide exactly three labeled facts: Primary Accent (the dominant accent color for every decorative LED strip, under-counter light, edge light, and illuminated architectural detail in this design — must be one of the client's own brand hex colors, named with both a descriptive name and its hex code, e.g. 'Brand Red (#C8102E)'); Secondary (a supporting accent color — typically Warm White or Neutral White, or a second brand hex color); Avoid (2-4 specific colors or lighting effects that must never appear in this design's decorative lighting unless the client explicitly requested them — e.g. generic RGB effects, or specific unrelated hues that aren't part of this brand's own colors, such as blue or green when the brand has neither). This palette governs every piece of decorative/accent lighting in the design; none of them may introduce a color outside it. Return as a single string, one 'Label: answer' line per fact, in the exact order listed above"
   },
   "branding": {
     "brand_integration": "how the logo and brand identity become part of the architecture itself rather than signage applied afterward, consistent with architecture.hero_structure. Decide which of this design's actual elements carry branding by following EPS-013's BRANDING PLACEMENT HIERARCHY in priority order (Hero Architecture, Reception, Feature Wall, Hanging Sign, LED Screen, Totem, Product Display) — only include a lower-priority carrier where it genuinely applies to this design, and never place branding on planters, furniture, or small decorative objects (2-4 sentences)"
@@ -5590,7 +5688,7 @@ Every field must be specific to this exact project — reference the actual dime
 // something on its own, undermining the whole point of splitting the two stages apart.
 const promptFromAnalysisSystem = `SYSTEM
 
-You are the same senior exhibition architect (per EPS-001) who already produced the hidden design analysis given to you below. That analysis is a locked decision record, not a draft — your only job now is to write it up into the final document. Do not reconsider, second-guess, or diverge from it: do not invent a different concept, spatial composition, hero structure, zone plan, materials, branding approach, or lighting strategy than what's given to you.
+You are the same senior exhibition architect (per EPS-001) who already produced the hidden design analysis given to you below. That analysis is a locked decision record, not a draft — your only job now is to write it up into the final document. Do not reconsider, second-guess, or diverge from it: do not invent a different concept, spatial composition, hero structure, zone plan, materials, branding approach, lighting strategy, or accent lighting palette than what's given to you.
 
 ${OUTPUT_REQUIREMENTS}
 
@@ -5614,8 +5712,9 @@ ARCHITECTURAL PRIORITY CHECKLIST (core rule) — before finalizing image_prompt,
 ✓ Architecture dominates — LAYER 1 is fully and specifically established, per DIR-006's 70/30 split, before LAYER 2 begins.
 ✓ Furniture supports architecture — FURNITURE in LAYER 2 reads as populating the space plan already fixed in LAYER 1, never redefining or competing with it.
 ✓ Products remain secondary — PRODUCT EXPERIENCE and DIGITAL TECHNOLOGY never overshadow the hero structure's visual primacy established in LAYER 1.
+✓ Brand lighting consistent — every decorative LED strip, under-counter light, edge light, and illuminated architectural detail anywhere in the prompt stays within lighting.accent_lighting_palette per DIR-012, with no unrelated RGB or "technology blue" glow introduced.
 
-You are given two things in the user message: (1) the hidden analysis JSON, organized into modules — concept (design_objective, architectural_concept), space_planning (visitor_flow, functional_zones), spatial_composition (composition_strategy), architecture (hero_structure, architectural_geometry), materials (primary_materials), lighting (lighting_strategy), branding (brand_integration) — and (2) the client's original brief, included only so you can pull literal facts (exact numbers, hex codes, counts, style names) precisely. Use (1) as the architectural backbone of every section below; use (2) only to insert precise literal facts into the correct sections — never let (2) reopen a decision already settled in (1). architecture.architectural_geometry and architecture.hero_structure are already the concrete, deterministic translation of architectural_concept's narrative (per DIR-005) — carry their labeled facts into ARCHITECTURAL CONCEPT verbatim, never re-abstract them back into mood language or storytelling. spatial_composition.composition_strategy is likewise already decided (per SCE-001) — carry its labeled facts into SPACE PLANNING verbatim, never re-derive a different composition.
+You are given two things in the user message: (1) the hidden analysis JSON, organized into modules — concept (design_objective, architectural_concept), space_planning (visitor_flow, functional_zones), spatial_composition (composition_strategy), architecture (hero_structure, architectural_geometry), materials (primary_materials), lighting (lighting_strategy, accent_lighting_palette), branding (brand_integration) — and (2) the client's original brief, included only so you can pull literal facts (exact numbers, hex codes, counts, style names) precisely. Use (1) as the architectural backbone of every section below; use (2) only to insert precise literal facts into the correct sections — never let (2) reopen a decision already settled in (1). architecture.architectural_geometry and architecture.hero_structure are already the concrete, deterministic translation of architectural_concept's narrative (per DIR-005) — carry their labeled facts into ARCHITECTURAL CONCEPT verbatim, never re-abstract them back into mood language or storytelling. spatial_composition.composition_strategy is likewise already decided (per SCE-001) — carry its labeled facts into SPACE PLANNING verbatim, never re-derive a different composition. lighting.accent_lighting_palette is likewise already decided (per DIR-012) — carry its labeled facts into LIGHTING STRATEGY verbatim, and enforce it on every decorative/accent lighting mention anywhere else in the prompt.
 
 Never generate an image yourself. Never explain your reasoning, and never mention EPS-001, the hidden analysis, or the two-stage process. Output only the final result — respond in JSON only, with no explanation outside the JSON and no Markdown fences, using exactly this shape:
 {
@@ -5677,6 +5776,7 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
       ['architecture', 'architectural_geometry'],
       ['materials', 'primary_materials'],
       ['lighting', 'lighting_strategy'],
+      ['lighting', 'accent_lighting_palette'],
       ['branding', 'brand_integration']
     ];
     const missingAnalysisFields = requiredAnalysisFields
@@ -7946,6 +8046,11 @@ function collectFormSnapshot(){
     f_riggingElements: Array.from(document.querySelectorAll('.rigging-element-cb:checked')).map(cb => cb.value),
     f_riggingLighting: Array.from(document.querySelectorAll('.rigging-lighting-cb:checked')).map(cb => cb.value),
     f_riggingBrandVisibility: document.getElementById('f_riggingBrandVisibility').value,
+    f_riggingFabricColorHex: document.getElementById('f_riggingFabricColorHex').value,
+    f_ceilingShape: document.getElementById('f_ceilingShape').value,
+    f_ceilingShapeCustom: document.getElementById('f_ceilingShapeCustom').value,
+    f_ceilingPurpose: document.getElementById('f_ceilingPurpose').value,
+    f_ceilingPurposeCustom: document.getElementById('f_ceilingPurposeCustom').value,
     f_openSides: document.getElementById('f_openSides').value,
     f_inlineOpenSide: document.getElementById('f_inlineOpenSide').value,
     f_cornerSide: document.getElementById('f_cornerSide').value,
@@ -8060,8 +8165,17 @@ function restoreFormSnapshot(snap){
   const savedRiggingLighting = new Set(snap.f_riggingLighting || []);
   document.querySelectorAll('.rigging-lighting-cb').forEach(cb => { cb.checked = savedRiggingLighting.has(cb.value); });
   document.getElementById('f_riggingBrandVisibility').value = snap.f_riggingBrandVisibility || 'Logo on all sides';
+  document.getElementById('f_riggingFabricColorHex').value = snap.f_riggingFabricColorHex || '#FFFFFF';
+  syncColorPicker(document.getElementById('f_riggingFabricColorHex'));
+  document.getElementById('f_ceilingShape').value = snap.f_ceilingShape || 'Rectangle';
+  document.getElementById('f_ceilingShapeCustom').value = snap.f_ceilingShapeCustom || '';
+  document.getElementById('f_ceilingPurpose').value = snap.f_ceilingPurpose || 'Architectural Landmark';
+  document.getElementById('f_ceilingPurposeCustom').value = snap.f_ceilingPurposeCustom || '';
   toggleRiggingSubfields(document.getElementById('f_ceilingRigging'));
   toggleRiggingShapeCustom(document.getElementById('f_riggingShape'));
+  toggleRiggingFabricColor(document.getElementById('f_riggingFinish'));
+  toggleCeilingShapeCustom(document.getElementById('f_ceilingShape'));
+  toggleCeilingPurposeCustom(document.getElementById('f_ceilingPurpose'));
   document.getElementById('f_openSides').value = snap.f_openSides || '2';
   document.getElementById('f_inlineOpenSide').value = snap.f_inlineOpenSide || 'Front';
   document.getElementById('f_cornerSide').value = snap.f_cornerSide || 'right';
