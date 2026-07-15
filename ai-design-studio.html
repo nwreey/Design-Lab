@@ -1266,13 +1266,24 @@ Replace only the materials and graphics."></textarea>
 
       <div class="field" id="openSidesField">
         <label>Number of open sides <span class="required-mark">*</span></label>
-        <select id="f_openSides" onchange="toggleCornerSide(this)">
+        <select id="f_openSides" onchange="toggleOpenSidesSubfields(this)">
           <option value="1">1 — Inline (walls on 3 sides)</option>
           <option value="2" selected>2 — Corner (walls on 2 sides)</option>
           <option value="3">3 — Peninsula (wall on 1 side)</option>
           <option value="4">4 — Island (no walls)</option>
         </select>
         <div class="hint">Determines which sides can carry walls, signage, and branding versus open sightlines into the aisle.</div>
+      </div>
+
+      <div class="field" id="inlineOpenSideField" style="display:none;">
+        <label>Which side is open (faces the main aisle)? <span class="required-mark">*</span></label>
+        <select id="f_inlineOpenSide">
+          <option value="Front" selected>Front</option>
+          <option value="Back">Back</option>
+          <option value="Left">Left</option>
+          <option value="Right">Right</option>
+        </select>
+        <div class="hint">The other three sides will all be treated as closed walls.</div>
       </div>
 
       <div class="field" id="cornerSideField">
@@ -1282,6 +1293,17 @@ Replace only the materials and graphics."></textarea>
           <option value="left">Left</option>
         </select>
         <div class="hint">The opposite side, along with the back, will be treated as closed walls.</div>
+      </div>
+
+      <div class="field" id="peninsulaClosedSideField" style="display:none;">
+        <label>Which side is closed? <span class="required-mark">*</span></label>
+        <select id="f_peninsulaClosedSide">
+          <option value="Front">Front</option>
+          <option value="Back" selected>Back</option>
+          <option value="Left">Left</option>
+          <option value="Right">Right</option>
+        </select>
+        <div class="hint">The other three sides will all be treated as open.</div>
       </div>
     </div>
 
@@ -4389,8 +4411,10 @@ function toggleUpperFloor(sel){
   document.getElementById('upperFloorField').style.display = sel.value === '2' ? 'block' : 'none';
 }
 
-function toggleCornerSide(sel){
+function toggleOpenSidesSubfields(sel){
+  document.getElementById('inlineOpenSideField').style.display = sel.value === '1' ? 'block' : 'none';
   document.getElementById('cornerSideField').style.display = sel.value === '2' ? 'block' : 'none';
+  document.getElementById('peninsulaClosedSideField').style.display = sel.value === '3' ? 'block' : 'none';
 }
 
 async function confirmModularWallLayout(checkbox){
@@ -4399,10 +4423,14 @@ async function confirmModularWallLayout(checkbox){
   if(!confirmed) checkbox.checked = false;
 }
 
+const ALL_BOOTH_SIDES = ['Front', 'Back', 'Left', 'Right'];
+
 function buildOpenSidesDescription(){
   const count = document.getElementById('f_openSides').value;
   if(count === '1'){
-    return '1 open side (inline booth — walls on the back, left, and right sides; open only at the front)';
+    const open = document.getElementById('f_inlineOpenSide').value;
+    const closedSides = ALL_BOOTH_SIDES.filter(s => s !== open).map(s => s.toLowerCase());
+    return `1 open side (inline booth — walls on the ${closedSides.join(', ')} sides; open only at the ${open.toLowerCase()} side)`;
   }
   if(count === '2'){
     const open = document.getElementById('f_cornerSide').value;
@@ -4410,7 +4438,9 @@ function buildOpenSidesDescription(){
     return `2 open sides (corner booth — walls on the back and ${closed} side; open at the front and ${open} side)`;
   }
   if(count === '3'){
-    return '3 open sides (peninsula booth — a wall on the back only; open at the front, left, and right sides)';
+    const closedSide = document.getElementById('f_peninsulaClosedSide').value;
+    const openSides = ALL_BOOTH_SIDES.filter(s => s !== closedSide).map(s => s.toLowerCase());
+    return `3 open sides (peninsula booth — a wall on the ${closedSide.toLowerCase()} side only; open at the ${openSides.join(', ')} sides)`;
   }
   return '4 open sides (island booth — fully open on all sides, no walls at all)';
 }
@@ -7392,7 +7422,9 @@ function collectFormSnapshot(){
     f_floorEdgeFinish: document.getElementById('f_floorEdgeFinish').value,
     f_floorFeatures: Array.from(document.querySelectorAll('.floor-feature-cb:checked')).map(cb => cb.value),
     f_openSides: document.getElementById('f_openSides').value,
+    f_inlineOpenSide: document.getElementById('f_inlineOpenSide').value,
     f_cornerSide: document.getElementById('f_cornerSide').value,
+    f_peninsulaClosedSide: document.getElementById('f_peninsulaClosedSide').value,
     f_levels: document.getElementById('f_levels').value,
     f_totalHeight: document.getElementById('f_totalHeight').value,
     f_upperFloor: document.getElementById('f_upperFloor').value,
@@ -7482,8 +7514,10 @@ function restoreFormSnapshot(snap){
   toggleMarbleColorCustom(document.getElementById('f_marbleColor'));
   toggleRaisedFloorHeightCustom(document.getElementById('f_raisedFloorHeight'));
   document.getElementById('f_openSides').value = snap.f_openSides || '2';
-  toggleCornerSide(document.getElementById('f_openSides'));
+  document.getElementById('f_inlineOpenSide').value = snap.f_inlineOpenSide || 'Front';
   document.getElementById('f_cornerSide').value = snap.f_cornerSide || 'right';
+  document.getElementById('f_peninsulaClosedSide').value = snap.f_peninsulaClosedSide || 'Back';
+  toggleOpenSidesSubfields(document.getElementById('f_openSides'));
   document.getElementById('f_levels').value = snap.f_levels || '1';
   toggleUpperFloor(document.getElementById('f_levels'));
   document.getElementById('f_totalHeight').value = snap.f_totalHeight || '';
