@@ -985,9 +985,14 @@
     <div class="field">
       <label>Construction style</label>
       <select id="f_mdConstructionStyle">
+        <option value="Shell Scheme">Shell Scheme</option>
+        <option value="Enhanced Shell Scheme">Enhanced Shell Scheme</option>
+        <option value="Modular System">Modular System</option>
+        <option value="Custom Modular">Custom Modular</option>
         <option value="Premium Custom Build">Premium Custom Build</option>
-        <option value="Wood Modular">Wood Modular</option>
-        <option value="Budget Modular">Budget Modular</option>
+        <option value="Luxury Custom Build">Luxury Custom Build</option>
+        <option value="Double Deck Structure">Double Deck Structure</option>
+        <option value="Sustainable / Eco Build">Sustainable / Eco Build</option>
       </select>
     </div>
     <div class="field">
@@ -1427,9 +1432,14 @@ Replace only the materials and graphics."></textarea>
     <div class="field">
       <label>Construction style <span class="required-mark">*</span></label>
       <select id="f_constructionStyle">
+        <option value="Shell Scheme">Shell Scheme</option>
+        <option value="Enhanced Shell Scheme">Enhanced Shell Scheme</option>
+        <option value="Modular System">Modular System</option>
+        <option value="Custom Modular">Custom Modular</option>
         <option value="Premium Custom Build" selected>Premium Custom Build</option>
-        <option value="Wood Modular">Wood Modular</option>
-        <option value="Budget Modular">Budget Modular</option>
+        <option value="Luxury Custom Build">Luxury Custom Build</option>
+        <option value="Double Deck Structure">Double Deck Structure</option>
+        <option value="Sustainable / Eco Build">Sustainable / Eco Build</option>
       </select>
       <div class="hint">Defines material quality and build complexity — important for construction feasibility.</div>
     </div>
@@ -3592,7 +3602,7 @@ const BRAND_PERSONALITY_ATTRIBUTES = {
 const BRAND_PERSONALITY_ORDER = Object.keys(BRAND_PERSONALITY_ATTRIBUTES);
 function slugifyPersonality(name){ return name.toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
-const EPS_004 = `STYLE TAXONOMY — four independent style dimensions the client can specify. When a value is given for any of these dimensions, apply the listed attributes automatically and consistently, even if the client's free-text description does not repeat them explicitly. These four levels can combine freely (e.g. Modern + Medical + Wood Modular + Innovative) — apply every attribute from every level the client selected, layered together, never contradicting EPS-001, EPS-002, or EPS-003 above.
+const EPS_004 = `STYLE TAXONOMY — four independent style dimensions the client can specify. When a value is given for any of these dimensions, apply the listed attributes automatically and consistently, even if the client's free-text description does not repeat them explicitly. These four levels can combine freely (e.g. Modern + Medical + Modular System + Innovative) — apply every attribute from every level the client selected, layered together, never contradicting EPS-001, EPS-002, or EPS-003 above.
 
 LEVEL 1 — ARCHITECTURAL STYLE (the single most important style dimension — each of these produces a genuinely different architecture: different geometry, different materials, different lighting language, different detailing. Never treat any two of these as interchangeable labels for the same generic "modern booth.")
 - Modern: clean geometry, straight lines, hidden lighting, open spaces, minimal decoration, premium finishes.
@@ -3615,10 +3625,15 @@ LEVEL 1 — ARCHITECTURAL STYLE (the single most important style dimension — e
 LEVEL 2 — INDUSTRY STYLE (adds industry-specific design language — architectural language, material selection, color accents, display strategy, visitor experience, product presentation, lighting mood, digital technology integration, and decorative elements — on top of Level 1 and the client's own brand colors. This level only ever ADDS a layer; it must never override, replace, or contradict the architectural style or the brand identity already established. Each entry also lists example products typical of that industry, and its lighting profile — use these to decide what the product display area actually shows (describe specific, recognizable product types there, never the generic word "product" as if it were a real object) and which single color-temperature/accent-color palette the lighting design commits to, per LDS-001's own rule never to randomly mix lighting temperatures.)
 ${Object.entries(INDUSTRY_STYLE_ATTRIBUTES).map(([name, attrs]) => `- ${name}: ${attrs}. Typical products to feature in the product display area: ${INDUSTRY_EXAMPLE_PRODUCTS[name] || 'infer specific, recognizable products typical of this industry'}. Lighting profile: ${INDUSTRY_LIGHTING_PROFILES[name] || 'infer a single consistent color temperature and accent color typical of this industry'}.`).join('\n')}
 
-LEVEL 3 — CONSTRUCTION STYLE (defines material quality and build complexity — very important for construction feasibility)
-- Wood Modular: MDF, plywood, melamine, laminate, easy assembly.
-- Premium Custom Build: complex woodwork, hidden joints, premium finishes, decorative ceilings.
-- Budget Modular: simple walls, limited graphics, standard furniture.
+LEVEL 3 — CONSTRUCTION STYLE (defines material quality, build complexity, and construction method — very important for construction feasibility; never treat any two of these as interchangeable, since each implies a genuinely different fabrication method and cost/complexity level)
+- Shell Scheme: the standard organizer-provided basic package — simple modular wall panels, a fascia signage board, basic flooring, minimal standard furniture. Fast to assemble, low customization, the most economical and structurally simplest option.
+- Enhanced Shell Scheme: the same modular panel-based shell scheme, upgraded with better graphics, added accent lighting, upgraded furniture, and minor custom touches — still fundamentally panel-based, not a bespoke structure, but noticeably more polished than a bare Shell Scheme.
+- Modular System: a reusable aluminum-frame modular exhibition system with interchangeable panels and fittings, moderate customization, quick assembly/disassembly, and finishes reused across multiple events rather than built once.
+- Custom Modular: the same reusable modular frame system, but reconfigured and finished to read as far more bespoke — custom graphics, custom cladding, and tailored layout over that modular structure, giving noticeably more design flexibility than a standard Modular System while still being built from reusable components.
+- Premium Custom Build: complex woodwork, hidden joints, premium finishes, decorative ceilings — a fully bespoke, one-off structure built specifically for this client, not assembled from a reusable system.
+- Luxury Custom Build: the top tier of bespoke construction — rare and premium materials (marble, brass, exotic wood veneers, glass), flawless detailed millwork, and a singular architectural statement with no reused or modular components anywhere.
+- Double Deck Structure: a genuine two-story exhibition structure with a staircase and/or elevator, real structural engineering for the upper floor's load, distinct ground-floor and upper-floor programs, and construction detailing suited to the additional engineering and permit requirements this implies.
+- Sustainable / Eco Build: built from reusable, recyclable, or low-impact materials (FSC-certified wood, recycled aluminum, modular reusable systems), designed for minimal construction waste and easy disassembly/reuse across future events, with energy-efficient lighting throughout.
 
 LEVEL 4 — BRAND PERSONALITY (the emotional character of the booth — influences overall architectural mood, shape language, material selection, lighting atmosphere, furniture style, decorative elements, visitor experience, color intensity, and graphic style. This level only ever ADDS an emotional/expressive layer on top of Levels 1-3 and the client's own brand colors; it must never override, replace, or contradict the architectural style or industry style already established. Optional — the client may leave this unset if not applicable.)
 
