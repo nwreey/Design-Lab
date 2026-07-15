@@ -958,12 +958,21 @@
       <label>Architectural style</label>
       <select id="f_mdArchStyle">
         <option value="Modern">Modern</option>
-        <option value="Minimal">Minimal</option>
-        <option value="Luxury">Luxury</option>
-        <option value="Futuristic">Futuristic</option>
-        <option value="Corporate">Corporate</option>
+        <option value="Contemporary">Contemporary</option>
+        <option value="Minimalist">Minimalist</option>
+        <option value="High-Tech">High-Tech</option>
         <option value="Industrial">Industrial</option>
         <option value="Organic">Organic</option>
+        <option value="Futuristic">Futuristic</option>
+        <option value="Luxury">Luxury</option>
+        <option value="Scandinavian">Scandinavian</option>
+        <option value="Japanese Minimalism">Japanese Minimalism</option>
+        <option value="Parametric">Parametric</option>
+        <option value="Biomorphic">Biomorphic</option>
+        <option value="Deconstructivist">Deconstructivist</option>
+        <option value="Neo-Classical">Neo-Classical</option>
+        <option value="Art Deco">Art Deco</option>
+        <option value="Brutalist">Brutalist</option>
       </select>
     </div>
     <div class="field">
@@ -1343,12 +1352,21 @@ Replace only the materials and graphics."></textarea>
       <label>Architectural style <span class="required-mark">*</span></label>
       <select id="f_archStyle" onchange="updateArchStyleHint(this)">
         <option value="Modern" selected>Modern</option>
-        <option value="Minimal">Minimal</option>
-        <option value="Luxury">Luxury</option>
-        <option value="Futuristic">Futuristic</option>
-        <option value="Corporate">Corporate</option>
+        <option value="Contemporary">Contemporary</option>
+        <option value="Minimalist">Minimalist</option>
+        <option value="High-Tech">High-Tech</option>
         <option value="Industrial">Industrial</option>
         <option value="Organic">Organic</option>
+        <option value="Futuristic">Futuristic</option>
+        <option value="Luxury">Luxury</option>
+        <option value="Scandinavian">Scandinavian</option>
+        <option value="Japanese Minimalism">Japanese Minimalism</option>
+        <option value="Parametric">Parametric</option>
+        <option value="Biomorphic">Biomorphic</option>
+        <option value="Deconstructivist">Deconstructivist</option>
+        <option value="Neo-Classical">Neo-Classical</option>
+        <option value="Art Deco">Art Deco</option>
+        <option value="Brutalist">Brutalist</option>
       </select>
       <div class="hint" id="archStyleHint"></div>
     </div>
@@ -1796,6 +1814,7 @@ Replace only the materials and graphics."></textarea>
             <option value="Ribbon">Ribbon</option>
             <option value="Floating Frame">Floating Frame</option>
             <option value="Rectangular Frame">Rectangular Frame</option>
+            <option value="Linear Frame">Linear Frame</option>
             <option value="Multi-Level">Multi-Level</option>
             <option value="Custom Shape">Custom Shape</option>
           </select>
@@ -1820,26 +1839,92 @@ Replace only the materials and graphics."></textarea>
 
         <div class="field" id="ceilingFinishField">
           <label>Ceiling Finish</label>
-          <select id="f_ceilingFinish" onchange="toggleCeilingFabricColor(this)">
-            <option value="Aluminum Truss" selected>Aluminum Truss</option>
-            <option value="Hidden Frame">Hidden Frame</option>
-            <option value="Fabric">Fabric</option>
-            <option value="Fabric Lightbox">Fabric Lightbox</option>
-            <option value="LED Frame">LED Frame</option>
-            <option value="Wood Finish">Wood Finish</option>
-            <option value="Mirror Finish">Mirror Finish</option>
-            <option value="Printed Graphics">Printed Graphics</option>
+          <select id="f_ceilingFinish" onchange="toggleCeilingFabricColor(this);toggleCeilingFinishCustom(this)">
+            <option value="Matte White" selected>Matte White</option>
+            <option value="Gloss White">Gloss White</option>
+            <option value="Matte Black">Matte Black</option>
+            <option value="Gloss Black">Gloss Black</option>
+            <option value="Matte Black Steel">Matte Black Steel</option>
             <option value="Brushed Aluminum">Brushed Aluminum</option>
+            <option value="Polished Aluminum">Polished Aluminum</option>
+            <option value="Satin Stainless Steel">Satin Stainless Steel</option>
+            <option value="Brushed Stainless Steel">Brushed Stainless Steel</option>
+            <option value="Powder-Coated Steel">Powder-Coated Steel</option>
+            <option value="Titanium Finish">Titanium Finish</option>
+            <option value="Champagne Gold">Champagne Gold</option>
+            <option value="Brushed Brass">Brushed Brass</option>
+            <option value="Copper Finish">Copper Finish</option>
+            <option value="Natural Oak Wood">Natural Oak Wood</option>
+            <option value="Walnut Wood">Walnut Wood</option>
+            <option value="White Oak Wood">White Oak Wood</option>
+            <option value="Black Wood">Black Wood</option>
+            <option value="Concrete Effect">Concrete Effect</option>
+            <option value="Stone Effect">Stone Effect</option>
+            <option value="Fabric Wrapped">Fabric Wrapped</option>
+            <option value="Acoustic Fabric">Acoustic Fabric</option>
+            <option value="Frosted Glass">Frosted Glass</option>
+            <option value="Clear Glass">Clear Glass</option>
+            <option value="Smoked Glass">Smoked Glass</option>
+            <option value="Mirror Finish">Mirror Finish</option>
+            <option value="Carbon Fiber">Carbon Fiber</option>
+            <option value="Composite Panel">Composite Panel</option>
+            <option value="Tension Fabric">Tension Fabric</option>
+            <option value="LED Diffuser Panel">LED Diffuser Panel</option>
+            <option value="Perforated Metal">Perforated Metal</option>
+            <option value="Custom">Custom</option>
           </select>
+          <input type="text" id="f_ceilingFinishCustom" placeholder="Describe the custom ceiling finish" style="display:none;margin-top:8px;">
+          <div class="hint">The overhead structure's material language — this shapes how the AI describes the ceiling feature's surface, weight, and light behavior in the architectural prompt.</div>
         </div>
 
         <div class="field" id="ceilingFabricColorField" style="display:none;">
-          <label>Fabric Lightbox Color</label>
+          <label>LED Diffuser Panel Color</label>
           <div class="color-row">
             <input type="color" id="f_ceilingFabricColorPicker" class="color-picker" value="#FFFFFF" oninput="syncColorHex(this)">
             <input type="text" id="f_ceilingFabricColorHex" class="color-hex" value="#FFFFFF" placeholder="#RRGGBB" oninput="syncColorPicker(this)" onchange="syncColorPicker(this)">
           </div>
           <div class="hint">The color of the backlit fabric panel itself.</div>
+        </div>
+
+        <div class="field" id="ceilingElementsField">
+          <label>Integrated Elements</label>
+          <div class="requirements-grid">
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Logo"> Logo</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="LED Screens"> LED Screens</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Lighting"> Lighting</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Hanging Banner"> Hanging Banner</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Fabric Ceiling"> Fabric Ceiling</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Digital Ring"> Digital Ring</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Decorative Panels"> Decorative Panels</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Plants"> Plants</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Speakers"> Speakers</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Moving Lights"> Moving Lights</label>
+          </div>
+          <div class="hint">Optional — select any elements integrated directly into the self-supported ceiling feature itself.</div>
+        </div>
+
+        <div class="field" id="ceilingLightingField">
+          <label>Ceiling Lighting</label>
+          <div class="requirements-grid">
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-lighting-cb" value="Spotlights"> Spotlights</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-lighting-cb" value="RGB Lighting"> RGB Lighting</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-lighting-cb" value="Hidden LED"> Hidden LED</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-lighting-cb" value="Cove Lighting"> Cove Lighting</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-lighting-cb" value="Dynamic Lighting"> Dynamic Lighting</label>
+          </div>
+          <div class="hint">Optional — lighting integrated specifically into the self-supported ceiling feature, separate from the booth's general lighting.</div>
+        </div>
+
+        <div class="field" id="ceilingBrandVisibilityField">
+          <label>Brand Visibility</label>
+          <select id="f_ceilingBrandVisibility">
+            <option value="Logo on all sides" selected>Logo on all sides</option>
+            <option value="Two sides">Two sides</option>
+            <option value="Four sides">Four sides</option>
+            <option value="Internal illuminated logo">Internal illuminated logo</option>
+            <option value="Double-sided hanging sign">Double-sided hanging sign</option>
+          </select>
+          <div class="hint">How visible the logo carried by this ceiling feature should be, and from how many sides.</div>
         </div>
 
         <div class="field" id="ceilingPurposeField">
@@ -1920,6 +2005,239 @@ Replace only the materials and graphics."></textarea>
         <div id="addreq_coffeebar_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_coffeebar_count">How many coffee bars / hospitality points?</label>
           <input type="number" min="1" id="addreq_coffeebar_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_productdisplayarea" onchange="toggleAdditionalReqSection('productdisplayarea', this.checked)"> Product Display Area</label>
+        <div id="addreq_productdisplayarea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_productdisplayarea_count">How many product display areas?</label>
+          <input type="number" min="1" id="addreq_productdisplayarea_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_productdemoarea" onchange="toggleAdditionalReqSection('productdemoarea', this.checked)"> Product Demonstration Area</label>
+        <div id="addreq_productdemoarea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_productdemoarea_count">How many product demonstration areas?</label>
+          <input type="number" min="1" id="addreq_productdemoarea_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_interactiveexperiencezone" onchange="toggleAdditionalReqSection('interactiveexperiencezone', this.checked)"> Interactive Experience Zone</label>
+        <div id="addreq_interactiveexperiencezone_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_interactiveexperiencezone_count">How many interactive experience zones?</label>
+          <input type="number" min="1" id="addreq_interactiveexperiencezone_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_experiencezone" onchange="toggleAdditionalReqSection('experiencezone', this.checked)"> Experience Zone</label>
+        <div id="addreq_experiencezone_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_experiencezone_count">How many experience zones?</label>
+          <input type="number" min="1" id="addreq_experiencezone_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_featureproductzone" onchange="toggleAdditionalReqSection('featureproductzone', this.checked)"> Feature Product Zone</label>
+        <div id="addreq_featureproductzone_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_featureproductzone_count">How many feature product zones?</label>
+          <input type="number" min="1" id="addreq_featureproductzone_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_launchstage"> Launch Stage</label>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_presentationarea" onchange="toggleAdditionalReqSection('presentationarea', this.checked)"> Presentation Area</label>
+        <div id="addreq_presentationarea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_presentationarea_count">How many presentation areas?</label>
+          <input type="number" min="1" id="addreq_presentationarea_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_seminararea" onchange="toggleAdditionalReqSection('seminararea', this.checked)"> Seminar Area</label>
+        <div id="addreq_seminararea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_seminararea_count">How many seminar areas?</label>
+          <input type="number" min="1" id="addreq_seminararea_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_privatemeetingroom" onchange="toggleAdditionalReqSection('privatemeetingroom', this.checked)"> Private Meeting Room</label>
+        <div id="addreq_privatemeetingroom_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_privatemeetingroom_count">How many private meeting rooms?</label>
+          <input type="number" min="1" id="addreq_privatemeetingroom_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_viplounge" onchange="toggleAdditionalReqSection('viplounge', this.checked)"> VIP Lounge</label>
+        <div id="addreq_viplounge_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_viplounge_capacity">VIP lounge capacity — how many people does it fit?</label>
+          <input type="number" min="1" id="addreq_viplounge_capacity" placeholder="e.g. 6">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_hospitalitylounge" onchange="toggleAdditionalReqSection('hospitalitylounge', this.checked)"> Hospitality Lounge</label>
+        <div id="addreq_hospitalitylounge_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_hospitalitylounge_capacity">Hospitality lounge capacity — how many people does it fit?</label>
+          <input type="number" min="1" id="addreq_hospitalitylounge_capacity" placeholder="e.g. 8">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_networkingarea" onchange="toggleAdditionalReqSection('networkingarea', this.checked)"> Networking Area</label>
+        <div id="addreq_networkingarea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_networkingarea_capacity">Networking area capacity — how many people does it fit?</label>
+          <input type="number" min="1" id="addreq_networkingarea_capacity" placeholder="e.g. 10">
+        </div>
+
+        <div class="subarea-label" style="margin-top:8px;">Industrial / Manufacturing</div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_tooltestingbench" onchange="toggleAdditionalReqSection('tooltestingbench', this.checked)"> Tool Testing Bench</label>
+        <div id="addreq_tooltestingbench_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_tooltestingbench_count">How many tool testing benches?</label>
+          <input type="number" min="1" id="addreq_tooltestingbench_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_livedemoarea" onchange="toggleAdditionalReqSection('livedemoarea', this.checked)"> Live Demonstration Area</label>
+        <div id="addreq_livedemoarea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_livedemoarea_count">How many live demonstration areas?</label>
+          <input type="number" min="1" id="addreq_livedemoarea_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_machinedemozone" onchange="toggleAdditionalReqSection('machinedemozone', this.checked)"> Machine Demonstration Zone</label>
+        <div id="addreq_machinedemozone_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_machinedemozone_count">How many machine demonstration zones?</label>
+          <input type="number" min="1" id="addreq_machinedemozone_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_technicalconsultation" onchange="toggleAdditionalReqSection('technicalconsultation', this.checked)"> Technical Consultation Area</label>
+        <div id="addreq_technicalconsultation_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_technicalconsultation_count">How many technical consultation areas?</label>
+          <input type="number" min="1" id="addreq_technicalconsultation_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_sparepartsdisplay" onchange="toggleAdditionalReqSection('sparepartsdisplay', this.checked)"> Spare Parts Display</label>
+        <div id="addreq_sparepartsdisplay_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_sparepartsdisplay_count">How many spare parts displays?</label>
+          <input type="number" min="1" id="addreq_sparepartsdisplay_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_engineeringshowcase"> Engineering Showcase</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_innovationzone"> Innovation Zone</label>
+
+        <div class="subarea-label" style="margin-top:8px;">Automotive</div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_vehicledisplay" onchange="toggleAdditionalReqSection('vehicledisplay', this.checked)"> Vehicle Display</label>
+        <div id="addreq_vehicledisplay_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_vehicledisplay_count">How many vehicle displays?</label>
+          <input type="number" min="1" id="addreq_vehicledisplay_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_simulatorzone" onchange="toggleAdditionalReqSection('simulatorzone', this.checked)"> Simulator Zone</label>
+        <div id="addreq_simulatorzone_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_simulatorzone_count">How many simulator zones?</label>
+          <input type="number" min="1" id="addreq_simulatorzone_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_drivingexperience"> Driving Experience</label>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_configurationstation" onchange="toggleAdditionalReqSection('configurationstation', this.checked)"> Configuration Station</label>
+        <div id="addreq_configurationstation_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_configurationstation_count">How many configuration stations?</label>
+          <input type="number" min="1" id="addreq_configurationstation_count" placeholder="e.g. 1">
+        </div>
+
+        <div class="subarea-label" style="margin-top:8px;">Technology</div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_aidemozone" onchange="toggleAdditionalReqSection('aidemozone', this.checked)"> AI Demo Zone</label>
+        <div id="addreq_aidemozone_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_aidemozone_count">How many AI demo zones?</label>
+          <input type="number" min="1" id="addreq_aidemozone_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_deviceexperiencezone" onchange="toggleAdditionalReqSection('deviceexperiencezone', this.checked)"> Device Experience Zone</label>
+        <div id="addreq_deviceexperiencezone_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_deviceexperiencezone_count">How many device experience zones?</label>
+          <input type="number" min="1" id="addreq_deviceexperiencezone_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_softwaredemoarea" onchange="toggleAdditionalReqSection('softwaredemoarea', this.checked)"> Software Demo Area</label>
+        <div id="addreq_softwaredemoarea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_softwaredemoarea_count">How many software demo areas?</label>
+          <input type="number" min="1" id="addreq_softwaredemoarea_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_cloudexperiencezone"> Cloud Experience Zone</label>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_vrexperience" onchange="toggleAdditionalReqSection('vrexperience', this.checked)"> VR Experience</label>
+        <div id="addreq_vrexperience_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_vrexperience_count">How many VR experience stations?</label>
+          <input type="number" min="1" id="addreq_vrexperience_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_arexperience" onchange="toggleAdditionalReqSection('arexperience', this.checked)"> AR Experience</label>
+        <div id="addreq_arexperience_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_arexperience_count">How many AR experience stations?</label>
+          <input type="number" min="1" id="addreq_arexperience_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_gamingzone" onchange="toggleAdditionalReqSection('gamingzone', this.checked)"> Gaming Zone</label>
+        <div id="addreq_gamingzone_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_gamingzone_count">How many gaming zones?</label>
+          <input type="number" min="1" id="addreq_gamingzone_count" placeholder="e.g. 1">
+        </div>
+
+        <div class="subarea-label" style="margin-top:8px;">Medical</div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_medicaldemoarea" onchange="toggleAdditionalReqSection('medicaldemoarea', this.checked)"> Medical Demonstration Area</label>
+        <div id="addreq_medicaldemoarea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_medicaldemoarea_count">How many medical demonstration areas?</label>
+          <input type="number" min="1" id="addreq_medicaldemoarea_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_patientsimulationarea" onchange="toggleAdditionalReqSection('patientsimulationarea', this.checked)"> Patient Simulation Area</label>
+        <div id="addreq_patientsimulationarea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_patientsimulationarea_count">How many patient simulation areas?</label>
+          <input type="number" min="1" id="addreq_patientsimulationarea_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_diagnosticzone" onchange="toggleAdditionalReqSection('diagnosticzone', this.checked)"> Diagnostic Zone</label>
+        <div id="addreq_diagnosticzone_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_diagnosticzone_count">How many diagnostic zones?</label>
+          <input type="number" min="1" id="addreq_diagnosticzone_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_operatingtechdisplay" onchange="toggleAdditionalReqSection('operatingtechdisplay', this.checked)"> Operating Technology Display</label>
+        <div id="addreq_operatingtechdisplay_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_operatingtechdisplay_count">How many operating technology displays?</label>
+          <input type="number" min="1" id="addreq_operatingtechdisplay_count" placeholder="e.g. 1">
+        </div>
+
+        <div class="subarea-label" style="margin-top:8px;">Retail / FMCG</div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_productsamplingarea" onchange="toggleAdditionalReqSection('productsamplingarea', this.checked)"> Product Sampling Area</label>
+        <div id="addreq_productsamplingarea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_productsamplingarea_count">How many product sampling areas?</label>
+          <input type="number" min="1" id="addreq_productsamplingarea_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_tastingcounter" onchange="toggleAdditionalReqSection('tastingcounter', this.checked)"> Tasting Counter</label>
+        <div id="addreq_tastingcounter_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_tastingcounter_count">How many tasting counters?</label>
+          <input type="number" min="1" id="addreq_tastingcounter_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_retaildisplay" onchange="toggleAdditionalReqSection('retaildisplay', this.checked)"> Retail Display</label>
+        <div id="addreq_retaildisplay_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_retaildisplay_count">How many retail displays?</label>
+          <input type="number" min="1" id="addreq_retaildisplay_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_merchandisewall"> Merchandise Wall</label>
+
+        <div class="subarea-label" style="margin-top:8px;">Education</div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_workshoparea" onchange="toggleAdditionalReqSection('workshoparea', this.checked)"> Workshop Area</label>
+        <div id="addreq_workshoparea_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_workshoparea_count">How many workshop areas?</label>
+          <input type="number" min="1" id="addreq_workshoparea_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_classroomzone" onchange="toggleAdditionalReqSection('classroomzone', this.checked)"> Classroom Zone</label>
+        <div id="addreq_classroomzone_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_classroomzone_count">How many classroom zones?</label>
+          <input type="number" min="1" id="addreq_classroomzone_count" placeholder="e.g. 1">
+        </div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_learningstation" onchange="toggleAdditionalReqSection('learningstation', this.checked)"> Learning Station</label>
+        <div id="addreq_learningstation_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_learningstation_count">How many learning stations?</label>
+          <input type="number" min="1" id="addreq_learningstation_count" placeholder="e.g. 1">
         </div>
 
         <div class="subarea-label" style="margin-top:8px;">Product Display</div>
@@ -2037,6 +2355,55 @@ Replace only the materials and graphics."></textarea>
         <label class="check-item-compact"><input type="checkbox" id="addreq_brandgraphics"> Brand Graphics</label>
         <label class="check-item-compact"><input type="checkbox" id="addreq_hangingdecor"> Hanging Decorations</label>
         <label class="check-item-compact"><input type="checkbox" id="addreq_sculpture"> Feature Sculpture</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_featurewall"> Feature Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_graphicwall"> Graphic Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_mediawall"> Media Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_ledfeaturewall"> LED Feature Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_tooldisplaywall"> Tool Display Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_productdisplaywall"> Product Display Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_displayshelving"> Display Shelving</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_displayniches"> Display Niches</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_floatingshelves"> Floating Shelves</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_decorativeceilingpanels"> Decorative Ceiling Panels</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_hangingelements"> Hanging Elements</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_hanginggraphics"> Hanging Graphics</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_architecturalfins"> Architectural Fins</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_verticalslats"> Vertical Slats</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_decorativescreens"> Decorative Screens</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_featureportal"> Feature Portal</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_entrancefeature"> Entrance Feature</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_featurearch"> Feature Arch</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_digitalartwall"> Digital Art Wall</label>
+
+        <div class="subarea-label" style="margin-top:8px;">Landscape</div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_minimalplanters"> Minimal Planters</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_premiumplanters"> Premium Planters</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_livingwall"> Living Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_indoortrees"> Indoor Trees</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_artificialplants"> Artificial Plants</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_mosswall"> Moss Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_waterfeature"> Water Feature</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_stonefeature"> Stone Feature</label>
+
+        <div class="subarea-label" style="margin-top:8px;">Lighting Features</div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_decorativelightboxes"> Decorative Light Boxes</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_illuminatedlogo"> Illuminated Logo</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_edgelighting"> Edge Lighting</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_backlitpanels"> Backlit Panels</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_neonfeature"> Neon Feature</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_architecturallightfeature"> Architectural Light Feature</label>
+
+        <div class="subarea-label" style="margin-top:8px;">Art &amp; Brand</div>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_brandtimelinewall"> Brand Timeline Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_heritagewall"> Heritage Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_innovationwall"> Innovation Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_interactivegraphicwall"> Interactive Graphic Wall</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_timelinedisplay"> Timeline Display</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_awardsdisplay"> Awards Display</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_featureshowcase"> Feature Showcase</label>
         </div>
       </div>
 
@@ -2448,11 +2815,25 @@ let pendingGenerateAction = null; // holds the deferred generation logic while t
 // getMissingRequirements()/generateDesign() so the two validation paths can't drift apart.
 const ADDREQ_ALL_CHECKBOX_IDS = [
   'addreq_reception', 'addreq_infocounter', 'addreq_seating', 'addreq_meetingtables', 'addreq_vipmeeting', 'addreq_openmeeting', 'addreq_lounge', 'addreq_coffeebar',
+  'addreq_productdisplayarea', 'addreq_productdemoarea', 'addreq_interactiveexperiencezone', 'addreq_experiencezone', 'addreq_featureproductzone', 'addreq_launchstage',
+  'addreq_presentationarea', 'addreq_seminararea', 'addreq_privatemeetingroom', 'addreq_viplounge', 'addreq_hospitalitylounge', 'addreq_networkingarea',
+  'addreq_tooltestingbench', 'addreq_livedemoarea', 'addreq_machinedemozone', 'addreq_technicalconsultation', 'addreq_sparepartsdisplay', 'addreq_engineeringshowcase', 'addreq_innovationzone',
+  'addreq_vehicledisplay', 'addreq_simulatorzone', 'addreq_drivingexperience', 'addreq_configurationstation',
+  'addreq_aidemozone', 'addreq_deviceexperiencezone', 'addreq_softwaredemoarea', 'addreq_cloudexperiencezone', 'addreq_vrexperience', 'addreq_arexperience', 'addreq_gamingzone',
+  'addreq_medicaldemoarea', 'addreq_patientsimulationarea', 'addreq_diagnosticzone', 'addreq_operatingtechdisplay',
+  'addreq_productsamplingarea', 'addreq_tastingcounter', 'addreq_retaildisplay', 'addreq_merchandisewall',
+  'addreq_workshoparea', 'addreq_classroomzone', 'addreq_learningstation',
   'addreq_displayshelves', 'addreq_displaytables', 'addreq_glasscabinets', 'addreq_pedestals', 'addreq_interactivedisplay', 'addreq_brochurestand', 'addreq_literaturerack',
   'addreq_tv', 'addreq_led', 'addreq_touchscreen', 'addreq_kiosk', 'addreq_digitaltotem', 'addreq_chargingstation', 'addreq_qrdisplay',
   'addreq_storageroom', 'addreq_pantry', 'addreq_staffarea', 'addreq_lockablecabinet', 'addreq_hiddenstorage',
   'addreq_ambientlighting', 'addreq_spotlights', 'addreq_hiddenledlighting', 'addreq_covelighting', 'addreq_accentlighting', 'addreq_decorativelighting',
   'addreq_planters', 'addreq_greenwall', 'addreq_decorativepanels', 'addreq_brandgraphics', 'addreq_hangingdecor', 'addreq_sculpture',
+  'addreq_featurewall', 'addreq_graphicwall', 'addreq_mediawall', 'addreq_ledfeaturewall', 'addreq_tooldisplaywall', 'addreq_productdisplaywall',
+  'addreq_displayshelving', 'addreq_displayniches', 'addreq_floatingshelves', 'addreq_decorativeceilingpanels', 'addreq_hangingelements', 'addreq_hanginggraphics',
+  'addreq_architecturalfins', 'addreq_verticalslats', 'addreq_decorativescreens', 'addreq_featureportal', 'addreq_entrancefeature', 'addreq_featurearch', 'addreq_digitalartwall',
+  'addreq_minimalplanters', 'addreq_premiumplanters', 'addreq_livingwall', 'addreq_indoortrees', 'addreq_artificialplants', 'addreq_mosswall', 'addreq_waterfeature', 'addreq_stonefeature',
+  'addreq_decorativelightboxes', 'addreq_illuminatedlogo', 'addreq_edgelighting', 'addreq_backlitpanels', 'addreq_neonfeature', 'addreq_architecturallightfeature',
+  'addreq_brandtimelinewall', 'addreq_heritagewall', 'addreq_innovationwall', 'addreq_interactivegraphicwall', 'addreq_timelinedisplay', 'addreq_awardsdisplay', 'addreq_featureshowcase',
 ];
 let lastGeneratedBrief = '';
 
@@ -2529,6 +2910,8 @@ Architectural elements may include: roofs, canopies, portals, arches, bridges, s
 
 Before describing furniture, completely define the architecture. This is exactly why LAYER 1 is written and fully established before LAYER 2 is ever considered — never let furniture, products, or graphics described in Layer 2 dilute or compete with the architecture already established in Layer 1.
 
+DIR-013 — STRUCTURAL VOCABULARY INHERITANCE (core rule) — every exhibition element described in LAYER 2 — reception counters, information counters, display walls, product displays, demo benches, meeting furniture, and every other furniture piece or fixture — must be written as a physical extension of architecture.hero_structure and architecture.architectural_geometry, already fully established in LAYER 1, never as generic furniture that merely happens to occupy the same room as the architecture. Concretely: each element's geometry (its silhouette, edges, and proportions) must echo hero_structure's Geometry fact and architectural_geometry's Primary Form; its primary material must be drawn from hero_structure's Primary material and materials.primary_materials, never a substitute material invented for that one element alone; its detailing (edge treatments, joinery, panel lines, structural rhythm, lighting integration) must repeat architectural_geometry's Structure and Lighting categories, never introduce an unrelated detailing language. For example, if the hero structure is a sweeping aluminum-fin form with integrated LED edges, the reception counter, information counter, and display walls must themselves read as sweeping aluminum-fin forms with integrated LED edges — never a plain rectangular desk or generic catalog display stand in an unrelated material. This is a repetition of the architecture's own vocabulary at furniture scale, never a new, independent design decision for that one element.
+
 LAYER 1 SECTION GUIDANCE:
 
 ARCHITECTURAL CONCEPT must open by naming the specific, industry-inspired iconic concept already decided in the hidden analysis (per EPS-013's ICONIC CONCEPT RULE — e.g. DNA Helix, Vault, Data Stream, Speed, or whatever concept the analysis named for this client's own industry) and stating its narrative per EPS-013's NARRATIVE RULE (explicitly what it is "Inspired by" — e.g. "Inspired by a heartbeat waveform," "Inspired by cloud computing," "Inspired by trust and protection"). The narrative alone is never the final answer — a phrase like "Inspired by speed" describes a feeling, not something buildable. Per DIR-005, immediately translate it into concrete architecture in two labeled blocks, presented verbatim and in this order:
@@ -2545,19 +2928,19 @@ VISITOR FLOW defines the physical journey only — entry, journey, experience, a
 
 STRUCTURAL PLANNING generates a real-world dimension for every major architectural and furniture element actually present in this design — floor dimensions, hero structure dimensions (already stated in ARCHITECTURAL CONCEPT's Hero Structure block — repeat them here for the full dimension list, don't re-derive different numbers), reception dimensions, meeting room dimensions, storage dimensions, furniture footprints, column positions, ceiling coverage, and maximum heights — using standard exhibition-industry sizing as the baseline, for example: Reception Counter 2.5m × 0.8m, Meeting Table 1.2m diameter, VIP Room 3m × 3m, Storage 12 sqm, Information Counter 2m × 0.7m, Interactive Display 1m × 1m, Interactive Zone 3m × 4m, Display Cabinet 1.2m × 0.6m, Coffee Bar 3m × 2m, Touch Screen 42", LED Screen 3m × 2m. Whenever the client's own brief already states an exact quantity for an element (e.g. "4 LED Screens," "2 touch screens"), list that same quantity here and give each unit — or each distinct unit if sizes differ — its own dimension, exactly as this design's Additional Requirements/Digital Technology facts already specify counts and sizes; never collapse a stated quantity down to one unlabeled figure. For any other major element this design includes that isn't in the baseline examples above, estimate an equally specific, equally reasonable dimension using the same standard-sizing logic — never leave an element out for lack of an example, and never write "size not specified," "dimensions vary," or any other placeholder in place of an actual number: every element listed here always gets a real, specific dimension. Present it as a short list of element: dimension pairs, one per line, covering only elements actually part of this design. These dimensions are design guidance for the rendering model, purely to improve proportion and layout consistency — never a substitute for any exact size, quantity, or capacity the client already explicitly stated elsewhere in the brief; a client-stated exact dimension always overrides the estimate given here for that same element.
 
-MATERIALS states the primary and secondary materials chosen to express the concept and brand personality, and how each specific finish — floor, ceiling, wall, and any glass, metal, wood, or stone actually used — is applied and where, consistent with the client's stated Construction Style and Flooring Specification.
+MATERIALS states the primary and secondary materials chosen to express the concept and brand personality, and how each specific finish — floor, ceiling, wall, and any glass, metal, wood, or stone actually used — is applied and where, consistent with the client's stated Construction Style and Flooring Specification. Where this design has a self-supported ceiling feature or rigging structure, its stated Ceiling Finish/Rigging Finish (e.g. Brushed Brass, Concrete Effect, Frosted Glass, Carbon Fiber) is a mandatory client-specified fact — describe the overhead feature's actual surface, weight, and light behavior consistent with that exact finish, never substitute a generic "metal frame" or "fabric ceiling" description in its place.
 
 LIGHTING STRATEGY grounds every layer — ambient, architectural, accent, product, and decorative — in the industry's own lighting profile from EPS-004's LEVEL 2 taxonomy (the specific color-temperature range, spotlight/base color, and accent color for this client's industry) as the single dominant palette every layer must stay within — never randomly mix in an unrelated temperature or accent color. Present lighting.accent_lighting_palette's three labeled facts (Primary Accent, Secondary, Avoid) verbatim under their own "Accent Lighting Palette" sub-heading — per DIR-012, this is the single palette every decorative LED strip, under-counter light, edge light, and illuminated architectural detail anywhere in this design must stay within, in both Layer 1 and Layer 2, unless the client explicitly requested a different color.
 
-NEGATIVE RULES closes Layer 1 with a short list of hard constraints this design must never violate, stated as direct prohibitions — for example: never exceed the booth boundary (EPS-010); maintain open circulation; do not overlap furniture; do not block entrances; architecture dominates furniture. Include any other negative rule genuinely relevant to this specific design (e.g. no suspended rigging unless Overhead Structure = Suspended, per EPS-012; no people of any kind, per EPS-007), stated with the same direct, prohibition-first phrasing — never state a suspended-rigging prohibition on a design where Overhead Structure actually is Suspended, since that would directly contradict the architecture Layer 1 just established. Always include the two EPS-016 orientation prohibitions stated against this design's actual BOOTH ORIENTATION MODEL: never enclose a side marked OPEN with a wall or structure, and never leave a side marked CLOSED open or unbuilt — and never mirror, rotate, or flip that orientation.
+NEGATIVE RULES closes Layer 1 with a short list of hard constraints this design must never violate, stated as direct prohibitions — for example: never exceed the booth boundary (EPS-010); maintain open circulation; do not overlap furniture; do not block entrances; architecture dominates furniture. Include any other negative rule genuinely relevant to this specific design (e.g. no suspended rigging unless Overhead Structure = Suspended, per EPS-012; no people of any kind, per EPS-007), stated with the same direct, prohibition-first phrasing — never state a suspended-rigging prohibition on a design where Overhead Structure actually is Suspended, since that would directly contradict the architecture Layer 1 just established. Always include the two EPS-016 orientation prohibitions stated against this design's actual BOOTH ORIENTATION MODEL: never enclose a side marked OPEN with a wall or structure, and never leave a side marked CLOSED open or unbuilt — and never mirror, rotate, or flip that orientation. Always include the DIR-013 prohibition: never introduce generic furniture or fixtures (a plain rectangular counter, a stock catalog display stand, an unrelated material) that fails to repeat the hero structure's geometry, materials, and detailing.
 
 LAYER 2 SECTION GUIDANCE:
 
-PRODUCT EXPERIENCE names the actual, specific, industry-appropriate products or devices displayed, and the interactive zones and demonstration areas built around them (use the client's own brief if it names specific products, otherwise infer from the industry's typical products per EPS-004's LEVEL 2 taxonomy) — never describe what's displayed using only the generic word "product" as if that were itself a real object. If a hero product is present, apply EPS-013's HERO PRODUCT RULE: confirm it stays unobstructed and clearly visible from every public entrance and primary viewing angle, with the surrounding architecture and furniture staged to enhance it rather than compete with it. If this is a flagship product per EPS-014, briefly name the one signature immersive experience feature chosen as the booth's emotional centerpiece alongside it, and how it complements the product rather than distracting from it — its full staging belongs in whichever of DIGITAL TECHNOLOGY or DECORATIVE ELEMENTS below actually matches its nature.
+PRODUCT EXPERIENCE names the actual, specific, industry-appropriate products or devices displayed, and the interactive zones and demonstration areas built around them (use the client's own brief if it names specific products, otherwise infer from the industry's typical products per EPS-004's LEVEL 2 taxonomy) — never describe what's displayed using only the generic word "product" as if that were itself a real object. If a hero product is present, apply EPS-013's HERO PRODUCT RULE: confirm it stays unobstructed and clearly visible from every public entrance and primary viewing angle, with the surrounding architecture and furniture staged to enhance it rather than compete with it. If this is a flagship product per EPS-014, briefly name the one signature immersive experience feature chosen as the booth's emotional centerpiece alongside it, and how it complements the product rather than distracting from it — its full staging belongs in whichever of DIGITAL TECHNOLOGY or DECORATIVE ELEMENTS below actually matches its nature. Per DIR-013, product displays, demo benches, and information counters built around these products must repeat the hero structure's geometry, materials, and detailing — never a generic display stand or bench in an unrelated material or form.
 
 BRANDING follows EPS-013's BRANDING PLACEMENT HIERARCHY in priority order (Hero Architecture, Reception, Feature Wall, Hanging Sign, LED Screen, Totem, Product Display) — describe logo placement, graphic walls, posters, screens, and digital totems only where each genuinely applies to this design, and never place branding on planters, furniture, or small decorative objects.
 
-FURNITURE describes what furnishes the space plan already established in Layer 1 — reception furniture, meeting tables, chairs, coffee bar, lounge seating, and storage furniture — always as what completes an existing architecture, never as an independent inventory that could justify its own layout. Per DIR-006, furniture organizes around the hero architectural structure — it never rivals it, replaces it, or reads as the dominant visual element in its own right. Any under-counter lighting or illuminated edge on this furniture (e.g. reception counter underglow) must stay within lighting.accent_lighting_palette per DIR-012 — never a color, like a generic blue underglow, that isn't actually part of this client's own brand.
+FURNITURE describes what furnishes the space plan already established in Layer 1 — reception furniture, meeting tables, chairs, coffee bar, lounge seating, and storage furniture — always as what completes an existing architecture, never as an independent inventory that could justify its own layout. Per DIR-006, furniture organizes around the hero architectural structure — it never rivals it, replaces it, or reads as the dominant visual element in its own right. Per DIR-013, every one of these pieces — reception counters, information counters, and meeting furniture especially — must be described as sharing the hero structure's exact geometry, primary material, and detailing (edge treatment, joinery, structural rhythm), never a generic, unrelated furniture form that could belong to any booth. Any under-counter lighting or illuminated edge on this furniture (e.g. reception counter underglow) must stay within lighting.accent_lighting_palette per DIR-012 — never a color, like a generic blue underglow, that isn't actually part of this client's own brand.
 
 DIGITAL TECHNOLOGY covers LED screens, touch screens, interactive displays, QR displays, and media walls actually present in this design, consistent with whatever exact quantities and sizes the client specified. Where EPS-014 applies and the chosen signature immersive feature is technology-driven (e.g. an immersive LED tunnel, projection experience, or dynamic media ring), describe it fully here — its exact placement, how it stages or frames the flagship product, and why it reads as this booth's one emotional centerpiece rather than another screen among several.
 
@@ -3151,14 +3534,23 @@ const BRAND_PERSONALITY_ATTRIBUTES = {
 
 const EPS_004 = `STYLE TAXONOMY — four independent style dimensions the client can specify. When a value is given for any of these dimensions, apply the listed attributes automatically and consistently, even if the client's free-text description does not repeat them explicitly. These four levels can combine freely (e.g. Modern + Medical + Wood Modular + Innovative) — apply every attribute from every level the client selected, layered together, never contradicting EPS-001, EPS-002, or EPS-003 above.
 
-LEVEL 1 — ARCHITECTURAL STYLE (the single most important style dimension)
+LEVEL 1 — ARCHITECTURAL STYLE (the single most important style dimension — each of these produces a genuinely different architecture: different geometry, different materials, different lighting language, different detailing. Never treat any two of these as interchangeable labels for the same generic "modern booth.")
 - Modern: clean geometry, straight lines, hidden lighting, open spaces, minimal decoration, premium finishes.
-- Minimal: white space, few materials, hidden storage, very clean branding, simple furniture.
-- Luxury: wood veneer, marble, brass, warm lighting, VIP feeling, premium furniture.
-- Futuristic: floating elements, dynamic lighting, curves, LED integration, interactive screens.
-- Corporate: professional, balanced, functional, clean branding, meeting focused.
-- Industrial: concrete, black, wood, raw textures, open ceiling.
+- Contemporary: current, freely evolving forms that mix materials and shapes without one rigid rule, asymmetric massing, mixed-material palettes (wood + metal + glass together), flexible open-plan layout, statement lighting fixtures as a focal feature.
+- Minimalist: extreme reduction to only essential form, vast white/negative space, a single dominant material, fully concealed storage and services, near-invisible branding restraint, negative space itself as the design statement.
+- High-Tech: exposed structural and mechanical systems as the visual language itself (trusses, ducts, cables, connectors left deliberately visible), glass and steel curtain surfaces, exoskeletal external framing, engineered precision detailing, cool silver/white palette with technical accent lighting.
+- Industrial: concrete, black, wood, raw textures, open ceiling, exposed services and structure, reclaimed or raw-finish materials.
 - Organic: curved forms, natural materials (timber, rattan, stone), biophilic greenery, soft flowing lines, warm diffused lighting.
+- Futuristic: floating elements, dynamic lighting, curves, LED integration, interactive screens.
+- Luxury: wood veneer, marble, brass, warm lighting, VIP feeling, premium furniture.
+- Scandinavian: light natural woods (oak, ash, birch), soft neutral palette with occasional muted pastel accents, clean simple joinery with no ornamentation, functional uncluttered layout, warm soft ambient lighting, cozy natural texture (wool, linen).
+- Japanese Minimalism: Zen-inspired restraint, natural materials (bamboo, washi-paper-like panels, light timber, stone), deliberate asymmetric balance (wabi-sabi), sliding-screen-inspired partitions, soft diffused lighting, deep respect for negative space (ma) as an active design element.
+- Parametric: algorithmically generated flowing or tessellated geometry, double-curved panelized surfaces, computational structural patterning, seamless CNC-fabricated forms, gradient or surface-responsive lighting that follows the geometry itself.
+- Biomorphic: architecture that directly imitates organic biological forms (cellular, shell-like, skeletal, botanical), smooth continuous curved surfaces with no straight lines, lightweight shell or membrane structures, natural gradient tones, lighting that mimics an organic natural glow.
+- Deconstructivist: fragmented, angular, intentionally unstable-looking geometry, sharp non-orthogonal forms, dramatic asymmetry, exposed structural tension, contrasting raw materials (steel against glass shards), dramatic directional lighting that emphasizes the fractured planes.
+- Neo-Classical: symmetric formal composition, classical proportion systems, columns/pilasters/pediment-inspired detailing reinterpreted at exhibition scale, refined stone-look or marble finishes, warm formal lighting, ceremonial axial circulation.
+- Art Deco: bold geometric symmetry (stepped forms, sunburst or fan motifs), rich material contrast (lacquered wood, brass, chrome, glass), strong vertical emphasis, glamorous warm gold-toned lighting, decorative metallic linework.
+- Brutalist: raw exposed concrete (board-formed texture), heavy monolithic massing, minimal ornamentation, deliberately blunt geometric forms, dramatic shadow-play lighting, honest raw material expression with no applied finish.
 
 LEVEL 2 — INDUSTRY STYLE (adds industry-specific design language — architectural language, material selection, color accents, display strategy, visitor experience, product presentation, lighting mood, digital technology integration, and decorative elements — on top of Level 1 and the client's own brand colors. This level only ever ADDS a layer; it must never override, replace, or contradict the architectural style or the brand identity already established. Each entry also lists example products typical of that industry, and its lighting profile — use these to decide what the product display area actually shows (describe specific, recognizable product types there, never the generic word "product" as if it were a real object) and which single color-temperature/accent-color palette the lighting design commits to, per LDS-001's own rule never to randomly mix lighting temperatures.)
 ${Object.entries(INDUSTRY_STYLE_ATTRIBUTES).map(([name, attrs]) => `- ${name}: ${attrs}. Typical products to feature in the product display area: ${INDUSTRY_EXAMPLE_PRODUCTS[name] || 'infer specific, recognizable products typical of this industry'}. Lighting profile: ${INDUSTRY_LIGHTING_PROFILES[name] || 'infer a single consistent color temperature and accent color typical of this industry'}.`).join('\n')}
@@ -3978,12 +4370,21 @@ SHADOW CONTROL — shadows should be present and physically plausible — flat, 
    sent as part of the brief so it actually shapes the generated design, not just the UI. */
 const ARCH_STYLE_COLORS = {
   Modern: 'Neutral palette — white, light grey, charcoal, with brushed steel or aluminum accents and hidden LED strip lighting.',
-  Minimal: 'Monochrome palette — white and off-white surfaces, light natural wood, black accent lines, no more than 2–3 materials total.',
-  Luxury: 'Warm premium palette — brass or gold trim, deep navy or burgundy, marble-look flooring, rich wood veneer, warm amber lighting.',
-  Futuristic: 'Cool high-contrast palette — glossy white or black surfaces, electric blue or cyan LED accent lighting, chrome details, backlit panels.',
-  Corporate: 'Professional palette — navy, grey, and white, with the brand\'s own colors as accents, matte finishes, minimal decoration.',
+  Contemporary: 'Eclectic neutral-plus-accent palette — soft greys and whites as a base with one bold current accent color, mixed materials (wood + metal + glass together), sleek statement lighting fixtures.',
+  Minimalist: 'Monochrome palette — white and off-white surfaces, light natural wood, black accent lines, no more than 2–3 materials total.',
+  'High-Tech': 'Cool industrial-tech palette — silver, exposed steel and aluminum, glass curtain surfaces, exposed structural framing, cool white or technical-blue LED accents.',
   Industrial: 'Raw palette — exposed concrete grey, matte black steel, natural or reclaimed wood, visible structural elements.',
-  Organic: 'Earthy natural palette — curved timber, rattan/woven textures, warm terracotta and stone tones, soft biophilic greenery, diffused natural-feeling lighting.'
+  Organic: 'Earthy natural palette — curved timber, rattan/woven textures, warm terracotta and stone tones, soft biophilic greenery, diffused natural-feeling lighting.',
+  Futuristic: 'Cool high-contrast palette — glossy white or black surfaces, electric blue or cyan LED accent lighting, chrome details, backlit panels.',
+  Luxury: 'Warm premium palette — brass or gold trim, deep navy or burgundy, marble-look flooring, rich wood veneer, warm amber lighting.',
+  Scandinavian: 'Soft natural palette — pale oak and birch wood, white and light grey surfaces, muted pastel accents, warm soft ambient lighting, minimal matte textures (wool, linen).',
+  'Japanese Minimalism': 'Zen natural palette — light bamboo and timber, warm stone grey, washi-paper-like translucent panels, soft diffused lighting, restrained near-monochrome tones.',
+  Parametric: 'Fluid gradient palette — smooth white or metallic panelized surfaces, subtle gradient LED lighting following the form, minimal flat color, emphasis on surface continuity over applied color.',
+  Biomorphic: 'Organic gradient palette — soft cream, sand, and shell-like tones, smooth continuous membrane or shell surfaces, warm diffused lighting mimicking a natural organic glow.',
+  Deconstructivist: 'High-contrast raw palette — exposed steel, shard-like glass, matte black and raw concrete contrasted with sharp brand-color accents, dramatic directional lighting emphasizing fractured angles.',
+  'Neo-Classical': 'Refined formal palette — marble-look stone, warm cream and ivory tones, brushed gold or bronze detailing, warm symmetric formal lighting.',
+  'Art Deco': 'Glamorous palette — lacquered black or deep jewel tones, brass and chrome trim, gold-toned warm lighting, strong geometric metallic linework.',
+  Brutalist: 'Raw monolithic palette — board-formed exposed concrete grey, minimal color accents, matte unfinished surfaces, dramatic shadow-based lighting rather than applied color.'
 };
 
 function updateArchStyleHint(sel){
@@ -4250,6 +4651,38 @@ function collectAdditionalRequirements(){
     ['literaturerack', 'LITERATURE RACK', 'literature rack(s)'],
     ['kiosk', 'INTERACTIVE KIOSK', 'interactive kiosk(s)'],
     ['coffeebar', 'COFFEE BAR / HOSPITALITY', 'coffee bar / hospitality point(s)'],
+    ['productdisplayarea', 'PRODUCT DISPLAY AREA', 'product display area(s)'],
+    ['productdemoarea', 'PRODUCT DEMONSTRATION AREA', 'product demonstration area(s)'],
+    ['interactiveexperiencezone', 'INTERACTIVE EXPERIENCE ZONE', 'interactive experience zone(s)'],
+    ['experiencezone', 'EXPERIENCE ZONE', 'experience zone(s)'],
+    ['featureproductzone', 'FEATURE PRODUCT ZONE', 'feature product zone(s)'],
+    ['presentationarea', 'PRESENTATION AREA', 'presentation area(s)'],
+    ['seminararea', 'SEMINAR AREA', 'seminar area(s)'],
+    ['privatemeetingroom', 'PRIVATE MEETING ROOM', 'private meeting room(s)'],
+    ['tooltestingbench', 'TOOL TESTING BENCH', 'tool testing bench(es)'],
+    ['livedemoarea', 'LIVE DEMONSTRATION AREA', 'live demonstration area(s)'],
+    ['machinedemozone', 'MACHINE DEMONSTRATION ZONE', 'machine demonstration zone(s)'],
+    ['technicalconsultation', 'TECHNICAL CONSULTATION AREA', 'technical consultation area(s)'],
+    ['sparepartsdisplay', 'SPARE PARTS DISPLAY', 'spare parts display(s)'],
+    ['vehicledisplay', 'VEHICLE DISPLAY', 'vehicle display(s)'],
+    ['simulatorzone', 'SIMULATOR ZONE', 'simulator zone(s)'],
+    ['configurationstation', 'CONFIGURATION STATION', 'configuration station(s)'],
+    ['aidemozone', 'AI DEMO ZONE', 'AI demo zone(s)'],
+    ['deviceexperiencezone', 'DEVICE EXPERIENCE ZONE', 'device experience zone(s)'],
+    ['softwaredemoarea', 'SOFTWARE DEMO AREA', 'software demo area(s)'],
+    ['vrexperience', 'VR EXPERIENCE', 'VR experience station(s)'],
+    ['arexperience', 'AR EXPERIENCE', 'AR experience station(s)'],
+    ['gamingzone', 'GAMING ZONE', 'gaming zone(s)'],
+    ['medicaldemoarea', 'MEDICAL DEMONSTRATION AREA', 'medical demonstration area(s)'],
+    ['patientsimulationarea', 'PATIENT SIMULATION AREA', 'patient simulation area(s)'],
+    ['diagnosticzone', 'DIAGNOSTIC ZONE', 'diagnostic zone(s)'],
+    ['operatingtechdisplay', 'OPERATING TECHNOLOGY DISPLAY', 'operating technology display(s)'],
+    ['productsamplingarea', 'PRODUCT SAMPLING AREA', 'product sampling area(s)'],
+    ['tastingcounter', 'TASTING COUNTER', 'tasting counter(s)'],
+    ['retaildisplay', 'RETAIL DISPLAY', 'retail display(s)'],
+    ['workshoparea', 'WORKSHOP AREA', 'workshop area(s)'],
+    ['classroomzone', 'CLASSROOM ZONE', 'classroom zone(s)'],
+    ['learningstation', 'LEARNING STATION', 'learning station(s)'],
   ];
   for(const [id, title, unitLabel] of quantityOnlyItems){
     if(document.getElementById('addreq_' + id).checked){
@@ -4266,6 +4699,9 @@ function collectAdditionalRequirements(){
     ['openmeeting', 'openmeeting_capacity', 'OPEN MEETING AREA', 'the open meeting area'],
     ['lounge', 'lounge_capacity', 'LOUNGE AREA', 'the lounge area'],
     ['staffarea', 'staffarea_capacity', 'STAFF AREA', 'the staff area'],
+    ['viplounge', 'viplounge_capacity', 'VIP LOUNGE', 'the VIP lounge'],
+    ['hospitalitylounge', 'hospitalitylounge_capacity', 'HOSPITALITY LOUNGE', 'the hospitality lounge'],
+    ['networkingarea', 'networkingarea_capacity', 'NETWORKING AREA', 'the networking area'],
   ];
   for(const [id, fieldId, title, areaLabel] of capacityOnlyItems){
     if(document.getElementById('addreq_' + id).checked){
@@ -4279,11 +4715,33 @@ function collectAdditionalRequirements(){
 
   // Simple checkboxes with no quantity — grouped by category for a clearer, better-organized brief.
   const simpleGroups = [
+    ['Visitor Experience', [['addreq_launchstage', 'Launch Stage']]],
+    ['Industrial / Manufacturing', [['addreq_engineeringshowcase', 'Engineering Showcase'], ['addreq_innovationzone', 'Innovation Zone']]],
+    ['Automotive', [['addreq_drivingexperience', 'Driving Experience']]],
+    ['Technology', [['addreq_cloudexperiencezone', 'Cloud Experience Zone']]],
+    ['Retail / FMCG', [['addreq_merchandisewall', 'Merchandise Wall']]],
     ['Product Display', [['addreq_brochurestand', 'Brochure Stand']]],
     ['Digital & Technology', [['addreq_chargingstation', 'Charging Station'], ['addreq_qrdisplay', 'QR Code Display']]],
     ['Functional Spaces', [['addreq_pantry', 'Pantry'], ['addreq_lockablecabinet', 'Lockable Cabinet'], ['addreq_hiddenstorage', 'Hidden Storage']]],
     ['Lighting', [['addreq_ambientlighting', 'Ambient Lighting'], ['addreq_spotlights', 'Spotlights'], ['addreq_hiddenledlighting', 'Hidden LED Lighting'], ['addreq_covelighting', 'Cove Lighting'], ['addreq_accentlighting', 'Product Accent Lighting'], ['addreq_decorativelighting', 'Decorative Lighting']]],
-    ['Decorative Elements', [['addreq_planters', 'Planters'], ['addreq_greenwall', 'Green Wall'], ['addreq_decorativepanels', 'Decorative Panels'], ['addreq_brandgraphics', 'Brand Graphics'], ['addreq_hangingdecor', 'Hanging Decorations'], ['addreq_sculpture', 'Feature Sculpture']]],
+    ['Decorative Elements', [
+      ['addreq_planters', 'Planters'], ['addreq_greenwall', 'Green Wall'], ['addreq_decorativepanels', 'Decorative Panels'], ['addreq_brandgraphics', 'Brand Graphics'], ['addreq_hangingdecor', 'Hanging Decorations'], ['addreq_sculpture', 'Feature Sculpture'],
+      ['addreq_featurewall', 'Feature Wall'], ['addreq_graphicwall', 'Graphic Wall'], ['addreq_mediawall', 'Media Wall'], ['addreq_ledfeaturewall', 'LED Feature Wall'], ['addreq_tooldisplaywall', 'Tool Display Wall'], ['addreq_productdisplaywall', 'Product Display Wall'],
+      ['addreq_displayshelving', 'Display Shelving'], ['addreq_displayniches', 'Display Niches'], ['addreq_floatingshelves', 'Floating Shelves'], ['addreq_decorativeceilingpanels', 'Decorative Ceiling Panels'], ['addreq_hangingelements', 'Hanging Elements'], ['addreq_hanginggraphics', 'Hanging Graphics'],
+      ['addreq_architecturalfins', 'Architectural Fins'], ['addreq_verticalslats', 'Vertical Slats'], ['addreq_decorativescreens', 'Decorative Screens'], ['addreq_featureportal', 'Feature Portal'], ['addreq_entrancefeature', 'Entrance Feature'], ['addreq_featurearch', 'Feature Arch'], ['addreq_digitalartwall', 'Digital Art Wall'],
+    ]],
+    ['Landscape', [
+      ['addreq_minimalplanters', 'Minimal Planters'], ['addreq_premiumplanters', 'Premium Planters'], ['addreq_livingwall', 'Living Wall'], ['addreq_indoortrees', 'Indoor Trees'],
+      ['addreq_artificialplants', 'Artificial Plants'], ['addreq_mosswall', 'Moss Wall'], ['addreq_waterfeature', 'Water Feature'], ['addreq_stonefeature', 'Stone Feature'],
+    ]],
+    ['Lighting Features', [
+      ['addreq_decorativelightboxes', 'Decorative Light Boxes'], ['addreq_illuminatedlogo', 'Illuminated Logo'], ['addreq_edgelighting', 'Edge Lighting'],
+      ['addreq_backlitpanels', 'Backlit Panels'], ['addreq_neonfeature', 'Neon Feature'], ['addreq_architecturallightfeature', 'Architectural Light Feature'],
+    ]],
+    ['Art & Brand', [
+      ['addreq_brandtimelinewall', 'Brand Timeline Wall'], ['addreq_heritagewall', 'Heritage Wall'], ['addreq_innovationwall', 'Innovation Wall'], ['addreq_interactivegraphicwall', 'Interactive Graphic Wall'],
+      ['addreq_timelinedisplay', 'Timeline Display'], ['addreq_awardsdisplay', 'Awards Display'], ['addreq_featureshowcase', 'Feature Showcase'],
+    ]],
   ];
   for(const [groupName, items] of simpleGroups){
     const checked = items.filter(([id]) => document.getElementById(id).checked).map(([, label]) => label);
@@ -4411,11 +4869,24 @@ function collectCeilingRiggingSpecification(){
     if(ceilingHeightFromFloor) ceilingSizeParts.push(`Height from floor ${ceilingHeightFromFloor}m`);
     lines.push(ceilingSizeParts.length ? `Ceiling Size: ${ceilingSizeParts.join(', ')}.` : 'Ceiling Size: not specified — estimate a size proportionate to the booth footprint.');
 
-    const ceilingFinish = document.getElementById('f_ceilingFinish').value;
+    const ceilingFinishRaw = document.getElementById('f_ceilingFinish').value;
+    const ceilingFinish = ceilingFinishRaw === 'Custom' ? (document.getElementById('f_ceilingFinishCustom').value.trim() || 'Custom') : ceilingFinishRaw;
     lines.push(`Ceiling Finish: ${ceilingFinish}.`);
-    if(ceilingFinish === 'Fabric Lightbox'){
-      lines.push(`Fabric Lightbox Color: ${document.getElementById('f_ceilingFabricColorHex').value}.`);
+    if(ceilingFinishRaw === 'LED Diffuser Panel'){
+      lines.push(`LED Diffuser Panel Color: ${document.getElementById('f_ceilingFabricColorHex').value}.`);
     }
+
+    const ceilingElements = Array.from(document.querySelectorAll('.ceiling-element-cb:checked')).map(cb => cb.value);
+    lines.push(ceilingElements.length
+      ? `Integrated Elements — EXPLICITLY REQUESTED BY THE CLIENT: ${ceilingElements.join(', ')}.`
+      : 'Integrated Elements: none requested.');
+
+    const ceilingLighting = Array.from(document.querySelectorAll('.ceiling-lighting-cb:checked')).map(cb => cb.value);
+    lines.push(ceilingLighting.length
+      ? `Ceiling Lighting — EXPLICITLY REQUESTED BY THE CLIENT: ${ceilingLighting.join(', ')}.`
+      : 'Ceiling Lighting: none requested.');
+
+    lines.push(`Brand Visibility: ${document.getElementById('f_ceilingBrandVisibility').value}.`);
 
     const ceilingPurposeRaw = document.getElementById('f_ceilingPurpose').value;
     const ceilingPurpose = ceilingPurposeRaw === 'Custom Purpose' ? (document.getElementById('f_ceilingPurposeCustom').value.trim() || 'Custom Purpose') : ceilingPurposeRaw;
@@ -4806,12 +5277,16 @@ function toggleCeilingPurposeCustom(select){
   document.getElementById('f_ceilingPurposeCustom').style.display = select.value === 'Custom Purpose' ? 'block' : 'none';
 }
 
+function toggleCeilingFinishCustom(select){
+  document.getElementById('f_ceilingFinishCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
+}
+
 function toggleRiggingFabricColor(select){
   document.getElementById('riggingFabricColorField').style.display = select.value === 'Fabric Lightbox' ? 'block' : 'none';
 }
 
 function toggleCeilingFabricColor(select){
-  document.getElementById('ceilingFabricColorField').style.display = select.value === 'Fabric Lightbox' ? 'block' : 'none';
+  document.getElementById('ceilingFabricColorField').style.display = select.value === 'LED Diffuser Panel' ? 'block' : 'none';
 }
 
 // Opening a saved project should land directly on its results — the concept box, the
@@ -5848,6 +6323,7 @@ ARCHITECTURAL PRIORITY CHECKLIST (core rule) — before finalizing image_prompt,
 ✓ Products remain secondary — PRODUCT EXPERIENCE and DIGITAL TECHNOLOGY never overshadow the hero structure's visual primacy established in LAYER 1.
 ✓ Brand lighting consistent — every decorative LED strip, under-counter light, edge light, and illuminated architectural detail anywhere in the prompt stays within lighting.accent_lighting_palette per DIR-012, with no unrelated RGB or "technology blue" glow introduced.
 ✓ Orientation respected — per EPS-016, every OPEN side in the brief's BOOTH ORIENTATION MODEL reads as genuinely open (no wall or structure), every CLOSED side is occupied by wall or structure, entrances and circulation only originate from OPEN sides, and the layout has not been mirrored, rotated, or flipped from that model.
+✓ Structural vocabulary inherited — per DIR-013, reception counters, information counters, display walls, product displays, demo benches, and meeting furniture all repeat the hero structure's geometry, primary material, and detailing, with no generic, unrelated furniture piece anywhere in the design.
 
 You are given two things in the user message: (1) the hidden analysis JSON, organized into modules — concept (design_objective, architectural_concept), space_planning (visitor_flow, functional_zones), spatial_composition (composition_strategy), architecture (architectural_geometry, hero_structure), materials (primary_materials), lighting (lighting_strategy, accent_lighting_palette), branding (brand_integration) — and (2) the client's original brief, included only so you can pull literal facts (exact numbers, hex codes, counts, style names) precisely. Use (1) as the architectural backbone of every section below; use (2) only to insert precise literal facts into the correct sections — never let (2) reopen a decision already settled in (1). architecture.architectural_geometry and architecture.hero_structure are already the concrete, deterministic translation of architectural_concept's narrative (per DIR-005) — carry their labeled facts into ARCHITECTURAL CONCEPT verbatim (geometry before hero structure, the same order they were decided in), never re-abstract them back into mood language or storytelling. spatial_composition.composition_strategy is likewise already decided (per SCE-001) — carry its labeled facts into SPACE PLANNING verbatim, never re-derive a different composition. lighting.accent_lighting_palette is likewise already decided (per DIR-012) — carry its labeled facts into LIGHTING STRATEGY verbatim, and enforce it on every decorative/accent lighting mention anywhere else in the prompt.
 
@@ -8207,6 +8683,10 @@ function collectFormSnapshot(){
     f_ceilingDepth: document.getElementById('f_ceilingDepth').value,
     f_ceilingHeightFromFloor: document.getElementById('f_ceilingHeightFromFloor').value,
     f_ceilingFinish: document.getElementById('f_ceilingFinish').value,
+    f_ceilingFinishCustom: document.getElementById('f_ceilingFinishCustom').value,
+    f_ceilingElements: Array.from(document.querySelectorAll('.ceiling-element-cb:checked')).map(cb => cb.value),
+    f_ceilingLighting: Array.from(document.querySelectorAll('.ceiling-lighting-cb:checked')).map(cb => cb.value),
+    f_ceilingBrandVisibility: document.getElementById('f_ceilingBrandVisibility').value,
     f_ceilingFabricColorHex: document.getElementById('f_ceilingFabricColorHex').value,
     f_ceilingPurpose: document.getElementById('f_ceilingPurpose').value,
     f_ceilingPurposeCustom: document.getElementById('f_ceilingPurposeCustom').value,
@@ -8331,7 +8811,13 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_ceilingWidth').value = snap.f_ceilingWidth || '';
   document.getElementById('f_ceilingDepth').value = snap.f_ceilingDepth || '';
   document.getElementById('f_ceilingHeightFromFloor').value = snap.f_ceilingHeightFromFloor || '';
-  document.getElementById('f_ceilingFinish').value = snap.f_ceilingFinish || 'Aluminum Truss';
+  document.getElementById('f_ceilingFinish').value = snap.f_ceilingFinish || 'Matte White';
+  document.getElementById('f_ceilingFinishCustom').value = snap.f_ceilingFinishCustom || '';
+  const savedCeilingElements = new Set(snap.f_ceilingElements || []);
+  document.querySelectorAll('.ceiling-element-cb').forEach(cb => { cb.checked = savedCeilingElements.has(cb.value); });
+  const savedCeilingLighting = new Set(snap.f_ceilingLighting || []);
+  document.querySelectorAll('.ceiling-lighting-cb').forEach(cb => { cb.checked = savedCeilingLighting.has(cb.value); });
+  document.getElementById('f_ceilingBrandVisibility').value = snap.f_ceilingBrandVisibility || 'Logo on all sides';
   document.getElementById('f_ceilingFabricColorHex').value = snap.f_ceilingFabricColorHex || '#FFFFFF';
   syncColorPicker(document.getElementById('f_ceilingFabricColorHex'));
   document.getElementById('f_ceilingPurpose').value = snap.f_ceilingPurpose || 'Architectural Landmark';
@@ -8341,6 +8827,7 @@ function restoreFormSnapshot(snap){
   toggleRiggingFabricColor(document.getElementById('f_riggingFinish'));
   toggleCeilingShapeCustom(document.getElementById('f_ceilingShape'));
   toggleCeilingFabricColor(document.getElementById('f_ceilingFinish'));
+  toggleCeilingFinishCustom(document.getElementById('f_ceilingFinish'));
   toggleCeilingPurposeCustom(document.getElementById('f_ceilingPurpose'));
   document.getElementById('f_openSides').value = snap.f_openSides || '2';
   document.getElementById('f_inlineOpenSide').value = snap.f_inlineOpenSide || 'Front';
