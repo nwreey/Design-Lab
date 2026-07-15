@@ -2799,6 +2799,31 @@ const ADDREQ_ALL_CHECKBOX_IDS = [
   'addreq_decorativelightboxes', 'addreq_illuminatedlogo', 'addreq_edgelighting', 'addreq_backlitpanels', 'addreq_neonfeature', 'addreq_architecturallightfeature',
   'addreq_brandtimelinewall', 'addreq_heritagewall', 'addreq_innovationwall', 'addreq_interactivegraphicwall', 'addreq_timelinedisplay', 'addreq_awardsdisplay', 'addreq_featureshowcase',
 ];
+
+// Additional Requirements items that don't consume their own dedicated floor footprint — wall-
+// mounted, ceiling-mounted, or purely decorative/lighting features (plus small built-into-
+// existing-furniture items like a lockable cabinet or hidden storage compartment). Used by the
+// Spatial Planning & Scale Validation Engine below to exclude these from area-budget math
+// entirely, rather than guessing a floor footprint for something that doesn't have one.
+const ADDREQ_NON_FLOOR_IDS = new Set([
+  'addreq_ambientlighting', 'addreq_spotlights', 'addreq_hiddenledlighting', 'addreq_covelighting', 'addreq_accentlighting', 'addreq_decorativelighting',
+  'addreq_planters', 'addreq_greenwall', 'addreq_decorativepanels', 'addreq_brandgraphics', 'addreq_hangingdecor', 'addreq_sculpture',
+  'addreq_featurewall', 'addreq_graphicwall', 'addreq_mediawall', 'addreq_ledfeaturewall', 'addreq_tooldisplaywall', 'addreq_productdisplaywall',
+  'addreq_displayshelving', 'addreq_displayniches', 'addreq_floatingshelves', 'addreq_decorativeceilingpanels', 'addreq_hangingelements', 'addreq_hanginggraphics',
+  'addreq_architecturalfins', 'addreq_verticalslats', 'addreq_decorativescreens', 'addreq_featureportal', 'addreq_entrancefeature', 'addreq_featurearch', 'addreq_digitalartwall',
+  'addreq_minimalplanters', 'addreq_premiumplanters', 'addreq_livingwall', 'addreq_indoortrees', 'addreq_artificialplants', 'addreq_mosswall', 'addreq_waterfeature', 'addreq_stonefeature',
+  'addreq_decorativelightboxes', 'addreq_illuminatedlogo', 'addreq_edgelighting', 'addreq_backlitpanels', 'addreq_neonfeature', 'addreq_architecturallightfeature',
+  'addreq_brandtimelinewall', 'addreq_heritagewall', 'addreq_innovationwall', 'addreq_interactivegraphicwall', 'addreq_timelinedisplay', 'addreq_awardsdisplay', 'addreq_featureshowcase',
+  'addreq_lockablecabinet', 'addreq_hiddenstorage',
+]);
+
+// Additional Requirements items already given exact, real footprint math further down in this
+// file (via computeKnownAddreqFootprints) — excluded here so they're never double-counted as
+// generic "other zones" too.
+const ADDREQ_PRECISELY_BUDGETED_IDS = new Set([
+  'addreq_reception', 'addreq_meetingtables', 'addreq_touchscreen', 'addreq_displaytables', 'addreq_pedestals', 'addreq_storageroom',
+]);
+
 let lastGeneratedBrief = '';
 
 const EXPERT_DESIGNER_PERSONA = `You are a senior exhibition architect with over 20 years of experience designing award-winning exhibition booths, pavilions, and brand experiences for international trade shows and expos — GITEX, CES, Arab Health, World Defense Show, LEAP, Hannover Messe, Mobile World Congress, Dubai Airshow, VivaTech, Web Summit.
@@ -3536,6 +3561,55 @@ LEVEL 4 — BRAND PERSONALITY (the emotional character of the booth — influenc
 
 BPE-001 — BRAND PERSONALITY ENGINE (core rule) — the client may select up to three personalities from the list below, and the ORDER they were selected in carries real weight: the first selected is Primary (the dominant influence), the second is Secondary (a supporting influence), and the third is Accent (a subtle final layer). The brief states this ranking explicitly — always apply it in that exact order, never averaged or blended equally across all three. Primary drives the architectural concept, its geometry, and the dominant material palette. Secondary shapes supporting materials/detailing and the lighting mood. Accent is a light final touch on branding expression and spatial atmosphere only, never strong enough to compete with or dilute Primary's dominance. For example, Primary — Minimalist, Secondary — Premium, Accent — Innovative means the architecture should feel predominantly Minimalist, expressed through Premium materials and detailing, with only a subtle Innovative technology touch — never a design that reads as equal parts Minimalist, Premium, and Innovative.
 ${Object.entries(BRAND_PERSONALITY_ATTRIBUTES).map(([name, attrs]) => `- ${name}: ${attrs}.`).join('\n')}`;
+
+// Exhibition Standards Library — canonical real-world footprint data for the planned Spatial
+// Planning & Scale Validation Engine's area-budget math (see the architectural discussion this
+// was scoped from). This is the single source of truth deterministic dimension logic should
+// read from, rather than each estimating its own numbers — the same centralization pattern as
+// ARCH_STYLE_COLORS/BRAND_PERSONALITY_ATTRIBUTES for style data. Not yet wired into generation —
+// this is the data layer only, added ahead of the engine itself.
+//
+// All footprint values are in millimeters; areas are already in square meters where noted.
+// Interpretation of the supplied figures (flag if any of these assumptions are wrong):
+// - Two-number entries are Width x Depth footprints, in mm.
+// - Meeting table and Pedestal single numbers are diameters (round units) — standard
+//   round-table sizing convention: 900mm seats ~2, 1200mm seats ~4, 1600mm seats ~6.
+// - Chair's single number is its square floor footprint (width = depth).
+// - Touch Screen's single number is the unit's overall floor footprint width (screen + stand/
+//   kiosk housing), not the screen's diagonal size.
+// - Storage figures are floor area directly, in square meters.
+// - Walking figures are minimum clear aisle width.
+const EXHIBITION_STANDARDS_LIBRARY = {
+  receptionCounter: {
+    small:  { widthMm: 1000, depthMm: 400 },
+    medium: { widthMm: 2000, depthMm: 400 }
+  },
+  meetingTable: {
+    seats2: { diameterMm: 900 },
+    seats4: { diameterMm: 1200 },
+    seats6: { diameterMm: 1600 }
+  },
+  chair: { footprintMm: 550 },
+  touchScreen: { footprintMm: 700 },
+  displayTable: { widthMm: 1000, depthMm: 700 },
+  pedestal: { diameterMm: 500 },
+  storage: { minimumSqm: 1, preferredSqm: 2 },
+  walking: { minimumMm: 900, comfortMm: 1200 }
+};
+
+// Helpers for converting the library's raw mm/diameter figures into square-meter areas, so the
+// area-budget engine (once built) always computes off the same conversions rather than each
+// call site rounding differently.
+function footprintAreaSqmFromWidthDepth(widthMm, depthMm){
+  return (widthMm / 1000) * (depthMm / 1000);
+}
+function footprintAreaSqmFromDiameter(diameterMm){
+  const radiusM = (diameterMm / 1000) / 2;
+  return Math.PI * radiusM * radiusM;
+}
+function footprintAreaSqmFromSquare(sideMm){
+  return (sideMm / 1000) * (sideMm / 1000);
+}
 
 const EPS_005 = `EXHIBITION BOOTH DIMENSION & SPACE PLANNING STANDARD
 
@@ -4871,6 +4945,180 @@ ADDITIONAL REQUIREMENTS — EXPLICITLY SPECIFIED BY THE CLIENT (these exact quan
 ${lines.join('\n')}`;
 }
 
+/* ================= Spatial Planning & Scale Validation Engine (deterministic, JS-computed) =====
+   The fix for booths rendering at the wrong physical scale (e.g. a 4x4m booth reading like an
+   8x8m one). This engine computes, in plain JavaScript before any API call, whether the
+   requested program actually fits inside the client's real booth dimensions at realistic human
+   scale — using EXHIBITION_STANDARDS_LIBRARY's real footprint data, not a model's estimate.
+   Per SFE-001, this replaces "GPT invents the area math" with "GPT transcribes this engine's
+   already-computed numbers" — the analysis stage's spatial_feasibility.scale_validation field
+   copies these figures verbatim rather than recomputing them.
+
+   Scope note: this engine computes REAL, precise footprints only for the elements
+   EXHIBITION_STANDARDS_LIBRARY actually has data for (reception counters, meeting tables +
+   their chairs, touch screens, display tables, pedestals, storage rooms) using the client's own
+   specified quantities from Additional Requirements. Every other requested zone (the much larger
+   Visitor Experience/Digital/Functional checklist) doesn't yet have individual footprint data in
+   the library, so this engine reports them as a count against a remaining flexible area budget
+   rather than fabricating a precise-looking number it doesn't actually have — Stage 1 fits those
+   using EPS-011's own zone rules and SFE-001's priority order within that real, computed budget.
+   Purely decorative/wall-mounted/ceiling-mounted items (ADDREQ_NON_FLOOR_IDS) are excluded
+   entirely, since they don't consume their own dedicated floor footprint. ================= */
+
+// Hero Structure Scale Tiers per SFE-001 — booth footprint (sqm) -> tier name, description, and
+// a conservative hero footprint allowance (sqm) proportionate to that tier.
+function getHeroStructureScaleTier(widthM, depthM){
+  const areaSqm = widthM * depthM;
+  if(areaSqm <= 4)  return { tier: '2×2m tier', description: 'very small architectural gesture only', heroFootprintSqm: Math.max(0.4, areaSqm * 0.15) };
+  if(areaSqm <= 9)  return { tier: '3×3m tier', description: 'compact architectural feature', heroFootprintSqm: areaSqm * 0.13 };
+  if(areaSqm <= 16) return { tier: '4×4m tier', description: 'one architectural centerpiece', heroFootprintSqm: areaSqm * 0.13 };
+  if(areaSqm <= 25) return { tier: '5×5m tier', description: 'small hero structure', heroFootprintSqm: areaSqm * 0.13 };
+  if(areaSqm <= 81) return { tier: '6×6m–9×9m tier', description: 'full architectural statement', heroFootprintSqm: areaSqm * 0.15 };
+  return { tier: '10×10m+ tier', description: 'complex iconic architecture', heroFootprintSqm: areaSqm * 0.17 };
+}
+
+// Minimum open-circulation percentage by booth size — the exact thresholds from EPS-011's own
+// OPEN SPACE RATIO BY SIZE table, so this engine and that prose standard never disagree.
+function getCirculationReservePercent(areaSqm){
+  if(areaSqm <= 18) return 0.45;
+  if(areaSqm <= 36) return 0.40;
+  if(areaSqm <= 72) return 0.35;
+  return 0.30;
+}
+
+// Real, precise footprints (sqm) for every Additional Requirements item EXHIBITION_STANDARDS_
+// LIBRARY actually has data for, using the client's own specified quantities/sizes — never an
+// estimate for these six element types.
+function computeKnownAddreqFootprints(){
+  const items = [];
+  const lib = EXHIBITION_STANDARDS_LIBRARY;
+
+  const receptionCb = document.getElementById('addreq_reception');
+  if(receptionCb && receptionCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_reception_count').value) || 0);
+    for(let i = 1; i <= count; i++){
+      const wEl = document.getElementById('addreq_reception_w_' + i);
+      const widthM = (wEl && parseFloat(wEl.value)) || (lib.receptionCounter.medium.widthMm / 1000);
+      const depthM = lib.receptionCounter.medium.depthMm / 1000;
+      items.push({ label: `Reception counter ${i} (${widthM.toFixed(1)}m × ${depthM.toFixed(1)}m)`, tier: 4, areaSqm: widthM * depthM });
+    }
+  }
+
+  const meetingCb = document.getElementById('addreq_meetingtables');
+  if(meetingCb && meetingCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_meetingtables_count').value) || 0);
+    for(let i = 1; i <= count; i++){
+      const seatsEl = document.getElementById('addreq_meetingtables_seats_' + i);
+      const seats = (seatsEl && parseInt(seatsEl.value)) || 4;
+      const tierKey = seats <= 2 ? 'seats2' : (seats <= 4 ? 'seats4' : 'seats6');
+      const tableAreaSqm = footprintAreaSqmFromDiameter(lib.meetingTable[tierKey].diameterMm);
+      const chairsAreaSqm = seats * footprintAreaSqmFromSquare(lib.chair.footprintMm);
+      items.push({ label: `Meeting table ${i} (${seats} seats + chairs)`, tier: 6, areaSqm: tableAreaSqm + chairsAreaSqm });
+    }
+  }
+
+  const touchscreenCb = document.getElementById('addreq_touchscreen');
+  if(touchscreenCb && touchscreenCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_touchscreen_count').value) || 0);
+    if(count > 0) items.push({ label: `Touch screens (${count})`, tier: 2, areaSqm: count * footprintAreaSqmFromSquare(lib.touchScreen.footprintMm) });
+  }
+
+  const displaytablesCb = document.getElementById('addreq_displaytables');
+  if(displaytablesCb && displaytablesCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_displaytables_count').value) || 0);
+    if(count > 0) items.push({ label: `Display tables (${count})`, tier: 3, areaSqm: count * footprintAreaSqmFromWidthDepth(lib.displayTable.widthMm, lib.displayTable.depthMm) });
+  }
+
+  const pedestalsCb = document.getElementById('addreq_pedestals');
+  if(pedestalsCb && pedestalsCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_pedestals_count').value) || 0);
+    if(count > 0) items.push({ label: `Product pedestals (${count})`, tier: 3, areaSqm: count * footprintAreaSqmFromDiameter(lib.pedestal.diameterMm) });
+  }
+
+  const storageCb = document.getElementById('addreq_storageroom');
+  if(storageCb && storageCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_storageroom_count').value) || 0);
+    for(let i = 1; i <= count; i++){
+      const sizeEl = document.getElementById('addreq_storageroom_size_' + i);
+      const areaSqm = (sizeEl && parseFloat(sizeEl.value)) || lib.storage.preferredSqm;
+      items.push({ label: `Storage room ${i}`, tier: 7, areaSqm });
+    }
+  }
+
+  return items;
+}
+
+// Every OTHER checked Additional Requirements zone — not precisely budgeted above, and not a
+// non-floor decorative/lighting item — returned with its human-readable label pulled straight
+// from its own on-page checkbox text, so this never needs a second, hand-maintained name list.
+function computeOtherRequestedZoneNames(){
+  return ADDREQ_ALL_CHECKBOX_IDS
+    .filter(id => !ADDREQ_PRECISELY_BUDGETED_IDS.has(id) && !ADDREQ_NON_FLOOR_IDS.has(id))
+    .map(id => document.getElementById(id))
+    .filter(cb => cb && cb.checked)
+    .map(cb => {
+      const label = cb.closest('label');
+      return label ? label.textContent.trim() : cb.id;
+    });
+}
+
+// The engine's single entry point — booth mode only (event mode has its own separate size
+// logic via buildEventSizeText and isn't covered by this engine yet).
+function computeSpatialPlan(widthM, depthM){
+  const totalAreaSqm = widthM * depthM;
+  const heroTier = getHeroStructureScaleTier(widthM, depthM);
+  const circulationPercent = getCirculationReservePercent(totalAreaSqm);
+  const circulationReserveSqm = totalAreaSqm * circulationPercent;
+  const knownFurnitureItems = computeKnownAddreqFootprints();
+  const knownFurnitureAreaSqm = knownFurnitureItems.reduce((sum, item) => sum + item.areaSqm, 0);
+  const requiredAreaSqm = heroTier.heroFootprintSqm + circulationReserveSqm + knownFurnitureAreaSqm;
+  const remainingFlexibleAreaSqm = totalAreaSqm - requiredAreaSqm;
+  const otherZoneNames = computeOtherRequestedZoneNames();
+
+  // A bare floor sanity check for the zones this engine can't precisely budget — not a claim
+  // of exact measurement, just a signal for whether the remaining space is plausibly enough for
+  // however many other zones were requested (roughly 1.5 sqm being the smallest realistic
+  // footprint for a compact display/consultation-style zone).
+  const perZoneFlexSqm = otherZoneNames.length > 0 ? remainingFlexibleAreaSqm / otherZoneNames.length : Infinity;
+  let programFits;
+  if(requiredAreaSqm > totalAreaSqm) programFits = 'NO';
+  else if(otherZoneNames.length > 0 && perZoneFlexSqm < 1.5) programFits = 'TIGHT — likely needs zone reduction';
+  else programFits = 'YES';
+
+  return {
+    widthM, depthM, totalAreaSqm,
+    heroTier, circulationPercent, circulationReserveSqm,
+    knownFurnitureItems, knownFurnitureAreaSqm,
+    requiredAreaSqm, remainingFlexibleAreaSqm,
+    otherZoneNames, programFits
+  };
+}
+
+// Formats computeSpatialPlan()'s output into the deterministic fact block injected into
+// userBrief — the client brief now carries this booth's real area math as a locked fact, the
+// same pattern as buildBoothOrientationModel()'s BOOTH ORIENTATION MODEL block.
+function formatSpatialPlanForBrief(plan){
+  const lines = [];
+  lines.push(`Booth footprint: ${plan.widthM}m × ${plan.depthM}m = ${plan.totalAreaSqm.toFixed(1)} sqm total.`);
+  lines.push(`Hero Structure Scale Tier: ${plan.heroTier.tier} — ${plan.heroTier.description}. Allow approximately ${plan.heroTier.heroFootprintSqm.toFixed(1)} sqm of floor footprint for the hero structure at this tier — never larger, regardless of how impressive a bigger structure might look.`);
+  lines.push(`Circulation reserve: ${Math.round(plan.circulationPercent * 100)}% of total area, per EPS-011's OPEN SPACE RATIO BY SIZE table = ${plan.circulationReserveSqm.toFixed(1)} sqm reserved for open aisles and visitor movement — never encroached on by furniture, displays, or the hero structure.`);
+  if(plan.knownFurnitureItems.length > 0){
+    lines.push(`Furniture with exact computed footprints (from the Exhibition Standards Library, using the client's own specified quantities — real measurements, not estimates):`);
+    plan.knownFurnitureItems.forEach(item => lines.push(`- ${item.label}: ${item.areaSqm.toFixed(1)} sqm.`));
+  }
+  lines.push(`Subtotal — hero allowance + circulation + specified furniture: ${plan.requiredAreaSqm.toFixed(1)} sqm of this booth's ${plan.totalAreaSqm.toFixed(1)} sqm.`);
+  lines.push(`Remaining flexible area for every other requested zone: ${plan.remainingFlexibleAreaSqm.toFixed(1)} sqm.`);
+  if(plan.otherZoneNames.length > 0){
+    lines.push(`Other requested zones without a precomputed footprint (${plan.otherZoneNames.length}): ${plan.otherZoneNames.join(', ')}. Fit these within the ${plan.remainingFlexibleAreaSqm.toFixed(1)} sqm remaining above using EPS-011's own zone sizing guidance. If they do not realistically fit, apply SFE-001's zone priority order (Hero Architecture > Brand Experience > Primary Products > Reception > Information > Meeting > Hospitality > Decorative Features) and merge or drop only the lowest-priority zones still causing the overflow — never shrink any zone's furniture below realistic human-scale size to force it to fit instead.`);
+  }
+  lines.push(`Program fits at realistic scale: ${plan.programFits}.`);
+
+  return `
+
+SPATIAL PLAN — DETERMINISTICALLY COMPUTED (per SFE-001; every figure below is a locked mandatory fact — copy it into spatial_feasibility.scale_validation, never recompute or re-estimate any of it):
+${lines.join('\n')}`;
+}
+
 function collectFlooringSpecification(){
   const floorTypeRaw = document.getElementById('f_floorType').value;
   const floorType = floorTypeRaw === 'Custom' ? (document.getElementById('f_floorTypeCustom').value.trim() || 'Custom') : floorTypeRaw;
@@ -6014,6 +6262,9 @@ async function generateDesign(){
   const desc = document.getElementById('f_desc').value.trim();
   const openSides = mode === 'booth' ? buildOpenSidesDescription() : '';
   const boothOrientationModel = mode === 'booth' ? buildBoothOrientationModel() : '';
+  const spatialPlanText = (mode === 'booth' && parseFloat(width) > 0 && parseFloat(depth) > 0)
+    ? formatSpatialPlanForBrief(computeSpatialPlan(parseFloat(width), parseFloat(depth)))
+    : '';
 
   const levels = document.getElementById('f_levels').value;
   const totalHeight = document.getElementById('f_totalHeight').value.trim();
@@ -6197,6 +6448,7 @@ ${mode==='event' && indoorRequiredAreas.length > 0 ? 'Indoor Required Areas (mus
 ${mode==='event' && outdoorRequiredAreas.length > 0 ? 'Outdoor Required Areas (must all be included in the outdoor part of the design): ' + outdoorRequiredAreas.join(', ') : ''}
 ${mode==='booth' ? 'Booth configuration: ' + openSides : ''}
 ${mode==='booth' ? 'BOOTH ORIENTATION MODEL — per EPS-016, this exact OPEN/CLOSED state per side is a hard physical constraint, immutable throughout the entire pipeline. Never mirror, rotate, or flip it — front always means front, left always means left, regardless of what would read more conventionally:\n' + boothOrientationModel : ''}
+${spatialPlanText}
 ${mode==='booth' ? 'Number of levels: ' + levels + (levels==='2' ? ' (ground floor + upper floor)' : '') : ''}
 ${mode==='booth' && totalHeight ? 'Target total height: ' + totalHeight + ' m' : ''}
 ${mode==='booth' && levels==='2' && upperFloorProgram ? 'Upper floor program: ' + upperFloorProgram : ''}
@@ -6347,6 +6599,7 @@ Every field the client filled in is MANDATORY and MUST inform your analysis — 
 
 CRITICAL — ground every field of your analysis in the specific facts from the brief; nothing you write should be generic enough to apply to a different project:
 - The exact width and depth in meters, and — per EPS-016 — this design's BOOTH ORIENTATION MODEL: determine which sides are OPEN and which are CLOSED before deciding anything else, treat it as immutable and identical in priority to the booth's fixed dimensions, and never mirror, rotate, or swap any side from what the brief actually states
+- This design's SPATIAL PLAN — DETERMINISTICALLY COMPUTED block, per SFE-001: its Hero Structure Scale Tier, circulation reserve, and known-furniture area are computed in code from real measurements — copy these figures verbatim into spatial_feasibility.scale_validation rather than re-estimating them
 - The exact number of levels and, if double-deck, the ground and upper floor programs separately, plus the stated total height in meters
 - Every required hex color and how each should be used (structural surfaces, accent lighting, signage panels, furniture)
 - The exact poster count if given, and roughly where each belongs
@@ -6393,7 +6646,7 @@ Respond in JSON only, with no explanation outside the JSON and no Markdown fence
     "functional_zones": "reception, meeting, product display, storage, hospitality, and any client-required areas — sized and positioned as a direct consequence of visitor_flow, following EPS-008/EPS-009/EPS-011's placement and quantity rules. State each zone as an explicit 'Zone — purpose' pairing, the specific reason that zone exists for this client, not just what's placed inside it (e.g. Reception — welcoming visitors; Display Zone — hands-on demonstrations; Consultation — private discussions; Experience Zone — interactive healthcare technology; Education Zone — digital learning wall) — this is what lets the rendering model understand WHY each zone exists. Per EPS-016, every zone's position must be consistent with the brief's BOOTH ORIENTATION MODEL: reception and the entrance always sit on an OPEN side; storage and back-of-house zones are the zones that may legitimately back onto a CLOSED side. For the product display zone specifically, name the actual, specific, industry-appropriate products or devices it shows (use the client's own brief if it names any, otherwise infer from the industry's typical products per EPS-004's LEVEL 2 taxonomy) — never describe it using only the generic word 'product' as if that were itself a real object. List every zone this program would ideally include here — spatial_feasibility below is what actually decides which of them survive at this booth's real size, so list the full ideal set rather than pre-emptively trimming it yourself (2-4 sentences)"
   },
   "spatial_feasibility": {
-    "scale_validation": "per SFE-001, before spatial_composition or architecture decide anything, validate that space_planning.functional_zones actually fits inside this booth's real dimensions at realistic human scale — this is a hidden internal validation step, never shown to the client or the rendering model directly. Provide exactly six labeled facts, each a concrete, specific answer, never vague or omitted: Hero Structure Scale Tier (this booth's actual footprint mapped to one of SFE-001's tiers — 2×2m: very small architectural gesture only; 3×3m: compact architectural feature; 4×4m: one architectural centerpiece; 5×5m: small hero structure; 6×6m-9×9m: full architectural statement; 10×10m and above: complex iconic architecture — state the tier and what physical scale it implies for this specific booth, e.g. an approximate hero footprint and height relative to the booth's own dimensions and wall height; the hero must never visually consume an unrealistic percentage of a small booth); Area Budget (a short breakdown estimating the area needed for reception, meeting, storage, displays, circulation, product interaction, and the hero structure against this booth's actual total area, and whether the full program from functional_zones fits or must be simplified); Zone Priority Decisions (apply SFE-001's zone priority order — Hero Architecture, Brand Experience, Primary Products, Reception, Information, Meeting, Hospitality, Decorative Features — state which zones from functional_zones are kept as-is, which are merged together, and which are dropped for this booth's actual size; always preserve a higher-priority zone over a lower one, never the reverse); Circulation Density (the circulation width and aisle sizing appropriate to this booth's actual footprint per EPS-005's human-scale minimums — never oversized aisles in a small booth, never an undersized, overcrowded aisle in a larger one); Small Booth Redesign Note (only where this booth is genuinely small, e.g. under roughly 5m×5m — one or two sentences on how the concept's implementation was adapted for this size while the concept itself stays identical, e.g. 'concept unchanged; hero canopy becomes a compact hero portal, the meeting room becomes one consultation table, only one product display wall instead of several'; if the booth is not small, state 'not applicable — booth size supports the full program'); Validation Checklist (state, on one line, PASS or FAIL for each of: Program Fits, Hero Structure Scale, Furniture Density, Circulation, Zone Count, Human Scale — every item here must read PASS; if any would genuinely fail given the zone/hero/circulation decisions just made, revise those decisions until every item passes before finalizing this analysis — never output a FAIL here). Return as a single string, one 'Label: answer' line per fact, in the exact order listed above"
+    "scale_validation": "per SFE-001, before spatial_composition or architecture decide anything, validate that space_planning.functional_zones actually fits inside this booth's real dimensions at realistic human scale — this is a hidden internal validation step, never shown to the client or the rendering model directly. The brief below already includes a SPATIAL PLAN — DETERMINISTICALLY COMPUTED block: its Hero Structure Scale Tier, circulation reserve, and known-furniture area figures are computed in code from real measurements, not estimated — copy those exact figures into the corresponding facts below rather than recomputing or re-estimating them; your own judgment is only needed for fitting the plan's listed 'other requested zones without a precomputed footprint' into its stated remaining flexible area. Provide exactly six labeled facts, each a concrete, specific answer, never vague or omitted: Hero Structure Scale Tier (copy the brief's SPATIAL PLAN tier and hero footprint allowance verbatim; the hero must never visually consume more than that allowance); Area Budget (copy the brief's subtotal — hero allowance + circulation + specified furniture — against the booth's total area, and its remaining flexible area figure, verbatim); Zone Priority Decisions (apply SFE-001's zone priority order — Hero Architecture, Brand Experience, Primary Products, Reception, Information, Meeting, Hospitality, Decorative Features — to fit the SPATIAL PLAN's 'other requested zones' list within its stated remaining flexible area; state which are kept as-is, which are merged together, and which are dropped for this booth's actual size; always preserve a higher-priority zone over a lower one, never the reverse); Circulation Density (copy the brief's circulation reserve figure and percentage verbatim — never a wider or narrower aisle than that computed reserve implies); Small Booth Redesign Note (only where this booth is genuinely small, e.g. under roughly 5m×5m — one or two sentences on how the concept's implementation was adapted for this size while the concept itself stays identical, e.g. 'concept unchanged; hero canopy becomes a compact hero portal, the meeting room becomes one consultation table, only one product display wall instead of several'; if the booth is not small, state 'not applicable — booth size supports the full program'); Validation Checklist (state, on one line, PASS or FAIL for each of: Program Fits, Hero Structure Scale, Furniture Density, Circulation, Zone Count, Human Scale — every item here must read PASS; if any would genuinely fail given the zone decisions just made, revise those decisions until every item passes before finalizing this analysis — never output a FAIL here). Return as a single string, one 'Label: answer' line per fact, in the exact order listed above"
   },
   "spatial_composition": {
     "composition_strategy": "per SCE-001, convert spatial_feasibility.scale_validation's surviving zones (per its Zone Priority Decisions) into one deliberate architectural composition, scaled per its Hero Structure Scale Tier. Provide exactly eight labeled facts, each a concrete, specific answer — never vague or omitted: Primary architectural axis (the single dominant axis the whole composition organizes around — its direction, and what anchors each end, typically the entrance and the hero structure); Secondary circulation loop (the loop or secondary path that connects the remaining zones off that primary axis); Focal point hierarchy (a ranked list of 2-4 visual focal points, strongest first, and why each ranks where it does — the hero structure is always ranked first); Visual balance (how the composition balances visually — symmetric, asymmetric-but-balanced, or weighted toward one side — and around what); Massing composition (how the booth's volumes/masses are arranged and proportioned relative to each other, consistent with spatial_feasibility's Hero Structure Scale Tier and Area Budget); Structural rhythm (the repeating structural interval — columns, bays, fins — that gives the composition a consistent architectural beat); Open vs enclosed space ratios (the approximate ratio and which zones are open vs enclosed, consistent with EPS-011's OPEN SPACE RATIO BY SIZE table and spatial_feasibility's Circulation Density); Architectural support strategy (how the structure is actually held up — columns, load-bearing walls, or a central core — and roughly where). Return as a single string, one 'Label: answer' line per fact, in the exact order listed above"
