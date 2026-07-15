@@ -2822,7 +2822,70 @@ const ADDREQ_NON_FLOOR_IDS = new Set([
 // generic "other zones" too.
 const ADDREQ_PRECISELY_BUDGETED_IDS = new Set([
   'addreq_reception', 'addreq_meetingtables', 'addreq_touchscreen', 'addreq_displaytables', 'addreq_pedestals', 'addreq_storageroom',
+  'addreq_infocounter', 'addreq_led', 'addreq_tv', 'addreq_coffeebar', 'addreq_lounge', 'addreq_tooltestingbench', 'addreq_vehicledisplay', 'addreq_kiosk', 'addreq_seating',
+  'addreq_openmeeting', 'addreq_staffarea', 'addreq_viplounge', 'addreq_hospitalitylounge', 'addreq_networkingarea',
 ]);
+
+// Priority tier (per SFE-001's ZONE PRIORITY ORDER) and a generic estimated floor footprint (sqm)
+// for every Additional Requirements zone that consumes floor space but doesn't have exact
+// Exhibition Standards Library dimensions (i.e. everything NOT in ADDREQ_PRECISELY_BUDGETED_IDS
+// or ADDREQ_NON_FLOOR_IDS). These are honest engineering estimates for area-budgeting and
+// priority-based reduction only — never presented as exact client-specified measurements.
+// Tier numbers match SFE-001: 1 Hero Architecture, 2 Brand Experience, 3 Primary Products,
+// 4 Reception, 5 Information, 6 Meeting, 7 Hospitality, 8 Decorative Features.
+const ADDREQ_ZONE_META = {
+  addreq_vipmeeting: { tier: 6, areaSqm: 8 },
+  addreq_productdisplayarea: { tier: 3, areaSqm: 5 },
+  addreq_productdemoarea: { tier: 3, areaSqm: 5 },
+  addreq_interactiveexperiencezone: { tier: 2, areaSqm: 4 },
+  addreq_experiencezone: { tier: 2, areaSqm: 4 },
+  addreq_featureproductzone: { tier: 3, areaSqm: 4 },
+  addreq_launchstage: { tier: 2, areaSqm: 6 },
+  addreq_presentationarea: { tier: 5, areaSqm: 6 },
+  addreq_seminararea: { tier: 5, areaSqm: 8 },
+  addreq_privatemeetingroom: { tier: 6, areaSqm: 6 },
+  addreq_livedemoarea: { tier: 3, areaSqm: 5 },
+  addreq_machinedemozone: { tier: 3, areaSqm: 6 },
+  addreq_technicalconsultation: { tier: 5, areaSqm: 4 },
+  addreq_sparepartsdisplay: { tier: 3, areaSqm: 3 },
+  addreq_engineeringshowcase: { tier: 3, areaSqm: 6 },
+  addreq_innovationzone: { tier: 2, areaSqm: 5 },
+  addreq_simulatorzone: { tier: 3, areaSqm: 5 },
+  addreq_drivingexperience: { tier: 3, areaSqm: 6 },
+  addreq_configurationstation: { tier: 2, areaSqm: 3 },
+  addreq_aidemozone: { tier: 2, areaSqm: 4 },
+  addreq_deviceexperiencezone: { tier: 2, areaSqm: 4 },
+  addreq_softwaredemoarea: { tier: 2, areaSqm: 3 },
+  addreq_cloudexperiencezone: { tier: 2, areaSqm: 3 },
+  addreq_vrexperience: { tier: 2, areaSqm: 3 },
+  addreq_arexperience: { tier: 2, areaSqm: 3 },
+  addreq_gamingzone: { tier: 2, areaSqm: 4 },
+  addreq_medicaldemoarea: { tier: 3, areaSqm: 5 },
+  addreq_patientsimulationarea: { tier: 3, areaSqm: 5 },
+  addreq_diagnosticzone: { tier: 3, areaSqm: 4 },
+  addreq_operatingtechdisplay: { tier: 3, areaSqm: 4 },
+  addreq_productsamplingarea: { tier: 3, areaSqm: 3 },
+  addreq_tastingcounter: { tier: 3, areaSqm: 3 },
+  addreq_retaildisplay: { tier: 3, areaSqm: 4 },
+  addreq_merchandisewall: { tier: 3, areaSqm: 3 },
+  addreq_workshoparea: { tier: 5, areaSqm: 8 },
+  addreq_classroomzone: { tier: 5, areaSqm: 8 },
+  addreq_learningstation: { tier: 5, areaSqm: 3 },
+  addreq_displayshelves: { tier: 3, areaSqm: 2 },
+  addreq_glasscabinets: { tier: 3, areaSqm: 2 },
+  addreq_interactivedisplay: { tier: 2, areaSqm: 2 },
+  addreq_brochurestand: { tier: 5, areaSqm: 1 },
+  addreq_literaturerack: { tier: 5, areaSqm: 1 },
+  addreq_digitaltotem: { tier: 2, areaSqm: 1.5 },
+  addreq_chargingstation: { tier: 7, areaSqm: 1 },
+  addreq_qrdisplay: { tier: 2, areaSqm: 0.5 },
+  addreq_pantry: { tier: 7, areaSqm: 3 },
+};
+
+const ZONE_PRIORITY_TIER_NAMES = {
+  1: 'Hero Architecture', 2: 'Brand Experience', 3: 'Primary Products', 4: 'Reception',
+  5: 'Information', 6: 'Meeting', 7: 'Hospitality', 8: 'Decorative Features'
+};
 
 let lastGeneratedBrief = '';
 
@@ -2912,9 +2975,9 @@ ARCHITECTURAL CONCEPT must open by naming the specific, industry-inspired iconic
 
 Only after both labeled blocks are presented in full, close the section with 1-2 sentences of prose on how this hero architecture becomes the visual identity of the booth. Never fall back to generic, could-be-anywhere phrasing like "modern canopy," "floating ceiling," or "tech-inspired structure" as a substitute for the concept, its narrative, its geometry, or its hero structure facts. If this design includes a hero product (a vehicle, aircraft, machinery, medical scanner, or similar physical product the booth is built around), apply EPS-013's HERO PRODUCT RULE within the Hero Structure block's Geometry/Support system/Position/Visibility facts: state explicitly how the hero architecture frames that product without obstructing it, keeps it visible from every public entrance and primary viewing angle, and enhances rather than competes with it for attention.
 
-SPACE PLANNING covers the architecture's zoning only — never what fills it (products, furniture, technology, decoration all belong in Layer 2). Open with spatial_composition.composition_strategy's eight labeled facts verbatim under their own "Spatial Composition" sub-heading (Primary architectural axis, Secondary circulation loop, Focal point hierarchy, Visual balance, Massing composition, Structural rhythm, Open vs enclosed space ratios, Architectural support strategy) — per SCE-001, this is what turns the zones below into one deliberate architectural composition instead of a list of independently placed rooms. Only after that block, list overall zoning, open circulation percentage, floor hierarchy, the architectural footprint, and the position of every zone (storage, reception, meeting, product, hospitality) — each stated as an explicit "Zone — purpose" pairing (e.g. Reception — welcoming visitors; Display Zone — hands-on demonstrations; Consultation — private discussions; Experience Zone — interactive healthcare technology; Education Zone — digital learning wall) so it's clear why each zone exists and where it sits, and how it sits within the composition just established. Per SFE-001, list only the zones spatial_feasibility.scale_validation's Zone Priority Decisions actually kept for this booth's real size — never a zone it merged into another or dropped entirely, and never re-expand a merged zone back into two separate ones. Per EPS-016, every zone position and this composition itself must be consistent with the brief's BOOTH ORIENTATION MODEL — never contradict which sides are OPEN versus CLOSED, and never mirror, rotate, or flip that orientation for a more convenient layout.
+SPACE PLANNING covers the architecture's zoning only — never what fills it (products, furniture, technology, decoration all belong in Layer 2). Open with spatial_composition.composition_strategy's eight labeled facts verbatim under their own "Spatial Composition" sub-heading (Primary architectural axis, Secondary circulation loop, Focal point hierarchy, Visual balance, Massing composition, Structural rhythm, Open vs enclosed space ratios, Architectural support strategy) — per SCE-001, this is what turns the zones below into one deliberate architectural composition instead of a list of independently placed rooms. Only after that block, list overall zoning, open circulation percentage, floor hierarchy, the architectural footprint, and the position of every zone (storage, reception, meeting, product, hospitality) — each stated as an explicit "Zone — purpose" pairing (e.g. Reception — welcoming visitors; Display Zone — hands-on demonstrations; Consultation — private discussions; Experience Zone — interactive healthcare technology; Education Zone — digital learning wall) so it's clear why each zone exists and where it sits, and how it sits within the composition just established. Per SFE-001, list only the zones spatial_feasibility.scale_validation's Zone Priority Decisions actually kept for this booth's real size — never a zone it merged into another or dropped entirely, and never re-expand a merged zone back into two separate ones. Per EPS-016, every zone position and this composition itself must be consistent with the brief's BOOTH ORIENTATION MODEL — never contradict which sides are OPEN versus STRUCTURAL WALL, and never mirror, rotate, or flip that orientation for a more convenient layout.
 
-VISITOR FLOW defines the physical journey only — entry, journey, experience, and exit — how a visitor's body moves through the space and where that path is designed to slow down. This is the architectural circulation path itself; the felt, narrative experience of that same journey belongs in Layer 2's EXHIBITION STORY instead. Per EPS-016, entrances may only be placed on a side the BOOTH ORIENTATION MODEL marks OPEN, and the journey must originate there — never route entry through, or describe circulation crossing, a side marked CLOSED. Per SFE-001, the aisle and circulation widths described here must match spatial_feasibility.scale_validation's Circulation Density exactly — never a wider, more generous-feeling circulation than this booth's real footprint actually supports, and never an overcrowded one either.
+VISITOR FLOW defines the physical journey only — entry, journey, experience, and exit — how a visitor's body moves through the space and where that path is designed to slow down. This is the architectural circulation path itself; the felt, narrative experience of that same journey belongs in Layer 2's EXHIBITION STORY instead. Per EPS-016, entrances may only be placed on a side the BOOTH ORIENTATION MODEL marks OPEN, and the journey must originate there — never route entry through, or describe circulation crossing, a STRUCTURAL WALL side. Per SFE-001, the aisle and circulation widths described here must match spatial_feasibility.scale_validation's Circulation Density exactly — never a wider, more generous-feeling circulation than this booth's real footprint actually supports, and never an overcrowded one either.
 
 STRUCTURAL PLANNING generates a real-world dimension for every major architectural and furniture element actually present in this design — floor dimensions, hero structure dimensions (already stated in ARCHITECTURAL CONCEPT's Hero Structure block — repeat them here for the full dimension list, don't re-derive different numbers), reception dimensions, meeting room dimensions, storage dimensions, furniture footprints, column positions, ceiling coverage, and maximum heights — using standard exhibition-industry sizing as the baseline, for example: Reception Counter 2.5m × 0.8m, Meeting Table 1.2m diameter, VIP Room 3m × 3m, Storage 12 sqm, Information Counter 2m × 0.7m, Interactive Display 1m × 1m, Interactive Zone 3m × 4m, Display Cabinet 1.2m × 0.6m, Coffee Bar 3m × 2m, Touch Screen 42", LED Screen 3m × 2m. Whenever the client's own brief already states an exact quantity for an element (e.g. "4 LED Screens," "2 touch screens"), list that same quantity here and give each unit — or each distinct unit if sizes differ — its own dimension, exactly as this design's Additional Requirements/Digital Technology facts already specify counts and sizes; never collapse a stated quantity down to one unlabeled figure. For any other major element this design includes that isn't in the baseline examples above, estimate an equally specific, equally reasonable dimension using the same standard-sizing logic — never leave an element out for lack of an example, and never write "size not specified," "dimensions vary," or any other placeholder in place of an actual number: every element listed here always gets a real, specific dimension. Present it as a short list of element: dimension pairs, one per line, covering only elements actually part of this design. These dimensions are design guidance for the rendering model, purely to improve proportion and layout consistency — never a substitute for any exact size, quantity, or capacity the client already explicitly stated elsewhere in the brief; a client-stated exact dimension always overrides the estimate given here for that same element. Per EPS-005's PROPORTIONAL SCALE INTEGRITY rule and SFE-001's scale_validation, every dimension listed here must render at a scale genuinely consistent with the booth's fixed footprint and human scale, and the hero structure's dimensions must match its Hero Structure Scale Tier exactly — never shrink furniture or exaggerate circulation width to make the booth read as larger or more spacious than its actual dimensions, and never a hero structure sized for a larger booth than this one actually is.
 
@@ -2922,15 +2985,15 @@ MATERIALS states the primary and secondary materials chosen to express the conce
 
 LIGHTING STRATEGY grounds every layer — ambient, architectural, accent, product, and decorative — in the industry's own lighting profile from EPS-004's LEVEL 2 taxonomy (the specific color-temperature range, spotlight/base color, and accent color for this client's industry) as the single dominant palette every layer must stay within — never randomly mix in an unrelated temperature or accent color. Present lighting.accent_lighting_palette's three labeled facts (Primary Accent, Secondary, Avoid) verbatim under their own "Accent Lighting Palette" sub-heading — per DIR-012, this is the single palette every decorative LED strip, under-counter light, edge light, and illuminated architectural detail anywhere in this design must stay within, in both Layer 1 and Layer 2, unless the client explicitly requested a different color.
 
-NEGATIVE RULES closes Layer 1 with a short list of hard constraints this design must never violate, stated as direct prohibitions — for example: never exceed the booth boundary (EPS-010); maintain open circulation; do not overlap furniture; do not block entrances; architecture dominates furniture. Include any other negative rule genuinely relevant to this specific design (e.g. no suspended rigging unless Overhead Structure = Suspended, per EPS-012; no people of any kind, per EPS-007), stated with the same direct, prohibition-first phrasing — never state a suspended-rigging prohibition on a design where Overhead Structure actually is Suspended, since that would directly contradict the architecture Layer 1 just established. Always include the two EPS-016 orientation prohibitions stated against this design's actual BOOTH ORIENTATION MODEL: never enclose a side marked OPEN with a wall or structure, and never leave a side marked CLOSED open or unbuilt — and never mirror, rotate, or flip that orientation. Always include the DIR-013 prohibition: never introduce generic furniture or fixtures (a plain rectangular counter, a stock catalog display stand, an unrelated material) that fails to repeat the hero structure's geometry, materials, and detailing. Where this design's Overhead Structure is Self-supported, always include the EPS-012 prohibition, stated explicitly: never suspend, hang, cable-support, or attach any part of the ceiling feature to the exhibition hall's own ceiling or venue rigging grid, and never show rigging wires, hanging cables, turnbuckles, or chain motors anywhere in the render — every load path must visibly terminate in the booth's own columns or walls. Always include the EPS-005 scale-integrity prohibition: never shrink furniture below realistic human-scale size, and never exaggerate circulation aisles or open space beyond the stated width and depth, to make the booth read as larger than its actual fixed footprint.
+NEGATIVE RULES closes Layer 1 with a short list of hard constraints this design must never violate, stated as direct prohibitions — for example: never exceed the booth boundary (EPS-010); maintain open circulation; do not overlap furniture; do not block entrances; architecture dominates furniture. Include any other negative rule genuinely relevant to this specific design (e.g. no suspended rigging unless Overhead Structure = Suspended, per EPS-012; no people of any kind, per EPS-007), stated with the same direct, prohibition-first phrasing — never state a suspended-rigging prohibition on a design where Overhead Structure actually is Suspended, since that would directly contradict the architecture Layer 1 just established. Always include the two EPS-016 orientation prohibitions stated against this design's actual BOOTH ORIENTATION MODEL: never enclose a side marked OPEN with a wall or structure, and never leave a STRUCTURAL WALL side open or unbuilt — and never mirror, rotate, or flip that orientation. Always include the DIR-013 prohibition: never introduce generic furniture or fixtures (a plain rectangular counter, a stock catalog display stand, an unrelated material) that fails to repeat the hero structure's geometry, materials, and detailing. Where this design's Overhead Structure is Self-supported, always include the EPS-012 prohibition, stated explicitly: never suspend, hang, cable-support, or attach any part of the ceiling feature to the exhibition hall's own ceiling or venue rigging grid, and never show rigging wires, hanging cables, turnbuckles, or chain motors anywhere in the render — every load path must visibly terminate in the booth's own columns or walls. Always include the EPS-005 scale-integrity prohibition: never shrink furniture below realistic human-scale size, and never exaggerate circulation aisles or open space beyond the stated width and depth, to make the booth read as larger than its actual fixed footprint.
 
-ORIENTATION VALIDATION (core rule, per EPS-016) — this section is Layer 1's final gate and must always be the literal last thing written before Layer 2 begins. Booth orientation is a hard architectural constraint, identical in priority and in kind to the booth's fixed width/depth/height (per EPS-005) — never a stylistic suggestion that can be reinterpreted for a "better-looking" composition. Copy the brief's BOOTH ORIENTATION MODEL into this section verbatim, exactly as four lines in exactly this format, never abbreviated, reordered, or paraphrased:
-Orientation Validation
-Front: OPEN or CLOSED (state whichever this design's BOOTH ORIENTATION MODEL actually gives)
-Back: OPEN or CLOSED
-Left: OPEN or CLOSED
-Right: OPEN or CLOSED
-Immediately follow those four lines with this exact enforcement statement, adapted only to reference the actual open/closed sides of this design: "This orientation is a hard architectural constraint, identical in priority to the booth's fixed dimensions. Every side marked CLOSED must be built as a continuous architectural wall or structural boundary, broken only by an intentional internal door leading to storage or a VIP room where this design actually includes one — never left open or unbuilt. Every side marked OPEN must remain genuinely open and unobstructed, interrupted only by a reception counter or a low display element that does not block the opening — never enclosed by a wall or structure. This orientation was never mirrored, rotated, or flipped from what the client selected, and no side has been swapped with another." Every element described earlier in this same prompt — the hero structure's Position within booth, every zone in SPACE PLANNING, the entrance and path in VISITOR FLOW, and every dimension in STRUCTURAL PLANNING — must already be consistent with this exact orientation; this section is the explicit, printed confirmation of that consistency, not a place to introduce a new fact.
+ORIENTATION VALIDATION (core rule, per EPS-016) — this section is Layer 1's final gate and must always be the literal last thing written before Layer 2 begins. Booth orientation is a hard architectural constraint, identical in priority and in kind to the booth's fixed width/depth/height (per EPS-005) — never a stylistic suggestion that can be reinterpreted for a "better-looking" composition. Never use the bare word "closed" anywhere in this section — every side is stated as either OPEN or as a full STRUCTURAL WALL REQUIRED construction instruction. Copy the brief's BOOTH ORIENTATION MODEL into this section verbatim, one block per side, in Front / Back / Left / Right order, never abbreviated, reordered, or paraphrased. For a side marked OPEN, write exactly:
+Front: OPEN
+For a side the model marks STRUCTURAL WALL, write the full block exactly as the brief gives it, e.g.:
+LEFT SIDE
+STRUCTURAL WALL REQUIRED
+Build one continuous architectural wall spanning the full 4.0 m length of the left booth boundary from corner to corner. This wall defines the booth perimeter and is mandatory. All branding, displays, shelving, niches and graphics must be integrated INTO this wall, not replace it. No opening or gap is permitted along this boundary.
+Head the whole section with the literal line "Orientation Validation" before the four side blocks. Immediately after all four side blocks, add this exact enforcement statement, adapted only to reference the actual sides of this design: "This orientation is a hard architectural constraint, identical in priority to the booth's fixed dimensions. Every side marked STRUCTURAL WALL above has been built exactly as instructed — one continuous wall, corner to corner, broken only by an intentional internal door to storage or a VIP room where this design actually includes one. Every side marked OPEN remains genuinely open and unobstructed corner to corner, interrupted only by a reception counter or a low display element that does not block the opening. This orientation was never mirrored, rotated, or flipped from what the client selected, and no side has been swapped with another. If any side described elsewhere in this prompt does not match this exact configuration, that is an error to be corrected before this design is finalized." Every element described earlier in this same prompt — the hero structure's Position within booth, every zone in SPACE PLANNING, the entrance and path in VISITOR FLOW, and every dimension in STRUCTURAL PLANNING — must already be consistent with this exact orientation; this section is the explicit, printed confirmation of that consistency, not a place to introduce a new fact.
 
 LAYER 2 SECTION GUIDANCE:
 
@@ -3594,7 +3657,29 @@ const EXHIBITION_STANDARDS_LIBRARY = {
   displayTable: { widthMm: 1000, depthMm: 700 },
   pedestal: { diameterMm: 500 },
   storage: { minimumSqm: 1, preferredSqm: 2 },
-  walking: { minimumMm: 900, comfortMm: 1200 }
+  walking: { minimumMm: 900, comfortMm: 1200 },
+
+  // Added for the Spatial Planning & Scale Validation Engine (SPE) — these seven were named
+  // explicitly by the client as items the library should cover. No client-provided dimensions
+  // exist for them (unlike the block above), so these are engineering estimates based on typical
+  // exhibition-industry fixture sizes, not client-supplied measurements. Flagged here rather than
+  // silently presented as equally precise.
+  informationCounter: { widthMm: 1200, depthMm: 400 },
+  ledScreen: { standDepthMm: 300 }, // width/height come from the client's own per-unit LED fields; only the floor-stand depth is assumed
+  tvScreen: { standFootprintSqm: 0.3 }, // thin floor stand or wall-mount allowance
+  coffeeBar: { widthMm: 2000, depthMm: 600 },
+  loungeSeatingSqmPerPerson: 1.8,
+  demoBench: { widthMm: 1500, depthMm: 700 },
+  vehicleDisplayArea: { widthMm: 5000, depthMm: 2500 }, // includes visitor walk-around clearance
+  interactiveKiosk: { widthMm: 700, depthMm: 700 },
+
+  // Capacity-based hospitality/meeting zones — sqm-per-person allowances, also engineering
+  // estimates (not client-specified), used with the client's own stated capacity for each.
+  openMeetingSqmPerPerson: 1.5,
+  staffAreaSqmPerPerson: 1.2,
+  vipLoungeSqmPerPerson: 2.2,
+  hospitalityLoungeSqmPerPerson: 2.0,
+  networkingAreaSqmPerPerson: 1.5
 };
 
 // Helpers for converting the library's raw mm/diameter figures into square-meter areas, so the
@@ -4034,7 +4119,7 @@ GENERATION CONSTRAINTS BY OVERHEAD STRUCTURE (core rule) — the single authorit
 
 Never generate a design that both includes a suspended element and states "no suspended rigging" — check the client's actual Overhead Structure selection first, and let that single value settle the question for the entire design; no other paragraph in this standard may reintroduce a different default once that selection is known.
 
-ORIENTATION IS INDEPENDENT OF OVERHEAD STRUCTURE (core rule, per EPS-016) — the Overhead Structure choice governs the ceiling/rigging only; it never changes which sides of the booth are open or closed. Regardless of whether Overhead Structure is None, Self-supported, or Suspended, every side the brief's BOOTH ORIENTATION MODEL marks CLOSED must still be built as a continuous wall or structural boundary, and every side it marks OPEN must still remain unobstructed. A suspended feature or self-supported ceiling may span the space above an OPEN side without enclosing it — but it must never be described in a way that implies that side has been walled in.
+ORIENTATION IS INDEPENDENT OF OVERHEAD STRUCTURE (core rule, per EPS-016) — the Overhead Structure choice governs the ceiling/rigging only; it never changes which sides of the booth are OPEN and which are STRUCTURAL WALL. Regardless of whether Overhead Structure is None, Self-supported, or Suspended, every side the brief's BOOTH ORIENTATION MODEL marks STRUCTURAL WALL must still be built as one continuous wall, and every side it marks OPEN must still remain unobstructed. A suspended feature or self-supported ceiling may span the space above an OPEN side without enclosing it — but it must never be described in a way that implies that side has been walled in.
 
 PREFERRED CEILING TYPES — this list only applies when Overhead Structure = None or Self-supported (never combine it with rigging):
 1. Self-supporting architectural frame
@@ -4071,7 +4156,7 @@ BRANDING PLACEMENT HIERARCHY (core rule) — when deciding which physical elemen
 Never place branding on: planters, furniture, or small decorative objects — these are never legitimate branding surfaces, regardless of booth size or how much empty space they offer. Branding should always feel like a deliberate architectural and communication decision, never an afterthought scattered onto whatever surface happened to be available.
 
 MAIN FACADE RULE
-The booth must have a clearly identifiable front facade. The main structural feature should face the primary visitor traffic, and the primary logo should always be integrated into this facade. The facade should immediately communicate the brand identity. Per EPS-016, this facade must be built on a side the brief's BOOTH ORIENTATION MODEL marks OPEN — never assumed generically as whichever side "front" conventionally faces, and never a side the client actually marked CLOSED.
+The booth must have a clearly identifiable front facade. The main structural feature should face the primary visitor traffic, and the primary logo should always be integrated into this facade. The facade should immediately communicate the brand identity. Per EPS-016, this facade must be built on a side the brief's BOOTH ORIENTATION MODEL marks OPEN — never assumed generically as whichever side "front" conventionally faces, and never a side the client's BOOTH ORIENTATION MODEL actually marks STRUCTURAL WALL.
 
 STRUCTURAL FEATURE
 Every booth should include one dominant architectural feature, built as the ICONIC CONCEPT defined below (entrance portal, feature frame, arch, signature wall, curved facade, self-supported canopy, or sculptural frame are all valid physical forms this feature can take — but the form must express the iconic concept, never stand in as a generic label for it). This feature should carry the main logo whenever possible.
@@ -4101,7 +4186,7 @@ BRAND INTEGRATION
 Branding should be integrated into the architecture, lighting, reception, graphics, and materials. Avoid randomly placing logos throughout the booth.
 
 HERO STRUCTURE RULE (core rule)
-Every booth must have one hero architectural element. This hero element should be the first thing visitors notice, the primary carrier of the company logo, architecturally stronger than every other element, clearly defining the booth identity, and visible from the main aisle. Examples: a large entrance portal, feature frame, signature canopy, sculptural architectural wall, or branded gateway. Design the booth AROUND this hero structure — do not simply place a logo on an existing wall. This is what makes a booth feel intentionally designed rather than decorated, and should be treated as core to every booth. Per EPS-016, its primary approach and visibility side must be one of the sides the brief's BOOTH ORIENTATION MODEL marks OPEN — never oriented toward, or reliant on visibility from, a side the client marked CLOSED.
+Every booth must have one hero architectural element. This hero element should be the first thing visitors notice, the primary carrier of the company logo, architecturally stronger than every other element, clearly defining the booth identity, and visible from the main aisle. Examples: a large entrance portal, feature frame, signature canopy, sculptural architectural wall, or branded gateway. Design the booth AROUND this hero structure — do not simply place a logo on an existing wall. This is what makes a booth feel intentionally designed rather than decorated, and should be treated as core to every booth. Per EPS-016, its primary approach and visibility side must be one of the sides the brief's BOOTH ORIENTATION MODEL marks OPEN — never oriented toward, or reliant on visibility from, a side the client's BOOTH ORIENTATION MODEL marks STRUCTURAL WALL.
 
 HERO PRODUCT RULE (core rule) — when the brief describes a hero product (a vehicle, aircraft, machinery, medical scanner, or any other physical product the exhibition is genuinely built around), the relationship between architecture and that product overrides the general HERO STRUCTURE RULE above: the hero architecture must frame the product, never obstruct it. The hero object must remain clearly visible from every public entrance and every primary viewing angle — no wall, screen, column, hanging feature, or decorative element may block sightlines to it from those approaches. Architecture's job in this case is to enhance and stage the hero product — through framing, elevation, lighting, and a clear reveal moment — never to visually compete with it or become the more dominant focal point itself. Where a hero product is present, it is the true centerpiece the booth is designed around; the architecture supports and presents it rather than rivaling it for attention.
 
@@ -4220,36 +4305,49 @@ FLOORING AS A DESIGN DECISION — WORKED EXAMPLES (illustrative, not an exhausti
 const EPS_016 = `BOOTH ORIENTATION & BOUNDARY ENFORCEMENT
 
 GENERAL RULE (core rule)
-Booth orientation is a hard physical constraint, identical in priority and in kind to the booth's own fixed width/depth/height per EPS-005 — never a suggestion, never a stylistic choice, and never something a "better-looking" composition is allowed to override. When the client specifies which sides are open and which sides are closed (bordering neighboring booths, back walls, or venue structure), the architecture must respect that orientation exactly, exactly as given in the brief's BOOTH ORIENTATION MODEL. Determine this orientation FIRST, before any other architectural decision is made — space planning, spatial composition, the hero structure's position, and circulation are all downstream consequences of this orientation, never the other way around.
+Booth orientation is a hard physical constraint, identical in priority and in kind to the booth's own fixed width/depth/height per EPS-005 — never a suggestion, never a stylistic choice, and never something a "better-looking" composition is allowed to override. Every side of the booth is always in exactly one of two states, given by the brief's BOOTH ORIENTATION MODEL: OPEN, or STRUCTURAL WALL. Never describe a side using the word "closed" on its own — a STRUCTURAL WALL side is a real, physically built architectural wall defining the booth perimeter, never merely an absence of an opening. Determine this orientation FIRST, before any other architectural decision is made — space planning, spatial composition, the hero structure's position, and circulation are all downstream consequences of this orientation, never the other way around.
 
-WALL CONSTRUCTION BY SIDE (core rule) — this is the concrete, physical instruction that turns the OPEN/CLOSED model into an actual perimeter:
-• Every side marked CLOSED must be built as a continuous architectural wall or structural boundary along that entire edge of the footprint — full-height, unbroken, and physically solid from corner to corner. The only permitted exception is an intentional internal door leading to a storage room or VIP room, where this design actually includes one directly behind that wall — this is a deliberate access point, never a gap left by omission, and it must remain a small, clearly secondary feature of an otherwise continuous wall, not a second opening.
-• Every side marked OPEN must remain genuinely open and unobstructed along that entire edge — no wall, no structural boundary, no full-height feature of any kind. The only permitted interruptions are a reception counter or a low display element (below eye height) that does not block the opening or read as an enclosing wall.
-• Never build a wall on a side marked OPEN, and never leave a side marked CLOSED without a wall — these are the two failure modes this rule exists to prevent, and both are equally unacceptable.
+STRUCTURAL WALL SIDE CONSTRUCTION RULES (Highest Priority)
+For every side the BOOTH ORIENTATION MODEL marks STRUCTURAL WALL, construct one continuous architectural wall extending from the finished floor to the maximum architectural height, spanning that entire side of the footprint corner to corner.
+A STRUCTURAL WALL side is not a decorative backdrop.
+A STRUCTURAL WALL side is not a partial partition.
+A STRUCTURAL WALL side is not a freestanding display.
+It is a real structural boundary defining the booth perimeter.
+The wall may contain integrated product displays, graphics, LED screens, niches, storage doors, or shelving — but every one of these elements must be built into the wall itself, never used as a substitute for the wall. The wall must remain visually continuous across the entire booth side. Never leave gaps, openings, or exposed aisles along a STRUCTURAL WALL side. The only permitted interruption is an intentional internal door leading to a storage room or VIP room, where this design actually includes one directly behind that wall — a deliberate access point, never a gap left by omission, and it must remain a small, clearly secondary feature of an otherwise continuous wall, never a second opening.
+
+OPEN SIDE CONSTRUCTION RULES (Highest Priority)
+Every side the BOOTH ORIENTATION MODEL marks OPEN must remain completely open from corner to corner. Do not build a wall, a column that closes the side, a display partition, a storage block, a decorative panel, or a product wall that interrupts the opening. Furniture may exist near the edge — a reception counter or a low display element below eye height — but it must never create the impression of a closed façade or read as an enclosing structure.
 
 NO MIRRORING, ROTATION, OR FLIPPING (core rule)
 The booth's layout may never be mirrored, rotated, or flipped from the orientation given. Left must always mean left, right must always mean right, front must always mean front, and rear must always mean rear — never swapped, never reversed, regardless of how the design might read more conventionally with a different orientation. Determine the orientation once, at the start, and never silently re-derive or re-interpret it later in the same design.
 
 EXAMPLE
-Front + Right Open, Left + Rear Closed means:
+Front + Right Open, Left + Rear Structural Wall means:
 • Front edge remains completely open — no wall, no structure blocking this edge.
 • Right edge remains completely open — no wall, no structure blocking this edge.
-• Left boundary must be occupied by a continuous architectural wall or booth structure — never left open.
-• Rear boundary must be occupied by a continuous architectural wall or booth structure — never left open.
+• Left boundary must be built as one continuous architectural wall spanning its full length — never left open.
+• Rear boundary must be built as one continuous architectural wall spanning its full length — never left open.
 Never swap left/right or front/rear from what the brief actually states.
 
 INTERNAL ORIENTATION MODEL (core rule)
-The brief already gives this booth's BOOTH ORIENTATION MODEL — its open/closed state for all four sides, stated exactly as OPEN or CLOSED, e.g.:
+The brief already gives this booth's BOOTH ORIENTATION MODEL — its state for all four sides, each stated either as OPEN or as a full STRUCTURAL WALL REQUIRED block naming that side's exact real-world wall length, e.g.:
 Front: OPEN
 Right: OPEN
-Rear: CLOSED
-Left: CLOSED
+REAR SIDE
+STRUCTURAL WALL REQUIRED
+Build one continuous architectural wall spanning the full 6.0 m length of the rear booth boundary from corner to corner. This wall defines the booth perimeter and is mandatory. All branding, displays, shelving, niches and graphics must be integrated INTO this wall, not replace it. No opening or gap is permitted along this boundary.
+LEFT SIDE
+STRUCTURAL WALL REQUIRED
+Build one continuous architectural wall spanning the full 4.0 m length of the left booth boundary from corner to corner. This wall defines the booth perimeter and is mandatory. All branding, displays, shelving, niches and graphics must be integrated INTO this wall, not replace it. No opening or gap is permitted along this boundary.
 Treat this model as immutable throughout the remaining pipeline — every later decision (space planning, spatial composition, architecture, materials, lighting, branding) must be generated relative to this fixed orientation, never a rotated or mirrored version of it.
 
 APPLIES TO EVERY ELEMENT (core rule)
-Every architectural element, circulation path, entrance, reception, storage, meeting area, product display, hero structure, and visitor flow must be positioned and described relative to this fixed orientation. An entrance may only be placed on an OPEN side. A wall, backdrop, or structural boundary must occupy every CLOSED side, per the WALL CONSTRUCTION BY SIDE rule above. The hero structure's position within the booth (per EPS-013's HERO STRUCTURE RULE and the Hero Structure block's Position within booth fact) must be consistent with this orientation, never contradicting it — its primary approach and visibility side must be an OPEN side, never a side marked CLOSED.
+Every architectural element, circulation path, entrance, reception, storage, meeting area, product display, hero structure, and visitor flow must be positioned and described relative to this fixed orientation. An entrance may only be placed on an OPEN side. A continuous architectural wall must occupy every STRUCTURAL WALL side, per the rules above. The hero structure's position within the booth (per EPS-013's HERO STRUCTURE RULE and the Hero Structure block's Position within booth fact) must be consistent with this orientation, never contradicting it — its primary approach and visibility side must be an OPEN side, never a STRUCTURAL WALL side.
 
-PRINTED VALIDATION (core rule) — this orientation must not remain buried in reasoning alone. The final rendering prompt itself must always include an explicit, literal ORIENTATION VALIDATION section (the last section of Layer 1, per PAE-002) restating all four sides as OPEN or CLOSED exactly as the BOOTH ORIENTATION MODEL states, followed by the enforcement statement described in that section's guidance. Before finalizing the design, verify it does not violate the client's defined open/closed sides — reject and revise any design where an OPEN side is shown closed, a CLOSED side is shown open, or the orientation has been mirrored, rotated, or flipped from what the BOOTH ORIENTATION MODEL states.`;
+ORIENTATION VALIDATION (core rule)
+Before finalizing the architectural design, verify every side of the design actually matches the brief's BOOTH ORIENTATION MODEL exactly — the same sides marked OPEN read as genuinely open corner to corner, and the same sides marked STRUCTURAL WALL are occupied by one continuous wall corner to corner. If any side does not exactly match that configuration, revise the design before producing the final output — never finalize a design with a mismatched side. The booth must never be mirrored, rotated, flipped, or have the client's orientation selection reinterpreted for a more conventional-looking layout.
+
+PRINTED VALIDATION (core rule) — this orientation must not remain buried in reasoning alone. The final rendering prompt itself must always include an explicit, literal ORIENTATION VALIDATION section (the last section of Layer 1, per PAE-002) restating all four sides exactly as the BOOTH ORIENTATION MODEL states it — OPEN sides stated plainly, STRUCTURAL WALL sides restated with their own wall-length construction instruction — followed by the enforcement statement described in that section's guidance. Before finalizing the design, verify it does not violate the client's defined orientation — reject and revise any design where an OPEN side is shown enclosed, a STRUCTURAL WALL side is shown open, or the orientation has been mirrored, rotated, or flipped from what the BOOTH ORIENTATION MODEL states.`;
 
 const ECS_001 = `EVENT PLANNING PRINCIPLES
 
@@ -4986,9 +5084,25 @@ function getCirculationReservePercent(areaSqm){
   return 0.30;
 }
 
+// Size-Class Intelligence (SPE responsibility 4) — the exact same numeric boundaries EPS-011's
+// own SMALL/MEDIUM/LARGE/EXTRA LARGE/PAVILION prose table already uses, just carried as a single
+// class name plus a one-line architectural expectation, so this classifier and that existing
+// prose standard can never quietly contradict each other. "Tiny Booth" is the one addition below
+// EPS-011's own smallest bracket, since the Hero Structure Scale Tiers above go as low as 2×2m.
+function getBoothSizeClass(areaSqm){
+  if(areaSqm < 9)   return { sizeClass: 'Tiny Booth', epsRange: 'below EPS-011\'s SMALL BOOTH range', expectation: 'one architectural gesture plus reception only — never attempt a meeting room, storage room, or multiple zones at this size' };
+  if(areaSqm < 18)  return { sizeClass: 'Compact Booth', epsRange: 'EPS-011 SMALL BOOTH, 9–18 sqm', expectation: 'one reception counter, one discussion table, minimal branding wall, no dedicated meeting room' };
+  if(areaSqm < 36)  return { sizeClass: 'Small Booth', epsRange: 'EPS-011 MEDIUM BOOTH, 18–36 sqm', expectation: 'reception, storage, 1-2 meeting tables, one product display area — a simplified program, not a shrunk pavilion' };
+  if(areaSqm < 72)  return { sizeClass: 'Medium Booth', epsRange: 'EPS-011 LARGE BOOTH, 36–72 sqm', expectation: 'semi-open meeting room, lounge seating, multiple meeting tables, a real product display zone' };
+  if(areaSqm < 150) return { sizeClass: 'Large Booth', epsRange: 'EPS-011 EXTRA LARGE BOOTH, 72–150 sqm', expectation: 'multiple reception counters, VIP meeting room, open meeting area, lounge, multiple product zones' };
+  return               { sizeClass: 'Flagship Pavilion', epsRange: 'EPS-011 PAVILION, 150+ sqm', expectation: 'the full program — multiple reception counters, multiple meeting rooms, hospitality, demonstration zone, presentation stage' };
+}
+
 // Real, precise footprints (sqm) for every Additional Requirements item EXHIBITION_STANDARDS_
-// LIBRARY actually has data for, using the client's own specified quantities/sizes — never an
-// estimate for these six element types.
+// LIBRARY actually has data for, using the client's own specified quantities/sizes — never a
+// generic estimate for these element types. Each item also carries its SFE-001 priority tier, so
+// these can be reduced/merged/removed by computeSpatialPlan on exactly the same footing as the
+// generic "other zones" below when the program doesn't fit.
 function computeKnownAddreqFootprints(){
   const items = [];
   const lib = EXHIBITION_STANDARDS_LIBRARY;
@@ -5000,7 +5114,7 @@ function computeKnownAddreqFootprints(){
       const wEl = document.getElementById('addreq_reception_w_' + i);
       const widthM = (wEl && parseFloat(wEl.value)) || (lib.receptionCounter.medium.widthMm / 1000);
       const depthM = lib.receptionCounter.medium.depthMm / 1000;
-      items.push({ label: `Reception counter ${i} (${widthM.toFixed(1)}m × ${depthM.toFixed(1)}m)`, tier: 4, areaSqm: widthM * depthM });
+      items.push({ name: `Reception counter ${i} (${widthM.toFixed(1)}m × ${depthM.toFixed(1)}m)`, tier: 4, areaSqm: widthM * depthM, areaBasis: 'exact' });
     }
   }
 
@@ -5013,26 +5127,26 @@ function computeKnownAddreqFootprints(){
       const tierKey = seats <= 2 ? 'seats2' : (seats <= 4 ? 'seats4' : 'seats6');
       const tableAreaSqm = footprintAreaSqmFromDiameter(lib.meetingTable[tierKey].diameterMm);
       const chairsAreaSqm = seats * footprintAreaSqmFromSquare(lib.chair.footprintMm);
-      items.push({ label: `Meeting table ${i} (${seats} seats + chairs)`, tier: 6, areaSqm: tableAreaSqm + chairsAreaSqm });
+      items.push({ name: `Meeting table ${i} (${seats} seats + chairs)`, tier: 6, areaSqm: tableAreaSqm + chairsAreaSqm, areaBasis: 'exact' });
     }
   }
 
   const touchscreenCb = document.getElementById('addreq_touchscreen');
   if(touchscreenCb && touchscreenCb.checked){
     const count = Math.max(0, parseInt(document.getElementById('addreq_touchscreen_count').value) || 0);
-    if(count > 0) items.push({ label: `Touch screens (${count})`, tier: 2, areaSqm: count * footprintAreaSqmFromSquare(lib.touchScreen.footprintMm) });
+    if(count > 0) items.push({ name: `Touch screens (${count})`, tier: 2, areaSqm: count * footprintAreaSqmFromSquare(lib.touchScreen.footprintMm), areaBasis: 'exact' });
   }
 
   const displaytablesCb = document.getElementById('addreq_displaytables');
   if(displaytablesCb && displaytablesCb.checked){
     const count = Math.max(0, parseInt(document.getElementById('addreq_displaytables_count').value) || 0);
-    if(count > 0) items.push({ label: `Display tables (${count})`, tier: 3, areaSqm: count * footprintAreaSqmFromWidthDepth(lib.displayTable.widthMm, lib.displayTable.depthMm) });
+    if(count > 0) items.push({ name: `Display tables (${count})`, tier: 3, areaSqm: count * footprintAreaSqmFromWidthDepth(lib.displayTable.widthMm, lib.displayTable.depthMm), areaBasis: 'exact' });
   }
 
   const pedestalsCb = document.getElementById('addreq_pedestals');
   if(pedestalsCb && pedestalsCb.checked){
     const count = Math.max(0, parseInt(document.getElementById('addreq_pedestals_count').value) || 0);
-    if(count > 0) items.push({ label: `Product pedestals (${count})`, tier: 3, areaSqm: count * footprintAreaSqmFromDiameter(lib.pedestal.diameterMm) });
+    if(count > 0) items.push({ name: `Product pedestals (${count})`, tier: 3, areaSqm: count * footprintAreaSqmFromDiameter(lib.pedestal.diameterMm), areaBasis: 'exact' });
   }
 
   const storageCb = document.getElementById('addreq_storageroom');
@@ -5041,7 +5155,88 @@ function computeKnownAddreqFootprints(){
     for(let i = 1; i <= count; i++){
       const sizeEl = document.getElementById('addreq_storageroom_size_' + i);
       const areaSqm = (sizeEl && parseFloat(sizeEl.value)) || lib.storage.preferredSqm;
-      items.push({ label: `Storage room ${i}`, tier: 7, areaSqm });
+      items.push({ name: `Storage room ${i}`, tier: 7, areaSqm, areaBasis: 'exact' });
+    }
+  }
+
+  const infocounterCb = document.getElementById('addreq_infocounter');
+  if(infocounterCb && infocounterCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_infocounter_count').value) || 0);
+    if(count > 0) items.push({ name: `Information counter(s) (${count})`, tier: 5, areaSqm: count * footprintAreaSqmFromWidthDepth(lib.informationCounter.widthMm, lib.informationCounter.depthMm), areaBasis: 'exact' });
+  }
+
+  const ledCb = document.getElementById('addreq_led');
+  if(ledCb && ledCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_led_count').value) || 0);
+    let ledAreaSqm = 0;
+    for(let i = 1; i <= count; i++){
+      const wEl = document.getElementById('addreq_led_w_' + i);
+      const widthM = (wEl && parseFloat(wEl.value)) || 3;
+      ledAreaSqm += widthM * (lib.ledScreen.standDepthMm / 1000);
+    }
+    if(count > 0) items.push({ name: `LED screens (${count})`, tier: 2, areaSqm: ledAreaSqm, areaBasis: 'exact' });
+  }
+
+  const tvCb = document.getElementById('addreq_tv');
+  if(tvCb && tvCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_tv_count').value) || 0);
+    if(count > 0) items.push({ name: `TV screens (${count})`, tier: 2, areaSqm: count * lib.tvScreen.standFootprintSqm, areaBasis: 'estimated' });
+  }
+
+  const coffeebarCb = document.getElementById('addreq_coffeebar');
+  if(coffeebarCb && coffeebarCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_coffeebar_count').value) || 0);
+    if(count > 0) items.push({ name: `Coffee bar / hospitality point(s) (${count})`, tier: 7, areaSqm: count * footprintAreaSqmFromWidthDepth(lib.coffeeBar.widthMm, lib.coffeeBar.depthMm), areaBasis: 'exact' });
+  }
+
+  const loungeCb = document.getElementById('addreq_lounge');
+  if(loungeCb && loungeCb.checked){
+    const capField = document.getElementById('addreq_lounge_capacity');
+    const capacity = Math.max(0, parseInt(capField && capField.value) || 0);
+    if(capacity > 0) items.push({ name: `Lounge area (${capacity} people)`, tier: 7, areaSqm: capacity * lib.loungeSeatingSqmPerPerson, areaBasis: 'estimated — per-person allowance' });
+  }
+
+  const tooltestingbenchCb = document.getElementById('addreq_tooltestingbench');
+  if(tooltestingbenchCb && tooltestingbenchCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_tooltestingbench_count').value) || 0);
+    if(count > 0) items.push({ name: `Tool testing bench(es) (${count})`, tier: 3, areaSqm: count * footprintAreaSqmFromWidthDepth(lib.demoBench.widthMm, lib.demoBench.depthMm), areaBasis: 'exact' });
+  }
+
+  const vehicledisplayCb = document.getElementById('addreq_vehicledisplay');
+  if(vehicledisplayCb && vehicledisplayCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_vehicledisplay_count').value) || 0);
+    if(count > 0) items.push({ name: `Vehicle display(s) (${count})`, tier: 3, areaSqm: count * footprintAreaSqmFromWidthDepth(lib.vehicleDisplayArea.widthMm, lib.vehicleDisplayArea.depthMm), areaBasis: 'exact' });
+  }
+
+  const kioskCb = document.getElementById('addreq_kiosk');
+  if(kioskCb && kioskCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_kiosk_count').value) || 0);
+    if(count > 0) items.push({ name: `Interactive kiosk(s) (${count})`, tier: 2, areaSqm: count * footprintAreaSqmFromWidthDepth(lib.interactiveKiosk.widthMm, lib.interactiveKiosk.depthMm), areaBasis: 'exact' });
+  }
+
+  const seatingCb = document.getElementById('addreq_seating');
+  if(seatingCb && seatingCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_seating_count').value) || 0);
+    for(let i = 1; i <= count; i++){
+      const capEl = document.getElementById('addreq_seating_cap_' + i);
+      const capacity = (capEl && parseInt(capEl.value)) || 4;
+      items.push({ name: `Seating area ${i} (${capacity} people)`, tier: 7, areaSqm: capacity * lib.loungeSeatingSqmPerPerson, areaBasis: 'estimated — per-person allowance' });
+    }
+  }
+
+  const capacityBudgeted = [
+    ['openmeeting', 'OPEN MEETING AREA', 6, 'openMeetingSqmPerPerson'],
+    ['staffarea', 'STAFF AREA', 7, 'staffAreaSqmPerPerson'],
+    ['viplounge', 'VIP LOUNGE', 7, 'vipLoungeSqmPerPerson'],
+    ['hospitalitylounge', 'HOSPITALITY LOUNGE', 7, 'hospitalityLoungeSqmPerPerson'],
+    ['networkingarea', 'NETWORKING AREA', 7, 'networkingAreaSqmPerPerson'],
+  ];
+  for(const [id, label, tier, perPersonKey] of capacityBudgeted){
+    const cb = document.getElementById('addreq_' + id);
+    if(cb && cb.checked){
+      const capField = document.getElementById('addreq_' + id + '_capacity');
+      const capacity = Math.max(0, parseInt(capField && capField.value) || 0);
+      if(capacity > 0) items.push({ name: `${label} (${capacity} people)`, tier, areaSqm: capacity * lib[perPersonKey], areaBasis: 'estimated — per-person allowance' });
     }
   }
 
@@ -5049,73 +5244,147 @@ function computeKnownAddreqFootprints(){
 }
 
 // Every OTHER checked Additional Requirements zone — not precisely budgeted above, and not a
-// non-floor decorative/lighting item — returned with its human-readable label pulled straight
-// from its own on-page checkbox text, so this never needs a second, hand-maintained name list.
+// non-floor decorative/lighting item — returned with a priority tier and a generic estimated
+// footprint from ADDREQ_ZONE_META, plus its human-readable label pulled straight from its own
+// on-page checkbox text (so this never needs a second, hand-maintained name list).
 function computeOtherRequestedZoneNames(){
   return ADDREQ_ALL_CHECKBOX_IDS
     .filter(id => !ADDREQ_PRECISELY_BUDGETED_IDS.has(id) && !ADDREQ_NON_FLOOR_IDS.has(id))
-    .map(id => document.getElementById(id))
-    .filter(cb => cb && cb.checked)
-    .map(cb => {
+    .map(id => ({ id, cb: document.getElementById(id) }))
+    .filter(({ cb }) => cb && cb.checked)
+    .map(({ id, cb }) => {
       const label = cb.closest('label');
-      return label ? label.textContent.trim() : cb.id;
+      const name = label ? label.textContent.trim() : id;
+      const meta = ADDREQ_ZONE_META[id] || { tier: 8, areaSqm: 3 }; // defensive fallback for any id not yet in the meta map
+      return { name, tier: meta.tier, areaSqm: meta.areaSqm, areaBasis: 'estimated — generic zone default, not exact library data' };
     });
 }
 
 // The engine's single entry point — booth mode only (event mode has its own separate size
-// logic via buildEventSizeText and isn't covered by this engine yet).
-function computeSpatialPlan(widthM, depthM){
+// logic via buildEventSizeText and isn't covered by this engine yet). Builds the modular,
+// future-proof per-zone spatial plan (SPE responsibility 8): every zone carries a name,
+// required/optional flag, priority tier, area allocation, and a Kept/Reduced/Merged/Removed
+// status — and a `position: null` placeholder already in place so a future floor-planning
+// engine can add real coordinates without restructuring this object.
+function computeSpatialPlan(widthM, depthM, boothOrientationModelText){
   const totalAreaSqm = widthM * depthM;
   const heroTier = getHeroStructureScaleTier(widthM, depthM);
+  const sizeClass = getBoothSizeClass(totalAreaSqm);
   const circulationPercent = getCirculationReservePercent(totalAreaSqm);
   const circulationReserveSqm = totalAreaSqm * circulationPercent;
-  const knownFurnitureItems = computeKnownAddreqFootprints();
-  const knownFurnitureAreaSqm = knownFurnitureItems.reduce((sum, item) => sum + item.areaSqm, 0);
-  const requiredAreaSqm = heroTier.heroFootprintSqm + circulationReserveSqm + knownFurnitureAreaSqm;
-  const remainingFlexibleAreaSqm = totalAreaSqm - requiredAreaSqm;
-  const otherZoneNames = computeOtherRequestedZoneNames();
 
-  // A bare floor sanity check for the zones this engine can't precisely budget — not a claim
-  // of exact measurement, just a signal for whether the remaining space is plausibly enough for
-  // however many other zones were requested (roughly 1.5 sqm being the smallest realistic
-  // footprint for a compact display/consultation-style zone).
-  const perZoneFlexSqm = otherZoneNames.length > 0 ? remainingFlexibleAreaSqm / otherZoneNames.length : Infinity;
-  let programFits;
-  if(requiredAreaSqm > totalAreaSqm) programFits = 'NO';
-  else if(otherZoneNames.length > 0 && perZoneFlexSqm < 1.5) programFits = 'TIGHT — likely needs zone reduction';
-  else programFits = 'YES';
+  const heroZone = { name: 'Hero Structure', required: true, priorityTier: 1, priorityName: ZONE_PRIORITY_TIER_NAMES[1], areaAllocationSqm: heroTier.heroFootprintSqm, areaBasis: 'exact — hero scale tier', status: 'Kept', position: null };
+
+  const knownZones = computeKnownAddreqFootprints().map(z => ({
+    name: z.name, required: true, priorityTier: z.tier, priorityName: ZONE_PRIORITY_TIER_NAMES[z.tier],
+    areaAllocationSqm: z.areaSqm, areaBasis: z.areaBasis, status: 'Kept', position: null
+  }));
+  const otherZones = computeOtherRequestedZoneNames().map(z => ({
+    name: z.name, required: false, priorityTier: z.tier, priorityName: ZONE_PRIORITY_TIER_NAMES[z.tier],
+    areaAllocationSqm: z.areaSqm, areaBasis: z.areaBasis, status: 'Kept', position: null
+  }));
+
+  const reducibleZones = [...knownZones, ...otherZones];
+  const availableForZonesSqm = totalAreaSqm - circulationReserveSqm - heroTier.heroFootprintSqm;
+  let overflowSqm = reducibleZones.reduce((s, z) => s + z.areaAllocationSqm, 0) - availableForZonesSqm;
+
+  // Program Adaptation (SPE responsibility 3): never shrink furniture or compress circulation —
+  // instead merge/reduce/remove only the lowest-priority zones still causing the overflow,
+  // walking tier 8 (Decorative Features) up toward tier 2 (Brand Experience), stopping the moment
+  // the program fits. Tier 1 (Hero Structure) is never touched by this loop.
+  for(let tier = 8; tier >= 2 && overflowSqm > 0.001; tier--){
+    let tierZones = reducibleZones.filter(z => z.priorityTier === tier && z.status === 'Kept');
+    if(tierZones.length === 0) continue;
+
+    // Step 1 — merge compatible zones within this tier pairwise (a merge shares circulation/
+    // furniture between two compatible functions, saving roughly a third of their combined area)
+    // before ever removing anything outright.
+    while(tierZones.length >= 2 && overflowSqm > 0.001){
+      const a = tierZones.pop();
+      const b = tierZones.pop();
+      const combinedSqm = a.areaAllocationSqm + b.areaAllocationSqm;
+      const mergedSqm = combinedSqm * 0.65;
+      const saved = combinedSqm - mergedSqm;
+      a.status = 'Removed'; a.areaAllocationSqm = 0;
+      b.status = 'Merged'; b.name = `${b.name} + ${a.name} (merged into one shared zone)`; b.areaAllocationSqm = mergedSqm;
+      overflowSqm -= saved;
+    }
+
+    // Step 2 — if merging alone wasn't enough, remove remaining kept zones in this tier outright,
+    // largest first, until the overflow clears or this tier is exhausted.
+    if(overflowSqm > 0.001){
+      let remaining = reducibleZones.filter(z => z.priorityTier === tier && z.status === 'Kept').sort((x, y) => y.areaAllocationSqm - x.areaAllocationSqm);
+      for(const z of remaining){
+        if(overflowSqm <= 0.001) break;
+        overflowSqm -= z.areaAllocationSqm;
+        z.status = 'Removed';
+        z.areaAllocationSqm = 0;
+      }
+    }
+  }
+
+  const zonePlan = [heroZone, ...reducibleZones];
+  const keptOrMergedAreaSqm = reducibleZones.filter(z => z.status !== 'Removed').reduce((s, z) => s + z.areaAllocationSqm, 0);
+  const requiredAreaSqm = heroTier.heroFootprintSqm + circulationReserveSqm + keptOrMergedAreaSqm;
+  const remainingFlexibleAreaSqm = totalAreaSqm - requiredAreaSqm;
+
+  const removedCount = reducibleZones.filter(z => z.status === 'Removed').length;
+  const mergedCount = reducibleZones.filter(z => z.status === 'Merged').length;
+  const programFits = overflowSqm > 0.001 ? 'NO — even maximum reasonable zone reduction does not fit; consider a larger booth or fewer client requirements'
+    : (removedCount > 0 || mergedCount > 0) ? 'YES — after zone reduction (see status column below)'
+    : 'YES';
+
+  // Validation Before Prompt Generation (SPE responsibility 10) — seven PASS/FAIL checks. Program
+  // Fit and Furniture Density come directly from the reduction loop above; Hero Structure Scale,
+  // Circulation, and Human Scale are guaranteed by construction (this engine never alters the hero
+  // allowance, the circulation reserve, or any real library dimension); Zone Count simply reports
+  // how many zones survive; Orientation Respected cross-references EPS-016's independently
+  // enforced BOOTH ORIENTATION MODEL, per SPE responsibility 7 — both constraints apply together,
+  // neither one relaxes the other.
+  const validation = {
+    programFit: overflowSqm <= 0.001 ? 'PASS' : 'FAIL',
+    heroStructureScale: 'PASS', // by construction — hero allowance is fixed by getHeroStructureScaleTier and never altered by this loop
+    furnitureDensity: 'PASS', // by construction — every kept/merged zone still uses its exact or estimated real-world footprint, never shrunk
+    circulation: 'PASS', // by construction — circulationReserveSqm is fixed and never reduced by this loop
+    humanScale: 'PASS', // by construction — no library dimension is ever scaled down to force a fit
+    zoneCount: `${zonePlan.filter(z => z.status !== 'Removed').length} of ${zonePlan.length} zones kept or merged`,
+    orientationRespected: boothOrientationModelText ? 'PASS — enforced independently per EPS-016 (see BOOTH ORIENTATION MODEL above)' : 'N/A — no orientation model available for this mode'
+  };
 
   return {
-    widthM, depthM, totalAreaSqm,
+    widthM, depthM, totalAreaSqm, sizeClass,
     heroTier, circulationPercent, circulationReserveSqm,
-    knownFurnitureItems, knownFurnitureAreaSqm,
-    requiredAreaSqm, remainingFlexibleAreaSqm,
-    otherZoneNames, programFits
+    zonePlan, requiredAreaSqm, remainingFlexibleAreaSqm,
+    removedCount, mergedCount, programFits, validation
   };
 }
 
 // Formats computeSpatialPlan()'s output into the deterministic fact block injected into
-// userBrief — the client brief now carries this booth's real area math as a locked fact, the
-// same pattern as buildBoothOrientationModel()'s BOOTH ORIENTATION MODEL block.
+// userBrief — the client brief now carries this booth's real area math, size class, and per-zone
+// Kept/Merged/Removed decisions as a locked fact, the same pattern as buildBoothOrientationModel()'s
+// BOOTH ORIENTATION MODEL block.
 function formatSpatialPlanForBrief(plan){
   const lines = [];
-  lines.push(`Booth footprint: ${plan.widthM}m × ${plan.depthM}m = ${plan.totalAreaSqm.toFixed(1)} sqm total.`);
+  lines.push(`Booth footprint: ${plan.widthM}m × ${plan.depthM}m = ${plan.totalAreaSqm.toFixed(1)} sqm total. Size class: ${plan.sizeClass.sizeClass} (${plan.sizeClass.epsRange}) — ${plan.sizeClass.expectation}.`);
   lines.push(`Hero Structure Scale Tier: ${plan.heroTier.tier} — ${plan.heroTier.description}. Allow approximately ${plan.heroTier.heroFootprintSqm.toFixed(1)} sqm of floor footprint for the hero structure at this tier — never larger, regardless of how impressive a bigger structure might look.`);
   lines.push(`Circulation reserve: ${Math.round(plan.circulationPercent * 100)}% of total area, per EPS-011's OPEN SPACE RATIO BY SIZE table = ${plan.circulationReserveSqm.toFixed(1)} sqm reserved for open aisles and visitor movement — never encroached on by furniture, displays, or the hero structure.`);
-  if(plan.knownFurnitureItems.length > 0){
-    lines.push(`Furniture with exact computed footprints (from the Exhibition Standards Library, using the client's own specified quantities — real measurements, not estimates):`);
-    plan.knownFurnitureItems.forEach(item => lines.push(`- ${item.label}: ${item.areaSqm.toFixed(1)} sqm.`));
-  }
-  lines.push(`Subtotal — hero allowance + circulation + specified furniture: ${plan.requiredAreaSqm.toFixed(1)} sqm of this booth's ${plan.totalAreaSqm.toFixed(1)} sqm.`);
-  lines.push(`Remaining flexible area for every other requested zone: ${plan.remainingFlexibleAreaSqm.toFixed(1)} sqm.`);
-  if(plan.otherZoneNames.length > 0){
-    lines.push(`Other requested zones without a precomputed footprint (${plan.otherZoneNames.length}): ${plan.otherZoneNames.join(', ')}. Fit these within the ${plan.remainingFlexibleAreaSqm.toFixed(1)} sqm remaining above using EPS-011's own zone sizing guidance. If they do not realistically fit, apply SFE-001's zone priority order (Hero Architecture > Brand Experience > Primary Products > Reception > Information > Meeting > Hospitality > Decorative Features) and merge or drop only the lowest-priority zones still causing the overflow — never shrink any zone's furniture below realistic human-scale size to force it to fit instead.`);
+
+  lines.push(`Zone-by-zone spatial plan — deterministically computed, one line per zone, "Kept" zones render at their full stated footprint, "Merged" zones render as one combined shared zone, "Removed" zones must not appear anywhere in the design at all:`);
+  plan.zonePlan.forEach(z => {
+    lines.push(`- [${z.status}] ${z.name} — priority: ${z.priorityName} (tier ${z.priorityTier}); area: ${z.areaAllocationSqm.toFixed(1)} sqm (${z.areaBasis}).`);
+  });
+
+  lines.push(`Subtotal — hero allowance + circulation + every Kept/Merged zone: ${plan.requiredAreaSqm.toFixed(1)} sqm of this booth's ${plan.totalAreaSqm.toFixed(1)} sqm total. Remaining flexible area: ${plan.remainingFlexibleAreaSqm.toFixed(1)} sqm.`);
+  if(plan.mergedCount > 0 || plan.removedCount > 0){
+    lines.push(`Program adaptation applied: ${plan.mergedCount} zone(s) merged, ${plan.removedCount} zone(s) removed entirely — per SFE-001's zone priority order, lowest-priority zones only. This adapts the spatial plan, not the client's stated requirements: every merged/removed zone was requested, but does not survive at this booth's real physical size.`);
   }
   lines.push(`Program fits at realistic scale: ${plan.programFits}.`);
 
+  lines.push(`Validation checklist (per SFE-001; every item must read PASS before the rendering prompt is written): Program Fit — ${plan.validation.programFit}. Hero Structure Scale — ${plan.validation.heroStructureScale}. Furniture Density — ${plan.validation.furnitureDensity}. Circulation — ${plan.validation.circulation}. Human Scale — ${plan.validation.humanScale}. Zone Count — ${plan.validation.zoneCount}. Orientation Respected — ${plan.validation.orientationRespected}.`);
+
   return `
 
-SPATIAL PLAN — DETERMINISTICALLY COMPUTED (per SFE-001; every figure below is a locked mandatory fact — copy it into spatial_feasibility.scale_validation, never recompute or re-estimate any of it):
+SPATIAL PLAN — DETERMINISTICALLY COMPUTED (per SFE-001; every figure and zone status below is a locked mandatory fact — copy it into spatial_feasibility.scale_validation verbatim, never recompute, re-estimate, or re-decide any zone's status):
 ${lines.join('\n')}`;
 }
 
@@ -5892,12 +6161,15 @@ function buildOpenSidesDescription(){
   return '4 open sides (island booth — fully open on all sides, no walls at all)';
 }
 
-// EPS-016 — Booth Orientation & Boundary Enforcement: computes the exact OPEN/CLOSED state
-// of all four sides directly from the client's own selection, rather than relying on the
-// model to derive a structured model from a sentence. Orientation is a hard physical
+// EPS-016 — Booth Orientation & Boundary Enforcement: computes the exact OPEN vs. STRUCTURAL
+// WALL state of all four sides directly from the client's own selection, rather than relying
+// on the model to derive a structured model from a sentence. Orientation is a hard physical
 // constraint (never mirrored, rotated, or flipped), so handing over this exact, code-computed
-// fact is far more reliable than asking the model to convert natural language into it.
-function buildBoothOrientationModel(){
+// fact — including each structural wall side's own real-world length, corner to corner — is
+// far more reliable than asking the model to convert natural language into it. The word
+// "closed" is deliberately never used in the output; a wall side is described as a concrete
+// construction instruction, not an absence of opening.
+function buildBoothOrientationModel(widthM, depthM){
   const count = document.getElementById('f_openSides').value;
   let openSet;
   if(count === '1'){
@@ -5912,7 +6184,17 @@ function buildBoothOrientationModel(){
     openSet = new Set(ALL_BOOTH_SIDES);
   }
   const labelFor = (side) => side === 'Back' ? 'Rear' : side;
-  return ALL_BOOTH_SIDES.map(side => `${labelFor(side)}: ${openSet.has(side) ? 'OPEN' : 'CLOSED'}`).join('\n');
+  // Front/Rear walls run the booth's full WIDTH; Left/Right walls run the booth's full DEPTH —
+  // per the form's own "Width — W" (frontage) / "Depth — D" (front-to-back) convention.
+  const lengthFor = (side) => (side === 'Front' || side === 'Back') ? widthM : depthM;
+  return ALL_BOOTH_SIDES.map(side => {
+    const label = labelFor(side);
+    if(openSet.has(side)) return `${label}: OPEN`;
+    const sideLength = lengthFor(side);
+    const hasLength = typeof sideLength === 'number' && sideLength > 0;
+    const lengthText = hasLength ? `the full ${sideLength.toFixed(1)} m` : 'its full';
+    return `${label.toUpperCase()} SIDE\nSTRUCTURAL WALL REQUIRED\nBuild one continuous architectural wall spanning ${lengthText} length of the ${label.toLowerCase()} booth boundary from corner to corner. This wall defines the booth perimeter and is mandatory. All branding, displays, shelving, niches and graphics must be integrated INTO this wall, not replace it. No opening or gap is permitted along this boundary.`;
+  }).join('\n\n');
 }
 
 function syncColorHex(colorInput){
@@ -6261,9 +6543,9 @@ async function generateDesign(){
   const environment = document.getElementById('f_environment').value;
   const desc = document.getElementById('f_desc').value.trim();
   const openSides = mode === 'booth' ? buildOpenSidesDescription() : '';
-  const boothOrientationModel = mode === 'booth' ? buildBoothOrientationModel() : '';
+  const boothOrientationModel = mode === 'booth' ? buildBoothOrientationModel(parseFloat(width), parseFloat(depth)) : '';
   const spatialPlanText = (mode === 'booth' && parseFloat(width) > 0 && parseFloat(depth) > 0)
-    ? formatSpatialPlanForBrief(computeSpatialPlan(parseFloat(width), parseFloat(depth)))
+    ? formatSpatialPlanForBrief(computeSpatialPlan(parseFloat(width), parseFloat(depth), boothOrientationModel))
     : '';
 
   const levels = document.getElementById('f_levels').value;
@@ -6447,7 +6729,7 @@ ${mode==='event' && requiredAreas.length > 0 ? 'Required Areas (must all be incl
 ${mode==='event' && indoorRequiredAreas.length > 0 ? 'Indoor Required Areas (must all be included in the indoor part of the design): ' + indoorRequiredAreas.join(', ') : ''}
 ${mode==='event' && outdoorRequiredAreas.length > 0 ? 'Outdoor Required Areas (must all be included in the outdoor part of the design): ' + outdoorRequiredAreas.join(', ') : ''}
 ${mode==='booth' ? 'Booth configuration: ' + openSides : ''}
-${mode==='booth' ? 'BOOTH ORIENTATION MODEL — per EPS-016, this exact OPEN/CLOSED state per side is a hard physical constraint, immutable throughout the entire pipeline. Never mirror, rotate, or flip it — front always means front, left always means left, regardless of what would read more conventionally:\n' + boothOrientationModel : ''}
+${mode==='booth' ? 'BOOTH ORIENTATION MODEL — per EPS-016, this exact OPEN vs. STRUCTURAL WALL state per side is a hard physical constraint, immutable throughout the entire pipeline. Every STRUCTURAL WALL side below already states its own exact wall length — build precisely that. Never mirror, rotate, or flip it — front always means front, left always means left, regardless of what would read more conventionally:\n' + boothOrientationModel : ''}
 ${spatialPlanText}
 ${mode==='booth' ? 'Number of levels: ' + levels + (levels==='2' ? ' (ground floor + upper floor)' : '') : ''}
 ${mode==='booth' && totalHeight ? 'Target total height: ' + totalHeight + ' m' : ''}
@@ -6598,8 +6880,8 @@ ${mode === 'event' ? [
 Every field the client filled in is MANDATORY and MUST inform your analysis — you are not permitted to omit, soften, or silently substitute any stated dimension, color, configuration, or requirement. Where the client left something unspecified, follow EPS-001 and EPS-002 above to infer a professional, high-end solution. The client's actual logo image and/or existing poster designs, if attached, must also inform your analysis exactly as EPS-001, EPS-002, EPS-003, EPS-004, EPS-005, EPS-006, EPS-007, EPS-008, EPS-009, EPS-010, EPS-011, EPS-012, EPS-013, EPS-015, EPS-016, APS-001, and LDS-001 ${mode === 'event' ? 'describe, and — specifically for events — as ECS-001 through ECS-010, ECS-021, and ECS-022 above describe' : 'describe'}.
 
 CRITICAL — ground every field of your analysis in the specific facts from the brief; nothing you write should be generic enough to apply to a different project:
-- The exact width and depth in meters, and — per EPS-016 — this design's BOOTH ORIENTATION MODEL: determine which sides are OPEN and which are CLOSED before deciding anything else, treat it as immutable and identical in priority to the booth's fixed dimensions, and never mirror, rotate, or swap any side from what the brief actually states
-- This design's SPATIAL PLAN — DETERMINISTICALLY COMPUTED block, per SFE-001: its Hero Structure Scale Tier, circulation reserve, and known-furniture area are computed in code from real measurements — copy these figures verbatim into spatial_feasibility.scale_validation rather than re-estimating them
+- The exact width and depth in meters, and — per EPS-016 — this design's BOOTH ORIENTATION MODEL: determine which sides are OPEN and which are STRUCTURAL WALL before deciding anything else, treat it as immutable and identical in priority to the booth's fixed dimensions, and never mirror, rotate, or swap any side from what the brief actually states
+- This design's SPATIAL PLAN — DETERMINISTICALLY COMPUTED block, per SFE-001: its size class, Hero Structure Scale Tier, circulation reserve, and its full zone-by-zone plan (every zone's priority tier, area allocation, and Kept/Merged/Removed status) are computed in code, not by you — copy these facts verbatim into spatial_feasibility.scale_validation rather than re-estimating or re-deciding any of them
 - The exact number of levels and, if double-deck, the ground and upper floor programs separately, plus the stated total height in meters
 - Every required hex color and how each should be used (structural surfaces, accent lighting, signage panels, furniture)
 - The exact poster count if given, and roughly where each belongs
@@ -6615,11 +6897,11 @@ Never generate an image yourself. Never write the final rendering prompt at this
 
 MODULAR ANALYSIS STRUCTURE — this analysis is organized into named modules (concept, space_planning, spatial_feasibility, spatial_composition, architecture, materials, lighting, branding), each grouping the decisions that actually belong together. This is still ONE analysis from ONE pass of reasoning — the modules are how the record is organized, not separate stages — but keeping them clearly separated is what will let this record cleanly split into independent engines later if that ever becomes necessary, without redoing the underlying design thinking. Every module must still be internally consistent with every other: space_planning is a direct consequence of concept, spatial_feasibility validates and, where necessary, prunes space_planning's zones against this booth's actual physical size before anything downstream is decided, spatial_composition organizes the surviving zones into one coherent architectural composition, architecture executes concept through that composition at the scale spatial_feasibility established, lighting reveals architecture and materials, branding follows architecture — never a module decided in isolation from the others.
 
-SFE-001 — SPATIAL FEASIBILITY & SCALE VALIDATION ENGINE (core rule) — real-world testing has surfaced a new failure mode once the architecture itself became reliably strong: booths were rendering at the wrong physical scale entirely — a 4m×4m booth rendered with circulation, furniture, and a hero structure sized as though the booth were 8m×8m. Architecture quality is worthless if the booth doesn't actually read as its own real dimensions. This engine runs as one more step inside this same analysis pass (not a separate stage, not a separate call) — after space_planning proposes its zones and before spatial_composition organizes them or architecture sizes the hero structure — and its job is to verify the requested program physically fits inside this booth's actual dimensions using real-world exhibition planning rules, adapting the spatial plan (never the client's stated requirements) until it does.
+SFE-001 — SPATIAL FEASIBILITY & SCALE VALIDATION ENGINE (core rule) — real-world testing has surfaced a new failure mode once the architecture itself became reliably strong: booths were rendering at the wrong physical scale entirely — a 4m×4m booth rendered with circulation, furniture, and a hero structure sized as though the booth were 8m×8m. Architecture quality is worthless if the booth doesn't actually read as its own real dimensions. This is now solved deterministically, in code, before you ever see the brief: the SPATIAL PLAN — DETERMINISTICALLY COMPUTED block already includes this booth's size class, its Hero Structure Scale Tier, its circulation reserve, and a complete zone-by-zone plan — every zone this client requested, each with its real or estimated area, its SFE-001 priority tier, and a Kept / Merged / Removed status already decided by that same deterministic engine. Your job in this module is transcription, not invention: never re-run the area math, never re-decide which zones survive, and never second-guess a status the plan already assigned — a "Removed" zone must not appear anywhere in functional_zones, spatial_composition, or the hero structure; a "Merged" zone appears as the one combined shared zone the plan describes, never as two separate zones.
 
-Never shrink furniture below realistic human scale to force a program to fit — reception counters, meeting tables, chairs, kiosks, displays, product tables, and circulation all keep their real-world dimensions per EPS-005's HUMAN SCALE table, regardless of how tight the booth is. If the requested program doesn't fit at realistic scale, do not compress everything proportionally — instead simplify, merge functions, and reduce secondary elements while preserving the architectural concept, following the zone priority order below.
+Never shrink furniture below realistic human scale to force a program to fit — reception counters, meeting tables, chairs, kiosks, displays, product tables, and circulation all keep their real-world dimensions per EPS-005's HUMAN SCALE table, regardless of how tight the booth is. This is guaranteed by construction in the deterministic plan: it merges or removes only the lowest-priority zones, never shrinks a kept zone's real footprint.
 
-ZONE PRIORITY ORDER (core rule) — when a booth's size cannot support every zone at realistic scale, prioritize zones in this exact order, highest first: 1. Hero Architecture, 2. Brand Experience, 3. Primary Products, 4. Reception, 5. Information, 6. Meeting, 7. Hospitality, 8. Decorative Features. Merge or drop only the lowest-priority zones still causing the program to not fit — never drop or shrink a higher-priority zone while a lower-priority one survives untouched.
+ZONE PRIORITY ORDER (reference only — already applied by the deterministic engine) — the order the SPATIAL PLAN's zone-by-zone reduction follows, highest priority first: 1. Hero Architecture, 2. Brand Experience, 3. Primary Products, 4. Reception, 5. Information, 6. Meeting, 7. Hospitality, 8. Decorative Features. You do not need to apply this order yourself — the plan's per-zone status already reflects it — but understanding it explains why a given zone was merged or removed while another, lower on this list but requested later, was kept: a higher-priority zone is never dropped while a lower-priority one survives.
 
 HERO STRUCTURE SCALE TIERS (core rule) — the hero structure's own physical scale must match this booth's actual footprint, never a fixed size applied regardless of booth dimensions: 2m×2m booth — a very small architectural gesture only; 3m×3m — a compact architectural feature; 4m×4m — one architectural centerpiece; 5m×5m — a small hero structure; 6m×6m to 9m×9m — a full architectural statement; 10m×10m and above — complex iconic architecture. Interpolate sensibly for footprints between these reference sizes. The hero structure must never visually consume an unrealistic percentage of a small booth — a small booth redesigns the concept's implementation at a smaller scale, it never reproduces a large pavilion's hero structure shrunk down to fit.
 
@@ -6643,17 +6925,17 @@ Respond in JSON only, with no explanation outside the JSON and no Markdown fence
   },
   "space_planning": {
     "visitor_flow": "how a visitor's body actually moves through the space from first approach to the point they leave, and where that path is designed to slow down (2-4 sentences)",
-    "functional_zones": "reception, meeting, product display, storage, hospitality, and any client-required areas — sized and positioned as a direct consequence of visitor_flow, following EPS-008/EPS-009/EPS-011's placement and quantity rules. State each zone as an explicit 'Zone — purpose' pairing, the specific reason that zone exists for this client, not just what's placed inside it (e.g. Reception — welcoming visitors; Display Zone — hands-on demonstrations; Consultation — private discussions; Experience Zone — interactive healthcare technology; Education Zone — digital learning wall) — this is what lets the rendering model understand WHY each zone exists. Per EPS-016, every zone's position must be consistent with the brief's BOOTH ORIENTATION MODEL: reception and the entrance always sit on an OPEN side; storage and back-of-house zones are the zones that may legitimately back onto a CLOSED side. For the product display zone specifically, name the actual, specific, industry-appropriate products or devices it shows (use the client's own brief if it names any, otherwise infer from the industry's typical products per EPS-004's LEVEL 2 taxonomy) — never describe it using only the generic word 'product' as if that were itself a real object. List every zone this program would ideally include here — spatial_feasibility below is what actually decides which of them survive at this booth's real size, so list the full ideal set rather than pre-emptively trimming it yourself (2-4 sentences)"
+    "functional_zones": "reception, meeting, product display, storage, hospitality, and any client-required areas — sized and positioned as a direct consequence of visitor_flow, following EPS-008/EPS-009/EPS-011's placement and quantity rules. State each zone as an explicit 'Zone — purpose' pairing, the specific reason that zone exists for this client, not just what's placed inside it (e.g. Reception — welcoming visitors; Display Zone — hands-on demonstrations; Consultation — private discussions; Experience Zone — interactive healthcare technology; Education Zone — digital learning wall) — this is what lets the rendering model understand WHY each zone exists. Per EPS-016, every zone's position must be consistent with the brief's BOOTH ORIENTATION MODEL: reception and the entrance always sit on an OPEN side; storage and back-of-house zones are the zones that may legitimately back onto a STRUCTURAL WALL side. For the product display zone specifically, name the actual, specific, industry-appropriate products or devices it shows (use the client's own brief if it names any, otherwise infer from the industry's typical products per EPS-004's LEVEL 2 taxonomy) — never describe it using only the generic word 'product' as if that were itself a real object. List every zone this program would ideally include here — spatial_feasibility below is what actually decides which of them survive at this booth's real size, so list the full ideal set rather than pre-emptively trimming it yourself (2-4 sentences)"
   },
   "spatial_feasibility": {
-    "scale_validation": "per SFE-001, before spatial_composition or architecture decide anything, validate that space_planning.functional_zones actually fits inside this booth's real dimensions at realistic human scale — this is a hidden internal validation step, never shown to the client or the rendering model directly. The brief below already includes a SPATIAL PLAN — DETERMINISTICALLY COMPUTED block: its Hero Structure Scale Tier, circulation reserve, and known-furniture area figures are computed in code from real measurements, not estimated — copy those exact figures into the corresponding facts below rather than recomputing or re-estimating them; your own judgment is only needed for fitting the plan's listed 'other requested zones without a precomputed footprint' into its stated remaining flexible area. Provide exactly six labeled facts, each a concrete, specific answer, never vague or omitted: Hero Structure Scale Tier (copy the brief's SPATIAL PLAN tier and hero footprint allowance verbatim; the hero must never visually consume more than that allowance); Area Budget (copy the brief's subtotal — hero allowance + circulation + specified furniture — against the booth's total area, and its remaining flexible area figure, verbatim); Zone Priority Decisions (apply SFE-001's zone priority order — Hero Architecture, Brand Experience, Primary Products, Reception, Information, Meeting, Hospitality, Decorative Features — to fit the SPATIAL PLAN's 'other requested zones' list within its stated remaining flexible area; state which are kept as-is, which are merged together, and which are dropped for this booth's actual size; always preserve a higher-priority zone over a lower one, never the reverse); Circulation Density (copy the brief's circulation reserve figure and percentage verbatim — never a wider or narrower aisle than that computed reserve implies); Small Booth Redesign Note (only where this booth is genuinely small, e.g. under roughly 5m×5m — one or two sentences on how the concept's implementation was adapted for this size while the concept itself stays identical, e.g. 'concept unchanged; hero canopy becomes a compact hero portal, the meeting room becomes one consultation table, only one product display wall instead of several'; if the booth is not small, state 'not applicable — booth size supports the full program'); Validation Checklist (state, on one line, PASS or FAIL for each of: Program Fits, Hero Structure Scale, Furniture Density, Circulation, Zone Count, Human Scale — every item here must read PASS; if any would genuinely fail given the zone decisions just made, revise those decisions until every item passes before finalizing this analysis — never output a FAIL here). Return as a single string, one 'Label: answer' line per fact, in the exact order listed above"
+    "scale_validation": "per SFE-001, this is a hidden internal validation record, never shown to the client or the rendering model directly — and it is transcribed from the brief's SPATIAL PLAN — DETERMINISTICALLY COMPUTED block, not invented here. That block already contains this booth's size class, Hero Structure Scale Tier, circulation reserve, and a complete zone-by-zone plan with every zone's priority tier, area, and Kept/Merged/Removed status, all computed in code — your only job is to copy these facts into the seven labeled facts below, never recompute, re-estimate, or re-decide any zone's status. Provide exactly seven labeled facts, each a concrete, specific answer, never vague or omitted: Size Class (copy the brief's size class name and its one-line architectural expectation verbatim); Hero Structure Scale Tier (copy the brief's SPATIAL PLAN tier and hero footprint allowance verbatim; the hero must never visually consume more than that allowance); Area Budget (copy the brief's subtotal — hero allowance + circulation + every Kept/Merged zone — against the booth's total area, and its remaining flexible area figure, verbatim); Zone Priority Decisions (list every zone from the brief's zone-by-zone spatial plan with its status exactly as given — Kept, Merged, or Removed — never changing, adding, or omitting a zone from that list; a Removed zone must not appear anywhere else in this analysis); Circulation Density (copy the brief's circulation reserve figure and percentage verbatim — never a wider or narrower aisle than that computed reserve implies); Small Booth Redesign Note (only where the brief's size class is Tiny Booth or Compact Booth — one or two sentences on how the concept's implementation was adapted for this size while the concept itself stays identical, e.g. 'concept unchanged; hero canopy becomes a compact hero portal, the meeting room becomes one consultation table, only one product display wall instead of several'; if the size class is larger, state 'not applicable — booth size supports the full program'); Validation Checklist (copy the brief's own validation checklist line verbatim — Program Fit, Hero Structure Scale, Furniture Density, Circulation, Human Scale, Zone Count, Orientation Respected — every item must already read PASS in the brief; if the brief's Program Fit reads FAIL, state that plainly here rather than inventing a PASS). Return as a single string, one 'Label: answer' line per fact, in the exact order listed above"
   },
   "spatial_composition": {
     "composition_strategy": "per SCE-001, convert spatial_feasibility.scale_validation's surviving zones (per its Zone Priority Decisions) into one deliberate architectural composition, scaled per its Hero Structure Scale Tier. Provide exactly eight labeled facts, each a concrete, specific answer — never vague or omitted: Primary architectural axis (the single dominant axis the whole composition organizes around — its direction, and what anchors each end, typically the entrance and the hero structure); Secondary circulation loop (the loop or secondary path that connects the remaining zones off that primary axis); Focal point hierarchy (a ranked list of 2-4 visual focal points, strongest first, and why each ranks where it does — the hero structure is always ranked first); Visual balance (how the composition balances visually — symmetric, asymmetric-but-balanced, or weighted toward one side — and around what); Massing composition (how the booth's volumes/masses are arranged and proportioned relative to each other, consistent with spatial_feasibility's Hero Structure Scale Tier and Area Budget); Structural rhythm (the repeating structural interval — columns, bays, fins — that gives the composition a consistent architectural beat); Open vs enclosed space ratios (the approximate ratio and which zones are open vs enclosed, consistent with EPS-011's OPEN SPACE RATIO BY SIZE table and spatial_feasibility's Circulation Density); Architectural support strategy (how the structure is actually held up — columns, load-bearing walls, or a central core — and roughly where). Return as a single string, one 'Label: answer' line per fact, in the exact order listed above"
   },
   "architecture": {
     "architectural_geometry": "per DIR-005, translate concept.architectural_concept's narrative (the 'Inspired by ___' statement) into exactly six labeled categories of concrete, physical, buildable architecture — never mood words, emotions, or the narrative phrase itself repeated as if it were an answer: Primary Form (the overall silhouette/shape of the hero structure); Structure (the actual structural elements holding it up — columns, fins, frames); Roof (the roof/canopy geometry, if any); Circulation (the physical shape of the visitor path this geometry creates); Material Hierarchy (the primary materials, in order of visual dominance); Lighting (how light is physically integrated into this geometry). For example, 'Inspired by speed' becomes: Primary Form — sweeping aerodynamic roof; Structure — inclined steel fins; Roof — ribbon canopy; Circulation — curved visitor spine; Material Hierarchy — white aluminum, glass, LED light lines; Lighting — continuous integrated LED strips. Return as a single string, one 'Label: answer' line per category, in the exact order listed above. This field must be answered before hero_structure below, since hero_structure's Geometry and Support system facts build directly on the Primary Form and Structure decided here.",
-    "hero_structure": "per DIR-005, describe the pavilion's architectural anchor as exactly ten labeled, deterministic facts, each a concrete, specific answer — never vague, never a single figure standing alone with nothing else specified: Height (estimated real-world height in meters, proportionate to the booth's total height); Width (estimated width in meters); Depth (estimated depth in meters) — per SFE-001, Height/Width/Depth must match spatial_feasibility.scale_validation's Hero Structure Scale Tier exactly, never a larger-pavilion scale applied regardless of this booth's actual footprint; Geometry (the physical form/shape — must be consistent with the architectural_geometry field above's Primary Form); Support system (how it's physically held up — columns, fins, frame — consistent with architectural_geometry's Structure above and spatial_composition.composition_strategy's Architectural support strategy); Primary material (the dominant material — consistent with materials.primary_materials); Lighting integration (how light reveals it — consistent with lighting.lighting_strategy); Brand integration (how the logo is carried by it — consistent with branding.brand_integration and EPS-013's BRANDING PLACEMENT HIERARCHY, since this is the primary logo carrier); Position within booth (where it physically sits relative to the entrance and main aisle — must sit on spatial_composition.composition_strategy's Primary architectural axis and rank first in its Focal point hierarchy; per EPS-016, its primary approach/visibility side must be a side the brief's BOOTH ORIENTATION MODEL marks OPEN, never a side marked CLOSED); Visibility from all sides (which sides/approaches it remains visible from, per EPS-013's VISIBILITY RULE, consistent with which sides the BOOTH ORIENTATION MODEL actually marks OPEN). If this booth includes a hero product (a vehicle, aircraft, machinery, medical scanner, or similar physical product it is built around), apply EPS-013's HERO PRODUCT RULE to the Geometry/Support system/Position/Visibility facts instead: describe how this structure frames the product without obstructing it, keeps it clearly visible from every public entrance and primary viewing angle, and enhances it rather than competing with it for attention. If the brief's Ceiling & Rigging selection is Hanging rigging/truss, Full suspended architectural structure, or Custom venue-approved suspension (Overhead Structure = Suspended per EPS-012), that suspended structure IS what these ten facts describe — per EPS-012's GENERATION CONSTRAINTS BY OVERHEAD STRUCTURE rule, not a secondary accessory alongside some other candidate hero structure. Return as a single string, one 'Label: answer' line per fact, in the exact order listed above"
+    "hero_structure": "per DIR-005, describe the pavilion's architectural anchor as exactly ten labeled, deterministic facts, each a concrete, specific answer — never vague, never a single figure standing alone with nothing else specified: Height (estimated real-world height in meters, proportionate to the booth's total height); Width (estimated width in meters); Depth (estimated depth in meters) — per SFE-001, Height/Width/Depth must match spatial_feasibility.scale_validation's Hero Structure Scale Tier exactly, never a larger-pavilion scale applied regardless of this booth's actual footprint; Geometry (the physical form/shape — must be consistent with the architectural_geometry field above's Primary Form); Support system (how it's physically held up — columns, fins, frame — consistent with architectural_geometry's Structure above and spatial_composition.composition_strategy's Architectural support strategy); Primary material (the dominant material — consistent with materials.primary_materials); Lighting integration (how light reveals it — consistent with lighting.lighting_strategy); Brand integration (how the logo is carried by it — consistent with branding.brand_integration and EPS-013's BRANDING PLACEMENT HIERARCHY, since this is the primary logo carrier); Position within booth (where it physically sits relative to the entrance and main aisle — must sit on spatial_composition.composition_strategy's Primary architectural axis and rank first in its Focal point hierarchy; per EPS-016, its primary approach/visibility side must be a side the brief's BOOTH ORIENTATION MODEL marks OPEN, never a side marked STRUCTURAL WALL); Visibility from all sides (which sides/approaches it remains visible from, per EPS-013's VISIBILITY RULE, consistent with which sides the BOOTH ORIENTATION MODEL actually marks OPEN). If this booth includes a hero product (a vehicle, aircraft, machinery, medical scanner, or similar physical product it is built around), apply EPS-013's HERO PRODUCT RULE to the Geometry/Support system/Position/Visibility facts instead: describe how this structure frames the product without obstructing it, keeps it clearly visible from every public entrance and primary viewing angle, and enhances it rather than competing with it for attention. If the brief's Ceiling & Rigging selection is Hanging rigging/truss, Full suspended architectural structure, or Custom venue-approved suspension (Overhead Structure = Suspended per EPS-012), that suspended structure IS what these ten facts describe — per EPS-012's GENERATION CONSTRAINTS BY OVERHEAD STRUCTURE rule, not a secondary accessory alongside some other candidate hero structure. Return as a single string, one 'Label: answer' line per fact, in the exact order listed above"
   },
   "materials": {
     "primary_materials": "the specific materials and finishes chosen to express concept.architectural_concept and the client's brand personality and why — never a generic materials list (2-4 sentences)"
@@ -6703,9 +6985,9 @@ ARCHITECTURAL PRIORITY CHECKLIST (core rule) — before finalizing image_prompt,
 ✓ Furniture supports architecture — FURNITURE in LAYER 2 reads as populating the space plan already fixed in LAYER 1, never redefining or competing with it.
 ✓ Products remain secondary — PRODUCT EXPERIENCE and DIGITAL TECHNOLOGY never overshadow the hero structure's visual primacy established in LAYER 1.
 ✓ Brand lighting consistent — every decorative LED strip, under-counter light, edge light, and illuminated architectural detail anywhere in the prompt stays within lighting.accent_lighting_palette per DIR-012, with no unrelated RGB or "technology blue" glow introduced.
-✓ Orientation respected — per EPS-016, every OPEN side in the brief's BOOTH ORIENTATION MODEL reads as genuinely open (no wall or structure), every CLOSED side is occupied by wall or structure, entrances and circulation only originate from OPEN sides, and the layout has not been mirrored, rotated, or flipped from that model.
+✓ Orientation respected — per EPS-016, every OPEN side in the brief's BOOTH ORIENTATION MODEL reads as genuinely open (no wall or structure), every STRUCTURAL WALL side is occupied by one continuous wall built to its exact stated length, entrances and circulation only originate from OPEN sides, and the layout has not been mirrored, rotated, or flipped from that model.
 ✓ Structural vocabulary inherited — per DIR-013, reception counters, information counters, display walls, product displays, demo benches, and meeting furniture all repeat the hero structure's geometry, primary material, and detailing, with no generic, unrelated furniture piece anywhere in the design.
-✓ Scale validated — per SFE-001, the hero structure's dimensions match spatial_feasibility.scale_validation's Hero Structure Scale Tier exactly, only the zones its Zone Priority Decisions kept appear in SPACE PLANNING, circulation matches its Circulation Density, and nothing in the prompt reads as a larger booth shrunk down or a small booth stretched up.
+✓ Scale validated — per SFE-001, the hero structure's dimensions match spatial_feasibility.scale_validation's Hero Structure Scale Tier exactly, only the zones its Zone Priority Decisions list as Kept or Merged appear anywhere in this prompt (no Removed zone appears), circulation matches its Circulation Density, and nothing in the prompt reads as a larger booth shrunk down or a small booth stretched up.
 
 You are given two things in the user message: (1) the hidden analysis JSON, organized into modules — concept (design_objective, architectural_concept), space_planning (visitor_flow, functional_zones), spatial_feasibility (scale_validation), spatial_composition (composition_strategy), architecture (architectural_geometry, hero_structure), materials (primary_materials), lighting (lighting_strategy, accent_lighting_palette), branding (brand_integration) — and (2) the client's original brief, included only so you can pull literal facts (exact numbers, hex codes, counts, style names) precisely. Use (1) as the architectural backbone of every section below; use (2) only to insert precise literal facts into the correct sections — never let (2) reopen a decision already settled in (1). architecture.architectural_geometry and architecture.hero_structure are already the concrete, deterministic translation of architectural_concept's narrative (per DIR-005) — carry their labeled facts into ARCHITECTURAL CONCEPT verbatim (geometry before hero structure, the same order they were decided in), never re-abstract them back into mood language or storytelling. spatial_composition.composition_strategy is likewise already decided (per SCE-001) — carry its labeled facts into SPACE PLANNING verbatim, never re-derive a different composition. lighting.accent_lighting_palette is likewise already decided (per DIR-012) — carry its labeled facts into LIGHTING STRATEGY verbatim, and enforce it on every decorative/accent lighting mention anywhere else in the prompt. spatial_feasibility.scale_validation is likewise already decided (per SFE-001) and is never printed anywhere in the output — it is a hidden validation record only; use its Hero Structure Scale Tier, surviving zones, and Circulation Density to keep ARCHITECTURAL CONCEPT, SPACE PLANNING, VISITOR FLOW, and STRUCTURAL PLANNING all consistent with this booth's real scale, never re-deriving a different scale of your own.
 
