@@ -88,11 +88,22 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, isUserInitiatedEdit, isFreeFirstModification } = req.body || {};
+    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, isUserInitiatedEdit, isFreeFirstModification, aspectRatio } = req.body || {};
     if (!prompt || typeof prompt !== 'string') {
       res.status(400).json({ error: { message: 'Request body must include a "prompt" string.' } });
       return;
     }
+
+    // Aspect ratio is computed client-side from the booth's own real width:depth footprint
+    // (computeBoothAspectRatio in ai-design-studio.html) so the requested image frame actually
+    // matches the shape being described in the prompt, instead of always forcing a fixed 16:9
+    // widescreen frame regardless of whether the booth is square, wide, or deep — a real
+    // contributor to booths rendering at the wrong apparent scale. Whitelisted against Gemini's
+    // documented supported aspect ratios (ai.google.dev/gemini-api/docs/image-generation);
+    // anything missing or unrecognized falls back to the previous default so this can never
+    // send an invalid value to the API.
+    const SUPPORTED_ASPECT_RATIOS = new Set(['1:1', '3:2', '2:3', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
+    const resolvedAspectRatio = SUPPORTED_ASPECT_RATIOS.has(aspectRatio) ? aspectRatio : '16:9';
 
     // The very first modification on a freshly generated design doesn't count against the
     // modify quota at all — occasionally the initial render needs a quick correction, and
@@ -133,7 +144,7 @@ module.exports = async (req, res) => {
         contents: [{ parts: requestParts }],
         generationConfig: {
           responseModalities: ['TEXT', 'IMAGE'],
-          imageConfig: { imageSize: '2K', aspectRatio: '16:9' },
+          imageConfig: { imageSize: '2K', aspectRatio: resolvedAspectRatio },
         },
       }),
     });
