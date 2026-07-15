@@ -1716,7 +1716,11 @@ Replace only the materials and graphics."></textarea>
           <input type="number" min="1" id="addreq_lounge_capacity" placeholder="e.g. 6">
         </div>
 
-        <label class="check-item-compact"><input type="checkbox" id="addreq_coffeebar"> Coffee Bar / Hospitality</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_coffeebar" onchange="toggleAdditionalReqSection('coffeebar', this.checked)"> Coffee Bar / Hospitality</label>
+        <div id="addreq_coffeebar_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_coffeebar_count">How many coffee bars / hospitality points?</label>
+          <input type="number" min="1" id="addreq_coffeebar_count" placeholder="e.g. 1">
+        </div>
 
         <div class="subarea-label" style="margin-top:8px;">Product Display</div>
 
@@ -3965,6 +3969,7 @@ function collectAdditionalRequirements(){
     ['digitaltotem', 'DIGITAL TOTEM', 'digital totem(s)'],
     ['literaturerack', 'LITERATURE RACK', 'literature rack(s)'],
     ['kiosk', 'INTERACTIVE KIOSK', 'interactive kiosk(s)'],
+    ['coffeebar', 'COFFEE BAR / HOSPITALITY', 'coffee bar / hospitality point(s)'],
   ];
   for(const [id, title, unitLabel] of quantityOnlyItems){
     if(document.getElementById('addreq_' + id).checked){
@@ -3993,7 +3998,7 @@ function collectAdditionalRequirements(){
 
   // Simple checkboxes with no quantity — grouped by category for a clearer, better-organized brief.
   const simpleGroups = [
-    ['Visitor Experience', [['addreq_openmeeting', 'Open Meeting Area'], ['addreq_coffeebar', 'Coffee Bar / Hospitality']]],
+    ['Visitor Experience', [['addreq_openmeeting', 'Open Meeting Area']]],
     ['Product Display', [['addreq_brochurestand', 'Brochure Stand']]],
     ['Digital & Technology', [['addreq_chargingstation', 'Charging Station'], ['addreq_qrdisplay', 'QR Code Display']]],
     ['Functional Spaces', [['addreq_pantry', 'Pantry'], ['addreq_lockablecabinet', 'Lockable Cabinet'], ['addreq_hiddenstorage', 'Hidden Storage']]],
@@ -5800,6 +5805,10 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
         if(!ok || !data.image){
           optionResults[i].status = 'error';
           optionResults[i].errorMsg = (data.error && data.error.message) || 'Image generation failed.';
+          // A failed render leaves nothing to protect — unlock the form immediately so the
+          // user can just click Generate again (e.g. after fixing an API key/billing issue)
+          // without re-entering the whole brief from scratch.
+          unlockForm();
         }else{
           const correctedImage = await runBrandAssetIntegrityEngine(data.image);
           const compressed = await compressDataUrlToTarget(correctedImage);
@@ -5818,6 +5827,7 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
       .catch(err => {
         optionResults[i].status = 'error';
         optionResults[i].errorMsg = err && err.message ? err.message : 'Unexpected error.';
+        unlockForm();
         renderOptionTabsV2();
         if(activeOptionIndex === i) showOptionV2(i);
         saveCurrentProject();

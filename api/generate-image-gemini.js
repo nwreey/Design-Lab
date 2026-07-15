@@ -141,7 +141,15 @@ module.exports = async (req, res) => {
     const data = await geminiResponse.json();
 
     if (!geminiResponse.ok) {
-      res.status(geminiResponse.status).json({ error: data.error || { message: 'Gemini image request failed.' } });
+      // Log the full raw error to the Vercel function logs (not shown to the client) so a
+      // failure like "Requested entity was not found" can actually be diagnosed later —
+      // that specific message is Google's generic NOT_FOUND wrapper and could mean several
+      // different things (wrong model string for this API version, the API key's project
+      // missing access/billing for this model, or the model temporarily unavailable), so the
+      // raw status and body are what actually distinguish between those causes.
+      console.error('Gemini image request failed:', geminiResponse.status, model, JSON.stringify(data));
+      const detail = (data.error && data.error.message) || 'Gemini image request failed.';
+      res.status(geminiResponse.status).json({ error: { message: `${detail} (HTTP ${geminiResponse.status}, model: ${model})` } });
       return;
     }
 
