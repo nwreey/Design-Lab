@@ -544,9 +544,9 @@
 
   <div class="tabs" id="modeTabs">
     <button class="tab active" id="tabBooth" onclick="setMode('booth')">Exhibition Booth</button>
-    <button class="tab" id="tabEvent" onclick="setMode('event')">Event Concept</button>
-    <button class="tab" id="tabDisplayStand" onclick="setMode('displaystand')">Display Stand</button>
-    <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')">Modify Design</button>
+    <button class="tab" id="tabEvent" onclick="setMode('event')" style="display:none;">Event Concept</button>
+    <button class="tab" id="tabDisplayStand" onclick="setMode('displaystand')" style="display:none;">Display Stand</button>
+    <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')" style="display:none;">Modify Design</button>
   </div>
 
   <div class="show-form-bar" id="showFormBar" style="display:none;">
@@ -6060,6 +6060,13 @@ async function checkAdminAccess(){
       isAdminUser = true;
       const link = document.getElementById('adminPanelLink');
       if(link) link.style.display = 'inline-block';
+      // Event Concept, Display Stand, and Modify Design are still in testing — kept visible
+      // to admins only until each is finished and deliberately opened up to all users. Remove
+      // this reveal (and the style="display:none;" on the buttons themselves) when that happens.
+      ['tabEvent', 'tabDisplayStand', 'tabEditDesign'].forEach(id => {
+        const tab = document.getElementById(id);
+        if(tab) tab.style.display = '';
+      });
     }
     currentUserProjectLimit = data.projectLimit != null ? data.projectLimit : null;
     lastKnownProjectCount = data.projectCount != null ? data.projectCount : lastKnownProjectCount;
