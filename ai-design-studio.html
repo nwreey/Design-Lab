@@ -1647,12 +1647,20 @@ Replace only the materials and graphics."></textarea>
           <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Underfloor RGB Lighting"> Underfloor RGB Lighting</label>
           <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Illuminated Glass Inserts"> Illuminated Glass Inserts</label>
           <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Cable Management System"> Cable Management System</label>
-          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Floor Boxes"> Floor Boxes</label>
-          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Integrated Power Outlets"> Integrated Power Outlets</label>
+          <label class="check-item-compact"><input type="checkbox" id="floorfeat_integratedservices" onchange="toggleFloorFeatureSubsection(this.checked)"> Integrated Floor Services</label>
+          <div id="floorfeat_integratedservices_body" style="display:none;margin:0 0 16px 22px;">
+            <div class="hint" style="margin-top:0;margin-bottom:8px;">Select which floor-level services are included.</div>
+            <label class="check-item-compact"><input type="checkbox" class="floor-service-cb" value="Power Outlet"> Power Outlet</label>
+            <label class="check-item-compact"><input type="checkbox" class="floor-service-cb" value="Data Port"> Data Port</label>
+            <label class="check-item-compact"><input type="checkbox" class="floor-service-cb" value="USB Charging"> USB Charging</label>
+            <label class="check-item-compact"><input type="checkbox" class="floor-service-cb" value="Ethernet"> Ethernet</label>
+            <label class="check-item-compact"><input type="checkbox" class="floor-service-cb" value="HDMI"> HDMI</label>
+            <label class="check-item-compact"><input type="checkbox" class="floor-service-cb" value="Audio"> Audio</label>
+            <label class="check-item-compact"><input type="checkbox" class="floor-service-cb" value="Floor Box"> Floor Box</label>
+          </div>
           <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Flush Access Panels"> Flush Access Panels</label>
           <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Accessible Ramp"> Accessible Ramp</label>
           <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Anti-slip Finish"> Anti-slip Finish</label>
-          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Waterproof Finish"> Waterproof Finish</label>
           <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Acoustic Flooring"> Acoustic Flooring</label>
           <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Sustainable Materials"> Sustainable Materials</label>
         </div>
@@ -1743,7 +1751,12 @@ Replace only the materials and graphics."></textarea>
         </div>
 
         <label class="check-item-compact"><input type="checkbox" id="addreq_brochurestand"> Brochure Stand</label>
-        <label class="check-item-compact"><input type="checkbox" id="addreq_literaturerack"> Literature Rack</label>
+
+        <label class="check-item-compact"><input type="checkbox" id="addreq_literaturerack" onchange="toggleAdditionalReqSection('literaturerack', this.checked)"> Literature Rack</label>
+        <div id="addreq_literaturerack_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_literaturerack_count">How many literature racks?</label>
+          <input type="number" min="1" id="addreq_literaturerack_count" placeholder="e.g. 1">
+        </div>
 
         <div class="subarea-label" style="margin-top:8px;">Digital &amp; Technology</div>
 
@@ -1768,7 +1781,11 @@ Replace only the materials and graphics."></textarea>
           <div id="addreq_touchscreen_list"></div>
         </div>
 
-        <label class="check-item-compact"><input type="checkbox" id="addreq_kiosk"> Interactive Kiosk</label>
+        <label class="check-item-compact"><input type="checkbox" id="addreq_kiosk" onchange="toggleAdditionalReqSection('kiosk', this.checked)"> Interactive Kiosk</label>
+        <div id="addreq_kiosk_body" style="display:none;margin:0 0 16px 22px;">
+          <label class="sublabel" for="addreq_kiosk_count">How many interactive kiosks?</label>
+          <input type="number" min="1" id="addreq_kiosk_count" placeholder="e.g. 1">
+        </div>
 
         <label class="check-item-compact"><input type="checkbox" id="addreq_digitaltotem" onchange="toggleAdditionalReqSection('digitaltotem', this.checked)"> Digital Totem</label>
         <div id="addreq_digitaltotem_body" style="display:none;margin:0 0 16px 22px;">
@@ -2242,9 +2259,9 @@ You are not a prompt generator and not an interior decorator. You are the lead a
 Before writing one word of the final rendering prompt, work through this reasoning silently, in this exact order, every single time:
 1. Analyze the project brief — what does the client actually need, and what do the stated dimensions, budget signal, industry, and brand personality make possible or impossible?
 2. Determine the design objective — in one clear idea, what must this booth achieve for the client (e.g. maximize qualified meetings, showcase one hero product, project national prestige)?
-3. Define the architectural concept — the single unifying idea or form language that gives every later decision a reason, rather than a collection of unrelated nice features.
+3. Define the architectural concept — infer the client's industry and name ONE specific, iconic architectural concept inspired by that business (per EPS-013's ICONIC CONCEPT RULE — e.g. DNA Helix for healthcare, Vault for banking, Data Stream for technology, Speed for automotive), never a generic form description like "modern canopy" or "tech-inspired structure" standing in as if it were the concept itself. Then give it a narrative, per EPS-013's NARRATIVE RULE — state explicitly what the form is "Inspired by" (e.g. "Inspired by a heartbeat waveform," "Inspired by cloud computing," "Inspired by trust and protection") so the concept tells a story about why this form exists, not just what shape it takes. This named, explained concept is the single unifying idea that gives every later decision a reason, and becomes the visual identity of the booth.
 4. Plan visitor circulation — how a visitor's body actually moves through the space from first approach to the point they leave, and where that path is designed to slow down.
-5. Allocate functional zones — reception, meeting, product display, storage, hospitality, and any client-required areas — sized and positioned as a direct consequence of the circulation just planned, not placed arbitrarily.
+5. Allocate functional zones — reception, meeting, product display, storage, hospitality, and any client-required areas — sized and positioned as a direct consequence of the circulation just planned, not placed arbitrarily. Give each zone an explicit design purpose, not just a name (e.g. Reception — welcoming visitors; Display Zone — hands-on demonstrations; Consultation — private discussions), so it's clear why each zone exists, not only what's placed inside it.
 6. Define structural hierarchy — which single element is architecturally dominant (the hero structure) and how every other structural element is visibly subordinate to it.
 7. Select architectural materials — chosen to express the concept and brand personality, never decorated on after the fact.
 8. Define branding integration — how the logo and brand identity become part of the architecture itself, not signage stuck onto a finished wall.
@@ -2265,23 +2282,69 @@ Always generate prompts suitable for photorealistic 3D rendering — ultra-reali
 
 Never place random objects. Every element in the final design must trace back to one of the ten reasoning steps above. Think like an architect designing for real construction — never like an illustrator filling a scene.`;
 
-const OUTPUT_REQUIREMENTS = `The final rendering prompt must always read like an architectural design brief written for a client and a rendering studio — never like a shopping list of furniture and features. Do not simply enumerate objects; for every major zone, explain its purpose — why it exists, who uses it, what it achieves — not just what's placed inside it. Architecture always comes before furniture: describe the structural form, the hero element, and the spatial hierarchy first; furniture and finishes are only ever described as what supports and completes that architecture, never as an independent inventory.
+const OUTPUT_REQUIREMENTS = `PAE-002 — TWO-LAYER PROMPT ARCHITECTURE (core rule)
 
-The prompt must always use exactly this section structure, in this order, each header in capitals on its own line immediately before that section's short paragraph:
+Every generated prompt must be organized into two distinct, clearly labeled layers, always in this order — architecture always established first, exhibition content always applied after:
 
-PROJECT SUMMARY
-DESIGN OBJECTIVE
-ARCHITECTURAL CONCEPT
-SPACE PLANNING
-VISITOR FLOW
-FUNCTIONAL ZONES
-ARCHITECTURE
-MATERIALS
-BRANDING
-LIGHTING
-RENDERING INSTRUCTIONS
+LAYER 1 — ARCHITECTURAL LAYER (HIGHEST PRIORITY): the permanent architecture — footprint, structure, circulation, materials, and lighting. This is the booth's architectural blueprint. Establish everything in this layer mentally before considering furniture, branding, or products.
 
-RENDERING INSTRUCTIONS is always the last section — camera angle, render engine/quality language, and photographic style belong there and nowhere earlier; every section before it describes the design itself, not how it's photographed.
+LAYER 2 — EXHIBITION LAYER (SECONDARY): the content that populates the completed architecture — products, branding, furniture, technology, decoration, and the visitor's experience of all of it. Nothing in this layer may contradict or redefine anything already established in Layer 1 — it only ever furnishes and populates a space plan that already exists. This two-layer separation is what reduces spatial conflicts and keeps the design spatially consistent: Layer 1 is decided in full before Layer 2 is ever considered.
+
+The final rendering prompt must always read like an architectural design brief written for a client and a rendering studio — never like a shopping list of furniture and features. Do not simply enumerate objects; explain the purpose of each element — why it exists, who uses it, what it achieves — not just what's placed inside it.
+
+The prompt must always use exactly this two-layer section structure, in this order, with each layer clearly marked by its own header line (e.g. "LAYER 1 — ARCHITECTURAL LAYER" / "LAYER 2 — EXHIBITION LAYER") before that layer's sections begin, and each section header in capitals on its own line immediately before that section's short paragraph:
+
+LAYER 1 — ARCHITECTURAL LAYER (HIGHEST PRIORITY)
+1. PROJECT SUMMARY
+2. DESIGN OBJECTIVE
+3. ARCHITECTURAL CONCEPT
+4. SPACE PLANNING
+5. VISITOR FLOW
+6. STRUCTURAL PLANNING
+7. MATERIALS
+8. LIGHTING STRATEGY
+9. NEGATIVE RULES
+
+LAYER 2 — EXHIBITION LAYER (SECONDARY)
+1. PRODUCT EXPERIENCE
+2. BRANDING
+3. FURNITURE
+4. DIGITAL TECHNOLOGY
+5. DECORATIVE ELEMENTS
+6. EXHIBITION STORY
+7. RENDERING INSTRUCTIONS
+
+LAYER 1 SECTION GUIDANCE:
+
+ARCHITECTURAL CONCEPT must open by naming the specific, industry-inspired iconic concept already decided in the hidden analysis (per EPS-013's ICONIC CONCEPT RULE — e.g. DNA Helix, Vault, Data Stream, Speed, or whatever concept the analysis named for this client's own industry), state its narrative per EPS-013's NARRATIVE RULE (explicitly what it is "Inspired by" — e.g. "Inspired by a heartbeat waveform," "Inspired by cloud computing," "Inspired by trust and protection"), then describe the hero architecture, its design language, and how it becomes the visual identity of the booth as a physical expression of that named, explained concept. This section must read as a short story about why this form exists for this client, not only a description of its shape. Never fall back to generic, could-be-anywhere phrasing like "modern canopy," "floating ceiling," or "tech-inspired structure" as a substitute for naming the actual concept and its inspiration.
+
+SPACE PLANNING covers the architecture's zoning only — overall zoning, open circulation percentage, floor hierarchy, the architectural footprint, and the position of every zone (storage, reception, meeting, product, hospitality) — each stated as an explicit "Zone — purpose" pairing (e.g. Reception — welcoming visitors; Display Zone — hands-on demonstrations; Consultation — private discussions; Experience Zone — interactive healthcare technology; Education Zone — digital learning wall) so it's clear why each zone exists and where it sits, before any mention of what fills it. What actually populates each zone — products, furniture, technology, decoration — belongs in Layer 2, never here.
+
+VISITOR FLOW defines the physical journey only — entry, journey, experience, and exit — how a visitor's body moves through the space and where that path is designed to slow down. This is the architectural circulation path itself; the felt, narrative experience of that same journey belongs in Layer 2's EXHIBITION STORY instead.
+
+STRUCTURAL PLANNING generates a real-world dimension for every major architectural and furniture element actually present in this design — floor dimensions, hero structure dimensions, reception dimensions, meeting room dimensions, storage dimensions, furniture footprints, column positions, ceiling coverage, and maximum heights — using standard exhibition-industry sizing as the baseline, for example: Reception Counter 2.0m × 0.8m, Meeting Table 1.2m diameter, VIP Room 3m × 3m, Storage 12 sqm, Information Counter 2m × 0.7m, Interactive Display 1m × 1m, Display Cabinet 1.2m × 0.6m, Coffee Bar 3m × 2m. For any other major element this design includes that isn't in that list, estimate an equally specific, equally reasonable dimension using the same standard-sizing logic — never leave an element out for lack of an example. Present it as a short list of element: dimension pairs, one per line, covering only elements actually part of this design. These dimensions are design guidance for the rendering model, purely to improve proportion and layout consistency — never a substitute for any exact size, quantity, or capacity the client already explicitly stated elsewhere in the brief; a client-stated exact dimension always overrides the estimate given here for that same element.
+
+MATERIALS states the primary and secondary materials chosen to express the concept and brand personality, and how each specific finish — floor, ceiling, wall, and any glass, metal, wood, or stone actually used — is applied and where, consistent with the client's stated Construction Style and Flooring Specification.
+
+LIGHTING STRATEGY grounds every layer — ambient, architectural, accent, product, and decorative — in the industry's own lighting profile from EPS-004's LEVEL 2 taxonomy (the specific color-temperature range, spotlight/base color, and accent color for this client's industry) as the single dominant palette every layer must stay within — never randomly mix in an unrelated temperature or accent color.
+
+NEGATIVE RULES closes Layer 1 with a short list of hard constraints this design must never violate, stated as direct prohibitions — for example: never exceed the booth boundary (EPS-010); maintain open circulation; do not overlap furniture; do not block entrances; architecture dominates furniture. Include any other negative rule genuinely relevant to this specific design (e.g. no suspended rigging unless requested, per EPS-012; no people of any kind, per EPS-007), stated with the same direct, prohibition-first phrasing.
+
+LAYER 2 SECTION GUIDANCE:
+
+PRODUCT EXPERIENCE names the actual, specific, industry-appropriate products or devices displayed, and the interactive zones and demonstration areas built around them (use the client's own brief if it names specific products, otherwise infer from the industry's typical products per EPS-004's LEVEL 2 taxonomy) — never describe what's displayed using only the generic word "product" as if that were itself a real object.
+
+BRANDING follows EPS-013's BRANDING PLACEMENT HIERARCHY in priority order (Hero Architecture, Reception, Feature Wall, Hanging Sign, LED Screen, Totem, Product Display) — describe logo placement, graphic walls, posters, screens, and digital totems only where each genuinely applies to this design, and never place branding on planters, furniture, or small decorative objects.
+
+FURNITURE describes what furnishes the space plan already established in Layer 1 — reception furniture, meeting tables, chairs, coffee bar, lounge seating, and storage furniture — always as what completes an existing architecture, never as an independent inventory that could justify its own layout.
+
+DIGITAL TECHNOLOGY covers LED screens, touch screens, interactive displays, QR displays, and media walls actually present in this design, consistent with whatever exact quantities and sizes the client specified.
+
+DECORATIVE ELEMENTS covers plants, feature walls, art pieces, and lighting features used purely for atmosphere — the lightest-weight layer of the whole prompt, applied only after everything structural, branded, and functional is already in place.
+
+EXHIBITION STORY describes what a visitor actually experiences while moving through the completed booth — the felt, narrative counterpart to Layer 1's VISITOR FLOW — grounded in the same journey already defined there, but told as an experience rather than a circulation path.
+
+RENDERING INSTRUCTIONS is always the last section of the entire prompt — camera angle, render engine/quality language, and photographic style belong there and nowhere earlier; every section before it describes the design itself, not how it's photographed.
 
 Finish with a single highly detailed rendering prompt, structured exactly as above, suitable for Flux, GPT Image, Midjourney, Stable Diffusion XL, or Imagen.`;
 
@@ -2711,6 +2774,110 @@ const INDUSTRY_STYLE_ATTRIBUTES = {
   'Non-Profit / NGO': 'warm approachable materials, storytelling impact displays, natural inviting palette, soft even community-forward lighting'
 };
 
+// Same 42 keys as INDUSTRY_STYLE_ATTRIBUTES above, but for a different dimension of the same
+// decision: what the product display area actually shows. Without this, the prompt writer
+// tends to describe display zones with the generic word "product" — this gives it real,
+// industry-specific example products/devices to name instead, so the render depicts something
+// concrete and recognizable rather than an anonymous pedestal or shelf. These are illustrative
+// starting points, not a mandatory checklist — the model should still adapt to whatever the
+// client's own brief describes, using these only where the client hasn't specified otherwise.
+const INDUSTRY_EXAMPLE_PRODUCTS = {
+  'Banking & Financial Services': 'Digital Banking Kiosk, ATM, Wealth Management Console, Interactive Finance Dashboard',
+  'Technology & AI': 'Servers, AI Platform Demo, Cloud Services Console, Networking Equipment',
+  'Healthcare & Medical': 'Patient Monitor, Ultrasound Machine, MRI Scanner, CT Scanner, Medical AI Console, Diagnostic Console, Medical Display',
+  'Pharmaceutical': 'Drug Vial Display, Tablet Press Model, Lab Analyzer, Cold Chain Packaging Unit, Molecule Visualization Screen',
+  'Government': 'National Pavilion Model, Smart City Model, Digital Services Kiosk, Interactive Policy Display',
+  'Education': 'Interactive Learning Tablet, VR Learning Station, Digital Whiteboard, Course Catalog Kiosk, Robotics Kit',
+  'Telecommunications': '5G Base Station Model, Network Router, SIM/eSIM Display, Fiber Optic Cable Sample, Smart Device Wall',
+  'Energy & Utilities': 'Smart Meter, Solar Panel Sample, Turbine Model, Grid Control Dashboard, Energy Storage Unit',
+  'Oil & Gas': 'Pipeline Model, Drilling Rig Model, Valve Assembly, Refinery Model, Safety Equipment Display',
+  'Construction & Real Estate': 'Architectural Scale Model, Building Material Samples, VR Walkthrough Station, Interactive Floor Plan Touchscreen',
+  'Architecture & Interior Design': 'Material Sample Wall, Scale Model, Mood Board Display, Furniture Vignette, Lighting Fixture Sample',
+  'Automotive': 'Hero Vehicle, Engine Model, EV Battery Pack, Infotainment Display, Concept Car',
+  'Aviation & Aerospace': 'Aircraft Model, Cockpit Simulator, Engine Turbine Model, Satellite Model, Flight Deck Display',
+  'Logistics & Supply Chain': 'Route Optimization Dashboard, Warehouse Robot Model, Tracking Device Display, Fleet Management Screen, Cargo Container Model',
+  'Manufacturing & Industrial': 'Robotic Arm, CNC Machine Model, Conveyor System Model, IoT Sensor Display, Production Line Diorama',
+  'Food & Beverage': 'Tasting Counter, Product Sampling Display, Packaging Showcase, Ingredient Display, Beverage Dispenser',
+  'Hospitality & Tourism': 'Destination Model, Hotel Room Vignette, Travel Booking Kiosk, Virtual Tour Screen, Resort Scale Model',
+  'Retail & E-commerce': 'Product Shelf Display, Checkout Kiosk, AR Shopping Mirror, Packaging Wall, Mobile App Demo Station',
+  'Luxury & Fashion': 'Runway Mannequin Display, Garment Rack Showcase, Accessory Vitrine, Lookbook Screen, Fragrance Display',
+  'Jewelry & Watches': 'Glass Jewelry Case, Watch Display Stand, Gemstone Showcase, Loupe Station, Engraving Demo',
+  'Beauty & Cosmetics': 'Product Testing Bar, Skincare Display Shelf, Fragrance Sampling Station, Makeup Vanity Display, Ingredient Showcase',
+  'Furniture & Home': 'Living Room Vignette, Sofa Display, Kitchen Mockup, Lighting Fixture Display, Material Swatch Wall',
+  'Sports & Fitness': 'Treadmill Display, Fitness Tracker Kiosk, Sports Gear Rack, Interactive Training Station, Athlete Simulation Screen',
+  'Gaming & Esports': 'Gaming Rig Station, VR Headset Demo, Esports Tournament Screen, Controller Display, Arcade Cabinet',
+  'Media & Broadcasting': 'Broadcast Camera, Studio Desk, Video Wall, Live Streaming Station, Editing Suite Display',
+  'Entertainment': 'Stage Model, Ticketing Kiosk, VR Experience Pod, Character Display, Show Preview Screen',
+  'Finance & Investment': 'Trading Terminal, Portfolio Dashboard, Market Data Screen, Consultation Booth, Investment Simulator',
+  'Insurance': 'Claims Kiosk, Policy Comparison Screen, Risk Assessment Display, Digital Advisor Station, Coverage Calculator',
+  'FinTech': 'Mobile Payment Terminal, Digital Wallet Display, Blockchain Dashboard, API Integration Screen, Contactless Payment Demo',
+  'Smart Cities': 'Smart City Model, IoT Sensor Network Display, Traffic Management Dashboard, Digital Twin Screen, Smart Lighting Pole',
+  'Sustainability & Green Energy': 'Solar Panel Sample, Wind Turbine Model, Recycling Station Display, Carbon Tracker Dashboard, Green Building Model',
+  'Agriculture': 'Smart Irrigation Model, Agricultural Drone Display, Crop Sensor Kiosk, Farm Equipment Model, Produce Sampling Table',
+  'Marine & Maritime': 'Ship Model, Navigation Console, Marine Engine Display, Port Logistics Dashboard, Sonar Equipment',
+  'Security & Defense': 'Surveillance Camera Display, Drone Model, Tactical Equipment Case, Command Center Dashboard, Armored Vehicle Model',
+  'Robotics & Automation': 'Robotic Arm Demo, Autonomous Mobile Robot, Automation Control Panel, Sensor Array Display, Cobot Station',
+  'Electronics & Consumer Tech': 'Smartphone Display Wall, Wearable Device Case, Smart Home Hub Demo, Audio Equipment Showcase, Gadget Sampling Table',
+  'Artificial Intelligence': 'AI Model Dashboard, Chatbot Demo Station, Computer Vision Screen, Neural Network Visualization, Voice Assistant Display',
+  'Cloud Computing': 'Server Rack Model, Cloud Dashboard Screen, Data Migration Demo, API Console Display, Hybrid Cloud Diagram Wall',
+  'Data Centers': 'Server Rack Display, Cooling System Model, Network Switch Showcase, Data Flow Visualization, Uptime Dashboard',
+  'Cybersecurity': 'Threat Detection Dashboard, Security Operations Console, Firewall Appliance Display, Penetration Testing Demo, Biometric Access Station',
+  'Software & SaaS': 'Product Demo Screen, Dashboard Walkthrough Station, API Integration Display, Live Software Demo Kiosk, Subscription Console',
+  'Non-Profit / NGO': 'Impact Story Display, Donation Kiosk, Program Photo Wall, Interactive Impact Map, Volunteer Sign-up Station'
+};
+
+// Same 42 keys again — the industry's lighting profile: dominant color temperature range,
+// spotlight/base light color, and accent color. LDS-001 already governs lighting layering and
+// technique in general; this is the industry-specific piece it was missing — which single
+// temperature and color palette a given industry's lighting should commit to, so lighting
+// reads as a deliberate professional decision rather than a randomly mixed default. Per LDS-001's
+// own COLOR TEMPERATURE rule, the client's brief and the architectural/construction style may
+// still refine this, but never contradict it with an unrelated, randomly mixed temperature.
+const INDUSTRY_LIGHTING_PROFILES = {
+  'Banking & Financial Services': '3000K–3500K warm white, bronze/brass accent lighting, subdued formal spotlights',
+  'Technology & AI': '5000K–6000K cool white, blue accent lighting, RGB feature lighting',
+  'Healthcare & Medical': '4000K–5000K, white spotlights, soft blue accent, minimal warm light',
+  'Pharmaceutical': '5000K–6000K cool white, white/blue accent lighting, clinical precision spotlights',
+  'Government': 'neutral white, controlled and formal lighting, minimal accent',
+  'Education': '3500K–4500K neutral white, soft yellow accent, bright even lighting',
+  'Telecommunications': '4500K–5500K cool white, blue/cyan accent lighting, dynamic LED feature lighting',
+  'Energy & Utilities': '3500K–4500K neutral white, green/amber accent lighting, infographic highlight lighting',
+  'Oil & Gas': '3000K–3500K warm white, amber accent lighting, focused technical spotlights',
+  'Construction & Real Estate': '3000K–4000K warm white, amber accent lighting, model highlight spotlights',
+  'Architecture & Interior Design': '3500K–4000K neutral white, soft accent lighting, curated gallery lighting',
+  'Automotive': '4500K–5500K cool white, dramatic spotlight accent, high-contrast hero lighting',
+  'Aviation & Aerospace': '5000K–6000K cool white, metallic blue accent lighting, dramatic uplighting',
+  'Logistics & Supply Chain': '4000K–4500K neutral white, blue accent lighting, clean functional lighting',
+  'Manufacturing & Industrial': '4000K–4500K neutral white, amber task-accent lighting, focused task lighting',
+  'Food & Beverage': '2700K–3000K warm white, amber accent lighting, rich ambient lighting',
+  'Hospitality & Tourism': '2700K–3200K warm white, gold accent lighting, soft ambient lighting',
+  'Retail & E-commerce': '4000K–5000K cool white, vibrant accent lighting, bright energetic lighting',
+  'Luxury & Fashion': '2700K–3200K warm white, bronze accent lighting, dramatic spotlight',
+  'Jewelry & Watches': '2700K–3200K warm white spotlights, warm gold accent lighting, intimate focused lighting',
+  'Beauty & Cosmetics': '3000K–3500K warm white, soft pink/gold accent lighting, flattering mirror-adjacent lighting',
+  'Furniture & Home': '2700K–3200K warm white, soft amber accent lighting, homely ambient lighting',
+  'Sports & Fitness': '4500K–5500K cool white, vibrant RGB accent lighting, high-energy dynamic lighting',
+  'Gaming & Esports': '5000K–6500K cool/dark ambient, RGB accent lighting, immersive dynamic lighting',
+  'Media & Broadcasting': '4000K–5000K neutral white, broadcast key/rim lighting, studio-style lighting',
+  'Entertainment': '2700K–3500K warm theatrical light, bold color-wash accent, dramatic theatrical lighting',
+  'Finance & Investment': '3000K–3500K warm white, subdued gold accent lighting, confident formal lighting',
+  'Insurance': '3500K–4000K neutral white, soft blue accent lighting, calm even lighting',
+  'FinTech': '4500K–5500K cool white, blue/digital accent lighting, dynamic data-forward lighting',
+  'Smart Cities': '4500K–5500K cool white, blue/green accent lighting, dynamic ambient lighting',
+  'Sustainability & Green Energy': '3000K–4000K neutral/warm white, green accent lighting, soft natural lighting',
+  'Agriculture': '3000K–3500K warm white, green/earthy accent lighting, soft natural lighting',
+  'Marine & Maritime': '4500K–5500K cool white, blue accent lighting, nautical uplighting',
+  'Security & Defense': '3500K–4500K neutral white, restrained amber accent lighting, controlled precise lighting',
+  'Robotics & Automation': '5000K–6000K cool white, blue/RGB accent lighting, dynamic precision lighting',
+  'Electronics & Consumer Tech': '4500K–5500K cool white, vibrant RGB accent lighting, dynamic product lighting',
+  'Artificial Intelligence': '5000K–6500K cool white, glowing blue accent lighting, futuristic dynamic lighting',
+  'Cloud Computing': '4500K–5500K cool white, blue accent lighting, dynamic data-visualization lighting',
+  'Data Centers': '4000K–5000K neutral/cool white, blue accent lighting, focused ambient lighting',
+  'Cybersecurity': '4500K–5500K cool white, red/blue accent lighting, dynamic digital lighting',
+  'Software & SaaS': '4000K–4500K neutral white, blue accent lighting, dynamic bright lighting',
+  'Non-Profit / NGO': '3000K–3500K warm white, soft amber accent lighting, community-forward even lighting'
+};
+
 // Shared between EPS-004's LEVEL 4 style taxonomy (sent to the model) and the brand-personality
 // dropdown's own on-page hint (updateBrandPersonalityHint) — one list, so the two can never
 // drift out of sync. Every entry is an emotional/expression layer on top of whatever
@@ -2771,8 +2938,8 @@ LEVEL 1 — ARCHITECTURAL STYLE (the single most important style dimension)
 - Corporate: professional, balanced, functional, clean branding, meeting focused.
 - Industrial: concrete, black, wood, raw textures, open ceiling.
 
-LEVEL 2 — INDUSTRY STYLE (adds industry-specific design language — architectural language, material selection, color accents, display strategy, visitor experience, product presentation, lighting mood, digital technology integration, and decorative elements — on top of Level 1 and the client's own brand colors. This level only ever ADDS a layer; it must never override, replace, or contradict the architectural style or the brand identity already established. Optional — the client may leave this unset if not applicable.)
-${Object.entries(INDUSTRY_STYLE_ATTRIBUTES).map(([name, attrs]) => `- ${name}: ${attrs}.`).join('\n')}
+LEVEL 2 — INDUSTRY STYLE (adds industry-specific design language — architectural language, material selection, color accents, display strategy, visitor experience, product presentation, lighting mood, digital technology integration, and decorative elements — on top of Level 1 and the client's own brand colors. This level only ever ADDS a layer; it must never override, replace, or contradict the architectural style or the brand identity already established. Each entry also lists example products typical of that industry, and its lighting profile — use these to decide what the product display area actually shows (describe specific, recognizable product types there, never the generic word "product" as if it were a real object) and which single color-temperature/accent-color palette the lighting design commits to, per LDS-001's own rule never to randomly mix lighting temperatures.)
+${Object.entries(INDUSTRY_STYLE_ATTRIBUTES).map(([name, attrs]) => `- ${name}: ${attrs}. Typical products to feature in the product display area: ${INDUSTRY_EXAMPLE_PRODUCTS[name] || 'infer specific, recognizable products typical of this industry'}. Lighting profile: ${INDUSTRY_LIGHTING_PROFILES[name] || 'infer a single consistent color temperature and accent color typical of this industry'}.`).join('\n')}
 
 LEVEL 3 — CONSTRUCTION STYLE (defines material quality and build complexity — very important for construction feasibility)
 - Wood Modular: MDF, plywood, melamine, laminate, easy assembly.
@@ -3231,11 +3398,40 @@ LOGO HIERARCHY
 • Primary logo: large, highly visible, architecturally integrated, visible from long distance, located on the primary facade.
 • Secondary logos may appear on the reception counter, side walls, interior graphics, meeting areas, or product displays — they should support the primary logo, never compete with it.
 
+BRANDING PLACEMENT HIERARCHY (core rule) — when deciding which physical elements actually carry branding, always follow this priority order, strongest brand carrier first, and never skip ahead to a lower-priority surface while a higher one goes unbranded:
+1. Hero Architecture — the single dominant structural element (per the HERO STRUCTURE RULE and ICONIC CONCEPT RULE below) always carries the primary logo first; this is the strongest brand statement in the booth.
+2. Reception — the reception counter/backdrop is the next-strongest branding surface, reinforcing the primary logo at the booth's welcoming point.
+3. Feature Wall — a dedicated branded wall surface that extends brand presence beyond the hero structure and reception.
+4. Hanging Sign — an overhead branded element (only where EPS-012 permits real rigging) for long-distance visibility across the hall.
+5. LED Screen — digital branding and content that supports the physical branding above it, never a replacement for it.
+6. Totem — a freestanding branded element that extends visibility at a secondary location, never the booth's main branding statement.
+7. Product Display — branding on packaging, signage, or graphics tied directly to the displayed products — the lightest-weight branding surface in this hierarchy.
+
+Never place branding on: planters, furniture, or small decorative objects — these are never legitimate branding surfaces, regardless of booth size or how much empty space they offer. Branding should always feel like a deliberate architectural and communication decision, never an afterthought scattered onto whatever surface happened to be available.
+
 MAIN FACADE RULE
 The booth must have a clearly identifiable front facade. The main structural feature should face the primary visitor traffic, and the primary logo should always be integrated into this facade. The facade should immediately communicate the brand identity.
 
 STRUCTURAL FEATURE
-Every booth should include one dominant architectural feature — examples: entrance portal, feature frame, architectural arch, signature wall, curved facade, floating canopy (self-supported), or sculptural frame. This feature should carry the main logo whenever possible.
+Every booth should include one dominant architectural feature, built as the ICONIC CONCEPT defined below (entrance portal, feature frame, arch, signature wall, curved facade, self-supported canopy, or sculptural frame are all valid physical forms this feature can take — but the form must express the iconic concept, never stand in as a generic label for it). This feature should carry the main logo whenever possible.
+
+ICONIC CONCEPT RULE (core rule) — never describe the hero architecture using generic, could-be-anywhere words like "modern canopy," "floating ceiling," "tech-inspired structure," "dynamic form," or "sculptural feature" used as if that were the concept itself. Those are physical descriptions, not a concept — a hero structure needs an actual idea behind its shape. Instead, infer the client's industry from the brief and propose ONE specific, iconic architectural concept inspired by that business, then describe the hero structure as a physical expression of that named concept. The concept must be named explicitly in the analysis and carried through into the final prompt's ARCHITECTURAL CONCEPT section — never left implicit.
+
+Representative concepts by industry (illustrative, not exhaustive — for any industry not listed, infer one equally specific, equally iconic concept using the same logic: find the one idea, object, or motif most instantly recognizable as belonging to that field, then translate it into an architectural form):
+• Healthcare / Medical: DNA Helix, Heartbeat Wave, Medical Cross, MRI Ring, Flowing Human Anatomy.
+• Banking / Finance: Shield, Vault, Financial Network, Trust Gateway.
+• Technology: Data Stream, Cloud Ring, AI Network, Digital Portal.
+• Automotive: Speed, Wind Tunnel, Motion Ribbon.
+• Energy / Oil & Gas: Flame, Refinery Tower, Power Grid, Pipeline Flow.
+• Aviation / Aerospace: Wing, Flight Path, Turbine, Orbit.
+• Government / National: National Emblem Motif, Gateway of Unity, Heritage Arch.
+• Luxury / Fashion: Runway, Draped Fabric, Gemstone Facet, Couture Silhouette.
+• Food & Beverage: Harvest Wave, Vine, Grain Silo Form, Steam Rise.
+• Sports & Fitness: Momentum Arc, Finish Line, Pulse, Stadium Curve.
+
+The hero architecture should become the visual identity of the booth — recognizable at a glance as belonging to this specific client's industry, not interchangeable with a hero structure from an unrelated brief.
+
+NARRATIVE RULE (core rule) — naming the concept is not enough on its own; every hero architectural element must also have a narrative that explains WHY the structure takes this form, stated explicitly as "Inspired by ___." Never leave the inspiration implicit or assume the shape speaks for itself. For example: Healthcare — "Inspired by a heartbeat waveform," "Inspired by MRI scanning geometry," "Inspired by the human nervous system," "Inspired by flowing blood circulation." Technology — "Inspired by cloud computing." Banking — "Inspired by trust and protection." Follow the same logic for any industry: identify the one real-world phenomenon, process, or idea the chosen concept comes from, and state it as the structure's inspiration. The ARCHITECTURAL CONCEPT section must read as a short story about why this form exists for this client — what it's inspired by and what it communicates — not only a description of its shape.
 
 VISIBILITY RULE
 The main company logo should remain visible from the primary viewing angle. Avoid placing walls, screens, or decorative elements that block the logo. The logo should remain readable from visitor circulation paths.
@@ -3329,12 +3525,10 @@ OPTIONAL FLOOR FEATURES — any combination of these may be explicitly requested
 • Underfloor RGB Lighting: color-changeable LED lighting beneath a translucent section of flooring — reads dynamic, digital-first, and futuristic.
 • Illuminated Glass Inserts: discrete backlit glass panels set into the floor surface — a refined, premium accent rather than a full glass floor.
 • Cable Management System: visible or implied floor-level cable channels/covers — reads organized and professional, common in technology-heavy booths.
-• Floor Boxes: flush recessed floor outlets/access points set into the floor surface at functional locations (near counters, AV stations).
-• Integrated Power Outlets: power outlets built into the floor or floor edge, flush and unobtrusive.
+• Integrated Floor Services: functional connection points built into the floor or floor edge, flush and unobtrusive — the client's brief states exactly which services are included (Power Outlet, Data Port, USB Charging, Ethernet, HDMI, Audio, Floor Box); render only the specific ones requested as small, flush, professionally integrated fittings at functional locations (near counters, AV stations), never a generic unlabeled fixture.
 • Flush Access Panels: removable panels set flush with the floor surface for under-floor service access, visually seamless with the surrounding finish.
 • Accessible Ramp: a code-compliant sloped ramp providing step-free access onto a raised floor.
 • Anti-slip Finish: a visibly textured, matte, safety-oriented surface treatment rather than a high-gloss one.
-• Waterproof Finish: a sealed, moisture-resistant surface appearance, relevant for outdoor or food/beverage-adjacent booths.
 • Acoustic Flooring: a surface that reads soft and sound-dampening (thicker carpet, cushioned underlay) rather than hard and reflective.
 • Sustainable Materials: a visibly natural, low-impact material character (reclaimed wood tones, natural fiber carpet texture) supporting a Sustainable or Eco Friendly brand personality.
 
@@ -3510,6 +3704,8 @@ STAGE LIGHTING — where a stage or presentation area exists, lighting must clea
 EXHIBITION LIGHTING — general exhibition-hall lighting (the ambient light of the surrounding venue, not the booth or stage itself) should read as consistent, professional venue lighting — not the dramatic, moody lighting appropriate to a stage moment.
 
 COLOR TEMPERATURE — be deliberate and consistent: warm light (approximately 2700–3000K) reads as inviting, luxurious, hospitality-oriented; neutral light (3500–4500K) reads as clean, corporate, professional; cool light (5000K+) reads as clinical, technological, futuristic. Mixing temperatures without a clear reason (e.g., warm ambient with cool accent for contrast) reads as an error, not a stylistic choice.
+
+INDUSTRY-SPECIFIC LIGHTING (core rule) — where the client selected an Industry Style, EPS-004's LEVEL 2 taxonomy specifies that industry's own lighting profile: a specific color-temperature range, spotlight/base light color, and accent color (e.g. Healthcare & Medical commits to 4000K–5000K with white spotlights and a soft blue accent; Luxury & Fashion commits to 2700K–3200K warm white with a bronze accent; Technology & AI commits to cool white with a blue accent and an RGB feature; Government commits to neutral white with controlled, formal lighting). Treat that profile as the single dominant lighting decision for the whole booth — every ambient, task, accent, and architectural light layer described above must stay within it. Never randomly mix lighting temperatures or accent colors from a different, unrelated industry profile or introduce a second, uncoordinated palette without a clear, brief-driven reason.
 
 SHADOW CONTROL — shadows should be present and physically plausible — flat, shadowless renders read as artificial — but never so harsh or chaotic that they obscure important elements or read as a lighting mistake rather than an intentional effect.`;
 
@@ -3767,6 +3963,8 @@ function collectAdditionalRequirements(){
     ['pedestals', 'PRODUCT PEDESTALS', 'product pedestal(s)'],
     ['interactivedisplay', 'INTERACTIVE PRODUCT DISPLAY', 'interactive product display(s)'],
     ['digitaltotem', 'DIGITAL TOTEM', 'digital totem(s)'],
+    ['literaturerack', 'LITERATURE RACK', 'literature rack(s)'],
+    ['kiosk', 'INTERACTIVE KIOSK', 'interactive kiosk(s)'],
   ];
   for(const [id, title, unitLabel] of quantityOnlyItems){
     if(document.getElementById('addreq_' + id).checked){
@@ -3796,8 +3994,8 @@ function collectAdditionalRequirements(){
   // Simple checkboxes with no quantity — grouped by category for a clearer, better-organized brief.
   const simpleGroups = [
     ['Visitor Experience', [['addreq_openmeeting', 'Open Meeting Area'], ['addreq_coffeebar', 'Coffee Bar / Hospitality']]],
-    ['Product Display', [['addreq_brochurestand', 'Brochure Stand'], ['addreq_literaturerack', 'Literature Rack']]],
-    ['Digital & Technology', [['addreq_kiosk', 'Interactive Kiosk'], ['addreq_chargingstation', 'Charging Station'], ['addreq_qrdisplay', 'QR Code Display']]],
+    ['Product Display', [['addreq_brochurestand', 'Brochure Stand']]],
+    ['Digital & Technology', [['addreq_chargingstation', 'Charging Station'], ['addreq_qrdisplay', 'QR Code Display']]],
     ['Functional Spaces', [['addreq_pantry', 'Pantry'], ['addreq_lockablecabinet', 'Lockable Cabinet'], ['addreq_hiddenstorage', 'Hidden Storage']]],
     ['Lighting', [['addreq_ambientlighting', 'Ambient Lighting'], ['addreq_spotlights', 'Spotlights'], ['addreq_hiddenledlighting', 'Hidden LED Lighting'], ['addreq_covelighting', 'Cove Lighting'], ['addreq_accentlighting', 'Product Accent Lighting'], ['addreq_decorativelighting', 'Decorative Lighting']]],
     ['Decorative Elements', [['addreq_planters', 'Planters'], ['addreq_greenwall', 'Green Wall'], ['addreq_decorativepanels', 'Decorative Panels'], ['addreq_brandgraphics', 'Brand Graphics'], ['addreq_hangingdecor', 'Hanging Decorations'], ['addreq_sculpture', 'Feature Sculpture']]],
@@ -3853,6 +4051,10 @@ function collectFlooringSpecification(){
   }
 
   const floorFeatures = Array.from(document.querySelectorAll('.floor-feature-cb:checked')).map(cb => cb.value);
+  if(document.getElementById('floorfeat_integratedservices').checked){
+    const services = Array.from(document.querySelectorAll('.floor-service-cb:checked')).map(cb => cb.value);
+    floorFeatures.push(services.length ? `Integrated Floor Services (${services.join(', ')})` : 'Integrated Floor Services');
+  }
   lines.push(floorFeatures.length
     ? `Optional Floor Features — EXPLICITLY REQUESTED BY THE CLIENT: ${floorFeatures.join(', ')}.`
     : 'Optional Floor Features: none requested.');
@@ -4190,6 +4392,10 @@ function updateFloorFinishSections(select){
 
 function toggleMarbleColorCustom(select){
   document.getElementById('f_marbleColorCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
+}
+
+function toggleFloorFeatureSubsection(checked){
+  document.getElementById('floorfeat_integratedservices_body').style.display = checked ? 'block' : 'none';
 }
 
 function toggleRaisedFloorHeight(select){
@@ -4972,7 +5178,7 @@ ${mode==='booth' ? 'Required brand colors: ' + colorHexes.join(', ') : ''}
 ${mode==='booth' ? 'Poster artwork status: ' + hasPosters : ''}
 ${mode==='booth' ? 'Number of posters to feature: ' + (posterCount || 'not specified') : ''}
 Architectural style: ${archStyle} — typical colors/materials for this style: ${ARCH_STYLE_COLORS[archStyle] || ''}
-${industryStyle ? 'Industry style: ' + industryStyle + ' — industry-specific design language to layer on top of the architectural style above (never replacing it or the brand colors): ' + (INDUSTRY_STYLE_ATTRIBUTES[industryStyle] || '') : ''}
+${industryStyle ? 'Industry style: ' + industryStyle + ' — industry-specific design language to layer on top of the architectural style above (never replacing it or the brand colors): ' + (INDUSTRY_STYLE_ATTRIBUTES[industryStyle] || '') + '. Typical products/devices for this industry (use as inspiration for the product display area — describe specific, recognizable product types there, never the generic word "product" as if it were a real object; if the client\'s own description already names specific products, always use those instead): ' + (INDUSTRY_EXAMPLE_PRODUCTS[industryStyle] || '') + '. Lighting profile for this industry (the single color-temperature/accent-color palette every lighting layer in this booth must commit to — never randomly mix in an unrelated temperature or accent color): ' + (INDUSTRY_LIGHTING_PROFILES[industryStyle] || '') : ''}
 Construction style: ${constructionStyle}
 Brand personality: ${brandPersonality} — emotional/expressive layer to apply across architectural mood, shape language, materials, lighting atmosphere, furniture style, decorative elements, visitor experience, color intensity, and graphic style (enhancing the architectural style and industry style above, never overriding either): ${BRAND_PERSONALITY_ATTRIBUTES[brandPersonality] || ''}
 Client's detailed description: """${desc}"""
@@ -4988,7 +5194,7 @@ ${mode==='booth' ? collectAdditionalRequirements() : ''}
 
 You are DMR AI Exhibition Architect.
 
-Follow the DMR Exhibition Prompt Standards (EPS) below exactly. These standards are fixed and permanent — all fourteen apply to every single request, regardless of what the client brief contains. EPS-001 governs how you think, not just what you write: it defines the senior-architect persona, the ten-step internal reasoning sequence you must work through silently before writing anything (brief analysis, design objective, architectural concept, circulation, functional zones, structural hierarchy, materials, branding integration, lighting strategy, and only then the rendering prompt itself), and the mandatory eleven-section structure — PROJECT SUMMARY through RENDERING INSTRUCTIONS — that the final image_prompt must always use instead of a flat list of furniture. EPS-003 is a growing list of hard corrections from real past mistakes — treat every rule in it as an absolute override, even if something elsewhere in this prompt or in the client's brief seems to suggest otherwise. EPS-005 governs exact dimensions and human-scale proportions and must be followed with numerical precision — treat every measurement in it as a hard construction constraint, not a suggestion. EPS-006 is the standard vocabulary of booth elements and their priority — use it to decide which components to include or omit for this specific project; never invent an element outside this vocabulary without clear justification from the brief, and never overcrowd the booth by including every possible element regardless of size or budget. EPS-007 is an absolute, non-negotiable rule with zero exceptions: the booth must never contain any people, staff, visitors, or crowds in any form. EPS-008 is the mandatory design rulebook governing floor shape, height limits, open-booth requirements, meeting-room openness, structural realism, visitor flow, and the architectural grid — every numeric limit and default in it (4.0m max height, 60% minimum open sides, 36 sqm storage threshold, rectangular floor) is a hard constraint that only the client's explicit brief may override, never your own judgment. EPS-009 governs reception counter placement and design — the reception's position must be decided BEFORE any other furniture or interior layout, then treated as a locked architectural anchor that everything else is arranged around; it must sit flush with the raised floor's front edge on the booth's perimeter, never deep inside, never at an island booth's center, and never hidden behind other elements. EPS-010 is an absolute construction-legality rule: the raised floor is the exact footprint and legal construction boundary of the booth — every wall, column, counter, and piece of furniture must be fully supported by and contained within that floor, with zero overhang, zero floating elements, and zero exceptions unless the client explicitly requests otherwise; before finalizing any design, verify every object sits entirely within this boundary and reposition anything that doesn't. EPS-011 gives the exact quantity of each element from EPS-006's vocabulary to include based on the booth's actual square meterage (reception counters, meeting tables, storage, LED screens, seating, open-space ratio, and more, each with its own size-tiered range) — use it together with EPS-006 to decide not just what belongs in the booth but how much of it, so small booths never end up overcrowded and large booths never end up empty. EPS-012 is an absolute default: no suspended venue rigging, hanging trusses, or ceiling suspension of any kind unless the client explicitly requests it — the booth structure must be self-supporting, achieving visual impact through architectural frames and columns instead. EPS-013 governs how the logo becomes architecture, not decoration — every booth needs one dominant hero structural element that is architecturally stronger than everything else, is the primary carrier of the logo, and is what the booth is designed around, not a wall the logo gets placed on afterward. EPS-015 governs flooring — the exact Floor Type, Floor Finish, Carpet Type, Raised Floor Height, Floor Edge Finish, and Hidden Floor Lighting the client specified must all be reflected precisely in the render, using EPS-015's visual guidance for what each option actually looks like; where the client left flooring unspecified, default to a raised floor with premium exhibition carpet and a straight edge, never bare venue concrete.
+Follow the DMR Exhibition Prompt Standards (EPS) below exactly. These standards are fixed and permanent — all fourteen apply to every single request, regardless of what the client brief contains. EPS-001 governs how you think, not just what you write: it defines the senior-architect persona, the ten-step internal reasoning sequence you must work through silently before writing anything (brief analysis, design objective, architectural concept, circulation, functional zones, structural hierarchy, materials, branding integration, lighting strategy, and only then the rendering prompt itself), and the mandatory PAE-002 two-layer structure — LAYER 1, the Architectural Layer (Project Summary, Design Objective, Architectural Concept, Space Planning, Visitor Flow, Structural Planning, Materials, Lighting Strategy, Negative Rules), always established first, followed by LAYER 2, the Exhibition Layer (Product Experience, Branding, Furniture, Digital Technology, Decorative Elements, Exhibition Story, Rendering Instructions) — that the final image_prompt must always use instead of a flat list of furniture. EPS-003 is a growing list of hard corrections from real past mistakes — treat every rule in it as an absolute override, even if something elsewhere in this prompt or in the client's brief seems to suggest otherwise. EPS-005 governs exact dimensions and human-scale proportions and must be followed with numerical precision — treat every measurement in it as a hard construction constraint, not a suggestion. EPS-006 is the standard vocabulary of booth elements and their priority — use it to decide which components to include or omit for this specific project; never invent an element outside this vocabulary without clear justification from the brief, and never overcrowd the booth by including every possible element regardless of size or budget. EPS-007 is an absolute, non-negotiable rule with zero exceptions: the booth must never contain any people, staff, visitors, or crowds in any form. EPS-008 is the mandatory design rulebook governing floor shape, height limits, open-booth requirements, meeting-room openness, structural realism, visitor flow, and the architectural grid — every numeric limit and default in it (4.0m max height, 60% minimum open sides, 36 sqm storage threshold, rectangular floor) is a hard constraint that only the client's explicit brief may override, never your own judgment. EPS-009 governs reception counter placement and design — the reception's position must be decided BEFORE any other furniture or interior layout, then treated as a locked architectural anchor that everything else is arranged around; it must sit flush with the raised floor's front edge on the booth's perimeter, never deep inside, never at an island booth's center, and never hidden behind other elements. EPS-010 is an absolute construction-legality rule: the raised floor is the exact footprint and legal construction boundary of the booth — every wall, column, counter, and piece of furniture must be fully supported by and contained within that floor, with zero overhang, zero floating elements, and zero exceptions unless the client explicitly requests otherwise; before finalizing any design, verify every object sits entirely within this boundary and reposition anything that doesn't. EPS-011 gives the exact quantity of each element from EPS-006's vocabulary to include based on the booth's actual square meterage (reception counters, meeting tables, storage, LED screens, seating, open-space ratio, and more, each with its own size-tiered range) — use it together with EPS-006 to decide not just what belongs in the booth but how much of it, so small booths never end up overcrowded and large booths never end up empty. EPS-012 is an absolute default: no suspended venue rigging, hanging trusses, or ceiling suspension of any kind unless the client explicitly requests it — the booth structure must be self-supporting, achieving visual impact through architectural frames and columns instead. EPS-013 governs how the logo becomes architecture, not decoration — every booth needs one dominant hero structural element that is architecturally stronger than everything else, is the primary carrier of the logo, and is what the booth is designed around, not a wall the logo gets placed on afterward. EPS-015 governs flooring — the exact Floor Type, Floor Finish, Carpet Type, Raised Floor Height, Floor Edge Finish, and Hidden Floor Lighting the client specified must all be reflected precisely in the render, using EPS-015's visual guidance for what each option actually looks like; where the client left flooring unspecified, default to a raised floor with premium exhibition carpet and a straight edge, never bare venue concrete.
 
 <<EPS-001 START>>
 
@@ -5107,15 +5313,32 @@ If a logo image is attached, extract its actual dominant colors and general visu
 If poster images are attached, similarly note their dominant colors, imagery style, and content category to shape your functional_zones and primary_materials decisions for the poster-display area.
 If a client reference image is attached (a photo of a booth, material, or style the client likes — this is always the last attached image when present, and is entirely optional), study it carefully and let it inform your concept, primary_materials, and lighting_strategy decisions: color palette, lighting style, flooring, furniture style, overall form, materials and finishes, ceiling treatment, and general mood. Never plan to copy the reference image, reproduce any logo, text, or branding visible in it, or recreate it as a whole scene. If no reference image is attached, ignore this instruction entirely.
 
-Never generate an image yourself. Never write the final rendering prompt at this stage, and never show the ten-step reasoning process itself — output only the finished hidden analysis below. Respond in JSON only, with no explanation outside the JSON and no Markdown fences, using exactly this shape:
+Never generate an image yourself. Never write the final rendering prompt at this stage, and never show the ten-step reasoning process itself — output only the finished hidden analysis below.
+
+MODULAR ANALYSIS STRUCTURE — this analysis is organized into named modules (concept, space_planning, architecture, materials, lighting, branding), each grouping the decisions that actually belong together. This is still ONE analysis from ONE pass of reasoning — the modules are how the record is organized, not separate stages — but keeping them clearly separated is what will let this record cleanly split into independent engines later if that ever becomes necessary, without redoing the underlying design thinking. Every module must still be internally consistent with every other: space_planning is a direct consequence of concept, architecture executes concept, lighting reveals architecture and materials, branding follows architecture — never a module decided in isolation from the others.
+
+Respond in JSON only, with no explanation outside the JSON and no Markdown fences, using exactly this shape:
 {
-  "concept": "the design objective and the unifying architectural concept together — what this booth must achieve for the client, and the single idea that gives every later decision a reason, grounded in the brief's actual facts (2-4 sentences)",
-  "visitor_flow": "how a visitor's body actually moves through the space from first approach to the point they leave, and where that path is designed to slow down (2-4 sentences)",
-  "hero_structure": "the one architecturally dominant element, why it is the primary carrier of the logo per EPS-013, and how every other structural element is visibly subordinate to it (2-4 sentences)",
-  "primary_materials": "the specific materials and finishes chosen to express the concept and brand personality and why — never a generic materials list (2-4 sentences)",
-  "functional_zones": "reception, meeting, product display, storage, hospitality, and any client-required areas — sized and positioned as a direct consequence of visitor_flow, each with its purpose stated, following EPS-008/EPS-009/EPS-011's placement and quantity rules (2-4 sentences)",
-  "lighting_strategy": "how light reveals the hero_structure and primary_materials already decided, zone by zone (2-4 sentences)",
-  "brand_integration": "how the logo and brand identity become part of the architecture itself rather than signage applied afterward, consistent with hero_structure (2-4 sentences)"
+  "concept": {
+    "design_objective": "in one clear idea, what this booth must achieve for the client (e.g. maximize qualified meetings, showcase one hero product, project national prestige), grounded in the brief's actual facts (1-2 sentences)",
+    "architectural_concept": "name the one specific, industry-inspired iconic concept this booth expresses (per EPS-013's ICONIC CONCEPT RULE — e.g. DNA Helix for healthcare, Vault for banking, Data Stream for technology, Speed for automotive, or an equally specific concept you infer for this client's own industry), then state its narrative per EPS-013's NARRATIVE RULE — explicitly what the form is 'Inspired by' (e.g. 'Inspired by a heartbeat waveform,' 'Inspired by cloud computing,' 'Inspired by trust and protection'). Never describe it using only generic form words like 'modern canopy,' 'floating ceiling,' or 'tech-inspired structure' without naming both the concept and what inspired it. This is the single unifying idea every other module must trace back to (2-4 sentences)"
+  },
+  "space_planning": {
+    "visitor_flow": "how a visitor's body actually moves through the space from first approach to the point they leave, and where that path is designed to slow down (2-4 sentences)",
+    "functional_zones": "reception, meeting, product display, storage, hospitality, and any client-required areas — sized and positioned as a direct consequence of visitor_flow, following EPS-008/EPS-009/EPS-011's placement and quantity rules. State each zone as an explicit 'Zone — purpose' pairing, the specific reason that zone exists for this client, not just what's placed inside it (e.g. Reception — welcoming visitors; Display Zone — hands-on demonstrations; Consultation — private discussions; Experience Zone — interactive healthcare technology; Education Zone — digital learning wall) — this is what lets the rendering model understand WHY each zone exists. For the product display zone specifically, name the actual, specific, industry-appropriate products or devices it shows (use the client's own brief if it names any, otherwise infer from the industry's typical products per EPS-004's LEVEL 2 taxonomy) — never describe it using only the generic word 'product' as if that were itself a real object (2-4 sentences)"
+  },
+  "architecture": {
+    "hero_structure": "describe the one architecturally dominant element that physically executes concept.architectural_concept, why it is the primary carrier of the logo, and how every other structural element is visibly subordinate to it (2-4 sentences)"
+  },
+  "materials": {
+    "primary_materials": "the specific materials and finishes chosen to express concept.architectural_concept and the client's brand personality and why — never a generic materials list (2-4 sentences)"
+  },
+  "lighting": {
+    "lighting_strategy": "how light reveals architecture.hero_structure and materials.primary_materials already decided, zone by zone. Ground this in the industry's own lighting profile from EPS-004's LEVEL 2 taxonomy (the specific color-temperature range, spotlight/base color, and accent color for this client's industry) as the single dominant palette every layer must stay within — never randomly mix in an unrelated temperature or accent color (2-4 sentences)"
+  },
+  "branding": {
+    "brand_integration": "how the logo and brand identity become part of the architecture itself rather than signage applied afterward, consistent with architecture.hero_structure. Decide which of this design's actual elements carry branding by following EPS-013's BRANDING PLACEMENT HIERARCHY in priority order (Hero Architecture, Reception, Feature Wall, Hanging Sign, LED Screen, Totem, Product Display) — only include a lower-priority carrier where it genuinely applies to this design, and never place branding on planters, furniture, or small decorative objects (2-4 sentences)"
+  }
 }
 Every field must be specific to this exact project — reference the actual dimensions, colors, style, and industry given in the brief, never generic exhibition-design language that could describe any project.`;
 
@@ -5141,12 +5364,12 @@ Rules carried over from the design standards that governed the analysis, restate
 
 CAMERA ANGLE FOR THIS INITIAL RENDER (belongs only in the final RENDERING INSTRUCTIONS section, never earlier): specify a TOP VIEW / bird's-eye plan perspective, looking straight down at the booth from directly above, at an angle and height that keeps every wall, every piece of furniture, every fixture, and every element of the layout clearly and fully visible with nothing hidden or occluded. This image becomes the master reference that every later camera-angle render is generated from, so full, unambiguous visibility matters more here than a dramatic angle — no element should be cropped out, blocked, or ambiguous in its placement. Still specify lighting setup (e.g. soft diffused daylight simulation plus warm accent spotlights) and overall render quality (photorealistic, high detail, sharp focus, no motion blur, studio-quality composition, empty of people).
 
-You are given two things in the user message: (1) the hidden analysis JSON — concept, visitor_flow, hero_structure, primary_materials, functional_zones, lighting_strategy, brand_integration — and (2) the client's original brief, included only so you can pull literal facts (exact numbers, hex codes, counts, style names) precisely. Use (1) as the architectural backbone of every section below; use (2) only to insert precise literal facts into the correct sections — never let (2) reopen a decision already settled in (1).
+You are given two things in the user message: (1) the hidden analysis JSON, organized into modules — concept (design_objective, architectural_concept), space_planning (visitor_flow, functional_zones), architecture (hero_structure), materials (primary_materials), lighting (lighting_strategy), branding (brand_integration) — and (2) the client's original brief, included only so you can pull literal facts (exact numbers, hex codes, counts, style names) precisely. Use (1) as the architectural backbone of every section below; use (2) only to insert precise literal facts into the correct sections — never let (2) reopen a decision already settled in (1).
 
 Never generate an image yourself. Never explain your reasoning, and never mention EPS-001, the hidden analysis, or the two-stage process. Output only the final result — respond in JSON only, with no explanation outside the JSON and no Markdown fences, using exactly this shape:
 {
   "title": "short catchy concept name",
-  "image_prompt": "the complete rendering prompt, written as an architectural design brief using the exact eleven-section structure above — PROJECT SUMMARY, DESIGN OBJECTIVE, ARCHITECTURAL CONCEPT, SPACE PLANNING, VISITOR FLOW, FUNCTIONAL ZONES, ARCHITECTURE, MATERIALS, BRANDING, LIGHTING, RENDERING INSTRUCTIONS, in that order, each header in capitals on its own line followed by its paragraph. Architecture and space planning always come before furniture; explain the purpose of each zone rather than listing its contents; RENDERING INSTRUCTIONS is always last.",
+  "image_prompt": "the complete rendering prompt, written as an architectural design brief using the exact PAE-002 two-layer structure above — LAYER 1, the Architectural Layer (PROJECT SUMMARY, DESIGN OBJECTIVE, ARCHITECTURAL CONCEPT, SPACE PLANNING, VISITOR FLOW, STRUCTURAL PLANNING, MATERIALS, LIGHTING STRATEGY, NEGATIVE RULES), always fully established first, followed by LAYER 2, the Exhibition Layer (PRODUCT EXPERIENCE, BRANDING, FURNITURE, DIGITAL TECHNOLOGY, DECORATIVE ELEMENTS, EXHIBITION STORY, RENDERING INSTRUCTIONS) — with both layer headers and every section header in capitals on its own line followed by its paragraph, in that exact order. Layer 1 establishes the permanent architecture before Layer 2 ever populates it with products, branding, furniture, or technology; SPACE PLANNING states each zone's position and purpose only, never what fills it; STRUCTURAL PLANNING lists an estimated real-world size for every major element actually present in this design; RENDERING INSTRUCTIONS is always the very last section.",
   "concept_description": "a short, client-facing concept write-up for a presentation deck, in the space usually labeled 'Concept here' under the rendered views — describe the actual design idea, mood, materials, and colors this specific design uses, and why it suits the brand, in natural, confident, professional marketing language, as a designer would describe the concept to a client. This is NOT a repeat or summary of the image_prompt — write it as a client would read it, not as a rendering instruction. Target 60-90 words; stop as soon as the idea is clearly and completely expressed, do not pad it with filler. Never mention AI, prompts, EPS standards, or the generation process."
 }`;
 
@@ -5189,8 +5412,23 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
     // just "asked nicely to be consistent."
     document.getElementById('loadingText').textContent = 'Analyzing your brief and forming the design decisions...';
     const analysis = await callPromptWriterApi(promptWriterSystem, userContent);
-    const requiredAnalysisFields = ['concept', 'visitor_flow', 'hero_structure', 'primary_materials', 'functional_zones', 'lighting_strategy', 'brand_integration'];
-    const missingAnalysisFields = requiredAnalysisFields.filter(f => !(analysis && typeof analysis[f] === 'string' && analysis[f].trim()));
+    // The analysis is organized into named modules (see promptWriterSystem's MODULAR ANALYSIS
+    // STRUCTURE) — still one JSON object from one call, just internally separated by concern
+    // so it can cleanly split into independent engines later without redoing the design
+    // thinking. Validate each field at its module path rather than as a flat list.
+    const requiredAnalysisFields = [
+      ['concept', 'design_objective'],
+      ['concept', 'architectural_concept'],
+      ['space_planning', 'visitor_flow'],
+      ['space_planning', 'functional_zones'],
+      ['architecture', 'hero_structure'],
+      ['materials', 'primary_materials'],
+      ['lighting', 'lighting_strategy'],
+      ['branding', 'brand_integration']
+    ];
+    const missingAnalysisFields = requiredAnalysisFields
+      .filter(([mod, field]) => !(analysis && analysis[mod] && typeof analysis[mod][field] === 'string' && analysis[mod][field].trim()))
+      .map(([mod, field]) => `${mod}.${field}`);
     if(missingAnalysisFields.length){
       throw new Error('The analysis stage did not return a complete design record (missing: ' + missingAnalysisFields.join(', ') + ').');
     }
@@ -5951,8 +6189,19 @@ async function confirmRegenerateOtherOption(){
   const isFreeFirstModification = !opt.usedFreeModification;
 
   const btn = document.getElementById('otherOptionBtn');
+  const approveBtn = document.getElementById('approveDesignBtn');
+  const modifyBtn = document.querySelector('.action-bar button[onclick="openModifyDesignPanel()"]');
   if(btn) btn.disabled = true;
-  if(activeOptionIndex === idx) setStatusError(statusEl, 'Generating another option... this can take up to a minute. Your existing pictures and views are untouched.');
+  // Approve and Modify design are only disabled for the duration of this generation — not
+  // permanently locked like lockApprovedActionBar() does after a real approval — since
+  // regenerating "Other option" changes the very picture those two actions would act on;
+  // both are handed back in the finally block below regardless of success or failure.
+  if(approveBtn) approveBtn.disabled = true;
+  if(modifyBtn) modifyBtn.disabled = true;
+  if(activeOptionIndex === idx){
+    setStatusError(statusEl, '');
+    updateApproveProgress(15, 'Generating another option... this can take up to a minute. Your existing pictures and views are untouched.');
+  }
 
   try{
     const otherOptionBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: true, isFreeFirstModification };
@@ -5990,13 +6239,19 @@ async function confirmRegenerateOtherOption(){
       renderGalleryStrip();
       renderGalleryNav();
       setStatusError(statusEl, '');
+      updateApproveProgress(100, 'Done.');
+      await new Promise(r => setTimeout(r, 800)); // let the 100% completion state actually register before it disappears
+      hideApproveProgress();
     }
   }catch(err){
     if(activeOptionIndex === idx){
+      hideApproveProgress();
       setStatusError(statusEl, 'Could not generate another option: ' + (err && err.message ? err.message : 'unknown error'));
     }
   }finally{
     if(btn) btn.disabled = false;
+    if(approveBtn) approveBtn.disabled = false;
+    if(modifyBtn) modifyBtn.disabled = false;
   }
   saveCurrentProject();
 }
@@ -7421,6 +7676,8 @@ function collectFormSnapshot(){
     f_raisedFloorHeightCustom: document.getElementById('f_raisedFloorHeightCustom').value,
     f_floorEdgeFinish: document.getElementById('f_floorEdgeFinish').value,
     f_floorFeatures: Array.from(document.querySelectorAll('.floor-feature-cb:checked')).map(cb => cb.value),
+    f_floorIntegratedServices: document.getElementById('floorfeat_integratedservices').checked,
+    f_floorServices: Array.from(document.querySelectorAll('.floor-service-cb:checked')).map(cb => cb.value),
     f_openSides: document.getElementById('f_openSides').value,
     f_inlineOpenSide: document.getElementById('f_inlineOpenSide').value,
     f_cornerSide: document.getElementById('f_cornerSide').value,
@@ -7508,6 +7765,16 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_floorEdgeFinish').value = LEGACY_FLOOR_EDGE_FINISH_MAP[rawFloorEdgeFinish] || rawFloorEdgeFinish;
   const savedFloorFeatures = new Set(snap.f_floorFeatures || (snap.f_floorLighting ? ['Hidden LED Strip'] : []));
   document.querySelectorAll('.floor-feature-cb').forEach(cb => { cb.checked = savedFloorFeatures.has(cb.value); });
+  // Legacy migration: "Integrated Power Outlets" and "Floor Boxes" were separate top-level
+  // floor features before "Integrated Floor Services" existed — fold any old saved selection
+  // into the new sub-checklist instead of silently dropping it.
+  const legacyIntegratedServices = new Set();
+  if(savedFloorFeatures.has('Integrated Power Outlets')) legacyIntegratedServices.add('Power Outlet');
+  if(savedFloorFeatures.has('Floor Boxes')) legacyIntegratedServices.add('Floor Box');
+  const savedFloorServices = new Set(snap.f_floorServices || Array.from(legacyIntegratedServices));
+  document.getElementById('floorfeat_integratedservices').checked = !!snap.f_floorIntegratedServices || legacyIntegratedServices.size > 0;
+  document.querySelectorAll('.floor-service-cb').forEach(cb => { cb.checked = savedFloorServices.has(cb.value); });
+  toggleFloorFeatureSubsection(document.getElementById('floorfeat_integratedservices').checked);
   toggleRaisedFloorHeight(document.getElementById('f_floorType'));
   toggleFloorTypeCustom(document.getElementById('f_floorType'));
   updateFloorFinishSections(document.getElementById('f_floorFinish'));
