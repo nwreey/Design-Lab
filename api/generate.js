@@ -63,7 +63,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: openaiMessages,
-        max_tokens: max_tokens || 4096,
+        max_tokens: max_tokens || 8192,
       }),
     });
 
@@ -81,7 +81,12 @@ module.exports = async (req, res) => {
         data.choices[0].message.content) ||
       '';
 
-    res.status(200).json({ content: [{ type: 'text', text }] });
+    // Pass finish_reason through so the client can tell a genuinely truncated response
+    // ("length" — ran out of max_tokens mid-output) apart from any other kind of malformed
+    // JSON, instead of guessing from the parse error alone.
+    const finishReason = (data.choices && data.choices[0] && data.choices[0].finish_reason) || null;
+
+    res.status(200).json({ content: [{ type: 'text', text }], finish_reason: finishReason });
   } catch (err) {
     res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });
   }

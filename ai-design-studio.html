@@ -5256,12 +5256,11 @@ async function callPromptWriterApi(system, content){
     body: JSON.stringify({
       // The analysis JSON schema and the final rendering-prompt document have both grown
       // substantially (multiple deterministic multi-fact blocks per field — see DIR-005,
-      // SCE-001, DIR-012) — 2500 tokens was tight enough that a response could run out of
-      // budget partway through and quietly drop a later field (e.g. architecture's second
-      // field, architectural_geometry, right after the very long hero_structure block)
-      // while still closing out syntactically valid JSON. 4096 is the standard completion
-      // ceiling for gpt-4o and gives real headroom for the current schema size.
-      max_tokens: 4096,
+      // SCE-001, DIR-012) — for a content-rich brief, even 4096 tokens was observed to run
+      // out mid-response and truncate the JSON outright (confirmed via finish_reason below,
+      // not just guessed from the parse failure). 8192 gives real headroom; gpt-4o supports
+      // up to 16384 output tokens, so this is still well within its actual ceiling.
+      max_tokens: 8192,
       system: system,
       messages: [{ role: "user", content: content }]
     })
@@ -5284,6 +5283,13 @@ async function callPromptWriterApi(system, content){
   try{
     return JSON.parse(cleaned);
   }catch(parseErr){
+    // finish_reason === 'length' means OpenAI cut the response off itself because it hit
+    // max_tokens mid-generation — a hard confirmation of truncation, not a guess, and a
+    // clear signal (if this recurs) that max_tokens needs raising again rather than
+    // anything about the JSON's formatting being wrong.
+    if(data.finish_reason === 'length'){
+      throw new Error('The response was cut off because it hit the model\'s output length limit before finishing — try Generate again; if this keeps happening, the design record has grown too large for a single response and needs a higher token limit.');
+    }
     throw new Error('Could not parse the response as JSON. It may have been cut off — response started with: "' + cleaned.slice(0, 160) + '..."');
   }
 }
