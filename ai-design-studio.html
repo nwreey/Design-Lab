@@ -1724,6 +1724,7 @@ Replace only the materials and graphics."></textarea>
             <option value="Wood Finish">Wood Finish</option>
             <option value="Mirror Finish">Mirror Finish</option>
             <option value="Printed Graphics">Printed Graphics</option>
+            <option value="Brushed Aluminum">Brushed Aluminum</option>
           </select>
         </div>
 
@@ -1799,6 +1800,21 @@ Replace only the materials and graphics."></textarea>
           </select>
           <input type="text" id="f_ceilingShapeCustom" placeholder="Describe the custom ceiling shape" style="display:none;margin-top:8px;">
           <div class="hint">The physical shape of the self-supported ceiling feature itself.</div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>Ceiling Width (m)</label>
+            <input type="number" min="0.1" step="0.1" id="f_ceilingWidth" placeholder="e.g. 4">
+          </div>
+          <div class="field">
+            <label>Ceiling Depth (m)</label>
+            <input type="number" min="0.1" step="0.1" id="f_ceilingDepth" placeholder="e.g. 4">
+          </div>
+        </div>
+        <div class="field">
+          <label>Ceiling Height from floor (m)</label>
+          <input type="number" min="0.1" step="0.1" id="f_ceilingHeightFromFloor" placeholder="e.g. 4.5">
         </div>
 
         <div class="field" id="ceilingPurposeField">
@@ -4324,12 +4340,21 @@ function collectCeilingRiggingSpecification(){
   }
 
   // Per DIR-010/DIR-011, "Self-supported ceiling feature" gets its own configuration —
-  // Ceiling Shape and Architectural Purpose — mirroring the same pattern used for the
-  // rigging sub-fields above.
+  // Ceiling Shape, Ceiling Size, and Architectural Purpose — mirroring the same pattern used
+  // for the rigging sub-fields above.
   if(ceilingRigging === 'Self-supported ceiling feature'){
     const ceilingShapeRaw = document.getElementById('f_ceilingShape').value;
     const ceilingShape = ceilingShapeRaw === 'Custom Shape' ? (document.getElementById('f_ceilingShapeCustom').value.trim() || 'Custom Shape') : ceilingShapeRaw;
     lines.push(`Ceiling Shape: ${ceilingShape}.`);
+
+    const ceilingWidth = document.getElementById('f_ceilingWidth').value.trim();
+    const ceilingDepth = document.getElementById('f_ceilingDepth').value.trim();
+    const ceilingHeightFromFloor = document.getElementById('f_ceilingHeightFromFloor').value.trim();
+    const ceilingSizeParts = [];
+    if(ceilingWidth) ceilingSizeParts.push(`Width ${ceilingWidth}m`);
+    if(ceilingDepth) ceilingSizeParts.push(`Depth ${ceilingDepth}m`);
+    if(ceilingHeightFromFloor) ceilingSizeParts.push(`Height from floor ${ceilingHeightFromFloor}m`);
+    lines.push(ceilingSizeParts.length ? `Ceiling Size: ${ceilingSizeParts.join(', ')}.` : 'Ceiling Size: not specified — estimate a size proportionate to the booth footprint.');
 
     const ceilingPurposeRaw = document.getElementById('f_ceilingPurpose').value;
     const ceilingPurpose = ceilingPurposeRaw === 'Custom Purpose' ? (document.getElementById('f_ceilingPurposeCustom').value.trim() || 'Custom Purpose') : ceilingPurposeRaw;
@@ -5229,7 +5254,14 @@ async function callPromptWriterApi(system, content){
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      max_tokens: 2500,
+      // The analysis JSON schema and the final rendering-prompt document have both grown
+      // substantially (multiple deterministic multi-fact blocks per field — see DIR-005,
+      // SCE-001, DIR-012) — 2500 tokens was tight enough that a response could run out of
+      // budget partway through and quietly drop a later field (e.g. architecture's second
+      // field, architectural_geometry, right after the very long hero_structure block)
+      // while still closing out syntactically valid JSON. 4096 is the standard completion
+      // ceiling for gpt-4o and gives real headroom for the current schema size.
+      max_tokens: 4096,
       system: system,
       messages: [{ role: "user", content: content }]
     })
@@ -5761,7 +5793,6 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
     // it to reinvent or drift on; that's what actually makes this deterministic rather than
     // just "asked nicely to be consistent."
     document.getElementById('loadingText').textContent = 'Analyzing your brief and forming the design decisions...';
-    const analysis = await callPromptWriterApi(promptWriterSystem, userContent);
     // The analysis is organized into named modules (see promptWriterSystem's MODULAR ANALYSIS
     // STRUCTURE) — still one JSON object from one call, just internally separated by concern
     // so it can cleanly split into independent engines later without redoing the design
@@ -5779,9 +5810,24 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
       ['lighting', 'accent_lighting_palette'],
       ['branding', 'brand_integration']
     ];
-    const missingAnalysisFields = requiredAnalysisFields
+    // The analysis schema has grown substantially (several fields now require 6-10 labeled
+    // facts each, not just a sentence or two), and an occasional response now genuinely
+    // needs more completion budget than before, plus an occasional single dropped field
+    // even within budget. Rather than fail the whole generation on one incomplete response,
+    // retry the same call once — a fresh completion, not a repair of the broken one — before
+    // surfacing an error to the user.
+    let analysis = await callPromptWriterApi(promptWriterSystem, userContent);
+    let missingAnalysisFields = requiredAnalysisFields
       .filter(([mod, field]) => !(analysis && analysis[mod] && typeof analysis[mod][field] === 'string' && analysis[mod][field].trim()))
       .map(([mod, field]) => `${mod}.${field}`);
+    if(missingAnalysisFields.length){
+      console.warn('[Project Analysis Engine] first analysis pass was incomplete (missing: ' + missingAnalysisFields.join(', ') + ') — retrying once.');
+      document.getElementById('loadingText').textContent = 'Refining the design decisions...';
+      analysis = await callPromptWriterApi(promptWriterSystem, userContent);
+      missingAnalysisFields = requiredAnalysisFields
+        .filter(([mod, field]) => !(analysis && analysis[mod] && typeof analysis[mod][field] === 'string' && analysis[mod][field].trim()))
+        .map(([mod, field]) => `${mod}.${field}`);
+    }
     if(missingAnalysisFields.length){
       throw new Error('The analysis stage did not return a complete design record (missing: ' + missingAnalysisFields.join(', ') + ').');
     }
@@ -8049,6 +8095,9 @@ function collectFormSnapshot(){
     f_riggingFabricColorHex: document.getElementById('f_riggingFabricColorHex').value,
     f_ceilingShape: document.getElementById('f_ceilingShape').value,
     f_ceilingShapeCustom: document.getElementById('f_ceilingShapeCustom').value,
+    f_ceilingWidth: document.getElementById('f_ceilingWidth').value,
+    f_ceilingDepth: document.getElementById('f_ceilingDepth').value,
+    f_ceilingHeightFromFloor: document.getElementById('f_ceilingHeightFromFloor').value,
     f_ceilingPurpose: document.getElementById('f_ceilingPurpose').value,
     f_ceilingPurposeCustom: document.getElementById('f_ceilingPurposeCustom').value,
     f_openSides: document.getElementById('f_openSides').value,
@@ -8169,6 +8218,9 @@ function restoreFormSnapshot(snap){
   syncColorPicker(document.getElementById('f_riggingFabricColorHex'));
   document.getElementById('f_ceilingShape').value = snap.f_ceilingShape || 'Rectangle';
   document.getElementById('f_ceilingShapeCustom').value = snap.f_ceilingShapeCustom || '';
+  document.getElementById('f_ceilingWidth').value = snap.f_ceilingWidth || '';
+  document.getElementById('f_ceilingDepth').value = snap.f_ceilingDepth || '';
+  document.getElementById('f_ceilingHeightFromFloor').value = snap.f_ceilingHeightFromFloor || '';
   document.getElementById('f_ceilingPurpose').value = snap.f_ceilingPurpose || 'Architectural Landmark';
   document.getElementById('f_ceilingPurposeCustom').value = snap.f_ceilingPurposeCustom || '';
   toggleRiggingSubfields(document.getElementById('f_ceilingRigging'));
