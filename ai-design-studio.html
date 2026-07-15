@@ -173,6 +173,12 @@
   .section-headline{font-weight:800;font-size:15px;letter-spacing:.02em;text-transform:uppercase;color:var(--navy);border-bottom:2px solid var(--navy);padding-bottom:8px;margin:28px 0 18px;}
   .section-headline:first-child{margin-top:0;}
   .subarea-label{font-weight:700;font-size:14px;color:var(--navy);margin:14px 0 8px;}
+  #additionalReqField .subarea-label.req-cat-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:6px 8px;background:var(--navy-soft);border-radius:2px;}
+  #additionalReqField .subarea-label.req-cat-header:hover{opacity:.85;}
+  .req-cat-meta{display:flex;align-items:center;gap:8px;font-weight:500;font-size:12px;color:var(--ink);}
+  .req-count{font-weight:600;color:var(--navy);}
+  .req-chevron{display:inline-block;transition:transform .15s ease;font-size:12px;}
+  #additionalReqField .subarea-label.req-cat-header.req-collapsed .req-chevron{transform:rotate(-90deg);}
   .other-area-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
   .other-area-row input[type=text]{flex:1;}
   .other-area-remove{flex-shrink:0;width:30px;height:30px;border-radius:2px;border:1.5px solid var(--navy);background:transparent;color:var(--navy);font-size:16px;line-height:1;cursor:pointer;}
@@ -343,6 +349,7 @@
   #additionalReqField .check-item-compact{font-size:13px;font-weight:500;padding:0;border:none;border-radius:0;gap:7px;}
   .check-item-compact:hover{background:var(--navy-soft);}
   .check-item-compact input{margin:0;}
+  .bp-rank{font-weight:600;color:var(--accent, #b8860b);}
   .viewer3d-camera-row-light{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
   .viewer3d-generated-wrap-light{margin-top:4px;}
   .viewer3d-generated-grid-light{display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;}
@@ -986,49 +993,45 @@
     <div class="field">
       <label>Brand personality</label>
       <select id="f_mdBrandPersonality">
-        <option value="Elegant">Elegant</option>
-        <option value="Innovative">Innovative</option>
-        <option value="Luxury">Luxury</option>
         <option value="Premium">Premium</option>
-        <option value="Corporate">Corporate</option>
-        <option value="Professional">Professional</option>
-        <option value="Modern">Modern</option>
+        <option value="Luxury">Luxury</option>
         <option value="Minimalist">Minimalist</option>
+        <option value="Modern">Modern</option>
+        <option value="Contemporary">Contemporary</option>
+        <option value="Innovative">Innovative</option>
         <option value="Futuristic">Futuristic</option>
-        <option value="High-Tech">High-Tech</option>
-        <option value="Friendly">Friendly</option>
-        <option value="Welcoming">Welcoming</option>
-        <option value="Luxury Hospitality">Luxury Hospitality</option>
-        <option value="Bold">Bold</option>
+        <option value="Industrial">Industrial</option>
+        <option value="Precision">Precision</option>
+        <option value="Professional">Professional</option>
+        <option value="Elegant">Elegant</option>
+        <option value="Timeless">Timeless</option>
         <option value="Dynamic">Dynamic</option>
+        <option value="Energetic">Energetic</option>
+        <option value="Bold">Bold</option>
+        <option value="Playful">Playful</option>
         <option value="Creative">Creative</option>
-        <option value="Inspirational">Inspirational</option>
-        <option value="Sustainable">Sustainable</option>
-        <option value="Eco Friendly">Eco Friendly</option>
+        <option value="Friendly">Friendly</option>
+        <option value="Family-Friendly">Family-Friendly</option>
         <option value="Natural">Natural</option>
-        <option value="Clean">Clean</option>
-        <option value="Clinical">Clinical</option>
-        <option value="Trustworthy">Trustworthy</option>
+        <option value="Sustainable">Sustainable</option>
+        <option value="Organic">Organic</option>
+        <option value="Explorative">Explorative</option>
+        <option value="Educational">Educational</option>
+        <option value="Scientific">Scientific</option>
+        <option value="Technical">Technical</option>
+        <option value="Reliable">Reliable</option>
+        <option value="Durable">Durable</option>
+        <option value="Performance-Driven">Performance-Driven</option>
+        <option value="Athletic">Athletic</option>
+        <option value="Adventurous">Adventurous</option>
         <option value="Exclusive">Exclusive</option>
-        <option value="Sophisticated">Sophisticated</option>
         <option value="Warm">Warm</option>
         <option value="Calm">Calm</option>
-        <option value="Vibrant">Vibrant</option>
-        <option value="Youthful">Youthful</option>
-        <option value="Playful">Playful</option>
-        <option value="Family Friendly">Family Friendly</option>
-        <option value="Interactive">Interactive</option>
+        <option value="Inspirational">Inspirational</option>
         <option value="Immersive">Immersive</option>
-        <option value="Smart">Smart</option>
-        <option value="Digital First">Digital First</option>
-        <option value="Industrial">Industrial</option>
-        <option value="Artistic">Artistic</option>
-        <option value="Cultural">Cultural</option>
-        <option value="Heritage">Heritage</option>
-        <option value="Executive">Executive</option>
-        <option value="Prestige">Prestige</option>
-        <option value="Visionary">Visionary</option>
+        <option value="Interactive">Interactive</option>
       </select>
+      <div class="hint">This quick-change tool applies a single personality only. To set the ranked Primary/Secondary/Accent combination, use the Brand Personality selector on the main form instead.</div>
     </div>
 
     <div class="section-headline">What Would You Like to Modify?</div>
@@ -1433,51 +1436,8 @@ Replace only the materials and graphics."></textarea>
 
     <div class="field">
       <label>Brand personality <span class="required-mark">*</span></label>
-      <select id="f_brandPersonality" onchange="updateBrandPersonalityHint(this)">
-        <option value="Elegant" selected>Elegant</option>
-        <option value="Innovative">Innovative</option>
-        <option value="Luxury">Luxury</option>
-        <option value="Premium">Premium</option>
-        <option value="Corporate">Corporate</option>
-        <option value="Professional">Professional</option>
-        <option value="Modern">Modern</option>
-        <option value="Minimalist">Minimalist</option>
-        <option value="Futuristic">Futuristic</option>
-        <option value="High-Tech">High-Tech</option>
-        <option value="Friendly">Friendly</option>
-        <option value="Welcoming">Welcoming</option>
-        <option value="Luxury Hospitality">Luxury Hospitality</option>
-        <option value="Bold">Bold</option>
-        <option value="Dynamic">Dynamic</option>
-        <option value="Creative">Creative</option>
-        <option value="Inspirational">Inspirational</option>
-        <option value="Sustainable">Sustainable</option>
-        <option value="Eco Friendly">Eco Friendly</option>
-        <option value="Natural">Natural</option>
-        <option value="Clean">Clean</option>
-        <option value="Clinical">Clinical</option>
-        <option value="Trustworthy">Trustworthy</option>
-        <option value="Exclusive">Exclusive</option>
-        <option value="Sophisticated">Sophisticated</option>
-        <option value="Warm">Warm</option>
-        <option value="Calm">Calm</option>
-        <option value="Vibrant">Vibrant</option>
-        <option value="Youthful">Youthful</option>
-        <option value="Playful">Playful</option>
-        <option value="Family Friendly">Family Friendly</option>
-        <option value="Interactive">Interactive</option>
-        <option value="Immersive">Immersive</option>
-        <option value="Smart">Smart</option>
-        <option value="Digital First">Digital First</option>
-        <option value="Industrial">Industrial</option>
-        <option value="Artistic">Artistic</option>
-        <option value="Cultural">Cultural</option>
-        <option value="Heritage">Heritage</option>
-        <option value="Executive">Executive</option>
-        <option value="Prestige">Prestige</option>
-        <option value="Visionary">Visionary</option>
-      </select>
-      <div class="hint" id="brandPersonalityHint">Adds an emotional/brand layer on top of the styles above — never overrides them.</div>
+      <div class="requirements-grid" id="brandPersonalityGrid"></div>
+      <div class="hint" id="brandPersonalityHint">Select up to 3, in order — the first you check is Primary (greatest influence), then Secondary, then Accent. Adds an emotional/brand layer on top of the styles above — never overrides them.</div>
     </div>
 
     <div id="boothOnlyFields">
@@ -1950,7 +1910,11 @@ Replace only the materials and graphics."></textarea>
 
       <div class="section-headline" id="requirementsHeadline" style="display:none;">Requirements</div>
       <div class="field" id="additionalReqField">
-        <div class="hint" style="margin-top:0;margin-bottom:10px;">Select at least 2 <span class="required-mark">*</span> — check any that apply and specify exact quantities. Anything left unchecked here follows EPS-011's normal size-based defaults instead.</div>
+        <div class="hint" style="margin-top:0;margin-bottom:10px;">Select at least 2 <span class="required-mark">*</span> — check any that apply and specify exact quantities. Anything left unchecked here follows EPS-011's normal size-based defaults instead. Categories are collapsed by default — click a category name to expand it.</div>
+        <div style="margin-bottom:10px;">
+          <button type="button" class="ghost small" onclick="setAllReqCategoriesCollapsed(false)">Expand all</button>
+          <button type="button" class="ghost small" onclick="setAllReqCategoriesCollapsed(true)">Collapse all</button>
+        </div>
 
         <div class="requirements-grid">
         <div class="subarea-label">Visitor Experience</div>
@@ -3492,54 +3456,53 @@ const INDUSTRY_LIGHTING_PROFILES = {
 };
 
 // Shared between EPS-004's LEVEL 4 style taxonomy (sent to the model) and the brand-personality
-// dropdown's own on-page hint (updateBrandPersonalityHint) — one list, so the two can never
+// checkbox grid's own on-page hint (updateBrandPersonalityHint) — one list, so the two can never
 // drift out of sync. Every entry is an emotional/expression layer on top of whatever
 // architectural style and industry style the client already chose — it must enhance, never
 // override, either of them (see EPS-004's own instruction never to contradict an earlier level).
+// Per BPE-001, the client may rank up to three of these (Primary/Secondary/Accent by selection
+// order) — see selectedBrandPersonalities and buildBrandPersonalityBriefText() below.
 const BRAND_PERSONALITY_ATTRIBUTES = {
+  'Premium': 'refined materials, tailored proportions, restrained decoration, confident high-quality detailing, understated premium branding',
+  'Luxury': 'marble, bronze, wood veneer, rich hospitality-grade materials, warm dramatic lighting, exclusive prestige-driven detailing',
+  'Minimalist': 'fewer elements, large open spaces, a single dominant material, restrained palette, quiet uncluttered atmosphere',
+  'Modern': 'clean geometry, minimal ornament, crisp lighting, contemporary furniture, straightforward architectural language',
+  'Contemporary': 'current, freely mixed forms and materials, balanced simplicity, flexible open layout, on-trend but restrained detailing',
+  'Innovative': 'dynamic geometry, floating elements, integrated technology, energetic accent lighting, forward-thinking branding expression',
+  'Futuristic': 'sculptural forms, glowing accents, dynamic LED lighting, next-generation materials, advanced high-tech atmosphere',
+  'Industrial': 'exposed structure, steel and concrete, raw engineering aesthetics, focused task lighting, utilitarian furniture',
+  'Precision': 'exact geometric lines, engineered joinery, highly organized layout, cool even lighting, meticulous branding placement',
+  'Professional': 'structured layout, functional furniture, neutral tones, clear way-finding, corporate business-focused atmosphere',
   'Elegant': 'clean lines, premium finishes, warm lighting, refined proportions, understated graphic style',
-  'Innovative': 'dynamic geometry, floating elements, interactive technology, energetic accent lighting',
-  'Luxury': 'marble, bronze, wood veneer, rich hospitality-grade materials, warm dramatic lighting',
-  'Premium': 'refined materials, tailored proportions, restrained decoration, confident quality cues',
-  'Corporate': 'organized layout, balanced proportions, clear circulation, understated professional palette',
-  'Professional': 'structured layout, functional furniture, neutral tones, clear way-finding',
-  'Modern': 'clean geometry, minimal ornament, crisp lighting, contemporary furniture',
-  'Minimalist': 'fewer elements, large open spaces, restrained material palette, quiet color intensity',
-  'Futuristic': 'sculptural forms, glowing accents, dynamic LED lighting, high-tech furniture',
-  'High-Tech': 'sleek metallic and glass surfaces, integrated screens, precise engineered detailing, cool lighting',
-  'Friendly': 'open seating, welcoming reception, softer forms, warm approachable lighting',
-  'Welcoming': 'inviting entrance, comfortable lounge, soft warm lighting, gentle color palette',
-  'Luxury Hospitality': 'lounge-style seating, rich textiles, warm ambient lighting, attentive service staging',
-  'Bold': 'large architectural gestures, strong focal points, dramatic forms, saturated color intensity',
-  'Dynamic': 'angular shapes, energetic circulation, layered lighting, vibrant graphic style',
-  'Creative': 'playful forms, unconventional material mixes, expressive graphics, varied lighting',
-  'Inspirational': 'uplifting proportions, feature lighting, motivational graphic walls, open sightlines',
-  'Sustainable': 'natural materials, visible eco-conscious detailing, soft daylight-style lighting, muted earthy palette',
-  'Eco Friendly': 'wood, green walls, plants, sustainable materials, soft natural light',
-  'Natural': 'organic textures, earthy tones, daylight-style lighting, informal furniture',
-  'Clean': 'crisp surfaces, restrained palette, bright even lighting, tidy circulation',
-  'Clinical': 'white finishes, hygienic materials, bright lighting, precision detailing',
-  'Trustworthy': 'solid grounded forms, calm palette, even reassuring lighting, clear signage',
-  'Exclusive': 'private zones, refined materials, low dramatic lighting, restrained branding',
-  'Sophisticated': 'tailored proportions, muted premium palette, layered ambient lighting, refined graphics',
-  'Warm': 'soft curves, warm-toned materials, amber lighting, cozy furniture',
-  'Calm': 'quiet forms, soft neutral palette, gentle diffused lighting, uncluttered layout',
-  'Vibrant': 'saturated colors, energetic graphics, dynamic accent lighting, lively circulation',
-  'Youthful': 'playful shapes, bright accent colors, casual furniture, energetic graphic style',
-  'Playful': 'whimsical forms, bold color pops, interactive elements, informal furniture',
-  'Family Friendly': 'open safe layout, soft rounded forms, bright cheerful lighting, durable comfortable furniture',
-  'Interactive': 'touch-driven stations, responsive lighting cues, flexible furniture, engaging graphic walls',
-  'Immersive': 'enveloping surfaces, layered ambient and theatrical lighting, large-scale visuals, sensory-rich materials',
-  'Smart': 'integrated sensors and screens, clean minimal forms, adaptive lighting, tech-forward furniture',
-  'Digital First': 'screen-dominant surfaces, minimal physical clutter, dynamic digital lighting, sleek furniture',
-  'Industrial': 'exposed structure, raw materials (concrete, steel, wood), focused task lighting, utilitarian furniture',
-  'Artistic': 'expressive forms, gallery-style display, curated accent lighting, statement furniture',
-  'Cultural': 'heritage-inspired motifs, regional materials, warm storytelling lighting, curated display',
-  'Heritage': 'classic proportions, traditional materials, warm dignified lighting, timeless furniture',
-  'Executive': 'refined private meeting areas, dark premium palette, focused formal lighting, tailored furniture',
-  'Prestige': 'grand proportions, luxurious materials, dramatic feature lighting, ceremonial circulation',
-  'Visionary': 'bold sculptural forms, forward-looking materials, dynamic statement lighting, aspirational graphic walls'
+  'Timeless': 'classic proportions, enduring materials, restrained detailing, warm dignified lighting, branding that never chases a passing trend',
+  'Dynamic': 'angular shapes, asymmetrical forms, energetic circulation, layered lighting, vibrant graphic style',
+  'Energetic': 'high-impact forms, vibrant saturated color, exciting dynamic lighting, lively circulation, bold branding expression',
+  'Bold': 'large architectural gestures, strong focal points, dramatic forms, saturated color intensity, confident geometry',
+  'Playful': 'whimsical forms, bold color pops, interactive elements, informal furniture, fun approachable atmosphere',
+  'Creative': 'expressive unconventional forms, mixed materials, curated varied lighting, imaginative graphic style',
+  'Friendly': 'open seating, welcoming reception, softer rounded forms, warm approachable lighting',
+  'Family-Friendly': 'safe open layout, soft rounded forms, bright cheerful lighting, durable comfortable furniture, warm atmosphere inviting to all ages',
+  'Natural': 'organic textures, biomorphic forms, greenery, earthy tones, daylight-style lighting',
+  'Sustainable': 'eco-conscious materials, visible sustainable detailing, soft daylight-style lighting, muted earthy environmental palette',
+  'Organic': 'flowing curved forms inspired by nature, natural materials, soft diffused lighting, biophilic atmosphere',
+  'Explorative': 'discovery-driven circulation, layered reveal moments, curious asymmetrical geometry, adventurous accent lighting',
+  'Educational': 'clear informative zoning, learning-focused display walls, bright even lighting, structured wayfinding',
+  'Scientific': 'laboratory-inspired precision, clean clinical materials, cool research-grade lighting, innovation-forward detailing',
+  'Technical': 'engineered exposed detailing, technology-focused furniture, precise structural rhythm, cool functional lighting',
+  'Reliable': 'solid grounded forms, calm dependable palette, even reassuring lighting, clear trustworthy signage',
+  'Durable': 'robust solid construction language, heavy-set materials, minimal fragile detailing, sturdy furniture',
+  'Performance-Driven': 'sweeping aerodynamic forms, efficient streamlined geometry, dynamic speed-oriented lighting, high-performance branding cues',
+  'Athletic': 'sports-inspired movement, dynamic angular geometry, energetic accent lighting, bold active branding',
+  'Adventurous': 'bold exploratory forms, rugged textured materials, dramatic action-oriented lighting, exciting circulation',
+  'Exclusive': 'private restricted zones, refined materials, low dramatic lighting, restrained VIP-oriented branding',
+  'Warm': 'soft curves, warm-toned materials, amber lighting, cozy comfortable furniture',
+  'Calm': 'quiet forms, soft neutral palette, gentle diffused lighting, uncluttered relaxing layout',
+  'Inspirational': 'uplifting proportions, feature lighting, motivational graphic walls, open aspirational sightlines',
+  'Immersive': 'enveloping surfaces, layered ambient and theatrical lighting, large-scale visuals, sensory-rich surrounding atmosphere',
+  'Interactive': 'touch-driven stations, responsive lighting cues, flexible furniture, hands-on engaging graphic walls'
 };
+const BRAND_PERSONALITY_ORDER = Object.keys(BRAND_PERSONALITY_ATTRIBUTES);
+function slugifyPersonality(name){ return name.toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
 const EPS_004 = `STYLE TAXONOMY — four independent style dimensions the client can specify. When a value is given for any of these dimensions, apply the listed attributes automatically and consistently, even if the client's free-text description does not repeat them explicitly. These four levels can combine freely (e.g. Modern + Medical + Wood Modular + Innovative) — apply every attribute from every level the client selected, layered together, never contradicting EPS-001, EPS-002, or EPS-003 above.
 
@@ -3570,6 +3533,8 @@ LEVEL 3 — CONSTRUCTION STYLE (defines material quality and build complexity �
 - Budget Modular: simple walls, limited graphics, standard furniture.
 
 LEVEL 4 — BRAND PERSONALITY (the emotional character of the booth — influences overall architectural mood, shape language, material selection, lighting atmosphere, furniture style, decorative elements, visitor experience, color intensity, and graphic style. This level only ever ADDS an emotional/expressive layer on top of Levels 1-3 and the client's own brand colors; it must never override, replace, or contradict the architectural style or industry style already established. Optional — the client may leave this unset if not applicable.)
+
+BPE-001 — BRAND PERSONALITY ENGINE (core rule) — the client may select up to three personalities from the list below, and the ORDER they were selected in carries real weight: the first selected is Primary (the dominant influence), the second is Secondary (a supporting influence), and the third is Accent (a subtle final layer). The brief states this ranking explicitly — always apply it in that exact order, never averaged or blended equally across all three. Primary drives the architectural concept, its geometry, and the dominant material palette. Secondary shapes supporting materials/detailing and the lighting mood. Accent is a light final touch on branding expression and spatial atmosphere only, never strong enough to compete with or dilute Primary's dominance. For example, Primary — Minimalist, Secondary — Premium, Accent — Innovative means the architecture should feel predominantly Minimalist, expressed through Premium materials and detailing, with only a subtle Innovative technology touch — never a design that reads as equal parts Minimalist, Premium, and Innovative.
 ${Object.entries(BRAND_PERSONALITY_ATTRIBUTES).map(([name, attrs]) => `- ${name}: ${attrs}.`).join('\n')}`;
 
 const EPS_005 = `EXHIBITION BOOTH DIMENSION & SPACE PLANNING STANDARD
@@ -4418,13 +4383,72 @@ function updateIndustryStyleHint(sel){
     : 'Adds industry-specific design language on top of the architectural style — never overrides it or the brand colors.';
 }
 
-function updateBrandPersonalityHint(sel){
+/* ---------- Brand Personality: multi-select, order-ranked (Primary/Secondary/Accent) ----------
+   Per BPE-001, up to 3 personalities may be selected, and the SELECTION ORDER itself carries
+   meaning — first checked = Primary (greatest influence), second = Secondary, third = Accent.
+   selectedBrandPersonalities holds that order explicitly; a plain multi-select <select> can't
+   express "order of checking" at all, so this is a checkbox grid with a rank badge instead. ---------- */
+let selectedBrandPersonalities = ['Elegant'];
+const BRAND_PERSONALITY_RANK_LABELS = ['Primary', 'Secondary', 'Accent'];
+
+function renderBrandPersonalityGrid(){
+  const grid = document.getElementById('brandPersonalityGrid');
+  if(!grid) return;
+  grid.innerHTML = BRAND_PERSONALITY_ORDER.map(name => {
+    const slug = slugifyPersonality(name);
+    return `<label class="check-item-compact" id="bp_label_${slug}"><input type="checkbox" class="brand-personality-cb" value="${name}" onchange="toggleBrandPersonality(this)"> ${name}<span class="bp-rank" id="bp_rank_${slug}"></span></label>`;
+  }).join('');
+  updateBrandPersonalityHint();
+}
+
+function toggleBrandPersonality(cb){
+  if(cb.checked){
+    if(selectedBrandPersonalities.length >= 3){
+      cb.checked = false; // defensive — the checkboxes are also disabled once 3 are picked
+      return;
+    }
+    selectedBrandPersonalities.push(cb.value);
+  }else{
+    selectedBrandPersonalities = selectedBrandPersonalities.filter(v => v !== cb.value);
+  }
+  updateBrandPersonalityHint();
+}
+
+// Re-applies selectedBrandPersonalities onto the checkbox grid's actual checked state and rank
+// badges — called after the array itself changes (restore from a saved project, mode switch,
+// reset) rather than from a user click, since toggleBrandPersonality already keeps them in sync
+// for the click case.
+function updateBrandPersonalityHint(){
   const hint = document.getElementById('brandPersonalityHint');
+  const full = selectedBrandPersonalities.length >= 3;
+  document.querySelectorAll('.brand-personality-cb').forEach(cb => {
+    const slug = slugifyPersonality(cb.value);
+    const rank = selectedBrandPersonalities.indexOf(cb.value);
+    cb.checked = rank !== -1;
+    cb.disabled = !cb.checked && full;
+    const rankSpan = document.getElementById('bp_rank_' + slug);
+    if(rankSpan) rankSpan.textContent = rank !== -1 ? ` — ${BRAND_PERSONALITY_RANK_LABELS[rank]}` : '';
+  });
   if(!hint) return;
-  const attrs = BRAND_PERSONALITY_ATTRIBUTES[sel.value];
-  hint.textContent = attrs
-    ? 'Adds an emotional layer on top of the styles above (never overrides them): ' + attrs + '.'
-    : 'Adds an emotional/brand layer on top of the styles above.';
+  if(selectedBrandPersonalities.length === 0){
+    hint.textContent = 'Select up to 3, in order — the first you check is Primary (greatest influence), then Secondary, then Accent. Adds an emotional/brand layer on top of the styles above — never overrides them.';
+    return;
+  }
+  const parts = selectedBrandPersonalities.map((name, i) => `${BRAND_PERSONALITY_RANK_LABELS[i]} — ${name} (${BRAND_PERSONALITY_ATTRIBUTES[name] || ''})`);
+  hint.textContent = 'Per BPE-001, applied in order of influence, never averaged equally: ' + parts.join('; ') + '.';
+}
+
+// Builds the exact ranked text injected into the client brief — Primary/Secondary/Accent, each
+// with its own attributes, plus the explicit "apply in order, don't average" instruction so the
+// weighting survives into the Project Analysis Engine rather than being inferred from list order.
+function buildBrandPersonalityBriefText(){
+  if(selectedBrandPersonalities.length === 0){
+    return 'Brand personality: not specified — infer one appropriate personality from the brief and industry, per EPS-004\'s LEVEL 4 taxonomy.';
+  }
+  const lines = selectedBrandPersonalities.map((name, i) =>
+    `${BRAND_PERSONALITY_RANK_LABELS[i]} — ${name}: ${BRAND_PERSONALITY_ATTRIBUTES[name] || ''}`
+  );
+  return `Brand personality (per BPE-001 — applied in this exact rank order, never averaged equally; Primary dominates the architectural concept, geometry, and material palette, Secondary shapes materials/detailing and lighting mood, Accent is a subtle final layer on branding expression and spatial atmosphere only):\n${lines.join('\n')}`;
 }
 let logoDataUrl = null;
 let logoMediaType = null;
@@ -4511,6 +4535,79 @@ function resetAdditionalRequirements(){
     const list = document.getElementById(id + '_list');
     if(list) list.innerHTML = '';
   });
+  // Nothing is checked after a reset, so every category collapses back to its default,
+  // tidy state and every "N selected" badge clears.
+  setAllReqCategoriesCollapsed(true);
+}
+
+/* ---------- Requirements accordion — the Additional Requirements checklist grew to well
+   over a hundred items across ~15 categories (Visitor Experience and its six industry
+   sub-groups, Product Display, Digital & Technology, Functional Spaces, Lighting, Decorative
+   Elements and its three sub-groups). Rather than remove any option, each category header
+   (.subarea-label) becomes a collapsible accordion toggle — collapsed by default, showing a
+   live "N selected" count so a collapsed category's selections are never hidden from view.
+   The checkboxes/bodies for a category are just its plain HTML siblings up to the next
+   .subarea-label, so this works without restructuring any of the existing markup into
+   per-category wrapper divs. ---------- */
+function collapseReqCategory(label, collapsed){
+  label.classList.toggle('req-collapsed', collapsed);
+  let el = label.nextElementSibling;
+  while(el && !el.classList.contains('subarea-label')){
+    el.style.display = collapsed ? 'none' : '';
+    el = el.nextElementSibling;
+  }
+}
+
+function toggleReqCategory(label){
+  collapseReqCategory(label, !label.classList.contains('req-collapsed'));
+}
+
+function setAllReqCategoriesCollapsed(collapsed){
+  document.querySelectorAll('#additionalReqField .subarea-label').forEach(label => collapseReqCategory(label, collapsed));
+  updateReqCategoryCounts();
+}
+
+function updateReqCategoryCounts(){
+  document.querySelectorAll('#additionalReqField .subarea-label').forEach(label => {
+    let count = 0;
+    let el = label.nextElementSibling;
+    while(el && !el.classList.contains('subarea-label')){
+      if(el.querySelectorAll) count += el.querySelectorAll('input[type=checkbox]:checked').length;
+      el = el.nextElementSibling;
+    }
+    const countSpan = label.querySelector('.req-count');
+    if(countSpan) countSpan.textContent = count > 0 ? `${count} selected` : '';
+  });
+}
+
+function initReqCategoryAccordion(){
+  const labels = document.querySelectorAll('#additionalReqField .subarea-label');
+  labels.forEach(label => {
+    if(label.classList.contains('req-cat-header')) return; // already initialized
+    const text = label.textContent;
+    label.classList.add('req-cat-header');
+    label.innerHTML = `<span class="req-cat-title">${text}</span><span class="req-cat-meta"><span class="req-count"></span><span class="req-chevron">▾</span></span>`;
+    label.addEventListener('click', () => toggleReqCategory(label));
+    // Collapse by default — unless this category already has a checked item (e.g. a
+    // restored session), in which case leave it open so nothing selected stays hidden.
+    let hasChecked = false;
+    let el = label.nextElementSibling;
+    while(el && !el.classList.contains('subarea-label')){
+      if(el.querySelector && el.querySelector('input[type=checkbox]:checked')) hasChecked = true;
+      el = el.nextElementSibling;
+    }
+    collapseReqCategory(label, !hasChecked);
+  });
+  updateReqCategoryCounts();
+  // One delegated listener covers every current and future checkbox inside the grid, so
+  // toggling any item anywhere immediately refreshes every category's "N selected" badge.
+  const grid = document.getElementById('additionalReqField');
+  if(grid && !grid.dataset.reqChangeBound){
+    grid.dataset.reqChangeBound = '1';
+    grid.addEventListener('change', (e) => {
+      if(e.target && e.target.type === 'checkbox') updateReqCategoryCounts();
+    });
+  }
 }
 
 function toggleAdditionalReqSection(type, checked){
@@ -5335,8 +5432,8 @@ function showFormAndTabs(){
 // section, which is not right"). These snapshots capture each mode's own values on the way
 // out and restore them on the way back in, so the two stay genuinely independent from the
 // person's point of view despite sharing the underlying fields.
-let boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
-let eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
+let boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
+let eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
 
 function captureModeSnapshot(){
   return {
@@ -5344,7 +5441,7 @@ function captureModeSnapshot(){
     archStyle: document.getElementById('f_archStyle').value,
     industryStyle: document.getElementById('f_industryStyle').value,
     constructionStyle: document.getElementById('f_constructionStyle').value,
-    brandPersonality: document.getElementById('f_brandPersonality').value
+    brandPersonalities: [...selectedBrandPersonalities]
   };
 }
 
@@ -5353,10 +5450,10 @@ function applyModeSnapshot(snapshot){
   document.getElementById('f_archStyle').value = snapshot.archStyle;
   document.getElementById('f_industryStyle').value = snapshot.industryStyle;
   document.getElementById('f_constructionStyle').value = snapshot.constructionStyle;
-  document.getElementById('f_brandPersonality').value = snapshot.brandPersonality;
+  selectedBrandPersonalities = [...(snapshot.brandPersonalities || ['Elegant'])];
   updateArchStyleHint(document.getElementById('f_archStyle'));
   updateIndustryStyleHint(document.getElementById('f_industryStyle'));
-  updateBrandPersonalityHint(document.getElementById('f_brandPersonality'));
+  updateBrandPersonalityHint();
 }
 
 function setMode(m){
@@ -5905,7 +6002,7 @@ async function generateDesign(){
   const archStyle = document.getElementById('f_archStyle').value;
   const industryStyle = document.getElementById('f_industryStyle').value;
   const constructionStyle = document.getElementById('f_constructionStyle').value;
-  const brandPersonality = document.getElementById('f_brandPersonality').value;
+  const brandPersonalityBriefText = buildBrandPersonalityBriefText();
   const attendees = document.getElementById('f_attendees').value.trim();
   const eventTypeRaw = document.getElementById('f_eventType').value;
   const eventTypeCustom = document.getElementById('f_eventTypeCustom').value.trim();
@@ -6114,7 +6211,7 @@ ${mode==='booth' ? 'Number of posters to feature: ' + (posterCount || 'not speci
 Architectural style: ${archStyle} — typical colors/materials for this style: ${ARCH_STYLE_COLORS[archStyle] || ''}
 ${industryStyle ? 'Industry style: ' + industryStyle + ' — industry-specific design language to layer on top of the architectural style above (never replacing it or the brand colors): ' + (INDUSTRY_STYLE_ATTRIBUTES[industryStyle] || '') + '. Typical products/devices for this industry (use as inspiration for the product display area — describe specific, recognizable product types there, never the generic word "product" as if it were a real object; if the client\'s own description already names specific products, always use those instead): ' + (INDUSTRY_EXAMPLE_PRODUCTS[industryStyle] || '') + '. Lighting profile for this industry (the single color-temperature/accent-color palette every lighting layer in this booth must commit to — never randomly mix in an unrelated temperature or accent color): ' + (INDUSTRY_LIGHTING_PROFILES[industryStyle] || '') : ''}
 Construction style: ${constructionStyle}
-Brand personality: ${brandPersonality} — emotional/expressive layer to apply across architectural mood, shape language, materials, lighting atmosphere, furniture style, decorative elements, visitor experience, color intensity, and graphic style (enhancing the architectural style and industry style above, never overriding either): ${BRAND_PERSONALITY_ATTRIBUTES[brandPersonality] || ''}
+${brandPersonalityBriefText}
 Client's detailed description: """${desc}"""
 ${modularWallLayout ? MODULAR_WALL_LAYOUT_TEXT : ''}
 ${mode==='booth' ? formatSpaceAllocationForPrompt(computeSpaceAllocation(width, depth, levels)) : ''}
@@ -6253,7 +6350,8 @@ CRITICAL — ground every field of your analysis in the specific facts from the 
 - The exact number of levels and, if double-deck, the ground and upper floor programs separately, plus the stated total height in meters
 - Every required hex color and how each should be used (structural surfaces, accent lighting, signage panels, furniture)
 - The exact poster count if given, and roughly where each belongs
-- The exact architectural style (including its specific colors and materials as given below), construction style, brand personality, and industry style if the client selected one
+- The exact architectural style (including its specific colors and materials as given below), construction style, and industry style if the client selected one
+- The client's brand personality selection, per BPE-001 — up to three, ranked Primary/Secondary/Accent in the exact order given; apply that ranking directly (Primary dominates architectural_concept/architectural_geometry and primary_materials, Secondary shapes materials/detailing and lighting_strategy, Accent is only a light final touch on brand_integration), never averaging all selected personalities equally
 - Any specific goals, products, zones, technical requirements, or activities mentioned in the client's free-text description
 
 If a logo image is attached, extract its actual dominant colors and general visual character (e.g. "corporate teal and white, rounded sans-serif mark, clean minimal feel") and let that shape your brand_integration and primary_materials decisions — but never plan to render, redraw, or include any literal text, logo mark, or brand name in the image itself; only its influence and mood.
@@ -6320,7 +6418,7 @@ ${OUTPUT_REQUIREMENTS}
 
 Rules carried over from the design standards that governed the analysis, restated here because they affect how you write, not just what was already decided:
 - The booth must never contain any people, staff, visitors, or crowds in any form.
-- Every stated dimension, hex color, poster count, architectural/construction style, brand personality, and industry style from the client's original brief (given below alongside the analysis) must appear explicitly and exactly in the correct section — never paraphrased away, softened, or dropped.
+- Every stated dimension, hex color, poster count, architectural/construction style, ranked brand personality (Primary/Secondary/Accent, per BPE-001), and industry style from the client's original brief (given below alongside the analysis) must appear explicitly and exactly in the correct section — never paraphrased away, softened, or dropped.
 - Ceiling & Rigging follows EPS-012's GENERATION CONSTRAINTS BY OVERHEAD STRUCTURE exactly, based on the client's own Ceiling & Rigging selection given in the brief — never assume a default that contradicts what the client actually selected.
 - Every wall, column, counter, and piece of furniture must read as fully supported by and contained within the booth's floor — zero overhang, zero floating elements.
 
@@ -6838,7 +6936,9 @@ function syncModifyDesignStyleFields(){
   if(optionResults.length === 0) return; // nothing generated yet — leave the fields at their defaults
   document.getElementById('f_mdArchStyle').value = document.getElementById('f_archStyle').value || 'Modern';
   document.getElementById('f_mdConstructionStyle').value = document.getElementById('f_constructionStyle').value || 'Premium Custom Build';
-  document.getElementById('f_mdBrandPersonality').value = document.getElementById('f_brandPersonality').value || 'Elegant';
+  // This quick-change tool only ever sets a single personality, so it syncs to the current
+  // Primary (first-ranked) selection — Secondary/Accent, if any, aren't representable here.
+  document.getElementById('f_mdBrandPersonality').value = selectedBrandPersonalities[0] || 'Elegant';
 }
 
 function updateModifyDesignButtonState(){
@@ -6855,7 +6955,7 @@ async function submitModifyDesignStyleChange(){
 
   const originalArch = document.getElementById('f_archStyle').value || 'Modern';
   const originalConstruction = document.getElementById('f_constructionStyle').value || 'Premium Custom Build';
-  const originalBrand = document.getElementById('f_brandPersonality').value || 'Elegant';
+  const originalBrand = selectedBrandPersonalities[0] || 'Elegant';
   const newArch = document.getElementById('f_mdArchStyle').value;
   const newConstruction = document.getElementById('f_mdConstructionStyle').value;
   const newBrand = document.getElementById('f_mdBrandPersonality').value;
@@ -6863,7 +6963,7 @@ async function submitModifyDesignStyleChange(){
   const changes = [];
   if(newArch !== originalArch) changes.push(`Architectural style is now: ${newArch} (previously ${originalArch}).`);
   if(newConstruction !== originalConstruction) changes.push(`Construction style is now: ${newConstruction} (previously ${originalConstruction}).`);
-  if(newBrand !== originalBrand) changes.push(`Brand personality is now: ${newBrand} (previously ${originalBrand}).`);
+  if(newBrand !== originalBrand) changes.push(`Brand personality (Primary) is now: ${newBrand} (previously ${originalBrand}).`);
 
   if(changes.length === 0){
     await customAlert("These match what's already in the current design — change at least one of the three fields above before generating.", 'Change Style');
@@ -6878,9 +6978,12 @@ async function submitModifyDesignStyleChange(){
   // Keep the main form's values in sync, so a second consecutive style change compares
   // against this one's result rather than the original — otherwise re-opening this tab
   // and changing the same field back and forth would never register as a real change.
+  // This quick-change tool only ever sets a single personality, so it collapses the ranked
+  // selection down to just the new Primary — Secondary/Accent aren't touched by this tool.
   document.getElementById('f_archStyle').value = newArch;
   document.getElementById('f_constructionStyle').value = newConstruction;
-  document.getElementById('f_brandPersonality').value = newBrand;
+  selectedBrandPersonalities = [newBrand];
+  updateBrandPersonalityHint();
 
   startRenderSession([{ title: current.title, image_prompt: modifiedPrompt, conceptDescription: current.conceptDescription || '' }], true);
 
@@ -8639,7 +8742,7 @@ function collectFormSnapshot(){
     f_archStyle: document.getElementById('f_archStyle').value,
     f_industryStyle: document.getElementById('f_industryStyle').value,
     f_constructionStyle: document.getElementById('f_constructionStyle').value,
-    f_brandPersonality: document.getElementById('f_brandPersonality').value,
+    f_brandPersonalities: [...selectedBrandPersonalities],
     f_attendees: document.getElementById('f_attendees').value,
     f_eventType: document.getElementById('f_eventType').value,
     f_eventTypeCustom: document.getElementById('f_eventTypeCustom').value,
@@ -8731,8 +8834,8 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_industryStyle').value = snap.f_industryStyle || '';
   updateIndustryStyleHint(document.getElementById('f_industryStyle'));
   document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || 'Premium Custom Build';
-  document.getElementById('f_brandPersonality').value = snap.f_brandPersonality || 'Elegant';
-  updateBrandPersonalityHint(document.getElementById('f_brandPersonality'));
+  selectedBrandPersonalities = [...(snap.f_brandPersonalities || ['Elegant'])];
+  updateBrandPersonalityHint();
   document.getElementById('f_attendees').value = snap.f_attendees || '';
   document.getElementById('f_eventType').value = snap.f_eventType || '';
   document.getElementById('f_eventTypeCustom').value = snap.f_eventTypeCustom || '';
@@ -9116,8 +9219,8 @@ function openProject(id){
       restoreFormSnapshot(project.formSnapshot);
       // Reset AFTER restoreFormSnapshot, not before — see the identical comment in
       // startNewProject() for why the order matters here.
-      boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
-      eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
+      boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
+      eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
       restoreLogoAndPosters(project);
       restoreResultsView(project);
       renderProjectSidebar();
@@ -9247,8 +9350,8 @@ function startNewProject(){
   // which would otherwise capture the outgoing mode's (possibly stale, leftover-from-a-
   // different-project) field values right back into the snapshot before this reset could
   // actually take effect.
-  boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
-  eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonality: 'Elegant' };
+  boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
+  eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
   logoDataUrl = null;
   logoMediaType = null;
   document.getElementById('logoPreview').style.display = 'none';
@@ -9282,7 +9385,8 @@ function startNewProject(){
 
 updateArchStyleHint(document.getElementById('f_archStyle'));
 updateIndustryStyleHint(document.getElementById('f_industryStyle'));
-updateBrandPersonalityHint(document.getElementById('f_brandPersonality'));
+renderBrandPersonalityGrid();
+initReqCategoryAccordion();
 renderProjectSidebar();
 adminCheckPromise = checkAdminAccess();
 setMode('booth'); // must run once on load — otherwise every element whose correct visibility depends on setMode() (the new section headlines included) stays at its raw HTML default until a tab is actually clicked
