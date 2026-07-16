@@ -10063,6 +10063,10 @@ async function generateTechnicalBoard(){
   VIEWER_CAMERA_LABELS[TECHBOARD_ID] = 'Technical Board';
   renderGeneratedViewCard(TECHBOARD_ID, 'pending', null);
   document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
+  // Same protection as every other generation flow — harmless to set again when this is
+  // already running automatically inside generateCameraViewsFromHero's own locked window;
+  // this only matters on its own when triggered manually (Retry, or the fallback button).
+  projectSwitchLocked = true;
 
   try{
     const { mime, base64 } = dataUrlParts(await compressDataUrl(heroImage, 1536, 0.88));
@@ -10108,6 +10112,8 @@ async function generateTechnicalBoard(){
   }catch(err){
     console.error('Could not generate technical board:', err);
     renderGeneratedViewCard(TECHBOARD_ID, 'failed', err.message || 'Could not generate the technical board.');
+  }finally{
+    projectSwitchLocked = false;
   }
 }
 
