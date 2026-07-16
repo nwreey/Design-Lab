@@ -6443,9 +6443,23 @@ let projectSwitchLocked = false;
 let pendingRenderCount = 0;
 function blockIfGenerating(){
   if(!projectSwitchLocked) return false;
-  customAlert('A design is currently being generated for this project — please wait for it to finish before switching projects.', 'Please wait');
+  customAlert('DesignsLab is currently being generated for this project, please wait for it to finish before switching projects.', 'Please wait');
   return true;
 }
+
+// Closing the tab, refreshing, or navigating away entirely (not just switching projects
+// inside the app, which blockIfGenerating already covers) loses whatever hasn't finished
+// generating yet — the camera views loop in particular can still have several views left.
+// This asks the browser to show its own native "leave site?" confirmation whenever that's
+// true. Browsers ignore custom text here for security reasons and show their own generic
+// wording instead — setting returnValue is just what actually makes the prompt appear at
+// all, not a way to control its exact message.
+window.addEventListener('beforeunload', function(e){
+  if(!projectSwitchLocked) return;
+  e.preventDefault();
+  e.returnValue = 'A design is still generating — leaving now will lose any views that haven\'t finished yet.';
+  return e.returnValue;
+});
 
 // Opening a saved project should land directly on its results — the concept box, the
 // picture, everything already done on it — rather than showing the input form
@@ -9626,8 +9640,19 @@ async function generateCameraViewsFromHero(heroImage){
   // instantly without ever reaching the network.
   cameraViewsAbortController = null;
 
+  // The Technical Board used to need a separate manual "Generate Technical Board" click
+  // after every camera view finished — now it's generated automatically as the final step,
+  // right here, so Good Luck/rating only appear once the whole set (camera views + board)
+  // is genuinely complete. Skipped when the admin stopped the batch early on purpose (for
+  // testing) — an intentionally incomplete set isn't "done," so there's nothing finished
+  // yet to build a technical board from; Good Luck/rating still show either way, matching
+  // the existing stopped-early behavior below.
+  if(!stoppedEarly){
+    updateApproveProgress(97, 'Generating the Technical Board...');
+    await generateTechnicalBoard();
+  }
+
   document.getElementById('goodLuckMessage').style.display = 'block';
-  document.getElementById('techBoardActions').style.display = 'flex';
   document.getElementById('rateUsLabel').textContent = 'How would you rate this design?';
   document.getElementById('rateUsLabel').classList.remove('rate-us-thanks');
   currentRatingValue = 0;
@@ -9972,7 +9997,7 @@ function buildTechnicalBoardEditPrompt(labels){
 
 ${labelBlocks}
 
-Style: clean architectural presentation-board / portfolio graphics — thin dark leader lines with a small dot or arrowhead at the exact point on the element being labeled, minimal sans-serif label typography, a subtle semi-transparent white background behind each label so the text stays legible without hiding the design behind it. Arrange labels so none overlap each other or cover an important part of the design; where several labeled elements sit close together, route the leader lines cleanly so each one stays unambiguous.
+Style: clean architectural presentation-board / portfolio graphics — thin dark leader lines with a small dot or arrowhead at the exact point on the element being labeled, minimal sans-serif label typography set in solid white text with no background box, panel, or shape of any kind behind it — the white text sits directly over the photo itself, legible purely from its own contrast against the image. Arrange labels so none overlap each other or cover an important part of the design; where several labeled elements sit close together, route the leader lines cleanly so each one stays unambiguous.
 
 Do NOT alter the booth design itself in any way — same materials, same colors, same layout, same camera angle, same lighting, everything already in the reference image stays exactly as it is. The ONLY change allowed is the added arrows, label boxes, and specification text described above. Do not add any people. This is a technical presentation annotation overlay, not a redesign.`;
 }
@@ -11130,8 +11155,14 @@ function restoreGeneratedViewsIfSaved(project){
     }
   });
 
+  // The Technical Board is now generated automatically right after camera views finish, so
+  // the manual "Generate Technical Board" button only needs to reappear as a fallback for a
+  // project saved before that existed — one that finished approval but never got a board.
+  const savedTechBoardHist = viewCardHistories[TECHBOARD_ID];
+  const hasTechBoardAlready = savedTechBoardHist && savedTechBoardHist.images && savedTechBoardHist.images.length > 0;
+  document.getElementById('techBoardActions').style.display = hasTechBoardAlready ? 'none' : 'flex';
+
   document.getElementById('goodLuckMessage').style.display = 'block';
-  document.getElementById('techBoardActions').style.display = 'flex';
   document.getElementById('rateUsLabel').textContent = 'How would you rate this design?';
   document.getElementById('rateUsLabel').classList.remove('rate-us-thanks');
   currentRatingValue = 0;
@@ -11335,6 +11366,13 @@ async function deleteProjectPrompt(id){
    from; Edit image and the camera-view generator work normally since both only need the
    picture itself. */
 function handleExistingDesignUpload(input){
+  // Same shared global state (currentProjectId, optionResults, viewCardHistories) every
+  // other project-switching action reuses — uploading an existing design straight from the
+  // sidebar jumps into that same state without going through openProject/startNewProject,
+  // so without this check it could silently abandon/corrupt whatever generation (initial
+  // generate, other option, or camera views) is still running for the project currently on
+  // screen, exactly like clicking another project mid-generation used to.
+  if(blockIfGenerating()){ input.value = ''; return; }
   const file = input.files[0];
   if(!file) return;
   const enteredWidth = document.getElementById('uploadExistingWidth').value;
