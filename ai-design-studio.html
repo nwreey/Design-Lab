@@ -9116,6 +9116,18 @@ ${buildApprovedDecisionsText()}
   statusEl.textContent = 'Preparing your edit...';
   closeEditPanel();
 
+  // Show progress directly on the specific picture being edited, not only as a page-top
+  // status line — with several views in the grid, that top-level text alone gave no visual
+  // link to which picture it was actually about. The original image is kept so a failure can
+  // restore that exact card (Download bar included) instead of leaving it stuck on
+  // "Building this view...".
+  let originalCardImage = null;
+  if(editTarget.type === 'camview'){
+    const hist = viewCardHistories[editTarget.camId];
+    originalCardImage = hist ? hist.images[hist.activeIndex] : null;
+    renderGeneratedViewCard(editTarget.camId, 'pending', null);
+  }
+
   let requestBody;
   try{
     const compressedComposite = await compressDataUrl(compositeDataUrl, 1536, 0.88);
@@ -9131,6 +9143,9 @@ ${buildApprovedDecisionsText()}
     requestBody.prompt += HARD_CONSTRAINTS_SUFFIX;
   }catch(err){
     console.error('Image compression failed:', err);
+    if(editTarget.type === 'camview' && originalCardImage){
+      renderGeneratedViewCard(editTarget.camId, 'done', originalCardImage);
+    }
     setStatusError(statusEl, 'Could not prepare that edit: ' + (err.message || 'unknown error'));
     return;
   }
@@ -9179,6 +9194,9 @@ ${buildApprovedDecisionsText()}
     saveCurrentProject();
   }catch(err){
     console.error(err);
+    if(editTarget.type === 'camview' && originalCardImage){
+      renderGeneratedViewCard(editTarget.camId, 'done', originalCardImage);
+    }
     if(activeOptionIndex === idx){
       setStatusError(statusEl, 'Could not apply that edit: ' + (err.message || 'unknown error'));
     }
