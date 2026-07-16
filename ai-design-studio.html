@@ -9703,28 +9703,40 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet){
 
   const sidePriorityOrder = ['Front', 'Right', 'Back', 'Left'];
 
-  // CORNER BOOTHS (exactly 2 open sides) get a fixed, specific 5-camera recipe per explicit
+  // CORNER BOOTHS (exactly 2 open sides) get a fixed, specific 4-camera recipe per explicit
   // client direction, replacing the general priority-candidate approach used for every other
   // booth shape: Hero (the diagonal corner shot already approved), a straight-on centered
-  // elevation of EACH of the two open sides (camera aimed straight in, never diagonal), one
-  // elevated three-quarter Perspective View (same direction as the hero shot but from a
-  // visibly higher vantage), and one true top-down Top View showing the full footprint. The
-  // client explicitly confirmed the top-down view despite a known risk: a real production
-  // test (a Red Bull booth) showed overhead framing can push the model toward a flat 2D
-  // blueprint instead of a photorealistic render — see buildCameraViewPrompt's 'top-down'
-  // branch for how that's mitigated as much as possible while still honoring the request.
+  // elevation of EACH of the two open sides (camera aimed straight in, never diagonal), and
+  // one true top-down Top View showing the full footprint. The client explicitly confirmed
+  // the top-down view despite a known risk: a real production test (a Red Bull booth)
+  // showed overhead framing can push the model toward a flat 2D blueprint instead of a
+  // photorealistic render — see buildCameraViewPrompt's 'top-down' branch for how that's
+  // mitigated as much as possible while still honoring the request.
+  //
+  // The two elevation cameras are named "Right View" / "Left View" — relative to the hero
+  // shot's own viewpoint, not literal compass sides. A corner booth's two open sides are
+  // always Front plus one of Left/Right (never Left AND Right together — see
+  // getBoothOpenSidesSet), so naming them by their real compass side would sometimes have
+  // neither one called "Left" or "Right" at all (e.g. Front+Right open — "Front" isn't
+  // "Left"). Per the client's own naming, "Right View"/"Left View" instead describe which
+  // side of the hero's own diagonal each open face sits on: whichever open side is
+  // clockwise from the hero azimuth (matching this app's existing clock convention, where
+  // 3 o'clock/Right sits clockwise of 12 o'clock/Front) is "Right View"; the other,
+  // counter-clockwise one is "Left View".
   if(openCount === 2){
     const [sideA, sideB] = sidePriorityOrder.filter(s => openSides.includes(s));
-    const fixedFive = [
+    const isClockwiseOfHero = (side) => toRelativeAzimuth(COMPASS_AZIMUTH[side]) < 180;
+    const rightSide = isClockwiseOfHero(sideA) ? sideA : sideB;
+    const leftSide = rightSide === sideA ? sideB : sideA;
+    const fixedFour = [
       { name: 'Hero View', type: 'exterior', azimuth: 0, elevation: 15, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' },
-      { name: `${sideA} Elevation`, type: 'exterior', azimuth: toRelativeAzimuth(COMPASS_AZIMUTH[sideA]), elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${sideA} open face — camera aimed straight in, not diagonal.` },
-      { name: `${sideB} Elevation`, type: 'exterior', azimuth: toRelativeAzimuth(COMPASS_AZIMUTH[sideB]), elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${sideB} open face — camera aimed straight in, not diagonal.` },
-      { name: 'Perspective View', type: 'exterior', azimuth: 0, elevation: 55, promptHint: 'An elevated three-quarter perspective view of the booth, same general direction as the hero shot but from a visibly higher vantage.' },
+      { name: 'Right View', type: 'exterior', azimuth: toRelativeAzimuth(COMPASS_AZIMUTH[rightSide]), elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${rightSide} open face — camera aimed straight in, not diagonal.` },
+      { name: 'Left View', type: 'exterior', azimuth: toRelativeAzimuth(COMPASS_AZIMUTH[leftSide]), elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${leftSide} open face — camera aimed straight in, not diagonal.` },
       { name: 'Top View', type: 'top-down', azimuth: 0, elevation: 90, promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' }
     ];
     return {
-      plan: fixedFive.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, radius: 8, target: 'booth_center', lens: 35, ...c })),
-      openSides, closedSides, heroApproach, targetCount: 5
+      plan: fixedFour.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, radius: 8, target: 'booth_center', lens: 35, ...c })),
+      openSides, closedSides, heroApproach, targetCount: 4
     };
   }
 
