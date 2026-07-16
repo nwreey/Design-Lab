@@ -9801,6 +9801,25 @@ function getCameraCountForBooth(openCount, totalAreaSqm){
   return base;
 }
 
+// ISLAND BOOTHS (all four sides open) get a fixed, evenly-spaced 8-camera ring per explicit
+// client direction: Hero (the diagonal corner shot already approved) plus seven more cameras,
+// each rotating exactly 45 degrees further clockwise than the last, completing a full
+// 360-degree orbit in 45-degree steps (0, 45, 90, 135, 180, 225, 270, 315) with no separate
+// top-down view. Defined once, here, so both the real per-view camera plan
+// (computeCameraViewPlan below) and the admin-only Luma comparison video's own descriptive
+// prompt (startAdminLumaVideoComparison) stay in exact sync with this same named order and
+// degree spacing — never two separately-maintained versions of "the same" orbit.
+const ISLAND_CAMERA_RING = [
+  { name: 'Hero View', azimuth: 0, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' },
+  { name: 'Right View', azimuth: 45, promptHint: 'A straight-on exterior view of the booth, 45 degrees clockwise from the hero view.' },
+  { name: 'Perspective Rear Right View', azimuth: 90, promptHint: 'A three-quarter perspective exterior view of the booth, 90 degrees clockwise from the hero view.' },
+  { name: 'Rear View', azimuth: 135, promptHint: 'A straight-on exterior view of the booth, 135 degrees clockwise from the hero view.' },
+  { name: 'Perspective Rear Left View', azimuth: 180, promptHint: 'A three-quarter perspective exterior view of the booth, directly opposite the hero view (180 degrees around).' },
+  { name: 'Left View', azimuth: 225, promptHint: 'A straight-on exterior view of the booth, 225 degrees clockwise from the hero view (135 degrees counter-clockwise).' },
+  { name: 'Perspective Left View', azimuth: 270, promptHint: 'A three-quarter perspective exterior view of the booth, 270 degrees clockwise from the hero view (90 degrees counter-clockwise).' },
+  { name: 'Front View', azimuth: 315, promptHint: 'A straight-on exterior view of the booth, 315 degrees clockwise from the hero view (45 degrees counter-clockwise), completing the orbit back toward the hero view.' }
+];
+
 // Builds the actual ordered camera list for this exact booth. zonePlan is
 // computeSpatialPlan(...)'s own zonePlan array — the same Kept/Merged/Removed decisions
 // already used to write this design's brief — so an interior view is only ever promised
@@ -9887,51 +9906,14 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet){
     };
   }
 
-  // ISLAND BOOTHS (all four sides open) get a fixed, specific 9-camera recipe per explicit
-  // client direction, replacing the general priority-candidate approach used for a peninsula
-  // (3-open-side) booth: Hero (the diagonal corner shot already approved), a symmetric fan of
-  // paired perspective/straight-on shots sweeping away from the hero corner in both directions
-  // (Right side, then Left side), converging at a Rear diagonal directly opposite Hero (itself
-  // flanked by its own two perspective approaches), and one true top-down Top View.
-  //
-  // "Right"/"Left" are named the same way as the corner (2-open-side) recipe above — relative
-  // to the hero shot's own viewpoint (whichever of the hero corner's two sides sits clockwise
-  // of it is "Right", the other is "Left"), never a literal, fixed compass side. The two
-  // remaining compass sides (the corner diagonally opposite Hero) are the "Rear" pair —
-  // sidePriorityOrder is already in clockwise compass order (Front, Right, Back, Left), so the
-  // far side immediately clockwise of "Right" is "Rear Right" and the other far side is
-  // "Rear Left".
+  // ISLAND BOOTHS (all four sides open) use the fixed ISLAND_CAMERA_RING defined above this
+  // function — a straightforward 45-degree-per-step orbit rather than the earlier asymmetric
+  // fan-plus-top-view recipe. Azimuths are already fixed, absolute-relative-to-hero degrees
+  // (0/45/90/.../315), so no per-booth compass-side computation is needed here at all.
   if(openCount === 4){
-    const [cornerSideA, cornerSideB] = heroApproach.corner.split('-');
-    const isClockwiseOfHero = (side) => toRelativeAzimuth(COMPASS_AZIMUTH[side]) < 180;
-    const rightSide = isClockwiseOfHero(cornerSideA) ? cornerSideA : cornerSideB;
-    const leftSide = rightSide === cornerSideA ? cornerSideB : cornerSideA;
-    const rightIdx = sidePriorityOrder.indexOf(rightSide);
-    const rearRightSide = sidePriorityOrder[(rightIdx + 1) % 4];
-    const rearLeftSide = sidePriorityOrder.filter(s => s !== rightSide && s !== leftSide).find(s => s !== rearRightSide);
-
-    const rightAzimuth = toRelativeAzimuth(COMPASS_AZIMUTH[rightSide]);
-    const leftAzimuth = toRelativeAzimuth(COMPASS_AZIMUTH[leftSide]);
-    const rearAzimuth = 180; // directly opposite the hero's own diagonal, by definition
-    const perspRightAzimuth = ((0 + shortestAngleDelta(0, rightAzimuth) * 0.5) + 360) % 360;
-    const perspLeftAzimuth = ((0 + shortestAngleDelta(0, leftAzimuth) * 0.5) + 360) % 360;
-    const perspRearRightAzimuth = ((rightAzimuth + shortestAngleDelta(rightAzimuth, rearAzimuth) * 0.5) + 360) % 360;
-    const perspRearLeftAzimuth = ((leftAzimuth + shortestAngleDelta(leftAzimuth, rearAzimuth) * 0.5) + 360) % 360;
-
-    const fixedNine = [
-      { name: 'Hero View', type: 'exterior', azimuth: 0, elevation: 15, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' },
-      { name: 'Perspective Right View', type: 'exterior', azimuth: perspRightAzimuth, elevation: 15, promptHint: `A three-quarter perspective view angled between the hero view and the booth's ${rightSide} open face.` },
-      { name: 'Right View', type: 'exterior', azimuth: rightAzimuth, elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${rightSide} open face — camera aimed straight in, not diagonal.` },
-      { name: 'Perspective Left View', type: 'exterior', azimuth: perspLeftAzimuth, elevation: 15, promptHint: `A three-quarter perspective view angled between the hero view and the booth's ${leftSide} open face.` },
-      { name: 'Left View', type: 'exterior', azimuth: leftAzimuth, elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${leftSide} open face — camera aimed straight in, not diagonal.` },
-      { name: 'Perspective Rear View Left', type: 'exterior', azimuth: perspRearLeftAzimuth, elevation: 15, promptHint: `A three-quarter perspective view angled between the booth's ${leftSide} open face and its rear, approaching the ${rearLeftSide} open face.` },
-      { name: 'Rear View', type: 'exterior', azimuth: rearAzimuth, elevation: 15, promptHint: `A straight-on exterior elevation of the booth's rear corner, directly opposite the hero view, where the ${rearLeftSide} and ${rearRightSide} open faces meet.` },
-      { name: 'Perspective Rear View Right', type: 'exterior', azimuth: perspRearRightAzimuth, elevation: 15, promptHint: `A three-quarter perspective view angled between the booth's ${rightSide} open face and its rear, approaching the ${rearRightSide} open face.` },
-      { name: 'Top View', type: 'top-down', azimuth: 0, elevation: 90, promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' }
-    ];
     return {
-      plan: fixedNine.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, radius: 8, target: 'booth_center', lens: 35, ...c })),
-      openSides, closedSides, heroApproach, targetCount: 9
+      plan: ISLAND_CAMERA_RING.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, type: 'exterior', elevation: 15, radius: 8, target: 'booth_center', lens: 35, ...c })),
+      openSides, closedSides, heroApproach, targetCount: ISLAND_CAMERA_RING.length
     };
   }
 
@@ -10647,8 +10629,10 @@ async function startAdminLumaVideoComparison(heroImage, designTitle){
     // OpenAI prompts do, but stating it plainly still steers the orbit away from implying a
     // walk-through of a side that's actually closed).
     let orientationJSON = null;
+    let isIslandBooth = false;
     if(mode === 'booth'){
       const openSidesSet = getBoothOpenSidesSet();
+      isIslandBooth = ALL_BOOTH_SIDES.every(s => openSidesSet.has(s));
       orientationJSON = {
         orientation: {
           front: openSidesSet.has('Front') ? 'open' : 'closed',
@@ -10662,7 +10646,16 @@ async function startAdminLumaVideoComparison(heroImage, designTitle){
     const orientationNote = orientationJSON
       ? ` This booth's real orientation (open vs. closed sides) is: ${JSON.stringify(orientationJSON)}. Never imply the orbit passing through, or a visitor entering from, any side marked "closed" — the camera may approach and linger only near the "open" sides; closed sides should read as solid walls throughout the orbit.`
       : '';
-    const promptText = `A smooth, continuous 360-degree orbit around this exact exhibition booth${designTitle ? ' ("' + designTitle + '")' : ''} — the booth itself stays completely static and unchanged throughout; only the camera moves around it, at a constant height and distance.${orientationNote}`;
+    // Island booths (all four sides genuinely open) get a much more specific instruction:
+    // the exact same named, ordered, 45-degree-per-step rotation as ISLAND_CAMERA_RING (the
+    // real per-view camera plan used once this design is approved) — so the comparison video
+    // actually follows the same waypoints in the same order, rather than a generic unscripted
+    // orbit that has no guaranteed relationship to the real camera views it's meant to be
+    // compared against.
+    const islandOrderNote = isIslandBooth
+      ? ` Follow this exact camera order, one continuous clockwise rotation, each step exactly 45 degrees further clockwise than the last, pausing briefly to hold each named position before continuing to the next: ${ISLAND_CAMERA_RING.map((c, i) => `(${i + 1}) ${c.name} at ${c.azimuth} degrees`).join(', ')}. Never skip a position, never reorder them, and never rotate counter-clockwise at any point.`
+      : '';
+    const promptText = `A smooth, continuous 360-degree orbit around this exact exhibition booth${designTitle ? ' ("' + designTitle + '")' : ''} — the booth itself stays completely static and unchanged throughout; only the camera moves around it, at a constant height and distance.${orientationNote}${islandOrderNote}`;
 
     const genResponse = await fetchWithTimeout('/api/luma-generate', {
       method: 'POST',
