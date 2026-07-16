@@ -383,6 +383,9 @@
   .viewer3d-building-icon{font-size:28px;animation:viewerBuildingPulse 1.6s ease-in-out infinite;}
   .viewer3d-building-label{opacity:.8;}
   @keyframes viewerBuildingPulse{0%,100%{opacity:.4;transform:scale(1);}50%{opacity:1;transform:scale(1.12);}}
+  .viewer3d-card-loading-bar{width:70%;max-width:200px;height:5px;background:var(--navy-soft);border-radius:3px;overflow:hidden;position:relative;margin-top:2px;}
+  .viewer3d-card-loading-bar::after{content:'';position:absolute;top:0;left:-40%;width:40%;height:100%;background:linear-gradient(90deg, var(--teal), var(--gold));border-radius:3px;animation:viewerCardLoadingSlide 1.2s ease-in-out infinite;}
+  @keyframes viewerCardLoadingSlide{0%{left:-40%;}50%{left:60%;}100%{left:100%;}}
   .viewer3d-generated-card-light.failed{border-color:#c0432b;box-shadow:none;}
   .viewer3d-generated-card-label.failed-label{color:#c0432b;}
   #renderSlotImg{cursor:zoom-in;}
@@ -9172,7 +9175,7 @@ ${buildApprovedDecisionsText()}
   if(editTarget.type === 'camview'){
     const hist = viewCardHistories[editTarget.camId];
     originalCardImage = hist ? hist.images[hist.activeIndex] : null;
-    renderGeneratedViewCard(editTarget.camId, 'pending', originalCardImage);
+    renderGeneratedViewCard(editTarget.camId, 'pending', null);
   }
   // Same protection as every other generation flow — an edit in flight is just as much "a
   // design being generated" as the initial render or the camera views, so closing the tab,
@@ -9771,9 +9774,7 @@ async function retryGeneratedView(camId){
     await customAlert('This view can no longer be retried — reopen the design to regenerate all views.', 'Retry view');
     return;
   }
-  const priorHist = viewCardHistories[camId];
-  const priorImage = priorHist ? priorHist.images[priorHist.activeIndex] : null;
-  renderGeneratedViewCard(camId, 'pending', priorImage);
+  renderGeneratedViewCard(camId, 'pending', null);
   projectSwitchLocked = true;
   try{
     const resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false);
@@ -10380,18 +10381,7 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
 
   if(state === 'pending'){
     card.className = 'viewer3d-generated-card-light pending';
-    // While an edit is being applied to an already-generated picture, imageOrMsg carries
-    // that picture's last-known-good image (see submitEdit/retryGeneratedView) — keeping a
-    // small Download bar available for it here means the person isn't left with nothing to
-    // download just because a new version happens to be mid-generation. A view being built
-    // for the very first time has nothing to show yet, so imageOrMsg is null there and no
-    // download bar appears.
-    const pendingDownloadBar = imageOrMsg ? `
-      <div class="viewer3d-generated-card-actions">
-        <a href="${imageOrMsg}" download="${cameraViewFilename(label)}.jpg" class="ghost small">Download</a>
-      </div>
-    ` : '';
-    card.innerHTML = `<div class="viewer3d-generated-card-label">${label}</div><div class="viewer3d-building-icon">🏗️</div><div class="viewer3d-building-label">Building this view...</div>${pendingDownloadBar}`;
+    card.innerHTML = `<div class="viewer3d-generated-card-label">${label}</div><div class="viewer3d-building-icon">🏗️</div><div class="viewer3d-building-label">Building this view...</div><div class="viewer3d-card-loading-bar"></div>`;
     return;
   }
 
