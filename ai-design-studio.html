@@ -8361,7 +8361,7 @@ ${lines.join('\n')}`;
    position, and — paired with verifyCameraViewGeometry below — also gives this app something
    concrete to verify a finished render against, rather than only ever hoping the prose was
    followed. */
-function buildOrientationLock(structuralShell, spatialPlan){
+function buildOrientationLock(structuralShell, spatialPlan, doubleDeckFacts){
   if(!structuralShell || !spatialPlan) return null;
   const round2 = (n) => Math.round(n * 100) / 100;
 
@@ -8402,7 +8402,7 @@ function buildOrientationLock(structuralShell, spatialPlan){
       positionLabel: z.position ? z.position.label : undefined
     }));
 
-  return {
+  const lock = {
     boothWidthM: round2(structuralShell.widthM),
     boothDepthM: round2(structuralShell.depthM),
     floorOutline: [[0, 0], [round2(structuralShell.widthM), 0], [round2(structuralShell.widthM), round2(structuralShell.depthM)], [0, round2(structuralShell.depthM)]],
@@ -8413,6 +8413,21 @@ function buildOrientationLock(structuralShell, spatialPlan){
     heroStructure,
     furniture
   };
+
+  // Double Deck Camera Rules' Camera Validation Rules need these facts to check camera views
+  // against, the same way openSides/closedSides/heroStructure already back the geometry
+  // checks above — never a second, separately-maintained model of "what the upper deck is
+  // supposed to look like," always this exact booth's own approved Second Floor Configuration
+  // (see recomputeCameraViewPlan, which is the only caller that ever passes doubleDeckFacts).
+  if(doubleDeckFacts){
+    lock.isDoubleDeck = true;
+    lock.upperDeckPurpose = doubleDeckFacts.upperDeckPurpose || [];
+    lock.staircasePosition = doubleDeckFacts.staircasePosition || '';
+    lock.upperDeckPrivacy = doubleDeckFacts.upperDeckPrivacy || '';
+    lock.guardRailRequired = true;
+  }
+
+  return lock;
 }
 
 // MANDATORY CLIENT REQUIREMENT: whenever this booth has at least one STRUCTURAL WALL side —
@@ -11313,7 +11328,11 @@ Check specifically, in this order:
 2. Every side listed in "closedSides" must show a real, solid wall in this image at roughly the position/length given — never open, never missing, never replaced with an archway or walk-through opening.
 3. The "heroStructure" entry describes this booth's one centerpiece structure (approximate footprint, height, position). The structure visible in this image must be recognizably the same shape/form and in the same general position — never a different structure invented in its place, and never an entirely new additional architectural mass (a second wall, a curved partition, a column) that isn't accounted for by the Orientation Lock at all.
 
-If this image's visible geometry is consistent with the Orientation Lock on all checks above, respond MATCH. If ANY check fails, respond MISMATCH and state exactly which check failed and what is visibly wrong, in one short, specific sentence a designer could act on to fix it (e.g. "A curved wall appears on the Left side, which the Orientation Lock lists as an open side.").
+DOUBLE DECK CAMERA RULES — Camera Validation Rules (only apply these two additional checks when the Orientation Lock's "isDoubleDeck" field is true; skip both entirely for a single-level booth):
+4. The accompanying text for this image states whether this specific camera "requiresUpperFloorVisible". When it does, a genuine second floor (upper deck) must be visibly present in the image, positioned above the ground floor, with a real guard rail/railing visible along any exposed edge of it (per "guardRailRequired": true) — if the image reads as a single-level booth with no upper floor at all, that is a MISMATCH.
+5. The accompanying text states whether this image "isStaircaseView". When it is, a staircase connecting the ground floor and the second floor must be clearly visible and appear structurally supported (resting on real posts, a stringer, or a wall — never floating in mid-air with no visible support). If no staircase is visible at all in this specific view, that is a MISMATCH.
+
+If this image's visible geometry is consistent with the Orientation Lock on all applicable checks above, respond MATCH. If ANY check fails, respond MISMATCH and state exactly which check failed and what is visibly wrong, in one short, specific sentence a designer could act on to fix it (e.g. "A curved wall appears on the Left side, which the Orientation Lock lists as an open side." or "No second floor is visible — this double-deck booth renders as a single-level structure.").
 
 Respond in JSON only, no explanation outside the JSON, using exactly one of these two shapes:
 { "result": "MATCH" }
@@ -11325,7 +11344,7 @@ async function verifyCameraViewGeometry(dataUrl, spec){
     const { mime, base64 } = dataUrlParts(await compressDataUrl(dataUrl, 1024, 0.8));
     const content = [
       { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
-      { type: 'text', text: `ORIENTATION LOCK (machine-readable, authoritative facts for this exact booth):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThis image is the "${spec.name}" camera view of this exact booth.` }
+      { type: 'text', text: `ORIENTATION LOCK (machine-readable, authoritative facts for this exact booth):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThis image is the "${spec.name}" camera view of this exact booth. requiresUpperFloorVisible: ${!!spec.requiresUpperFloorVisible}. isStaircaseView: ${spec.focusZone === 'staircase'}.` }
     ];
     const analysis = await callPromptWriterApi(orientationLockVerificationSystem, content);
     if(analysis && analysis.result === 'MISMATCH'){
@@ -11627,13 +11646,53 @@ const ISLAND_CAMERA_RING = [
   { name: 'Top View', azimuth: 0, elevation: 90, type: 'top-down', promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' }
 ];
 
+/* DOUBLE DECK CAMERA RULES — per explicit client spec. When Construction Style / Number of
+   levels = Double Deck, the standard open-side-scaled camera set (the corner/island fixed
+   recipes above, or the general priority-candidate list further below) is entirely replaced
+   by this fixed 13-camera set instead, regardless of how many sides are open — its whole
+   purpose is to fully document BOTH architectural levels from every meaningful viewpoint
+   without changing any geometry (only camera position/angle/focal length ever move; walls,
+   stairs, furniture, and branding never do). Azimuths for the four straight elevations
+   (Front/Left/Right/Rear) reuse this app's existing compass convention (COMPASS_AZIMUTH:
+   Front 0°, Right 90°, Back/Rear 180°, Left 270°); the four diagonal perspective azimuths
+   (45°/315°/135°/225°) are the client's own literal degree figures, taken as fixed
+   relative-to-hero values in the same style as ISLAND_CAMERA_RING above, not per-booth-
+   computed — the spec itself says "approximately," so an exact fixed ring is intentional,
+   not an approximation of some other "true" number.
+   - `floor: 'upper'` marks a camera physically positioned ON the second floor (Upper Deck
+     Overview, Upper Deck Interior) — buildCameraViewPrompt uses this to explicitly tell the
+     rendering model it is NOT on the ground floor.
+   - `floor: 'connection'` marks the Staircase View — the one camera whose whole job is
+     proving the staircase is a real, structurally supported connection between both floors
+     (Camera Validation Rules: "Staircase exists," "Structural columns exist").
+   - `requiresUpperFloorVisible: true` marks every camera (the four elevations, four
+     perspectives, and the Top View) that the Camera Validation Rules require to show the
+     second floor is genuinely part of the design — never rendered as if this were a
+     single-level booth. verifyCameraViewGeometry checks this flag against the Orientation
+     Lock's own `isDoubleDeck` fact for an automated pass, on top of the prompt instruction. */
+const DOUBLE_DECK_CAMERA_RING = [
+  { name: 'Hero View', azimuth: 0, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself, already showing this double-deck booth\'s front entrance, ground floor, second floor, staircase, hero architecture, and branding in one frame.' },
+  { name: 'Front View', azimuth: 0, elevation: 12, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'An orthographic-style, straight-on front elevation of the entire booth from ground floor to roofline — the entire front façade, the second floor, the main entrance, and the staircase (if visible from this side) must all be visible together in this single frame.' },
+  { name: 'Left View', azimuth: 270, elevation: 12, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on left elevation of the booth, showing this side\'s architecture from ground floor to roofline, including the second floor above.' },
+  { name: 'Right View', azimuth: 90, elevation: 12, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on right elevation of the booth, showing this side\'s architecture from ground floor to roofline, including the second floor above.' },
+  { name: 'Rear View', azimuth: 180, elevation: 12, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on rear elevation of the booth — especially important for showing any storage room, structural walls, and service access on this side, in addition to the second floor above.' },
+  { name: 'Perspective Front Left', azimuth: 45, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its front-left, roughly 45 degrees, showing the ground floor and second floor together in one dynamic angle.' },
+  { name: 'Perspective Front Right', azimuth: 315, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its front-right, roughly 315 degrees, showing the ground floor and second floor together in one dynamic angle.' },
+  { name: 'Perspective Rear Left', azimuth: 135, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its rear-left, roughly 135 degrees, showing the ground floor and second floor together in one dynamic angle.' },
+  { name: 'Perspective Rear Right', azimuth: 225, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its rear-right, roughly 225 degrees, showing the ground floor and second floor together in one dynamic angle.' },
+  { name: 'Upper Deck Overview', type: 'upper-deck-overview', floor: 'upper', promptHint: 'An elevated interior vantage point positioned slightly above second-floor level, showing the entire upper floor at once — its lounge/meeting/whatever-was-selected areas, guard rails, and circulation — exactly as specified in this design\'s Second Floor Configuration, never inventing a room, furniture piece, or function beyond what was actually specified for the upper deck.' },
+  { name: 'Upper Deck Interior', type: 'interior', focusZone: 'upper deck interior', floor: 'upper', promptHint: 'An eye-level interior view taken from the second floor itself, as if a visitor were standing on the upper deck — showing the real user experience up there.' },
+  { name: 'Staircase View', type: 'interior', focusZone: 'staircase', floor: 'connection', promptHint: 'A dedicated interior view focused on the staircase connecting the ground floor and the second floor, clearly showing its structural supports and confirming it is a real, functional, fully integrated staircase — never floating, never merely implied, never omitted.' },
+  { name: 'Top View', azimuth: 0, elevation: 90, type: 'top-down', floor: 'both', requiresUpperFloorVisible: true, promptHint: 'A true bird\'s-eye view from directly above, showing the ground floor layout, the upper floor\'s footprint and guard rails, the staircase location, furniture layout, and circulation for both levels in one frame — wherever the upper deck does not extend to the full footprint, the ground floor beneath is visible around it in the same shot.' }
+];
+
 // Builds the actual ordered camera list for this exact booth. zonePlan is
 // computeSpatialPlan(...)'s own zonePlan array — the same Kept/Merged/Removed decisions
 // already used to write this design's brief — so an interior view is only ever promised
 // for a zone that genuinely survived the Spatial Planning Engine's own program, never
 // invented just because it's a "typical" exhibition zone (matching EPS-017's spirit,
 // applied here to camera planning instead of architecture).
-function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet){
+function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDeck){
   const openSides = ALL_BOOTH_SIDES.filter(s => openSidesSet.has(s));
   const closedSides = ALL_BOOTH_SIDES.filter(s => !openSidesSet.has(s));
   const openCount = openSides.length;
@@ -11642,6 +11701,18 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet){
   // computeCameraApproachCorner, computed once for the render and reused here rather than
   // re-derived) — every azimuth below is expressed relative to that same viewpoint.
   const heroApproach = computeCameraApproachCorner(openSidesSet);
+
+  // DOUBLE DECK CAMERA RULES: takes priority over every other camera recipe below (the
+  // corner/island fixed sets, and the general priority-candidate list), regardless of how
+  // many sides are open — see DOUBLE_DECK_CAMERA_RING's own comment for why this booth type
+  // gets a fixed, extended set instead of one scaled to openCount.
+  if(isDoubleDeck){
+    return {
+      plan: DOUBLE_DECK_CAMERA_RING.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, radius: 8, target: 'booth_center', lens: 35, elevation: 15, ...c })),
+      openSides, closedSides, heroApproach, targetCount: DOUBLE_DECK_CAMERA_RING.length
+    };
+  }
+
   const heroAbsoluteAzimuth = CORNER_TO_ABSOLUTE_AZIMUTH[heroApproach.corner] ?? 45;
   const toRelativeAzimuth = (compassAzimuth) => ((compassAzimuth - heroAbsoluteAzimuth) % 360 + 360) % 360;
   const angularDistanceFromHero = (relativeAzimuth) => Math.min(relativeAzimuth, 360 - relativeAzimuth);
@@ -11805,7 +11876,8 @@ function recomputeCameraViewPlan(){
     const totalAreaSqm = widthM * depthM;
     const openSidesSet = getBoothOpenSidesSet();
     const spatialPlan = computeSpatialPlan(widthM, depthM, '', boothHeightM);
-    result = computeCameraViewPlan(totalAreaSqm, spatialPlan.zonePlan, openSidesSet);
+    const isDoubleDeck = document.getElementById('f_levels').value === '2';
+    result = computeCameraViewPlan(totalAreaSqm, spatialPlan.zonePlan, openSidesSet, isDoubleDeck);
     // OLE-001 — same structural shell computation generateDesign() already runs for the
     // written brief (buildStructuralShell), reused here (not re-estimated) to build the
     // Orientation Lock every camera-view prompt will reference. Storage room zones are the
@@ -11815,14 +11887,24 @@ function recomputeCameraViewPlan(){
       widthM, depthM, boothHeightM, openSidesSet,
       spatialPlan.zonePlan.filter(z => (z.status === 'Kept' || z.status === 'Merged') && /^Storage room/.test(z.name))
     );
-    cameraViewsOrientationLock = buildOrientationLock(structuralShell, spatialPlan);
+    // Double Deck Camera Rules' own Camera Validation Rules (second floor visible, staircase
+    // exists, guard rails exist, upper deck functions match the user's selections) need the
+    // upper deck's own approved facts in the Orientation Lock too, not just the ground-floor
+    // structural shell — read straight from the Second Floor Configuration fields, same
+    // source collectUpperDeckSpecification() already reads for the written brief.
+    const doubleDeckFacts = isDoubleDeck ? {
+      upperDeckPurpose: Array.from(document.querySelectorAll('.upperdeck-purpose-cb:checked')).map(cb => cb.value),
+      staircasePosition: document.getElementById('f_staircasePosition').value,
+      upperDeckPrivacy: document.getElementById('f_upperDeckPrivacy').value
+    } : null;
+    cameraViewsOrientationLock = buildOrientationLock(structuralShell, spatialPlan, doubleDeckFacts);
   }else{
     // No booth-orientation form data applies to this mode — every direction is treated as
     // open, same as an island booth, so the exterior side-perspective loop simply includes
     // all four sides rather than restricting any of them. Passed explicitly rather than
     // read from the booth-only form fields, so this never depends on whatever value those
     // fields happen to be holding while a non-booth tab is active.
-    result = computeCameraViewPlan(0, [], new Set(ALL_BOOTH_SIDES));
+    result = computeCameraViewPlan(0, [], new Set(ALL_BOOTH_SIDES), false);
     // Non-booth modes (event/display stand) have no structural-shell/spatial-plan model to
     // build a lock from — camera-view prompts simply fall back to no Orientation Lock block.
     cameraViewsOrientationLock = null;
@@ -12057,8 +12139,42 @@ function buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason){
   // from. Only present when this is a booth project with a valid footprint (cameraViewsOrientationLock
   // is null for event/display-stand projects, or for old saves from before OLE-001 existed).
   const orientationLockBlock = cameraViewsOrientationLock
-    ? `\n\nORIENTATION LOCK (machine-readable, authoritative — the exact geometry of this booth, immutable from this point forward; every field below is a locked fact, never a suggestion):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThis JSON object is the single source of truth for this booth's geometry. "openSides" must show no wall/panel/partition anywhere along that side; "closedSides" must show a real solid wall at roughly the position/length given and must never be opened, removed, or replaced with an archway. "heroStructure" gives the one centerpiece structure's approximate footprint, height, and position — its silhouette and position must stay consistent with these facts in every view. "furniture" lists every other zone that actually exists in this design, with its own approximate footprint and position — never invent an additional zone, wall, column, or structural mass beyond what is listed here.`
+    ? `\n\nORIENTATION LOCK (machine-readable, authoritative — the exact geometry of this booth, immutable from this point forward; every field below is a locked fact, never a suggestion):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThis JSON object is the single source of truth for this booth's geometry. "openSides" must show no wall/panel/partition anywhere along that side; "closedSides" must show a real solid wall at roughly the position/length given and must never be opened, removed, or replaced with an archway. "heroStructure" gives the one centerpiece structure's approximate footprint, height, and position — its silhouette and position must stay consistent with these facts in every view. "furniture" lists every other zone that actually exists in this design, with its own approximate footprint and position — never invent an additional zone, wall, column, or structural mass beyond what is listed here.${cameraViewsOrientationLock && cameraViewsOrientationLock.isDoubleDeck ? ` This is a DOUBLE-DECK booth ("isDoubleDeck": true) — "upperDeckPurpose" lists the only function(s) approved for the second floor (never invent a room or function not listed there), "staircasePosition" and "upperDeckPrivacy" are locked facts about the approved staircase and upper-deck enclosure, and "guardRailRequired": true means every exposed edge of the second floor must show a real guard rail/railing in every view where the upper floor is visible.` : ''}`
     : '';
+
+  // DOUBLE DECK CAMERA RULES: every camera in DOUBLE_DECK_CAMERA_RING that's marked
+  // requiresUpperFloorVisible (the four straight elevations, the four three-quarter
+  // perspectives, and the Top View) must show this is genuinely a two-level booth — never
+  // rendered as if it were single-level just because a given angle happens to foreground the
+  // ground floor. Placed once here (not duplicated per-branch) since it's appended identically
+  // to whichever branch below actually handles this specific camera.
+  const upperFloorVisibilityNote = spec.requiresUpperFloorVisible
+    ? ' This is a DOUBLE-DECK booth — the second floor (upper deck), its guard rails along every exposed edge, and the staircase connecting it to the ground floor must all be clearly visible in this image together with the ground floor, exactly as approved. Never render this as if it were a single-level booth, and never omit, hide, or crop out the second floor to simplify the shot.'
+    : '';
+
+  // Marks the two cameras physically positioned ON the second floor (Upper Deck Overview,
+  // Upper Deck Interior) so the model doesn't default to framing this as a ground-floor shot,
+  // and the one camera whose whole job is proving the staircase is a real, structurally
+  // supported connection between both floors (Staircase View) — see DOUBLE_DECK_CAMERA_RING's
+  // own `floor` field.
+  const floorContextSentence = spec.floor === 'upper'
+    ? ' This view is taken FROM the SECOND FLOOR (upper deck) of this double-deck booth — frame it as if the camera is physically positioned up on the upper floor itself, never the ground floor, showing only the upper deck\'s own approved function(s), furniture, and guard rails.'
+    : (spec.floor === 'connection'
+      ? ' This view documents the staircase physically connecting the ground floor to the second floor of this double-deck booth — the staircase and its structural supports must be clearly, unambiguously visible and read as a real, load-bearing, fully integrated structure, never floating, never merely implied, and never omitted.'
+      : '');
+
+  // Elevated interior vantage point for the Upper Deck Overview camera only — distinct from
+  // both the eye-level "Interior views" branch below (a visitor standing on a floor) and the
+  // exterior orbit branch (a camera outside the booth looking in): this one is positioned
+  // slightly above the second floor's own level, inside the booth, looking across the whole
+  // upper deck at once, per the Double Deck Camera Rules' own "Upper Deck Overview" spec.
+  if(spec.type === 'upper-deck-overview'){
+    return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth from an ELEVATED INTERIOR vantage point positioned slightly above second-floor level, looking across the entire upper deck at once, as if the camera itself were mounted just above head height on the second floor.
+
+View: ${spec.name} — ${spec.promptHint}${floorContextSentence} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
+
+The booth's architecture, materials, branding, and furniture are completely unchanged from the reference — only the camera has moved to this new elevated interior vantage on the second floor.${widerNote} This must show the entire upper deck's approved layout, guard rails along every exposed edge, and circulation in one frame — never invent a room, furniture piece, or function on the second floor beyond what this booth's own Second Floor Configuration actually specifies. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring at ground level, consistent and unchanging. Light the space with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
+  }
 
   // Top-down view — used only by the corner (2-open-side) booth's fixed 5-camera recipe,
   // per explicit client direction, confirmed even after flagging the known risk: a real
@@ -12074,9 +12190,9 @@ function buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason){
   if(spec.type === 'top-down'){
     return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as a real, photorealistic AERIAL PHOTOGRAPH captured from directly above, as if taken by a drone hovering over the booth.
 
-View: ${spec.name} — ${spec.promptHint} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
+View: ${spec.name} — ${spec.promptHint}${upperFloorVisibilityNote} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
 
-This must be a genuine photograph-style aerial image — real materials, real shadows, real depth and lighting, exactly like a professional drone photo of a real physical structure — never a flat technical drawing, CAD plan, blueprint, or 2D diagram. The booth's architecture, materials, branding, and furniture are completely unchanged from the reference; only the camera has moved directly overhead.${widerNote} The full footprint and layout of the booth should be visible in one frame. The attached photo only shows one side of the booth — for whatever isn't visible from that angle, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into the parts only visible from above, so the whole booth reads as one coherent, intentional design. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same dark gray carpet flooring and surrounding aisle space, consistent and unchanging. Light the space with premium, even, professional exhibition lighting. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
+This must be a genuine photograph-style aerial image — real materials, real shadows, real depth and lighting, exactly like a professional drone photo of a real physical structure — never a flat technical drawing, CAD plan, blueprint, or 2D diagram. The booth's architecture, materials, branding, and furniture are completely unchanged from the reference; only the camera has moved directly overhead.${widerNote} The full footprint and layout of the booth should be visible in one frame — for a double-deck booth, this means the upper deck's own surface, railings, and any staircase opening are visible from above, and wherever the upper deck doesn't extend to the full footprint, the ground floor beneath is visible around it in the same shot. The attached photo only shows one side of the booth — for whatever isn't visible from that angle, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into the parts only visible from above, so the whole booth reads as one coherent, intentional design. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same dark gray carpet flooring and surrounding aisle space, consistent and unchanging. Light the space with premium, even, professional exhibition lighting. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
   }
 
   // Interior views (per CVP-001's Interior Camera Rules: always allowed, regardless of
@@ -12087,7 +12203,7 @@ This must be a genuine photograph-style aerial image — real materials, real sh
   if(spec.type === 'interior'){
     return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth from a NEW INTERIOR vantage point, as if a visitor were now standing inside the booth itself.
 
-View: ${spec.name} — ${spec.promptHint} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
+View: ${spec.name} — ${spec.promptHint}${floorContextSentence} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
 
 The booth's architecture, materials, branding, and furniture are completely unchanged from the reference — only the camera has moved to this new interior vantage.${widerNote} This must clearly read as a distinct interior viewpoint focused on ${spec.name.toLowerCase()}, revealing details and depth not visible in the reference's own framing — never a near-repeat of the reference from a marginally different angle. The attached photo may not show every interior detail directly — for anything not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into this interior view, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the space with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
   }
@@ -12096,10 +12212,19 @@ The booth's architecture, materials, branding, and furniture are completely unch
   // own OPEN sides — see computeCameraViewPlan, which is what guarantees spec.azimuth here
   // never corresponds to a CLOSED wall side). azimuth is always relative to the hero
   // image's own actual viewpoint (0°), never an absolute compass figure, matching how the
-  // hero image itself was framed (see DIR-007 / computeCameraApproachCorner).
+  // hero image itself was framed (see DIR-007 / computeCameraApproachCorner). EXCEPTION:
+  // Double Deck Camera Rules' fixed elevation/perspective cameras (requiresUpperFloorVisible)
+  // are the one case where this ISN'T guaranteed — the Rear View in particular is required
+  // even when Rear is this booth's structural/closed side, specifically to document storage,
+  // structural walls, and service access there, per that spec's own Rule 5. The "OPEN side"
+  // claim below only applies to the general (non-double-deck) camera sets, so it's swapped
+  // out for an accurate sentence whenever this flag is set.
+  const openSideClaimSentence = spec.requiresUpperFloorVisible
+    ? `This position documents this exact side of the booth regardless of whether it's an OPEN or a STRUCTURAL WALL side — for a STRUCTURAL WALL side, render the real solid wall, any storage/service elements behind it, and the second floor above it exactly as approved, never an open face.`
+    : `This position is pre-validated to sit only in front of this booth's own OPEN side(s) — per this booth's approved orientation, it never requires standing behind, inside, or looking through a STRUCTURAL WALL side.`;
   return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific EXTERIOR camera position.
 
-Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). This position is pre-validated to sit only in front of this booth's own OPEN side(s) — per this booth's approved orientation, it never requires standing behind, inside, or looking through a STRUCTURAL WALL side. The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens. Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
+Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). ${openSideClaimSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
 
 The booth itself is completely static and unchanged from the reference — only the camera has moved to this new position. Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image — new side surfaces, structural elements, or depth — never a near-repeat of the reference from a marginally different angle.${widerNote} The attached photo may show only one side or angle of the booth — for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
 }
