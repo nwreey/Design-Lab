@@ -7127,6 +7127,24 @@ function updateGenerateButtonState(){
 // one system+user turn to the GPT-4o passthrough at /api/generate and returns the parsed
 // JSON object it responded with. Identical request/response handling either stage needs, so
 // this is the one place that knows about the endpoint's shape.
+// Real production failure: a response came back as "Here is the internal design analysis
+// for your exhibition booth project: ```json { ... } ```" — valid JSON, but wrapped in a
+// preamble sentence before the fence instead of the bare JSON the system prompt asks for.
+// The old cleanup only ever stripped a ```json fence when it was the very first thing in
+// the string, so a preamble sentence in front of it broke parsing outright even though the
+// JSON itself was perfectly fine. This looks for a fenced code block anywhere in the text
+// first (not just at the start); if there isn't one at all, it falls back to slicing from
+// the first "{" to the last "}" so a stray preamble or postamble sentence around bare JSON
+// (no fence at all) doesn't break parsing either.
+function extractJsonFromModelText(rawText){
+  const fenced = rawText.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if(fenced) return fenced[1].trim();
+  const firstBrace = rawText.indexOf('{');
+  const lastBrace = rawText.lastIndexOf('}');
+  if(firstBrace !== -1 && lastBrace > firstBrace) return rawText.slice(firstBrace, lastBrace + 1).trim();
+  return rawText.trim();
+}
+
 async function callPromptWriterApi(system, content){
   const response = await fetch("/api/generate", {
     method: "POST",
@@ -7156,7 +7174,7 @@ async function callPromptWriterApi(system, content){
     throw new Error('The API returned an empty response — no content to parse.');
   }
 
-  const cleaned = rawText.replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
+  const cleaned = extractJsonFromModelText(rawText);
 
   try{
     return JSON.parse(cleaned);
