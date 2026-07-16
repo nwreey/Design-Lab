@@ -6814,6 +6814,38 @@ STRUCTURAL SHELL — DETERMINISTICALLY COMPUTED (IMMUTABLE) (per BSE-001 Structu
 ${lines.join('\n')}`;
 }
 
+// Fixes a real, reported asymmetry: every render's camera has consistently approached from the
+// Front-Right corner, regardless of which side actually holds this booth's STRUCTURAL WALL(s).
+// When Right happened to be the wall, it sat nearest the camera and rendered solidly; when Left
+// was the wall instead, it ended up as the far, receding side of the frame — exactly the side
+// most prone to the "wall doesn't reach the far corner" and "arch cut through the wall" failure
+// modes documented in EPS-016. The fix is to choose the camera's approach corner FROM the actual
+// orientation, every time, so whichever side is really the wall is always the near, prominent
+// one — never left to a fixed default that only happens to work for one specific configuration.
+function computeCameraApproachCorner(openSidesSet){
+  if(!openSidesSet) return { corner: 'Front-Right', lookToward: 'Back-Left', wallSideKept: null };
+  const rightIsWall = !openSidesSet.has('Right');
+  const leftIsWall = !openSidesSet.has('Left');
+  if(rightIsWall && !leftIsWall) return { corner: 'Front-Right', lookToward: 'Back-Left', wallSideKept: 'Right' };
+  if(leftIsWall && !rightIsWall) return { corner: 'Front-Left', lookToward: 'Back-Right', wallSideKept: 'Left' };
+  // Both Left and Right are walls, or both are open — symmetric either way, so the exact corner
+  // doesn't create the near/far imbalance above; keep a single consistent default.
+  return { corner: 'Front-Right', lookToward: 'Back-Left', wallSideKept: null };
+}
+
+// Builds the one deterministic CAMERA ANGLE sentence used in every render (booth or event),
+// per DIR-007 — now orientation-aware instead of a fixed, always-front-right default.
+function buildCameraApproachText(isBoothMode){
+  if(!isBoothMode){
+    return 'Camera: Photorealistic 3D aerial perspective. Camera angle: 35-45 degrees above the design (never directly overhead), approached from a front corner that keeps every structural element clearly and solidly in view. Framing: tightly cropped and zoomed so the design occupies approximately 90-95% of the frame, with no more than 5-10% of the composition showing the surrounding environment.';
+  }
+  const c = computeCameraApproachCorner(getBoothOpenSidesSet());
+  const wallNote = c.wallSideKept
+    ? ` This corner is chosen deliberately, per BSE-001/EPS-016: it keeps the ${c.wallSideKept} STRUCTURAL WALL side nearest the camera and fully, solidly in view from near corner to far corner — never the far, receding side of the frame, which is far more likely to render incompletely, thin out, or gain an unintended opening.`
+    : '';
+  return `Camera: Photorealistic 3D aerial perspective. Camera angle: 35-45 degrees above the booth (never directly overhead), positioned above the ${c.corner} corner looking toward the ${c.lookToward} corner.${wallNote} Framing: tightly cropped and zoomed so the booth occupies approximately 90-95% of the frame, with no more than 5-10% of the composition showing the surrounding exhibition hall as environmental context.`;
+}
+
 // Fixes a real, concrete contributor to "the booth's dimensions don't read correctly" reports:
 // the image request was previously ALWAYS asking Gemini for a 16:9 widescreen frame, regardless
 // of the booth's actual footprint shape. Forcing a very wide frame around a small square booth
@@ -7636,7 +7668,8 @@ Every field must be specific to this exact project — reference the actual dime
 // is intentional — those decisions were already made in stage 1 and are baked into the
 // analysis fields; repeating them here would just invite this stage to quietly re-decide
 // something on its own, undermining the whole point of splitting the two stages apart.
-const promptFromAnalysisSystem = `SYSTEM
+function buildPromptFromAnalysisSystem(cameraApproachText){
+  return `SYSTEM
 
 You are the same senior exhibition architect (per EPS-001) who already produced the hidden design analysis given to you below. That analysis is a locked decision record, not a draft — your only job now is to write it up into the final document. Do not reconsider, second-guess, or diverge from it: do not invent a different concept, spatial composition, hero structure, zone plan, materials, branding approach, lighting strategy, accent lighting palette, or scale than what's given to you. Per SFE-001, spatial_feasibility.scale_validation has already settled which zones survive at this booth's real size and what scale the hero structure must be — never re-expand a zone it merged or dropped, and never write a hero structure or furniture at a scale larger than its Hero Structure Scale Tier states.
 
@@ -7650,8 +7683,8 @@ Rules carried over from the design standards that governed the analysis, restate
 
 DIR-007 — CAMERA INSTRUCTIONS (core rule): a real production test (Red Bull) showed that generic top-view language gets misread as a flat, 2D floor plan instead of a photorealistic 3D render — the exact opposite of what's needed. The CAMERA ANGLE instruction below is deterministic specifically to close that gap; do not substitute your own generic top-view phrasing for it.
 
-CAMERA ANGLE FOR THIS INITIAL RENDER (belongs only in the final RENDERING INSTRUCTIONS section, never earlier): write it in this exact deterministic form, never generic top-view language:
-"Camera: Photorealistic 3D aerial perspective. Camera angle: 35-45 degrees above the booth (never directly overhead). Framing: tightly cropped and zoomed so the booth occupies approximately 90-95% of the frame, with no more than 5-10% of the composition showing the surrounding exhibition hall as environmental context."
+CAMERA ANGLE FOR THIS INITIAL RENDER (belongs only in the final RENDERING INSTRUCTIONS section, never earlier): write it in this exact deterministic form, never generic top-view language — this exact sentence is already computed for this specific booth's orientation, copy it verbatim, never substitute a different corner or angle:
+"${cameraApproachText}"
 The image must clearly show: architecture, roof/canopy, furniture, circulation, and spatial depth. Never generate: CAD plans, blueprints, orthographic plans, flat floor plans, or 2D graphics — this must read as a real photorealistic three-dimensional render, not a technical drawing. Never use the phrase "directly above," "looking straight down," or "bird's-eye," and never describe the camera as positioned "directly above" the booth — that specific phrasing has been observed to push the rendering model toward flat, plan-view, blueprint-style output instead of a photorealistic 3D image. This image still becomes the master reference every later camera-angle render is generated from, so keep as much of the layout visible and unambiguous as the 35-45 degree angle allows — but a genuinely three-dimensional, photorealistic image always takes priority over maximizing visibility at the cost of becoming a flat plan. Per EPS-019, this framing is also what keeps the render from wasting frame space on the exhibition hall itself: never a wide shot that leaves large empty aisle space, neighboring booths, or hall signage visible around the design — zoom and crop until the generated booth, and only the generated booth, fills the frame. Still specify lighting setup (e.g. soft diffused daylight simulation plus warm accent spotlights) and overall render quality (photorealistic, high detail, sharp focus, no motion blur, studio-quality composition, empty of people, clean neutral exhibition-hall backdrop per EPS-019 — no neighboring booths, hall branding, aisle numbering, banners, or venue signage anywhere in frame).
 
 ARCHITECTURAL PRIORITY CHECKLIST (core rule) — before finalizing image_prompt, silently verify every item below is actually true of what you're about to write; if any item fails, revise the relevant section until it passes before responding. Never print this checklist itself — it is a silent internal check, not part of the output:
@@ -7684,6 +7717,7 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
   "image_prompt": "the complete rendering prompt, written as an architectural design brief using the exact PAE-002 two-layer structure above — LAYER 1, the Architectural Layer (PROJECT SUMMARY, DESIGN OBJECTIVE, ARCHITECTURAL CONCEPT, SPACE PLANNING, VISITOR FLOW, STRUCTURAL PLANNING, MATERIALS, LIGHTING STRATEGY, NEGATIVE RULES), always fully established first, followed by LAYER 2, the Exhibition Layer (PRODUCT EXPERIENCE, BRANDING, FURNITURE, DIGITAL TECHNOLOGY, DECORATIVE ELEMENTS, EXHIBITION STORY, RENDERING INSTRUCTIONS) — with both layer headers and every section header in capitals on its own line followed by its paragraph, in that exact order. Layer 1 establishes the permanent architecture before Layer 2 ever populates it with products, branding, furniture, or technology; SPACE PLANNING opens with the Spatial Composition block (per SCE-001) before stating each zone's position and purpose, never what fills it; STRUCTURAL PLANNING lists an estimated real-world size for every major element actually present in this design (never 'size not specified'); the 'LAYER 2 — EXHIBITION LAYER' header must be immediately followed by the exact line 'Architecture has already been completed. Do not modify structural geometry. Only populate the approved architecture with exhibition elements.' before PRODUCT EXPERIENCE begins; RENDERING INSTRUCTIONS is always the very last section.",
   "concept_description": "a short, client-facing concept write-up for a presentation deck, in the space usually labeled 'Concept here' under the rendered views — describe the actual design idea, mood, materials, and colors this specific design uses, and why it suits the brand, in natural, confident, professional marketing language, as a designer would describe the concept to a client. This is NOT a repeat or summary of the image_prompt — write it as a client would read it, not as a rendering instruction. Target 60-90 words; stop as soon as the idea is clearly and completely expressed, do not pad it with filler. Never mention AI, prompts, EPS standards, or the generation process."
 }`;
+}
 
   let userContentParts = [];
   if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
@@ -7775,7 +7809,12 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
     // analysis fields, so this stage is a plain, cheaper text-only call.
     document.getElementById('loadingText').textContent = 'Writing the design brief from that analysis...';
     const analysisContent = `HIDDEN DESIGN ANALYSIS (already decided — write from this, do not re-derive):\n${JSON.stringify(analysis, null, 2)}\n\nORIGINAL CLIENT BRIEF (for literal facts only — exact numbers, hex codes, counts, style names):\n${userBrief}${attachedNote}`;
-    const parsed = await callPromptWriterApi(promptFromAnalysisSystem, analysisContent);
+    // Camera approach corner is computed per-request from this booth's actual orientation (see
+    // computeCameraApproachCorner) rather than baked into a static prompt, so whichever side is
+    // really the STRUCTURAL WALL is always the near, prominent one in frame — never a fixed
+    // front-right default that only happened to work when Right was the wall side.
+    const cameraApproachText = buildCameraApproachText(mode === 'booth');
+    const parsed = await callPromptWriterApi(buildPromptFromAnalysisSystem(cameraApproachText), analysisContent);
 
     const promptResult = (parsed && typeof parsed.image_prompt === 'string' && parsed.image_prompt.trim()) ? parsed : null;
     if(!promptResult){
