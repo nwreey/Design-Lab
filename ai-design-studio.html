@@ -9172,7 +9172,7 @@ ${buildApprovedDecisionsText()}
   if(editTarget.type === 'camview'){
     const hist = viewCardHistories[editTarget.camId];
     originalCardImage = hist ? hist.images[hist.activeIndex] : null;
-    renderGeneratedViewCard(editTarget.camId, 'pending', null);
+    renderGeneratedViewCard(editTarget.camId, 'pending', originalCardImage);
   }
   // Same protection as every other generation flow — an edit in flight is just as much "a
   // design being generated" as the initial render or the camera views, so closing the tab,
@@ -9741,7 +9741,7 @@ async function generateCameraViewsFromHero(heroImage){
   // the existing stopped-early behavior below.
   if(!stoppedEarly){
     updateApproveProgress(97, 'Generating the Technical Board...');
-    await generateTechnicalBoard();
+    await generateTechnicalBoard(true);
   }
 
   document.getElementById('goodLuckMessage').style.display = 'block';
@@ -9771,7 +9771,9 @@ async function retryGeneratedView(camId){
     await customAlert('This view can no longer be retried — reopen the design to regenerate all views.', 'Retry view');
     return;
   }
-  renderGeneratedViewCard(camId, 'pending', null);
+  const priorHist = viewCardHistories[camId];
+  const priorImage = priorHist ? priorHist.images[priorHist.activeIndex] : null;
+  renderGeneratedViewCard(camId, 'pending', priorImage);
   projectSwitchLocked = true;
   try{
     const resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false);
@@ -10097,7 +10099,7 @@ Style: clean architectural presentation-board / portfolio graphics — thin dark
 Do NOT alter the booth design itself in any way — same materials, same colors, same layout, same camera angle, same lighting, everything already in the reference image stays exactly as it is. The ONLY change allowed is the added arrows, label boxes, and specification text described above. Do not add any people. This is a technical presentation annotation overlay, not a redesign.`;
 }
 
-async function generateTechnicalBoard(){
+async function generateTechnicalBoard(isAutomaticAfterCameraViews){
   const opt = optionResults[activeOptionIndex];
   const heroHist = viewCardHistories['CAM01'];
   const heroImage = (heroHist && heroHist.images[heroHist.activeIndex])
@@ -10109,7 +10111,15 @@ async function generateTechnicalBoard(){
 
   VIEWER_CAMERA_LABELS[TECHBOARD_ID] = 'Technical Board';
   renderGeneratedViewCard(TECHBOARD_ID, 'pending', null);
-  document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
+  // Skipped when this runs automatically right after camera views finish — scrolling to the
+  // top of this card would push the admin's Luma comparison video (which sits directly above
+  // it) out of view, exactly when it had just finished and was worth actually seeing. The
+  // page is already scrolled to this section from the camera-views loop's own earlier scroll,
+  // so there's nothing to re-scroll to here anyway. Manual triggers (the fallback button,
+  // Retry) still scroll, same as before.
+  if(!isAutomaticAfterCameraViews){
+    document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
+  }
   // Same protection as every other generation flow — harmless to set again when this is
   // already running automatically inside generateCameraViewsFromHero's own locked window;
   // this only matters on its own when triggered manually (Retry, or the fallback button).
@@ -10264,6 +10274,10 @@ async function submitRatingStars(n){
     // or alarm someone who just finished their project; it's low-stakes feedback, not a
     // core action, and the star selection itself still visually reflects their tap.
   }
+  // Also saved on the project itself (see saveCurrentProject's rating field) — the ratings
+  // table above has no per-project read-back for a regular user, so without this the stars
+  // would silently reset to 0 the next time this project was reopened.
+  saveCurrentProject();
 }
 
 function openImageLightbox(src){
@@ -10366,7 +10380,18 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
 
   if(state === 'pending'){
     card.className = 'viewer3d-generated-card-light pending';
-    card.innerHTML = `<div class="viewer3d-generated-card-label">${label}</div><div class="viewer3d-building-icon">🏗️</div><div class="viewer3d-building-label">Building this view...</div>`;
+    // While an edit is being applied to an already-generated picture, imageOrMsg carries
+    // that picture's last-known-good image (see submitEdit/retryGeneratedView) — keeping a
+    // small Download bar available for it here means the person isn't left with nothing to
+    // download just because a new version happens to be mid-generation. A view being built
+    // for the very first time has nothing to show yet, so imageOrMsg is null there and no
+    // download bar appears.
+    const pendingDownloadBar = imageOrMsg ? `
+      <div class="viewer3d-generated-card-actions">
+        <a href="${imageOrMsg}" download="${cameraViewFilename(label)}.jpg" class="ghost small">Download</a>
+      </div>
+    ` : '';
+    card.innerHTML = `<div class="viewer3d-generated-card-label">${label}</div><div class="viewer3d-building-icon">🏗️</div><div class="viewer3d-building-label">Building this view...</div>${pendingDownloadBar}`;
     return;
   }
 
@@ -11264,10 +11289,19 @@ function restoreGeneratedViewsIfSaved(project){
   document.getElementById('techBoardActions').style.display = hasTechBoardAlready ? 'none' : 'flex';
 
   document.getElementById('goodLuckMessage').style.display = 'block';
-  document.getElementById('rateUsLabel').textContent = 'How would you rate this design?';
-  document.getElementById('rateUsLabel').classList.remove('rate-us-thanks');
-  currentRatingValue = 0;
-  previewRatingStars(0);
+  // Restored from whatever was actually saved, instead of unconditionally resetting to 0 —
+  // this used to always show an empty, un-rated bar on reopen even for a project the person
+  // had already rated, since nothing here ever read the saved value back (see
+  // saveCurrentProject's rating field and submitRatingStars).
+  currentRatingValue = project.rating || 0;
+  if(currentRatingValue > 0){
+    document.getElementById('rateUsLabel').textContent = 'Thanks for your feedback!';
+    document.getElementById('rateUsLabel').classList.add('rate-us-thanks');
+  }else{
+    document.getElementById('rateUsLabel').textContent = 'How would you rate this design?';
+    document.getElementById('rateUsLabel').classList.remove('rate-us-thanks');
+  }
+  previewRatingStars(currentRatingValue);
   document.getElementById('rateUsBar').style.display = 'flex';
 
   // Camera views only ever exist because this project already went through Approve (or the
@@ -11311,7 +11345,13 @@ async function saveCurrentProject(){
     // camera plan (names/types/azimuths) and the hero reference image used to generate
     // each view are both gone after reload, and Retry has nothing to retry with.
     cameraSpecs: (CAMERA_SPECS && CAMERA_SPECS.length) ? CAMERA_SPECS : null,
-    cameraViewsHeroRef: cameraViewsHeroRef || null
+    cameraViewsHeroRef: cameraViewsHeroRef || null,
+    // The star rating itself was only ever sent one-way to /api/ratings (a separate table,
+    // admin-only to read back) — nothing restored it here, so restoreGeneratedViewsIfSaved
+    // unconditionally reset the stars to 0 on every reopen, even for a project the person
+    // had already rated. Storing it on the project too (redundant with the ratings table,
+    // but trivial to read back) lets it actually survive a refresh.
+    rating: currentRatingValue || 0
   };
   return dbPutProject(project)
     .then(() => {
@@ -11391,6 +11431,15 @@ function openProject(id){
     .then(project => {
       if(!project) return;
       currentProjectId = project.id;
+      // Never restored before — currentProjectName stayed at its post-refresh default ('')
+      // whenever a saved project was reopened, since nothing here ever set it from the
+      // project's own actual name. That looked harmless at first (the title area still read
+      // correctly off the loaded optionResult), but the NEXT save after reopening recomputes
+      // the name to persist as (empty form field) || currentProjectName || 'Untitled
+      // Project' — with currentProjectName empty, that silently renamed the project to
+      // "Untitled Project" in the database on the very next save, without the person ever
+      // touching rename.
+      currentProjectName = project.name || currentProjectName;
       // Modify design/Approve/Other option are the same three DOM elements every project
       // reuses — unlock them before rendering this project's own view; restoreResultsView
       // (via restoreGeneratedViewsIfSaved) re-locks them immediately after if this
