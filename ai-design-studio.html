@@ -6911,6 +6911,73 @@ STRUCTURAL SHELL — DETERMINISTICALLY COMPUTED (IMMUTABLE) (per BSE-001 Structu
 ${lines.join('\n')}`;
 }
 
+/* OLE-001 — Orientation Lock Engine. Built once, at Approve time (recomputeCameraViewPlan),
+   from data this app already computes deterministically for every booth — buildStructuralShell's
+   own wall coordinates/thickness and computeSpatialPlan's own hero-structure and furniture
+   positions — never a second, separately-estimated model of the booth's geometry. This exists
+   specifically because two rounds of prose-only anchoring (cameraViewsLockedPromptText's long
+   verbatim brief, then orientationFactsSentence's short top-of-prompt wall sentence) were both
+   confirmed by real production tests to still let a camera-view edit invent a new wall on
+   "Perspective Rear Left View" — the angle furthest from the hero photo's own direct reference.
+   A compact, explicit, machine-readable JSON object (numbers and enums, not paragraphs) gives
+   the rendering model a single, unambiguous fact table to check itself against for every camera
+   position, and — paired with verifyCameraViewGeometry below — also gives this app something
+   concrete to verify a finished render against, rather than only ever hoping the prose was
+   followed. */
+function buildOrientationLock(structuralShell, spatialPlan){
+  if(!structuralShell || !spatialPlan) return null;
+  const round2 = (n) => Math.round(n * 100) / 100;
+
+  const walls = ALL_BOOTH_SIDES.map(side => {
+    const s = structuralShell.sides[side];
+    const label = side === 'Back' ? 'Rear' : side;
+    if(!s || s.state === 'OPEN'){
+      return { side: label, state: 'OPEN' };
+    }
+    return {
+      side: label,
+      state: 'STRUCTURAL WALL',
+      lengthM: round2(s.lengthM),
+      thicknessMm: s.thicknessMm,
+      heightMm: s.heightMm,
+      startCorner: s.startCorner.map(round2),
+      endCorner: s.endCorner.map(round2)
+    };
+  });
+  const openSides = walls.filter(w => w.state === 'OPEN').map(w => w.side);
+  const closedSides = walls.filter(w => w.state === 'STRUCTURAL WALL').map(w => w.side);
+
+  const heroZone = spatialPlan.zonePlan.find(z => z.name === 'Hero Structure');
+  const heroStructure = heroZone ? {
+    widthMm: heroZone.dims ? heroZone.dims.widthMm : undefined,
+    depthMm: heroZone.dims ? heroZone.dims.depthMm : undefined,
+    heightMm: heroZone.dims ? heroZone.dims.heightMm : undefined,
+    positionLabel: heroZone.position ? heroZone.position.label : 'Center'
+  } : null;
+
+  const furniture = spatialPlan.zonePlan
+    .filter(z => z.name !== 'Hero Structure' && z.status !== 'Removed')
+    .map(z => ({
+      name: z.name,
+      widthMm: z.dims ? z.dims.widthMm : undefined,
+      depthMm: z.dims ? z.dims.depthMm : undefined,
+      heightMm: z.dims ? z.dims.heightMm : undefined,
+      positionLabel: z.position ? z.position.label : undefined
+    }));
+
+  return {
+    boothWidthM: round2(structuralShell.widthM),
+    boothDepthM: round2(structuralShell.depthM),
+    floorOutline: [[0, 0], [round2(structuralShell.widthM), 0], [round2(structuralShell.widthM), round2(structuralShell.depthM)], [0, round2(structuralShell.depthM)]],
+    wallThicknessMm: structuralShell.wallThicknessMm,
+    walls,
+    openSides,
+    closedSides,
+    heroStructure,
+    furniture
+  };
+}
+
 // MANDATORY CLIENT REQUIREMENT: whenever this booth has at least one STRUCTURAL WALL side —
 // one, two, or three sides closed, any combination — the camera must be positioned on the
 // side(s) OPPOSITE the closed wall(s), approaching from the open side(s) and looking across
@@ -9662,8 +9729,8 @@ function computeImageSimilarity(dataUrlA, dataUrlB){
 // edit endpoint whenever it's given a referenceImage (it attaches the photo as an inlineData
 // part alongside the text prompt), so no separate "Gemini edit" endpoint is needed — it's the
 // exact same endpoint the initial generation used, just called again with a reference photo.
-async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry){
-  const prompt = buildCameraViewPrompt(spec, isWiderRetry) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX;
+async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geometryCorrectionReason){
+  const prompt = buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX;
   const useOpenAi = cameraViewsEngine !== 'gemini';
   const endpoint = useOpenAi ? '/api/edit-image-openai' : '/api/generate-image-gemini';
   const body = useOpenAi
@@ -9681,6 +9748,50 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry){
     throw new Error((data.error && data.error.message) || 'Could not generate that camera view.');
   }
   return data.image;
+}
+
+/* OLE-001's automatic rejection half — see buildOrientationLock's own comment for why prose
+   anchoring alone (two rounds of it, both confirmed insufficient on real production tests) isn't
+   enough on its own: a genuinely wrong render can still slip through a text instruction. This
+   is a second, independent QA pass — a vision-capable text analysis of the FINISHED render
+   against the same Orientation Lock JSON the render was generated with, checked strictly for
+   geometry only (never style/lighting/materials/branding) — routed through the exact same
+   /api/generate endpoint already used for Stage 1/Stage 2 and the Technical Board's own label
+   analysis, so this never needs a new backend endpoint of its own. Fails OPEN (treats an error
+   as a pass) on any network/parse failure — a QA check that's temporarily broken must never
+   block or crash a real generation; the two prose anchors above still apply either way. */
+const orientationLockVerificationSystem = `SYSTEM
+
+You are a strict architectural QA inspector reviewing a single rendered camera-angle photo of an exhibition booth against that exact booth's own locked, immutable geometry facts (an "Orientation Lock" JSON object). Your only job is to check whether the geometry actually visible in this image matches the Orientation Lock — never whether it looks good, never style, never lighting, never materials, never branding, never furniture styling, never color. Geometry only.
+
+Check specifically, in this order:
+1. Every side listed in "openSides" must show NO wall, panel, backdrop, or partition anywhere along that side of the booth in this image.
+2. Every side listed in "closedSides" must show a real, solid wall in this image at roughly the position/length given — never open, never missing, never replaced with an archway or walk-through opening.
+3. The "heroStructure" entry describes this booth's one centerpiece structure (approximate footprint, height, position). The structure visible in this image must be recognizably the same shape/form and in the same general position — never a different structure invented in its place, and never an entirely new additional architectural mass (a second wall, a curved partition, a column) that isn't accounted for by the Orientation Lock at all.
+
+If this image's visible geometry is consistent with the Orientation Lock on all checks above, respond MATCH. If ANY check fails, respond MISMATCH and state exactly which check failed and what is visibly wrong, in one short, specific sentence a designer could act on to fix it (e.g. "A curved wall appears on the Left side, which the Orientation Lock lists as an open side.").
+
+Respond in JSON only, no explanation outside the JSON, using exactly one of these two shapes:
+{ "result": "MATCH" }
+{ "result": "MISMATCH", "reason": "one short specific sentence" }`;
+
+async function verifyCameraViewGeometry(dataUrl, spec){
+  if(!cameraViewsOrientationLock) return { result: 'MATCH' };
+  try{
+    const { mime, base64 } = dataUrlParts(await compressDataUrl(dataUrl, 1024, 0.8));
+    const content = [
+      { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
+      { type: 'text', text: `ORIENTATION LOCK (machine-readable, authoritative facts for this exact booth):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThis image is the "${spec.name}" camera view of this exact booth.` }
+    ];
+    const analysis = await callPromptWriterApi(orientationLockVerificationSystem, content);
+    if(analysis && analysis.result === 'MISMATCH'){
+      return { result: 'MISMATCH', reason: (analysis.reason && typeof analysis.reason === 'string') ? analysis.reason : 'Geometry does not match the locked Orientation Lock.' };
+    }
+    return { result: 'MATCH' };
+  }catch(err){
+    console.error('Orientation Lock verification failed (failing open — treating as a match):', err);
+    return { result: 'MATCH' };
+  }
 }
 
 /* Generates all 12 camera views directly from the approved hero image — see the comment
@@ -9714,6 +9825,27 @@ let cameraViewsEngine = 'gemini';
 // actually stops walls being invented or the hero structure's shape drifting between views,
 // since the model no longer has to reconstruct those facts from the image alone each time.
 let cameraViewsLockedPromptText = '';
+
+// Which compass sides (if any) this exact booth has a real STRUCTURAL WALL on — set once in
+// recomputeCameraViewPlan (the same computation that already decides which camera positions
+// are even valid), reused here to state the wall/open-side facts as one short, explicit,
+// impossible-to-miss sentence at the very TOP of every camera-view prompt (see
+// buildCameraViewPrompt), not just buried somewhere inside the much longer locked-facts
+// block. A real reported bug: a genuinely fully-open (4-side) booth still had a wall
+// hallucinated into its "Perspective Rear Left View" specifically — the one angle with zero
+// direct photographic reference, so the model has to extrapolate the whole face from
+// nothing, and evidently defaulted toward "a booth probably has a back wall" without a
+// short, unmissable statement telling it otherwise for THIS booth.
+let cameraViewsClosedSides = [];
+
+// OLE-001's full structured geometry fact table for this exact booth (see buildOrientationLock),
+// built once in recomputeCameraViewPlan from the same deterministic data already computed for
+// the approved brief itself. Serialized verbatim into every camera-view prompt as a compact,
+// unambiguous JSON block (numbers/enums, not prose) and also passed to
+// verifyCameraViewGeometry so a finished render can be automatically checked against — and, if
+// it disagrees, rejected and regenerated once — rather than only ever hoping the prose anchor
+// (cameraViewsLockedPromptText / orientationFactsSentence above) was actually followed.
+let cameraViewsOrientationLock = null;
 
 // Admin-only testing aid: lets a full 12-view generation run be cancelled mid-way (e.g.
 // after spotting a bad view or a prompt gap) instead of having to sit through the whole
@@ -9788,6 +9920,19 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
         if(retrySimilarity < similarity) resultDataUrl = retryDataUrl;
       }
 
+      // OLE-001 automatic rejection: an independent vision-based QA check of the finished
+      // render against this booth's locked Orientation Lock (see verifyCameraViewGeometry) —
+      // catches the exact class of bug reported in production (a new wall invented on
+      // "Perspective Rear Left View") that prose-only anchoring alone didn't reliably stop.
+      // One automatic correction attempt, citing the specific violation the check found —
+      // same one-retry budget as the similarity check just above, not an unbounded loop.
+      const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec);
+      if(geometryCheck.result === 'MISMATCH'){
+        console.warn('Camera view', spec.camId, 'failed Orientation Lock check, retrying once:', geometryCheck.reason);
+        const correctedDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, geometryCheck.reason);
+        resultDataUrl = correctedDataUrl;
+      }
+
       const compressedResult = await compressDataUrlToTarget(resultDataUrl, 300 * 1024);
       initCardHistory(spec.camId, compressedResult);
       renderGeneratedViewCard(spec.camId, 'done', compressedResult);
@@ -9854,7 +9999,15 @@ async function retryGeneratedView(camId){
   renderGeneratedViewCard(camId, 'pending', null);
   projectSwitchLocked = true;
   try{
-    const resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false);
+    let resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false);
+    // Same OLE-001 automatic geometry check as the main generation loop (see
+    // verifyCameraViewGeometry) — a manual Retry deserves the same protection against inventing
+    // a wall or shifting the hero structure's shape, not just the original batch run.
+    const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec);
+    if(geometryCheck.result === 'MISMATCH'){
+      console.warn('Retry for', camId, 'failed Orientation Lock check, correcting once:', geometryCheck.reason);
+      resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false, geometryCheck.reason);
+    }
     const compressedResult = await compressDataUrlToTarget(resultDataUrl, 300 * 1024);
     pushCardHistory(camId, compressedResult, 'Retry');
     renderGeneratedViewCard(camId, 'done', compressedResult);
@@ -10106,8 +10259,19 @@ function recomputeCameraViewPlan(){
     const depthM = parseFloat(document.getElementById('f_depth').value) || 0;
     const boothHeightM = parseFloat(document.getElementById('f_totalHeight').value) || 0;
     const totalAreaSqm = widthM * depthM;
+    const openSidesSet = getBoothOpenSidesSet();
     const spatialPlan = computeSpatialPlan(widthM, depthM, '', boothHeightM);
-    result = computeCameraViewPlan(totalAreaSqm, spatialPlan.zonePlan, getBoothOpenSidesSet());
+    result = computeCameraViewPlan(totalAreaSqm, spatialPlan.zonePlan, openSidesSet);
+    // OLE-001 — same structural shell computation generateDesign() already runs for the
+    // written brief (buildStructuralShell), reused here (not re-estimated) to build the
+    // Orientation Lock every camera-view prompt will reference. Storage room zones are the
+    // same surviving-zone filter generateDesign() uses, so the lock's furniture list and the
+    // brief's own structural shell text can never disagree about which rooms actually exist.
+    const structuralShell = buildStructuralShell(
+      widthM, depthM, boothHeightM, openSidesSet,
+      spatialPlan.zonePlan.filter(z => (z.status === 'Kept' || z.status === 'Merged') && /^Storage room/.test(z.name))
+    );
+    cameraViewsOrientationLock = buildOrientationLock(structuralShell, spatialPlan);
   }else{
     // No booth-orientation form data applies to this mode — every direction is treated as
     // open, same as an island booth, so the exterior side-perspective loop simply includes
@@ -10115,6 +10279,9 @@ function recomputeCameraViewPlan(){
     // read from the booth-only form fields, so this never depends on whatever value those
     // fields happen to be holding while a non-booth tab is active.
     result = computeCameraViewPlan(0, [], new Set(ALL_BOOTH_SIDES));
+    // Non-booth modes (event/display stand) have no structural-shell/spatial-plan model to
+    // build a lock from — camera-view prompts simply fall back to no Orientation Lock block.
+    cameraViewsOrientationLock = null;
   }
 
   // Preserve any non-CAM keys already set elsewhere (EDITDESIGN_*, TECHBOARD) — only the
@@ -10124,6 +10291,10 @@ function recomputeCameraViewPlan(){
   });
   result.plan.forEach(spec => { VIEWER_CAMERA_LABELS[spec.camId] = spec.name; });
   CAMERA_SPECS = result.plan;
+  // See cameraViewsClosedSides' own comment — this booth's real wall facts, computed here
+  // once alongside the camera plan itself, reused later by buildCameraViewPrompt for every
+  // actual view-generation request.
+  cameraViewsClosedSides = result.closedSides || [];
   return result;
 }
 
@@ -10291,8 +10462,31 @@ async function generateTechnicalBoard(isAutomaticAfterCameraViews){
    reference image, through the same edit pipeline already proven reliable elsewhere in
    this app (Edit, Modify Design), guarantees every view is actually a photo of the correct,
    approved design — never a drifted reinterpretation of it. */
-function buildCameraViewPrompt(spec, isWiderRetry){
+function buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason){
   const widerNote = isWiderRetry ? ' The previous attempt at this angle came out too similar to the neighboring view — for this attempt, pull the camera back further than usual and widen the field of view noticeably, so this position reveals a clearly distinct amount of new surface and depth.' : '';
+
+  // OLE-001 automatic rejection (see verifyCameraViewGeometry): the previous attempt at this
+  // exact camera position was checked against the Orientation Lock below and failed — this
+  // states the SPECIFIC violation an automated check just found, in plain language, at the
+  // very top of the prompt, ahead of even the wall-facts sentence. Naming the exact mistake
+  // ("a curved wall appeared on the Left side, which is OPEN") gives the model something far
+  // more concrete to correct than a generic "keep it the same" instruction ever could.
+  const geometryCorrectionSentence = geometryCorrectionReason
+    ? `CORRECTION REQUIRED (read this first): an automated geometry check found that the previous attempt at this exact camera position violated this booth's locked, approved geometry as follows: "${geometryCorrectionReason}" This attempt MUST fix that specific violation and match the Orientation Lock below exactly — do not repeat it. `
+    : '';
+
+  // A short, blunt, unmissable statement of this booth's real wall facts (cameraViewsClosedSides
+  // — set once in recomputeCameraViewPlan) placed at the very TOP of the prompt, ahead of
+  // everything else. A real reported bug: a genuinely fully-open (4-side) booth still got a
+  // wall hallucinated into its "Perspective Rear Left View" specifically — the one angle with
+  // no direct photographic reference at all, so the model has to extrapolate that whole face
+  // from nothing, and evidently defaulted toward "a booth probably has a back wall" somewhere
+  // in the middle of the much longer locked-facts block below. Leading with one short,
+  // impossible-to-miss sentence — before the model has read anything else — is what actually
+  // fixes that, on top of (not instead of) the fuller locked-facts anchor further down.
+  const orientationFactsSentence = cameraViewsClosedSides.length === 0
+    ? `WALL FACTS FOR THIS EXACT BOOTH (read this first): this booth is fully open on all four sides — front, right, back, and left — with absolutely no wall, partition, backdrop panel, or solid surface anywhere around its perimeter, on any side, including the side(s) not directly visible in the reference photo. Never add a wall, panel, backdrop, or partition anywhere in this render, on any side, for any reason — every side stays completely open floor-to-ceiling, exactly like the open side(s) already visible in the reference. `
+    : `WALL FACTS FOR THIS EXACT BOOTH (read this first): this booth has a real, solid structural wall ONLY on its ${cameraViewsClosedSides.join(' and ')} side(s) — every other side, including any not directly visible in the reference photo, is completely open with no wall, panel, or partition of any kind. Never add a wall anywhere except the exact side(s) named here, and never remove or open up the wall on the side(s) named here. `;
 
   // The original, approved Stage 2 specification (cameraViewsLockedPromptText — set once in
   // generateCameraViewsFromHero) is already a deterministic, fact-based document: exact wall
@@ -10309,6 +10503,19 @@ function buildCameraViewPrompt(spec, isWiderRetry){
     ? `\n\nORIGINAL APPROVED DESIGN SPECIFICATION (verbatim, locked — the single source of truth this render must match exactly, never reinterpreted, softened, or partially applied):\n${cameraViewsLockedPromptText}\n\nEvery wall, the hero structure's exact geometry and dimensions, every material, every light, every branding placement, and every piece of furniture named above must appear in this render exactly as specified — never invent, add, remove, resize, relocate, or reshape any of them. Specifically: never add a wall, panel, or partition anywhere that isn't explicitly part of the specification above; never remove a wall the specification requires; and never alter the hero structure's silhouette, curvature, proportions, or form in any way — its geometry above is a fixed fact, not a suggestion open to reinterpretation.`
     : '';
 
+  // OLE-001 — the Orientation Lock itself (see buildOrientationLock), appended as compact,
+  // machine-readable JSON rather than more prose: exact booth dimensions, floor outline, every
+  // wall's coordinates/thickness/state, which sides are open vs. structural, the hero
+  // structure's footprint/height/position, and every surviving furniture zone's footprint and
+  // position. This is the single authoritative fact table every camera position must reference
+  // and that verifyCameraViewGeometry checks finished renders against — a structured object a
+  // model can check itself against field-by-field, not just a paragraph it has to infer facts
+  // from. Only present when this is a booth project with a valid footprint (cameraViewsOrientationLock
+  // is null for event/display-stand projects, or for old saves from before OLE-001 existed).
+  const orientationLockBlock = cameraViewsOrientationLock
+    ? `\n\nORIENTATION LOCK (machine-readable, authoritative — the exact geometry of this booth, immutable from this point forward; every field below is a locked fact, never a suggestion):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThis JSON object is the single source of truth for this booth's geometry. "openSides" must show no wall/panel/partition anywhere along that side; "closedSides" must show a real solid wall at roughly the position/length given and must never be opened, removed, or replaced with an archway. "heroStructure" gives the one centerpiece structure's approximate footprint, height, and position — its silhouette and position must stay consistent with these facts in every view. "furniture" lists every other zone that actually exists in this design, with its own approximate footprint and position — never invent an additional zone, wall, column, or structural mass beyond what is listed here.`
+    : '';
+
   // Top-down view — used only by the corner (2-open-side) booth's fixed 5-camera recipe,
   // per explicit client direction, confirmed even after flagging the known risk: a real
   // production test (a Red Bull booth) showed overhead camera framing can push the model
@@ -10321,11 +10528,11 @@ function buildCameraViewPrompt(spec, isWiderRetry){
   // this angle, rather than silently reusing the same anti-blueprint phrasing that would
   // fight against the very thing this view is supposed to show.
   if(spec.type === 'top-down'){
-    return `Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as a real, photorealistic AERIAL PHOTOGRAPH captured from directly above, as if taken by a drone hovering over the booth.
+    return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as a real, photorealistic AERIAL PHOTOGRAPH captured from directly above, as if taken by a drone hovering over the booth.
 
 View: ${spec.name} — ${spec.promptHint} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
 
-This must be a genuine photograph-style aerial image — real materials, real shadows, real depth and lighting, exactly like a professional drone photo of a real physical structure — never a flat technical drawing, CAD plan, blueprint, or 2D diagram. The booth's architecture, materials, branding, and furniture are completely unchanged from the reference; only the camera has moved directly overhead.${widerNote} The full footprint and layout of the booth should be visible in one frame. The attached photo only shows one side of the booth — for whatever isn't visible from that angle, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into the parts only visible from above, so the whole booth reads as one coherent, intentional design. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same dark gray carpet flooring and surrounding aisle space, consistent and unchanging. Light the space with premium, even, professional exhibition lighting. Photorealistic.${lockedFactsBlock}`;
+This must be a genuine photograph-style aerial image — real materials, real shadows, real depth and lighting, exactly like a professional drone photo of a real physical structure — never a flat technical drawing, CAD plan, blueprint, or 2D diagram. The booth's architecture, materials, branding, and furniture are completely unchanged from the reference; only the camera has moved directly overhead.${widerNote} The full footprint and layout of the booth should be visible in one frame. The attached photo only shows one side of the booth — for whatever isn't visible from that angle, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into the parts only visible from above, so the whole booth reads as one coherent, intentional design. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same dark gray carpet flooring and surrounding aisle space, consistent and unchanging. Light the space with premium, even, professional exhibition lighting. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
   }
 
   // Interior views (per CVP-001's Interior Camera Rules: always allowed, regardless of
@@ -10334,11 +10541,11 @@ This must be a genuine photograph-style aerial image — real materials, real sh
   // than the exterior views below, so it gets its own prompt structure rather than forcing
   // an azimuth-around-the-outside description onto something that isn't one.
   if(spec.type === 'interior'){
-    return `Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth from a NEW INTERIOR vantage point, as if a visitor were now standing inside the booth itself.
+    return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth from a NEW INTERIOR vantage point, as if a visitor were now standing inside the booth itself.
 
 View: ${spec.name} — ${spec.promptHint} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
 
-The booth's architecture, materials, branding, and furniture are completely unchanged from the reference — only the camera has moved to this new interior vantage.${widerNote} This must clearly read as a distinct interior viewpoint focused on ${spec.name.toLowerCase()}, revealing details and depth not visible in the reference's own framing — never a near-repeat of the reference from a marginally different angle. The attached photo may not show every interior detail directly — for anything not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into this interior view, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the space with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}`;
+The booth's architecture, materials, branding, and furniture are completely unchanged from the reference — only the camera has moved to this new interior vantage.${widerNote} This must clearly read as a distinct interior viewpoint focused on ${spec.name.toLowerCase()}, revealing details and depth not visible in the reference's own framing — never a near-repeat of the reference from a marginally different angle. The attached photo may not show every interior detail directly — for anything not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into this interior view, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the space with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
   }
 
   // Exterior views (per CVP-001's Exterior Camera Rules: only ever placed on this booth's
@@ -10346,11 +10553,11 @@ The booth's architecture, materials, branding, and furniture are completely unch
   // never corresponds to a CLOSED wall side). azimuth is always relative to the hero
   // image's own actual viewpoint (0°), never an absolute compass figure, matching how the
   // hero image itself was framed (see DIR-007 / computeCameraApproachCorner).
-  return `Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific EXTERIOR camera position.
+  return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific EXTERIOR camera position.
 
 Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). This position is pre-validated to sit only in front of this booth's own OPEN side(s) — per this booth's approved orientation, it never requires standing behind, inside, or looking through a STRUCTURAL WALL side. The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens. Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
 
-The booth itself is completely static and unchanged from the reference — only the camera has moved to this new position. Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image — new side surfaces, structural elements, or depth — never a near-repeat of the reference from a marginally different angle.${widerNote} The attached photo may show only one side or angle of the booth — for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}`;
+The booth itself is completely static and unchanged from the reference — only the camera has moved to this new position. Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image — new side surfaces, structural elements, or depth — never a near-repeat of the reference from a marginally different angle.${widerNote} The attached photo may show only one side or angle of the booth — for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
 }
 
 /* Star rating: hovering previews a value without committing it; clicking submits
@@ -11394,6 +11601,10 @@ function restoreGeneratedViewsIfSaved(project){
   // this existed simply fall back gracefully (engine defaults to Gemini, locked facts empty).
   cameraViewsEngine = project.cameraViewsEngine || 'gemini';
   cameraViewsLockedPromptText = (project.optionResult && project.optionResult.image_prompt) || '';
+  cameraViewsClosedSides = project.cameraViewsClosedSides || [];
+  // Restored the same way — old saves from before OLE-001 existed simply have no lock, and
+  // every camera-view prompt/verification degrades gracefully to the prose-only anchors above.
+  cameraViewsOrientationLock = project.cameraViewsOrientationLock || null;
 
   document.getElementById('viewer3dGeneratedCard').style.display = 'block';
   document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
@@ -11498,6 +11709,13 @@ async function saveCurrentProject(){
     // alongside cameraViewsHeroRef so a Retry after a page refresh still edits through the
     // same engine that built the design, not silently falling back to a different one.
     cameraViewsEngine: cameraViewsEngine || 'gemini',
+    // This booth's real wall facts (see cameraViewsClosedSides' own comment) — restored the
+    // same way, so a Retry after a page refresh still states the correct open/closed sides.
+    cameraViewsClosedSides: cameraViewsClosedSides || [],
+    // OLE-001's full structured geometry fact table (see buildOrientationLock) — persisted so
+    // a Retry after a page refresh still references and verifies against the exact same locked
+    // geometry this project's views were originally generated and checked against.
+    cameraViewsOrientationLock: cameraViewsOrientationLock || null,
     // The star rating itself was only ever sent one-way to /api/ratings (a separate table,
     // admin-only to read back) — nothing restored it here, so restoreGeneratedViewsIfSaved
     // unconditionally reset the stars to 0 on every reopen, even for a project the person
