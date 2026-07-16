@@ -9127,6 +9127,10 @@ ${buildApprovedDecisionsText()}
     originalCardImage = hist ? hist.images[hist.activeIndex] : null;
     renderGeneratedViewCard(editTarget.camId, 'pending', null);
   }
+  // Same protection as every other generation flow — an edit in flight is just as much "a
+  // design being generated" as the initial render or the camera views, so closing the tab,
+  // refreshing, or switching projects mid-edit should warn/block the same way.
+  projectSwitchLocked = true;
 
   let requestBody;
   try{
@@ -9147,6 +9151,7 @@ ${buildApprovedDecisionsText()}
       renderGeneratedViewCard(editTarget.camId, 'done', originalCardImage);
     }
     setStatusError(statusEl, 'Could not prepare that edit: ' + (err.message || 'unknown error'));
+    projectSwitchLocked = false;
     return;
   }
 
@@ -9192,6 +9197,7 @@ ${buildApprovedDecisionsText()}
       }
     }
     saveCurrentProject();
+    projectSwitchLocked = false;
   }catch(err){
     console.error(err);
     if(editTarget.type === 'camview' && originalCardImage){
@@ -9200,6 +9206,7 @@ ${buildApprovedDecisionsText()}
     if(activeOptionIndex === idx){
       setStatusError(statusEl, 'Could not apply that edit: ' + (err.message || 'unknown error'));
     }
+    projectSwitchLocked = false;
   }
 }
 
@@ -9434,6 +9441,9 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
   closeModifyDesignPanel();
   const mainStatusEl = document.getElementById('actionStatus');
   setStatusError(mainStatusEl, 'Sending to DesignsLab — this can take a moment...');
+  // Same protection as every other generation flow — closing the tab, refreshing, or
+  // switching projects mid-edit should warn/block the same way it does during a fresh render.
+  projectSwitchLocked = true;
 
   // Same booth-shape-matched aspect ratio as the original render (see computeBoothAspectRatio)
   // — an edited image should keep the same frame shape as the render it's editing.
@@ -9475,9 +9485,11 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
 
     if(activeOptionIndex === idx) setStatusError(mainStatusEl, '');
     saveCurrentProject();
+    projectSwitchLocked = false;
   }catch(err){
     console.error('Modify design failed:', err);
     if(activeOptionIndex === idx) setStatusError(mainStatusEl, 'Could not modify that area: ' + (err.message || 'unknown error'));
+    projectSwitchLocked = false;
   }
 }
 
@@ -9713,6 +9725,7 @@ async function retryGeneratedView(camId){
     return;
   }
   renderGeneratedViewCard(camId, 'pending', null);
+  projectSwitchLocked = true;
   try{
     const resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false);
     const compressedResult = await compressDataUrlToTarget(resultDataUrl, 300 * 1024);
@@ -9722,6 +9735,8 @@ async function retryGeneratedView(camId){
   }catch(err){
     console.error('Retry failed for', camId, err);
     renderGeneratedViewCard(camId, 'failed', err.message || 'Could not generate that view.');
+  }finally{
+    projectSwitchLocked = false;
   }
 }
 
