@@ -8419,7 +8419,11 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
           const correctedImage = await runBrandAssetIntegrityEngine(data.image);
           const compressed = await compressDataUrlToTarget(correctedImage);
           optionResults[i].status = 'done';
-          optionResults[i].gallery = [{ label: 'Original', image: compressed }];
+          // engine is tagged per gallery entry, not per option — "Other option" can render a
+          // later entry with a different engine (see confirmRegenerateOtherOption's
+          // alternation), so whichever entry ends up approved is what downstream camera-view
+          // generation needs to match, not necessarily this first one.
+          optionResults[i].gallery = [{ label: 'Original', image: compressed, engine: useOpenAiEngine ? 'openai' : 'gemini' }];
           optionResults[i].activeGalleryIndex = 0;
           if(isUserInitiatedEdit && !isAdminUser && currentUserModifyCount != null){
             currentUserModifyCount++;
@@ -8912,7 +8916,7 @@ async function confirmRegenerateOtherOption(){
     const correctedImage = await runBrandAssetIntegrityEngine(data.image);
     const compressed = await compressDataUrlToTarget(correctedImage);
     opt.status = 'done';
-    opt.gallery.push({ label: 'Other option', image: compressed });
+    opt.gallery.push({ label: 'Other option', image: compressed, engine: otherOptionUsesOpenAi ? 'openai' : 'gemini' });
     opt.activeGalleryIndex = opt.gallery.length - 1;
     if(isFreeFirstModification){
       opt.usedFreeModification = true;
@@ -9602,17 +9606,23 @@ function computeImageSimilarity(dataUrlA, dataUrlB){
   });
 }
 
+// Dispatches to whichever engine actually built the approved booth (cameraViewsEngine — set
+// once in generateCameraViewsFromHero, reused by every view and by retryGeneratedView) rather
+// than always OpenAI. Gemini's own generate-image-gemini.js endpoint already functions as an
+// edit endpoint whenever it's given a referenceImage (it attaches the photo as an inlineData
+// part alongside the text prompt), so no separate "Gemini edit" endpoint is needed — it's the
+// exact same endpoint the initial generation used, just called again with a reference photo.
 async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry){
-  const response = await fetchWithTimeout('/api/edit-image-openai', {
+  const prompt = buildCameraViewPrompt(spec, isWiderRetry) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX;
+  const useOpenAi = cameraViewsEngine !== 'gemini';
+  const endpoint = useOpenAi ? '/api/edit-image-openai' : '/api/generate-image-gemini';
+  const body = useOpenAi
+    ? { prompt, referenceImage: base64, referenceMimeType: mime, size: '1536x1024', isUserInitiatedEdit: false }
+    : { prompt, referenceImage: base64, referenceMimeType: mime, isUserInitiatedEdit: false, aspectRatio: '3:2' };
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      prompt: buildCameraViewPrompt(spec, isWiderRetry) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX,
-      referenceImage: base64,
-      referenceMimeType: mime,
-      size: '1536x1024',
-      isUserInitiatedEdit: false
-    })
+    body: JSON.stringify(body)
   }, 100000, cameraViewsAbortController ? cameraViewsAbortController.signal : undefined);
   const rawText = await response.text();
   let data = {};
@@ -9637,6 +9647,24 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry){
 // and without regenerating the other 11 views.
 let cameraViewsHeroRef = null;
 
+// Which engine (Gemini or OpenAI) actually rendered the approved hero image — every camera
+// view edit (and any later Retry) is routed through this SAME engine, never the other one,
+// so hidden-surface completion is always done by whichever engine actually built the booth
+// and already "knows" its real geometry, rather than a different engine guessing at it from
+// a photo alone. Set once in generateCameraViewsFromHero, reused by retryGeneratedView.
+let cameraViewsEngine = 'gemini';
+
+// The original, approved Stage 2 prompt text for this design — already a deterministic,
+// fact-based specification (exact wall positions/thickness, the hero structure's ten labeled
+// facts, materials, lighting palette, branding hierarchy) rather than loose prose, thanks to
+// the Structural Shell/Scale/Hero Structure rules baked into that prompt. Re-sent verbatim as
+// a "LOCKED DESIGN FACTS" anchor on every single camera-view edit request (see
+// buildCameraViewPrompt) so each independent edit call is grounded in the exact same explicit
+// facts instead of only a photo + generic "keep it the same" instruction — this is what
+// actually stops walls being invented or the hero structure's shape drifting between views,
+// since the model no longer has to reconstruct those facts from the image alone each time.
+let cameraViewsLockedPromptText = '';
+
 // Admin-only testing aid: lets a full 12-view generation run be cancelled mid-way (e.g.
 // after spotting a bad view or a prompt gap) instead of having to sit through the whole
 // remaining batch just to start the next test. Non-admins never see the Stop button that
@@ -9648,10 +9676,12 @@ function stopCameraViewsGeneration(){
   if(cameraViewsAbortController) cameraViewsAbortController.abort();
 }
 
-async function generateCameraViewsFromHero(heroImage){
+async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPromptText){
   const compressedHero = await compressDataUrl(heroImage, 1536, 0.88);
   const { mime, base64 } = dataUrlParts(compressedHero);
   cameraViewsHeroRef = { base64, mime };
+  cameraViewsEngine = engine || 'gemini';
+  cameraViewsLockedPromptText = lockedDesignPromptText || '';
 
   cameraViewsAbortController = new AbortController();
   const stopBtn = document.getElementById('stopCameraViewsBtn');
@@ -10214,6 +10244,21 @@ async function generateTechnicalBoard(isAutomaticAfterCameraViews){
 function buildCameraViewPrompt(spec, isWiderRetry){
   const widerNote = isWiderRetry ? ' The previous attempt at this angle came out too similar to the neighboring view — for this attempt, pull the camera back further than usual and widen the field of view noticeably, so this position reveals a clearly distinct amount of new surface and depth.' : '';
 
+  // The original, approved Stage 2 specification (cameraViewsLockedPromptText — set once in
+  // generateCameraViewsFromHero) is already a deterministic, fact-based document: exact wall
+  // positions/thickness, the hero structure's own ten labeled facts, materials, lighting
+  // palette, branding hierarchy — never loose descriptive prose. Repeating it verbatim on
+  // every single camera-view edit request is what actually stops geometry drifting between
+  // views — a real reported bug: extra walls appearing in some views, the hero structure's
+  // shape changing slightly from one view to the next. Without this, each edit call only had
+  // a photo and a generic "keep it the same" instruction to work from, so the model had to
+  // reconstruct these facts from the image alone, independently, every single time — small,
+  // plausible-looking differences were the predictable result. With this, every one of the
+  // views is grounded in the exact same explicit text, not just a photo.
+  const lockedFactsBlock = cameraViewsLockedPromptText
+    ? `\n\nORIGINAL APPROVED DESIGN SPECIFICATION (verbatim, locked — the single source of truth this render must match exactly, never reinterpreted, softened, or partially applied):\n${cameraViewsLockedPromptText}\n\nEvery wall, the hero structure's exact geometry and dimensions, every material, every light, every branding placement, and every piece of furniture named above must appear in this render exactly as specified — never invent, add, remove, resize, relocate, or reshape any of them. Specifically: never add a wall, panel, or partition anywhere that isn't explicitly part of the specification above; never remove a wall the specification requires; and never alter the hero structure's silhouette, curvature, proportions, or form in any way — its geometry above is a fixed fact, not a suggestion open to reinterpretation.`
+    : '';
+
   // Top-down view — used only by the corner (2-open-side) booth's fixed 5-camera recipe,
   // per explicit client direction, confirmed even after flagging the known risk: a real
   // production test (a Red Bull booth) showed overhead camera framing can push the model
@@ -10230,7 +10275,7 @@ function buildCameraViewPrompt(spec, isWiderRetry){
 
 View: ${spec.name} — ${spec.promptHint} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
 
-This must be a genuine photograph-style aerial image — real materials, real shadows, real depth and lighting, exactly like a professional drone photo of a real physical structure — never a flat technical drawing, CAD plan, blueprint, or 2D diagram. The booth's architecture, materials, branding, and furniture are completely unchanged from the reference; only the camera has moved directly overhead.${widerNote} The full footprint and layout of the booth should be visible in one frame. The attached photo only shows one side of the booth — for whatever isn't visible from that angle, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into the parts only visible from above, so the whole booth reads as one coherent, intentional design. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same dark gray carpet flooring and surrounding aisle space, consistent and unchanging. Light the space with premium, even, professional exhibition lighting. Photorealistic.`;
+This must be a genuine photograph-style aerial image — real materials, real shadows, real depth and lighting, exactly like a professional drone photo of a real physical structure — never a flat technical drawing, CAD plan, blueprint, or 2D diagram. The booth's architecture, materials, branding, and furniture are completely unchanged from the reference; only the camera has moved directly overhead.${widerNote} The full footprint and layout of the booth should be visible in one frame. The attached photo only shows one side of the booth — for whatever isn't visible from that angle, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into the parts only visible from above, so the whole booth reads as one coherent, intentional design. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same dark gray carpet flooring and surrounding aisle space, consistent and unchanging. Light the space with premium, even, professional exhibition lighting. Photorealistic.${lockedFactsBlock}`;
   }
 
   // Interior views (per CVP-001's Interior Camera Rules: always allowed, regardless of
@@ -10243,7 +10288,7 @@ This must be a genuine photograph-style aerial image — real materials, real sh
 
 View: ${spec.name} — ${spec.promptHint} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
 
-The booth's architecture, materials, branding, and furniture are completely unchanged from the reference — only the camera has moved to this new interior vantage.${widerNote} This must clearly read as a distinct interior viewpoint focused on ${spec.name.toLowerCase()}, revealing details and depth not visible in the reference's own framing — never a near-repeat of the reference from a marginally different angle. The attached photo may not show every interior detail directly — for anything not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into this interior view, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the space with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.`;
+The booth's architecture, materials, branding, and furniture are completely unchanged from the reference — only the camera has moved to this new interior vantage.${widerNote} This must clearly read as a distinct interior viewpoint focused on ${spec.name.toLowerCase()}, revealing details and depth not visible in the reference's own framing — never a near-repeat of the reference from a marginally different angle. The attached photo may not show every interior detail directly — for anything not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into this interior view, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the space with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}`;
   }
 
   // Exterior views (per CVP-001's Exterior Camera Rules: only ever placed on this booth's
@@ -10255,7 +10300,7 @@ The booth's architecture, materials, branding, and furniture are completely unch
 
 Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). This position is pre-validated to sit only in front of this booth's own OPEN side(s) — per this booth's approved orientation, it never requires standing behind, inside, or looking through a STRUCTURAL WALL side. The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens. Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
 
-The booth itself is completely static and unchanged from the reference — only the camera has moved to this new position. Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image — new side surfaces, structural elements, or depth — never a near-repeat of the reference from a marginally different angle.${widerNote} The attached photo may show only one side or angle of the booth — for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.`;
+The booth itself is completely static and unchanged from the reference — only the camera has moved to this new position. Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image — new side surfaces, structural elements, or depth — never a near-repeat of the reference from a marginally different angle.${widerNote} The attached photo may show only one side or angle of the booth — for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}`;
 }
 
 /* Star rating: hovering previews a value without committing it; clicking submits
@@ -10743,7 +10788,16 @@ async function confirmApproveDesign(){
   if(modifyBtn) modifyBtn.disabled = true;
   if(otherOptionBtnEl) otherOptionBtnEl.disabled = true;
 
-  const heroImage = opt.gallery[opt.activeGalleryIndex].image;
+  const approvedGalleryEntry = opt.gallery[opt.activeGalleryIndex];
+  const heroImage = approvedGalleryEntry.image;
+  // Whichever engine actually rendered THIS approved image (Gemini or OpenAI — see the
+  // "Other option" alternation and the admin Image Engine selector, both of which tag every
+  // gallery entry with the engine that produced it) is the same engine every downstream
+  // camera-view edit must use — an approved Gemini booth gets its hidden surfaces completed
+  // by Gemini, an approved OpenAI booth by OpenAI, never the other engine guessing at
+  // geometry it didn't actually create. Falls back to 'gemini' for older saved projects from
+  // before this was tracked.
+  const heroImageEngine = approvedGalleryEntry.engine || 'gemini';
 
   // Admin-only, fire-and-forget — runs alongside the real generation below, never awaited
   // and never allowed to affect it. See startAdminLumaVideoComparison's own comment.
@@ -10752,7 +10806,7 @@ async function confirmApproveDesign(){
   statusEl.textContent = '';
   updateApproveProgress(2, 'Creating multiple views of your booth with DesignsLab... this can take a minute or two.');
   try{
-    await generateCameraViewsFromHero(heroImage);
+    await generateCameraViewsFromHero(heroImage, heroImageEngine, opt.image_prompt);
     await new Promise(r => setTimeout(r, 800)); // let the 100% completion state actually register before it disappears
     hideApproveProgress();
     // Once approved, the design is locked — no more modifications or regenerated
@@ -11284,6 +11338,12 @@ function restoreGeneratedViewsIfSaved(project){
   if(project.cameraViewsHeroRef){
     cameraViewsHeroRef = project.cameraViewsHeroRef;
   }
+  // Same reasoning as cameraViewsHeroRef just above — without these, a Retry after a page
+  // refresh would fall back to the 'gemini'/'' defaults instead of the engine and locked
+  // design facts this project's views were actually generated with. Old saves from before
+  // this existed simply fall back gracefully (engine defaults to Gemini, locked facts empty).
+  cameraViewsEngine = project.cameraViewsEngine || 'gemini';
+  cameraViewsLockedPromptText = (project.optionResult && project.optionResult.image_prompt) || '';
 
   document.getElementById('viewer3dGeneratedCard').style.display = 'block';
   document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
@@ -11384,6 +11444,10 @@ async function saveCurrentProject(){
     // each view are both gone after reload, and Retry has nothing to retry with.
     cameraSpecs: (CAMERA_SPECS && CAMERA_SPECS.length) ? CAMERA_SPECS : null,
     cameraViewsHeroRef: cameraViewsHeroRef || null,
+    // Which engine actually built this approved booth (see confirmApproveDesign) — restored
+    // alongside cameraViewsHeroRef so a Retry after a page refresh still edits through the
+    // same engine that built the design, not silently falling back to a different one.
+    cameraViewsEngine: cameraViewsEngine || 'gemini',
     // The star rating itself was only ever sent one-way to /api/ratings (a separate table,
     // admin-only to read back) — nothing restored it here, so restoreGeneratedViewsIfSaved
     // unconditionally reset the stars to 0 on every reopen, even for a project the person
