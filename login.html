@@ -46,13 +46,6 @@
     margin-top:-58px;
   }
 
-  .top-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
-    margin-bottom:28px;
-  }
   .home-link{
     display:inline-flex;
     align-items:center;
@@ -61,14 +54,9 @@
     font-weight:600;
     color:#8A8676;
     text-decoration:none;
+    margin-bottom:28px;
   }
   .home-link:hover{color:#15181D;}
-
-  .lang-switcher{display:flex;align-items:center;gap:5px;font-size:13px;}
-  .lang-switcher select{
-    font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;padding:5px 6px;
-    border:1.5px solid var(--line-light);border-radius:7px;background:#fff;color:#15181D;cursor:pointer;
-  }
 
   h1{
     font-family:'Space Grotesk',sans-serif;
@@ -260,10 +248,7 @@
   <div class="split">
     <div class="login-side">
       <div class="login-box">
-        <div class="top-row">
-          <a href="/" class="home-link" data-i18n="lg.backHome">← Back to Home</a>
-          <div class="lang-switcher"><span aria-hidden="true">🌐</span><select id="languageSelector" onchange="setLanguage(this.value)" aria-label="Language / اللغة / Langue / Sprache / Idioma / Lingua / 语言 / 言語"></select></div>
-        </div>
+        <a href="/" class="home-link" data-i18n="lg.backHome">← Back to Home</a>
         <h1 data-i18n="lg.title">Sign in to Designs Lab</h1>
         <p class="sub" data-i18n="lg.subtitle">AI Events Design Platform</p>
 
@@ -512,29 +497,18 @@ function applyTranslations(){
   }
 }
 
-function renderLanguageSelectorOptions(){
-  const sel = document.getElementById('languageSelector');
-  if(!sel || sel.options.length) return;
-  LANGUAGE_OPTIONS.forEach(opt => {
-    const o = document.createElement('option');
-    o.value = opt.code;
-    o.textContent = opt.name;
-    sel.appendChild(o);
-  });
-}
-
-// Persists under the same localStorage key the main app and the homepage use, so a language
-// choice made on any one of the three pages is already the default the next time either of
-// the other two loads.
+// This page has no language selector of its own — by design. Language is chosen once, on the
+// homepage (or inside the studio's own form), and login.html just reads that shared choice
+// from localStorage and renders in it. setLanguage() is still here (not just a plain read)
+// because it's also what applyTranslations()/dir-flipping runs through, and because a "next"
+// redirect can land a user on this page mid-session where the language may have just changed
+// on the page they came from.
 function setLanguage(lang, skipPersist){
   currentLanguage = I18N_DICTIONARIES[lang] ? lang : 'en';
   const opt = LANGUAGE_OPTIONS.find(o => o.code === currentLanguage) || LANGUAGE_OPTIONS[0];
   document.documentElement.lang = currentLanguage;
   document.documentElement.dir = opt.dir;
-  renderLanguageSelectorOptions();
   applyTranslations();
-  const sel = document.getElementById('languageSelector');
-  if(sel && sel.value !== currentLanguage) sel.value = currentLanguage;
   if(!skipPersist){
     try{ localStorage.setItem('designLabLanguage', currentLanguage); }catch(e){ /* ignore */ }
   }
