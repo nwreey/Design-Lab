@@ -7283,7 +7283,7 @@ function extractStage2FieldsLeniently(rawText){
   };
 }
 
-async function callPromptWriterApi(system, content){
+async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
   const response = await fetch("/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -7330,6 +7330,16 @@ async function callPromptWriterApi(system, content){
     // failure mode that breaks strict JSON.parse on an otherwise complete, correct response).
     const lenient = extractStage2FieldsLeniently(cleaned);
     if(lenient) return lenient;
+    // A genuinely broken response (Stage 1's analysis JSON has no fixed 3-key shape to fall
+    // back on the way Stage 2 does) used to fail the whole generation outright on the very
+    // first bad completion — including a rare, one-off glitch that a plain retry would have
+    // sailed through. Same philosophy as the "missing fields" retry above: one extra attempt,
+    // a fresh completion rather than trying to repair the broken one, before ever bothering
+    // the user with an error.
+    if(!isRetryAfterParseFailure){
+      console.warn('[callPromptWriterApi] response was not valid JSON and had no recognizable fallback shape — retrying once with a fresh completion.');
+      return callPromptWriterApi(system, content, true);
+    }
     throw new Error('Could not parse the response as JSON. It may have been cut off — response started with: "' + cleaned.slice(0, 160) + '..."');
   }
 }
