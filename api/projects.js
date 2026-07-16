@@ -191,7 +191,15 @@ export default async function handler(req, res) {
         return;
       }
       const resolvedData = await inlineImages(row.data);
-      res.status(200).json({ id: row.id, name: row.name, savedAt: row.saved_at, ...resolvedData });
+      // The "name" column is the one PATCH (rename) actually updates — data.name is a stale
+      // copy left over from whenever this project was last fully saved via POST, since a
+      // rename only ever touches the column, never re-walks/re-uploads the whole project.
+      // Spreading resolvedData FIRST and overriding id/name/savedAt after it means the
+      // column's values (the authoritative, up-to-date ones) always win — previously this
+      // was ordered the other way, so a rename would show correctly in the sidebar list
+      // (which reads the column directly) but silently revert the moment the project was
+      // actually opened, since data.name's stale value clobbered the freshly patched name.
+      res.status(200).json({ ...resolvedData, id: row.id, name: row.name, savedAt: row.saved_at });
       return;
     }
 

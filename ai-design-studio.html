@@ -403,6 +403,7 @@
   .gen-notice-card p{font-size:14px;line-height:1.65;color:var(--ink);opacity:.85;margin:0 0 22px;}
   #genNoticeQuotaText{background:var(--line);padding:10px 12px;border-radius:2px;font-weight:600;font-size:13px;opacity:1 !important;}
   .gen-notice-card button{width:100%;}
+  .custom-prompt-input{margin-top:-6px;margin-bottom:4px;}
   .lightbox-overlay.open{display:flex;}
   .lightbox-overlay img{max-width:100%;max-height:100%;border-radius:2px;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
   .lightbox-close{position:absolute;top:20px;right:28px;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer;background:transparent;border:1.5px solid #fff;padding:8px 16px;border-radius:2px;}
@@ -2739,6 +2740,22 @@ Replace only the materials and graphics."></textarea>
       <div style="display:flex;gap:10px;">
         <button class="ghost" id="customAlertCancelBtn" onclick="__resolveCustomAlert(false)" style="flex:1;display:none;">Cancel</button>
         <button class="primary" id="customAlertOkBtn" onclick="__resolveCustomAlert(true)" style="flex:1;">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Styled replacement for the browser's native prompt() (used e.g. by rename project) —
+       same gen-notice-card look as every other popup in the app, rather than the plain OS
+       dialog prompt() renders, which looked visually inconsistent with everything else. -->
+  <div class="gen-notice-overlay" id="customPromptOverlay">
+    <div class="gen-notice-card">
+      <div class="gen-notice-eyebrow" id="customPromptEyebrow">Notice</div>
+      <h3 id="customPromptTitle" style="display:none;"></h3>
+      <p id="customPromptText"></p>
+      <input type="text" id="customPromptInput" class="custom-prompt-input" onkeydown="if(event.key==='Enter'){ event.preventDefault(); __resolveCustomPrompt(true); }">
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="ghost" id="customPromptCancelBtn" onclick="__resolveCustomPrompt(false)" style="flex:1;">Cancel</button>
+        <button class="primary" id="customPromptOkBtn" onclick="__resolveCustomPrompt(true)" style="flex:1;">OK</button>
       </div>
     </div>
   </div>
@@ -8078,6 +8095,36 @@ function __resolveCustomAlert(result){
   }
 }
 
+// Styled, Promise-based replacement for the browser's native prompt() — same reasoning as
+// customAlert/customConfirm above (an unstyled OS dialog looked out of place next to every
+// other popup in the app). Resolves to the trimmed input text, or null if cancelled — same
+// null-means-cancelled contract prompt() itself uses, so call sites barely have to change.
+let __customPromptResolve = null;
+
+function customPrompt(message, defaultValue, eyebrow, okLabel){
+  return new Promise(resolve => {
+    __customPromptResolve = resolve;
+    document.getElementById('customPromptEyebrow').textContent = eyebrow || 'Notice';
+    document.getElementById('customPromptTitle').style.display = 'none';
+    document.getElementById('customPromptText').textContent = message;
+    const input = document.getElementById('customPromptInput');
+    input.value = defaultValue || '';
+    document.getElementById('customPromptOkBtn').textContent = okLabel || 'OK';
+    document.getElementById('customPromptOverlay').style.display = 'flex';
+    setTimeout(() => { input.focus(); input.select(); }, 0);
+  });
+}
+
+function __resolveCustomPrompt(confirmed){
+  document.getElementById('customPromptOverlay').style.display = 'none';
+  const value = document.getElementById('customPromptInput').value.trim();
+  if(__customPromptResolve){
+    const resolve = __customPromptResolve;
+    __customPromptResolve = null;
+    resolve(confirmed ? value : null);
+  }
+}
+
 /* ---------- prompt review step: edit/approve before rendering ---------- */
 
 let pendingPromptResult = null;
@@ -11377,7 +11424,7 @@ async function renameProjectPrompt(id){
     const projects = await dbGetAllProjects();
     const project = projects.find(p => p.id === id);
     if(!project) return;
-    const newName = prompt('Rename project:', project.name);
+    const newName = await customPrompt('Enter a new name for this project.', project.name, 'Rename Project', 'Rename');
     if(newName === null) return;
     const trimmed = newName.trim();
     if(!trimmed) return;
