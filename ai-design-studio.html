@@ -1308,17 +1308,17 @@ Replace only the materials and graphics."></textarea>
     </div>
 
     <div id="boothDetailsFields" style="display:none;">
-      <div class="field">
-        <label><span data-i18n="field.boothHeight">Booth Height (m)</span> <span class="required-mark">*</span></label>
-        <input type="number" min="0" step="0.1" id="f_totalHeight" placeholder="e.g. 5.5">
-      </div>
-
       <div class="field" id="levelsField">
         <label><span data-i18n="field.numberOfLevels">Number of levels</span> <span class="required-mark">*</span></label>
         <select id="f_levels" onchange="toggleUpperFloor(this)">
           <option value="1" selected data-i18n="option.singleLevel">1 — Single level</option>
           <option value="2" data-i18n="option.doubleDeck">2 — Double-deck (ground + upper floor)</option>
         </select>
+      </div>
+
+      <div class="field">
+        <label><span data-i18n="field.boothHeight">Booth Height (m)</span> <span class="required-mark">*</span></label>
+        <input type="number" min="0" step="0.1" id="f_totalHeight" placeholder="e.g. 5.5">
       </div>
 
       <div id="upperFloorField" style="display:none;">
