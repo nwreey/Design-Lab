@@ -11519,7 +11519,7 @@ function handleExistingDesignUpload(input){
   const enteredDepth = document.getElementById('uploadExistingDepth').value;
   const enteredHeight = document.getElementById('uploadExistingHeight').value;
   const reader = new FileReader();
-  reader.onload = function(e){
+  reader.onload = async function(e){
     currentProjectId = null;
     pendingPromptResult = null;
     currentProjectName = (file.name || 'Uploaded Design').replace(/\.[^.]+$/, '') || 'Uploaded Design';
@@ -11535,11 +11535,28 @@ function handleExistingDesignUpload(input){
     approvedDesignDecisions = [];
     editDesignApprovedCount = 0;
 
+    // Every other image in this app (Gemini/OpenAI renders, camera views) gets compressed to
+    // a byte budget before it's ever displayed or saved — a real uploaded design photo never
+    // went through that, so a normal camera-quality file (several MB, sometimes 10+) went
+    // straight into the project as an uncompressed data URL. That's well past what a single
+    // Vercel serverless function request body can carry, so the save silently failed for the
+    // image specifically: the project row itself still got created, but the picture came
+    // back broken on reload since it was never actually uploaded to Blob storage.
+    let uploadedImage = e.target.result;
+    try{
+      uploadedImage = await compressDataUrlToTarget(uploadedImage);
+    }catch(err){
+      console.error('Could not compress the uploaded design image:', err);
+      // Fall back to the raw upload rather than blocking entirely — worst case this hits
+      // the same size problem the compression above exists to prevent, but a rare
+      // compression failure shouldn't stop someone from at least seeing their own upload.
+    }
+
     optionResults = [{
       title: 'Uploaded design',
       conceptDescription: '',
       image_prompt: '',
-      gallery: [{ label: 'Original', image: e.target.result }],
+      gallery: [{ label: 'Original', image: uploadedImage }],
       activeGalleryIndex: 0,
       status: 'done',
       errorMsg: '',
