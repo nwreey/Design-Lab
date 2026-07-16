@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import { neon } from '@neondatabase/serverless';
+const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* Same token verification duplicated across the auth-aware endpoints in this project —
    see api/projects.js for the fuller explanation of why this isn't a shared import. */
@@ -47,14 +49,43 @@ function extFromMime(mime) {
   return 'png';
 }
 
-/* Admin-only test tool (see the "Image Engine" selector in ai-design-studio.html): sends the
-   exact same final Stage 2 prompt that normally goes to api/generate-image-gemini.js to
-   OpenAI's own image models instead, purely so an admin can compare Gemini's and OpenAI's
-   design quality on the identical prompt. This deliberately never touches the two-call
-   Project Analysis Engine (Stage 1/Stage 2) — only the final image-rendering step is swapped,
-   and only for whoever explicitly picks "OpenAI" from that admin-only selector. Restricted to
-   admin callers only, both to keep this experimental path out of regular users' quota-metered
-   flow and to avoid surprise OpenAI image-generation costs from anyone else. */
+/* Same modify-quota logic as api/generate-image-gemini.js, duplicated rather than shared for
+   the same reason as getCaller above. This matters here specifically because "Other option"
+   now automatically alternates between this endpoint and Gemini's (see
+   confirmRegenerateOtherOption in ai-design-studio.html) — a user's modify limit has to be
+   enforced identically regardless of which engine happens to render that particular attempt,
+   or landing on an OpenAI turn would be a free, unmetered bypass of their limit. */
+async function checkModifyQuota(caller) {
+  if (!caller || caller.role === 'admin') return null;
+  try {
+    const result = await sql`SELECT modify_limit, modify_count FROM users WHERE id = ${caller.userId};`;
+    if (result.rows.length === 0) return null;
+    const { modify_limit, modify_count } = result.rows[0];
+    if (modify_limit != null && modify_count >= modify_limit) {
+      return `You've reached your modify limit (${modify_limit}). Please contact your administrator to increase this limit.`;
+    }
+  } catch (err) {
+    console.error('Could not check modify quota:', err);
+  }
+  return null;
+}
+
+async function incrementModifyCount(caller) {
+  if (!caller || caller.role === 'admin') return;
+  try {
+    await sql`UPDATE users SET modify_count = modify_count + 1 WHERE id = ${caller.userId};`;
+  } catch (err) {
+    console.error('Could not increment modify count:', err);
+  }
+}
+
+/* Sends the exact same final Stage 2 prompt that normally goes to api/generate-image-gemini.js
+   to OpenAI's own image models instead. Two callers use this: (1) the admin-only "Image
+   Engine" selector on the main form, for deliberately comparing Gemini vs. OpenAI design
+   quality on an initial generation; and (2) confirmRegenerateOtherOption's automatic
+   alternation, which now sends every other "Other option" click here for every user, not just
+   admins. Either way, this never touches the two-call Project Analysis Engine (Stage 1/Stage
+   2) — only the final image-rendering step is swapped. */
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -75,10 +106,6 @@ export default async function handler(req, res) {
     res.status(401).json({ error: { message: 'Not logged in.' } });
     return;
   }
-  if (caller.role !== 'admin') {
-    res.status(403).json({ error: { message: 'This OpenAI comparison tool is admin-only.' } });
-    return;
-  }
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -87,10 +114,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, aspectRatio } = req.body || {};
+    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, aspectRatio, isUserInitiatedEdit, isFreeFirstModification } = req.body || {};
     if (!prompt || typeof prompt !== 'string') {
       res.status(400).json({ error: { message: 'Request body must include a "prompt" string.' } });
       return;
+    }
+
+    if (isUserInitiatedEdit && !isFreeFirstModification) {
+      const quotaError = await checkModifyQuota(caller);
+      if (quotaError) {
+        res.status(403).json({ error: { message: quotaError } });
+        return;
+      }
     }
 
     const size = sizeFromAspectRatio(aspectRatio);
@@ -157,6 +192,7 @@ export default async function handler(req, res) {
       return;
     }
 
+    if (isUserInitiatedEdit && !isFreeFirstModification) await incrementModifyCount(caller);
     res.status(200).json({ image: `data:image/png;base64,${b64}` });
   } catch (err) {
     res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });

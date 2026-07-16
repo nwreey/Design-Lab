@@ -8890,7 +8890,17 @@ async function confirmRegenerateOtherOption(){
       otherOptionBody.referenceMimeType = logoMediaType;
       otherOptionBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
     }
-    const response = await fetchWithTimeout('/api/generate-image-gemini', {
+    // The very first render (Generate Design) always stays on Gemini. Every "Other option"
+    // click after that automatically alternates engines — 1st Other option -> OpenAI, 2nd ->
+    // Gemini, 3rd -> OpenAI, and so on — so the two engines end up compared directly against
+    // each other across a design's option history, for every user, not just admins. Counted
+    // from this option's own gallery (each prior "Other option" click already pushed one
+    // 'Other option' entry onto it), so the sequence survives page refreshes/project reopens
+    // rather than resetting to "always OpenAI first" every time.
+    const otherOptionAttemptNumber = opt.gallery.filter(g => g.label === 'Other option').length + 1;
+    const otherOptionUsesOpenAi = otherOptionAttemptNumber % 2 === 1;
+    const otherOptionEndpoint = otherOptionUsesOpenAi ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+    const response = await fetchWithTimeout(otherOptionEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(otherOptionBody)
