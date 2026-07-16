@@ -4749,7 +4749,7 @@ function updateIndustryStyleHint(sel){
    meaning — first checked = Primary (greatest influence), second = Secondary, third = Accent.
    selectedBrandPersonalities holds that order explicitly; a plain multi-select <select> can't
    express "order of checking" at all, so this is a checkbox grid with a rank badge instead. ---------- */
-let selectedBrandPersonalities = ['Elegant'];
+let selectedBrandPersonalities = ['Elegant', 'Innovation', 'Creative'];
 const BRAND_PERSONALITY_RANK_LABELS = ['Primary', 'Secondary', 'Accent'];
 
 function renderBrandPersonalityGrid(){
@@ -6484,8 +6484,8 @@ function showFormAndTabs(){
 // section, which is not right"). These snapshots capture each mode's own values on the way
 // out and restore them on the way back in, so the two stay genuinely independent from the
 // person's point of view despite sharing the underlying fields.
-let boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
-let eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
+let boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
+let eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
 
 function captureModeSnapshot(){
   return {
@@ -6502,7 +6502,7 @@ function applyModeSnapshot(snapshot){
   document.getElementById('f_archStyle').value = snapshot.archStyle;
   document.getElementById('f_industryStyle').value = snapshot.industryStyle;
   document.getElementById('f_constructionStyle').value = snapshot.constructionStyle;
-  selectedBrandPersonalities = [...(snapshot.brandPersonalities || ['Elegant'])];
+  selectedBrandPersonalities = [...(snapshot.brandPersonalities || ['Elegant', 'Innovation', 'Creative'])];
   updateArchStyleHint(document.getElementById('f_archStyle'));
   updateIndustryStyleHint(document.getElementById('f_industryStyle'));
   updateBrandPersonalityHint();
@@ -9887,6 +9887,54 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet){
     };
   }
 
+  // ISLAND BOOTHS (all four sides open) get a fixed, specific 9-camera recipe per explicit
+  // client direction, replacing the general priority-candidate approach used for a peninsula
+  // (3-open-side) booth: Hero (the diagonal corner shot already approved), a symmetric fan of
+  // paired perspective/straight-on shots sweeping away from the hero corner in both directions
+  // (Right side, then Left side), converging at a Rear diagonal directly opposite Hero (itself
+  // flanked by its own two perspective approaches), and one true top-down Top View.
+  //
+  // "Right"/"Left" are named the same way as the corner (2-open-side) recipe above — relative
+  // to the hero shot's own viewpoint (whichever of the hero corner's two sides sits clockwise
+  // of it is "Right", the other is "Left"), never a literal, fixed compass side. The two
+  // remaining compass sides (the corner diagonally opposite Hero) are the "Rear" pair —
+  // sidePriorityOrder is already in clockwise compass order (Front, Right, Back, Left), so the
+  // far side immediately clockwise of "Right" is "Rear Right" and the other far side is
+  // "Rear Left".
+  if(openCount === 4){
+    const [cornerSideA, cornerSideB] = heroApproach.corner.split('-');
+    const isClockwiseOfHero = (side) => toRelativeAzimuth(COMPASS_AZIMUTH[side]) < 180;
+    const rightSide = isClockwiseOfHero(cornerSideA) ? cornerSideA : cornerSideB;
+    const leftSide = rightSide === cornerSideA ? cornerSideB : cornerSideA;
+    const rightIdx = sidePriorityOrder.indexOf(rightSide);
+    const rearRightSide = sidePriorityOrder[(rightIdx + 1) % 4];
+    const rearLeftSide = sidePriorityOrder.filter(s => s !== rightSide && s !== leftSide).find(s => s !== rearRightSide);
+
+    const rightAzimuth = toRelativeAzimuth(COMPASS_AZIMUTH[rightSide]);
+    const leftAzimuth = toRelativeAzimuth(COMPASS_AZIMUTH[leftSide]);
+    const rearAzimuth = 180; // directly opposite the hero's own diagonal, by definition
+    const perspRightAzimuth = ((0 + shortestAngleDelta(0, rightAzimuth) * 0.5) + 360) % 360;
+    const perspLeftAzimuth = ((0 + shortestAngleDelta(0, leftAzimuth) * 0.5) + 360) % 360;
+    const perspRearRightAzimuth = ((rightAzimuth + shortestAngleDelta(rightAzimuth, rearAzimuth) * 0.5) + 360) % 360;
+    const perspRearLeftAzimuth = ((leftAzimuth + shortestAngleDelta(leftAzimuth, rearAzimuth) * 0.5) + 360) % 360;
+
+    const fixedNine = [
+      { name: 'Hero View', type: 'exterior', azimuth: 0, elevation: 15, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' },
+      { name: 'Perspective Right View', type: 'exterior', azimuth: perspRightAzimuth, elevation: 15, promptHint: `A three-quarter perspective view angled between the hero view and the booth's ${rightSide} open face.` },
+      { name: 'Right View', type: 'exterior', azimuth: rightAzimuth, elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${rightSide} open face — camera aimed straight in, not diagonal.` },
+      { name: 'Perspective Left View', type: 'exterior', azimuth: perspLeftAzimuth, elevation: 15, promptHint: `A three-quarter perspective view angled between the hero view and the booth's ${leftSide} open face.` },
+      { name: 'Left View', type: 'exterior', azimuth: leftAzimuth, elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${leftSide} open face — camera aimed straight in, not diagonal.` },
+      { name: 'Perspective Rear View Left', type: 'exterior', azimuth: perspRearLeftAzimuth, elevation: 15, promptHint: `A three-quarter perspective view angled between the booth's ${leftSide} open face and its rear, approaching the ${rearLeftSide} open face.` },
+      { name: 'Rear View', type: 'exterior', azimuth: rearAzimuth, elevation: 15, promptHint: `A straight-on exterior elevation of the booth's rear corner, directly opposite the hero view, where the ${rearLeftSide} and ${rearRightSide} open faces meet.` },
+      { name: 'Perspective Rear View Right', type: 'exterior', azimuth: perspRearRightAzimuth, elevation: 15, promptHint: `A three-quarter perspective view angled between the booth's ${rightSide} open face and its rear, approaching the ${rearRightSide} open face.` },
+      { name: 'Top View', type: 'top-down', azimuth: 0, elevation: 90, promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' }
+    ];
+    return {
+      plan: fixedNine.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, radius: 8, target: 'booth_center', lens: 35, ...c })),
+      openSides, closedSides, heroApproach, targetCount: 9
+    };
+  }
+
   // Priority 2 — Entrance: a distinct angle near the same open frontage the hero was shot
   // from, emphasizing the walk-in approach rather than repeating the hero's own framing.
   candidates.push({ name: 'Entrance View', type: 'exterior', azimuth: toRelativeAzimuth(entranceAbsolute), promptHint: 'The main visitor entrance and walk-in approach, emphasizing the threshold into the booth.' });
@@ -10948,7 +10996,7 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_industryStyle').value = snap.f_industryStyle || '';
   updateIndustryStyleHint(document.getElementById('f_industryStyle'));
   document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || 'Premium Custom Build';
-  selectedBrandPersonalities = [...(snap.f_brandPersonalities || ['Elegant'])];
+  selectedBrandPersonalities = [...(snap.f_brandPersonalities || ['Elegant', 'Innovation', 'Creative'])];
   updateBrandPersonalityHint();
   document.getElementById('f_attendees').value = snap.f_attendees || '';
   document.getElementById('f_eventType').value = snap.f_eventType || '';
@@ -11405,8 +11453,8 @@ function openProject(id){
       restoreFormSnapshot(project.formSnapshot);
       // Reset AFTER restoreFormSnapshot, not before — see the identical comment in
       // startNewProject() for why the order matters here.
-      boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
-      eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
+      boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
+      eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
       restoreLogoAndPosters(project);
       restoreResultsView(project);
       renderProjectSidebar();
@@ -11592,8 +11640,8 @@ function startNewProject(){
   // which would otherwise capture the outgoing mode's (possibly stale, leftover-from-a-
   // different-project) field values right back into the snapshot before this reset could
   // actually take effect.
-  boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
-  eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant'] };
+  boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
+  eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
   logoDataUrl = null;
   logoMediaType = null;
   document.getElementById('logoPreview').style.display = 'none';
