@@ -6814,35 +6814,53 @@ STRUCTURAL SHELL — DETERMINISTICALLY COMPUTED (IMMUTABLE) (per BSE-001 Structu
 ${lines.join('\n')}`;
 }
 
-// Fixes a real, reported asymmetry: every render's camera has consistently approached from the
-// Front-Right corner, regardless of which side actually holds this booth's STRUCTURAL WALL(s).
-// When Right happened to be the wall, it sat nearest the camera and rendered solidly; when Left
-// was the wall instead, it ended up as the far, receding side of the frame — exactly the side
-// most prone to the "wall doesn't reach the far corner" and "arch cut through the wall" failure
-// modes documented in EPS-016. The fix is to choose the camera's approach corner FROM the actual
-// orientation, every time, so whichever side is really the wall is always the near, prominent
-// one — never left to a fixed default that only happens to work for one specific configuration.
+// MANDATORY CLIENT REQUIREMENT: whenever this booth has at least one STRUCTURAL WALL side —
+// one, two, or three sides closed, any combination — the camera must be positioned on the
+// side(s) OPPOSITE the closed wall(s), approaching from the open side(s) and looking across
+// the booth toward the wall(s), so the entire design (every zone, not just the frontage
+// nearest the camera) is visible in one frame. This deliberately only applies when at least
+// one side is closed; a fully open, all-four-sides island booth has no closed wall to be
+// "opposite" of, so it keeps a neutral default corner instead (this is the one case the rule
+// explicitly does not apply to). Considers all four sides (not just Left/Right) since the
+// single open/closed side in an inline or peninsula booth can legitimately be Front or Back
+// too, not only Left or Right. Wall completeness itself (never receding, never an arch cut
+// into a STRUCTURAL WALL side) is enforced independently by EPS-016/BSE-001 regardless of how
+// near or far the camera sits from any given wall — this function only decides where the
+// camera stands, never how a wall is drawn once it's in frame.
 function computeCameraApproachCorner(openSidesSet){
-  if(!openSidesSet) return { corner: 'Front-Right', lookToward: 'Back-Left', wallSideKept: null };
-  const rightIsWall = !openSidesSet.has('Right');
-  const leftIsWall = !openSidesSet.has('Left');
-  if(rightIsWall && !leftIsWall) return { corner: 'Front-Right', lookToward: 'Back-Left', wallSideKept: 'Right' };
-  if(leftIsWall && !rightIsWall) return { corner: 'Front-Left', lookToward: 'Back-Right', wallSideKept: 'Left' };
-  // Both Left and Right are walls, or both are open — symmetric either way, so the exact corner
-  // doesn't create the near/far imbalance above; keep a single consistent default.
-  return { corner: 'Front-Right', lookToward: 'Back-Left', wallSideKept: null };
+  if(!openSidesSet) return { corner: 'Front-Right', lookToward: 'Back-Left', closedSidesOpposite: [] };
+  const closedSides = ALL_BOOTH_SIDES.filter(side => !openSidesSet.has(side));
+  if(closedSides.length === 0){
+    // Island booth, open on all four sides — no closed wall to position opposite of, so
+    // there's no "see the entire design" problem this rule needs to solve here.
+    return { corner: 'Front-Right', lookToward: 'Back-Left', closedSidesOpposite: [] };
+  }
+  const frontOpen = openSidesSet.has('Front');
+  const backOpen = openSidesSet.has('Back');
+  const leftOpen = openSidesSet.has('Left');
+  const rightOpen = openSidesSet.has('Right');
+  // Picks whichever of the Front/Back pair is open, so the camera sits on that side, opposite
+  // a closed far side; if both are open (closed wall(s) are purely Left/Right) or both are
+  // closed (the sole open side is Left or Right), there's no imbalance on this axis, so Front
+  // is kept as a single consistent default. The Left/Right pair mirrors the same logic.
+  const nearFB = (frontOpen && !backOpen) ? 'Front' : (backOpen && !frontOpen) ? 'Back' : 'Front';
+  const nearLR = (rightOpen && !leftOpen) ? 'Right' : (leftOpen && !rightOpen) ? 'Left' : 'Right';
+  const farFB = nearFB === 'Front' ? 'Back' : 'Front';
+  const farLR = nearLR === 'Right' ? 'Left' : 'Right';
+  return { corner: `${nearFB}-${nearLR}`, lookToward: `${farFB}-${farLR}`, closedSidesOpposite: closedSides };
 }
 
 // Builds the one deterministic CAMERA ANGLE sentence used in every render (booth or event),
-// per DIR-007 — now orientation-aware instead of a fixed, always-front-right default.
+// per DIR-007 — orientation-aware so the camera always ends up opposite this booth's actual
+// STRUCTURAL WALL side(s), per the mandatory requirement above.
 function buildCameraApproachText(isBoothMode){
   if(!isBoothMode){
     return 'Camera: Photorealistic 3D aerial perspective. Camera angle: 35-45 degrees above the design (never directly overhead), approached from a front corner that keeps every structural element clearly and solidly in view. Framing: tightly cropped and zoomed so the design occupies approximately 90-95% of the frame, with no more than 5-10% of the composition showing the surrounding environment.';
   }
   const c = computeCameraApproachCorner(getBoothOpenSidesSet());
-  const wallNote = c.wallSideKept
-    ? ` This corner is chosen deliberately, per BSE-001/EPS-016: it keeps the ${c.wallSideKept} STRUCTURAL WALL side nearest the camera and fully, solidly in view from near corner to far corner — never the far, receding side of the frame, which is far more likely to render incompletely, thin out, or gain an unintended opening.`
-    : '';
+  const wallNote = c.closedSidesOpposite.length
+    ? ` This corner is chosen deliberately, per the client's mandatory visibility requirement: the camera stands on the side(s) opposite this booth's ${c.closedSidesOpposite.join('/')} STRUCTURAL WALL side(s) (per BSE-001/EPS-016) and looks across the booth toward ${c.closedSidesOpposite.length > 1 ? 'them' : 'it'} — never crowded up against a closed wall — so the entire design is visible in one frame, not just the portion nearest the camera.`
+    : ' This booth is open on all four sides (island), so there is no closed wall to position opposite of — this corner is simply a neutral, consistent default.';
   return `Camera: Photorealistic 3D aerial perspective. Camera angle: 35-45 degrees above the booth (never directly overhead), positioned above the ${c.corner} corner looking toward the ${c.lookToward} corner.${wallNote} Framing: tightly cropped and zoomed so the booth occupies approximately 90-95% of the frame, with no more than 5-10% of the composition showing the surrounding exhibition hall as environmental context.`;
 }
 
