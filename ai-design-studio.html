@@ -9801,14 +9801,15 @@ function getCameraCountForBooth(openCount, totalAreaSqm){
   return base;
 }
 
-// ISLAND BOOTHS (all four sides open) get a fixed, evenly-spaced 8-camera ring per explicit
+// ISLAND BOOTHS (all four sides open) get a fixed, evenly-spaced 9-camera ring per explicit
 // client direction: Hero (the diagonal corner shot already approved) plus seven more cameras,
 // each rotating exactly 45 degrees further clockwise than the last, completing a full
-// 360-degree orbit in 45-degree steps (0, 45, 90, 135, 180, 225, 270, 315) with no separate
-// top-down view. Defined once, here, so both the real per-view camera plan
-// (computeCameraViewPlan below) and the admin-only Luma comparison video's own descriptive
-// prompt (startAdminLumaVideoComparison) stay in exact sync with this same named order and
-// degree spacing — never two separately-maintained versions of "the same" orbit.
+// 360-degree orbit in 45-degree steps (0, 45, 90, 135, 180, 225, 270, 315), finished off with
+// one true top-down aerial shot showing 100% of the booth's footprint. Defined once, here, so
+// both the real per-view camera plan (computeCameraViewPlan below) and the admin-only Luma
+// comparison video's own descriptive prompt (startAdminLumaVideoComparison) stay in exact
+// sync with this same named order and degree spacing — never two separately-maintained
+// versions of "the same" orbit.
 const ISLAND_CAMERA_RING = [
   { name: 'Hero View', azimuth: 0, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' },
   { name: 'Right View', azimuth: 45, promptHint: 'A straight-on exterior view of the booth, 45 degrees clockwise from the hero view.' },
@@ -9817,7 +9818,8 @@ const ISLAND_CAMERA_RING = [
   { name: 'Perspective Rear Left View', azimuth: 180, promptHint: 'A three-quarter perspective exterior view of the booth, directly opposite the hero view (180 degrees around).' },
   { name: 'Left View', azimuth: 225, promptHint: 'A straight-on exterior view of the booth, 225 degrees clockwise from the hero view (135 degrees counter-clockwise).' },
   { name: 'Perspective Left View', azimuth: 270, promptHint: 'A three-quarter perspective exterior view of the booth, 270 degrees clockwise from the hero view (90 degrees counter-clockwise).' },
-  { name: 'Front View', azimuth: 315, promptHint: 'A straight-on exterior view of the booth, 315 degrees clockwise from the hero view (45 degrees counter-clockwise), completing the orbit back toward the hero view.' }
+  { name: 'Front View', azimuth: 315, promptHint: 'A straight-on exterior view of the booth, 315 degrees clockwise from the hero view (45 degrees counter-clockwise), completing the orbit back toward the hero view.' },
+  { name: 'Top View', azimuth: 0, elevation: 90, type: 'top-down', promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' }
 ];
 
 // Builds the actual ordered camera list for this exact booth. zonePlan is
@@ -10652,8 +10654,10 @@ async function startAdminLumaVideoComparison(heroImage, designTitle){
     // actually follows the same waypoints in the same order, rather than a generic unscripted
     // orbit that has no guaranteed relationship to the real camera views it's meant to be
     // compared against.
+    const islandOrbitEntries = ISLAND_CAMERA_RING.filter(c => c.type !== 'top-down');
+    const islandTopEntry = ISLAND_CAMERA_RING.find(c => c.type === 'top-down');
     const islandOrderNote = isIslandBooth
-      ? ` Follow this exact camera order, one continuous clockwise rotation, each step exactly 45 degrees further clockwise than the last, pausing briefly to hold each named position before continuing to the next: ${ISLAND_CAMERA_RING.map((c, i) => `(${i + 1}) ${c.name} at ${c.azimuth} degrees`).join(', ')}. Never skip a position, never reorder them, and never rotate counter-clockwise at any point.`
+      ? ` Follow this exact camera order: first, one continuous clockwise rotation, each step exactly 45 degrees further clockwise than the last, pausing briefly to hold each named position before continuing to the next: ${islandOrbitEntries.map((c, i) => `(${i + 1}) ${c.name} at ${c.azimuth} degrees`).join(', ')}. Never skip a position, never reorder them, and never rotate counter-clockwise at any point.${islandTopEntry ? ` After completing that full rotation, finish with one final true top-down aerial shot directly overhead (${islandTopEntry.name}), showing 100% of the booth's footprint and layout in a single frame.` : ''}`
       : '';
     const promptText = `A smooth, continuous 360-degree orbit around this exact exhibition booth${designTitle ? ' ("' + designTitle + '")' : ''} — the booth itself stays completely static and unchanged throughout; only the camera moves around it, at a constant height and distance.${orientationNote}${islandOrderNote}`;
 
