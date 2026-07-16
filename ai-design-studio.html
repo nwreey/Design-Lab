@@ -2753,6 +2753,9 @@ Replace only the materials and graphics."></textarea>
       <img id="editBaseImg" alt="Image being edited">
       <canvas id="markupCanvas"></canvas>
     </div>
+    <div class="edit-download-bar" id="editDownloadBar" style="margin:10px 0;">
+      <a href="#" download="edit-in-progress.jpg" class="ghost small" id="editDownloadBtn">Download</a>
+    </div>
     <div class="edit-toolbar">
       <button class="ghost small active" id="penOnBtn" onclick="setPenMode(true)">Pen</button>
       <button class="ghost small" id="panOnBtn" onclick="setPenMode(false)">No draw</button>
@@ -8942,6 +8945,7 @@ function openEditPanel(camId, isStandalone){
   const baseImg = document.getElementById('editBaseImg');
   const canvas = document.getElementById('markupCanvas');
   let sourceImage;
+  let downloadLabel = 'design';
 
   if(isStandalone){
     const hist = viewCardHistories[STANDALONE_EDIT_KEY];
@@ -8954,12 +8958,23 @@ function openEditPanel(camId, isStandalone){
     if(!cardImg || !cardImg.src) return;
     sourceImage = cardImg.src;
     editTarget = { type: 'camview', camId };
+    downloadLabel = VIEWER_CAMERA_LABELS[camId] || camId;
   }else{
     const opt = optionResults[activeOptionIndex];
     if(!opt || opt.status !== 'done') return;
     const entry = opt.gallery[opt.activeGalleryIndex];
     sourceImage = entry.image;
     editTarget = { type: 'gallery' };
+    downloadLabel = opt.title || 'design';
+  }
+
+  // The picture currently loaded into the edit panel — shown directly below it, right where
+  // the person is actively working, rather than only ever being downloadable from the main
+  // grid card behind this panel.
+  const editDownloadBtn = document.getElementById('editDownloadBtn');
+  if(editDownloadBtn){
+    editDownloadBtn.href = sourceImage;
+    editDownloadBtn.setAttribute('download', cameraViewFilename(downloadLabel) + '.jpg');
   }
 
   document.getElementById('editText').value = '';
