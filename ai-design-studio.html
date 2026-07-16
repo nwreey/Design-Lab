@@ -1287,10 +1287,110 @@ Replace only the materials and graphics."></textarea>
         </select>
       </div>
 
-      <div class="field" id="upperFloorField" style="display:none;">
-        <label>Upper floor program <span class="required-mark">*</span></label>
-        <textarea id="f_upperFloor" placeholder="e.g. VIP meeting & seating area with coffee break service"></textarea>
-        <div class="hint">Describe what belongs on the upper level — everything else will be placed on the ground floor.</div>
+      <div id="upperFloorField" style="display:none;">
+        <div class="section-headline" style="margin-top:18px;">Second Floor Configuration</div>
+
+        <div class="field">
+          <label>Purpose of the Upper Deck <span class="required-mark">*</span></label>
+          <div class="hint" style="margin-bottom:10px;">Select all that apply — everything not placed up here is assumed to belong on the ground floor instead.</div>
+          <div class="checkbox-grid">
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="VIP Meeting Lounge"> VIP Meeting Lounge</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Private Meeting Rooms"> Private Meeting Rooms</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Executive Hospitality Lounge"> Executive Hospitality Lounge</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Client Reception Lounge"> Client Reception Lounge</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Product Display Area"> Product Display Area</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Product Demonstration Area"> Product Demonstration Area</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Interactive Experience Zone"> Interactive Experience Zone</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Presentation Theater"> Presentation Theater</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Conference Room"> Conference Room</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Training Area"> Training Area</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Café / Coffee Lounge"> Café / Coffee Lounge</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Networking Lounge"> Networking Lounge</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Bar & Refreshment Area"> Bar &amp; Refreshment Area</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Viewing Deck / Overlook"> Viewing Deck / Overlook</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Media & Press Area"> Media &amp; Press Area</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Content Creation Studio"> Content Creation Studio</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Office / Staff Workspace"> Office / Staff Workspace</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Storage Room"> Storage Room</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Technical Control Room"> Technical Control Room</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Brand Experience Lounge"> Brand Experience Lounge</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Investor / Partner Lounge"> Investor / Partner Lounge</label>
+            <label><input type="checkbox" class="upperdeck-purpose-cb" value="Multipurpose Open Space"> Multipurpose Open Space</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Capacity <span class="required-mark">*</span></label>
+          <select id="f_upperDeckCapacity">
+            <option value="2–4 people">2–4 people</option>
+            <option value="4–8 people" selected>4–8 people</option>
+            <option value="8–12 people">8–12 people</option>
+            <option value="12+ people">12+ people</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Privacy Level <span class="required-mark">*</span></label>
+          <select id="f_upperDeckPrivacy">
+            <option value="Fully Open">Fully Open</option>
+            <option value="Semi-Private" selected>Semi-Private</option>
+            <option value="Fully Enclosed">Fully Enclosed</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Staircase Position <span class="required-mark">*</span></label>
+          <select id="f_staircasePosition">
+            <option value="Front Left">Front Left</option>
+            <option value="Front Right">Front Right</option>
+            <option value="Rear Left">Rear Left</option>
+            <option value="Rear Right">Rear Right</option>
+            <option value="Center">Center</option>
+            <option value="Auto Optimize" selected>Auto Optimize</option>
+          </select>
+          <div class="hint">"Auto Optimize" lets the design place the staircase wherever it best preserves open floor and sightlines for this specific booth.</div>
+        </div>
+
+        <div class="field">
+          <label>Upper Deck Style <span class="required-mark">*</span></label>
+          <select id="f_upperDeckStyle">
+            <option value="Open Terrace">Open Terrace</option>
+            <option value="Glass Balustrade" selected>Glass Balustrade</option>
+            <option value="Solid Walls">Solid Walls</option>
+            <option value="Mixed Open + Glass">Mixed Open + Glass</option>
+            <option value="Luxury Lounge">Luxury Lounge</option>
+            <option value="Minimalist">Minimalist</option>
+            <option value="Industrial">Industrial</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Optional Features</label>
+          <div class="hint" style="margin-bottom:10px;">Select all that apply.</div>
+          <div class="checkbox-grid">
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Pantry"> Pantry</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Coffee Bar"> Coffee Bar</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Reception Desk"> Reception Desk</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Digital Screens"> Digital Screens</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Touch Screens"> Touch Screens</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Display Cabinets"> Display Cabinets</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Demo Tables"> Demo Tables</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Lounge Seating"> Lounge Seating</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Meeting Tables"> Meeting Tables</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Private Booths"> Private Booths</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Lockable Storage"> Lockable Storage</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Planters"> Planters</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Decorative Lighting"> Decorative Lighting</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Glass Railings"> Glass Railings</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Feature Ceiling"> Feature Ceiling</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Hanging Branding"> Hanging Branding</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Additional Notes (Optional)</label>
+          <textarea id="f_upperFloor" placeholder="Describe any special requirements for the second floor..."></textarea>
+        </div>
       </div>
 
       <div class="field" id="openSidesField">
@@ -6044,6 +6144,39 @@ CEILING & RIGGING SPECIFICATION — EXPLICITLY SPECIFIED BY THE CLIENT (mandator
 ${lines.join('\n')}`;
 }
 
+// Second Floor Configuration — only ever called when f_levels === '2' (double-deck). Mirrors
+// collectFlooringSpecification/collectCeilingRiggingSpecification's own pattern: read every
+// deterministic field the client actually set on this structured sub-form and hand it to the
+// model as explicit facts, never loose prose. Replaces the old single free-text "Upper floor
+// program" textarea — the fixed Purpose/Capacity/Privacy/Staircase/Style fields now carry the
+// real requirement, with the textarea kept only for genuinely optional extra notes.
+function collectUpperDeckSpecification(){
+  const purpose = Array.from(document.querySelectorAll('.upperdeck-purpose-cb:checked')).map(cb => cb.value);
+  const capacity = document.getElementById('f_upperDeckCapacity').value;
+  const privacy = document.getElementById('f_upperDeckPrivacy').value;
+  const staircase = document.getElementById('f_staircasePosition').value;
+  const style = document.getElementById('f_upperDeckStyle').value;
+  const features = Array.from(document.querySelectorAll('.upperdeck-feature-cb:checked')).map(cb => cb.value);
+  const notes = document.getElementById('f_upperFloor').value.trim();
+
+  const lines = [
+    `Purpose of the Upper Deck: ${purpose.length ? purpose.join(', ') : 'not specified'} — this is the actual program for the upper level; everything else in this brief belongs on the ground floor instead.`,
+    `Capacity: ${capacity}.`,
+    `Privacy Level: ${privacy}.`,
+    `Staircase Position: ${staircase === 'Auto Optimize' ? 'Auto Optimize — choose whichever position best preserves open ground-floor circulation and sightlines for this specific booth footprint and orientation.' : staircase}.`,
+    `Upper Deck Style: ${style}.`,
+    features.length
+      ? `Optional Features — EXPLICITLY REQUESTED BY THE CLIENT: ${features.join(', ')}.`
+      : 'Optional Features: none requested.'
+  ];
+  if(notes) lines.push(`Additional Notes: ${notes}`);
+
+  return `
+
+SECOND FLOOR CONFIGURATION — EXPLICITLY SPECIFIED BY THE CLIENT (mandatory facts, not suggestions; this is the complete program for the upper level of this double-deck structure):
+${lines.join('\n')}`;
+}
+
 function handleLogoUpload(input){
   const file = input.files[0];
   if(!file) return;
@@ -6686,6 +6819,24 @@ function resetEditDesignPanel(){
 
 function toggleUpperFloor(sel){
   document.getElementById('upperFloorField').style.display = sel.value === '2' ? 'block' : 'none';
+
+  // Double-deck (ground + upper floor) needs enough vertical clearance for a genuine second
+  // story plus its own ceiling above it — a real reported bug was the model collapsing a
+  // double-deck design back down to one floor with no ceiling, which traces back to the height
+  // field being left at whatever a single-level booth would use (often well under what two full
+  // floors need). Fixing this at the source: the moment double-deck is selected, height is
+  // force-set to 6 m (the fixed clearance this app now always builds a double-deck structure
+  // to) and the field is locked so it can't be typed back down to something too short —
+  // switching back to single level unlocks it again without touching whatever value it holds.
+  const heightField = document.getElementById('f_totalHeight');
+  if(sel.value === '2'){
+    heightField.value = '6';
+    heightField.disabled = true;
+    heightField.title = 'Locked at 6 m for double-deck booths — a genuine two-story structure with its own ceiling needs this much vertical clearance.';
+  }else{
+    heightField.disabled = false;
+    heightField.removeAttribute('title');
+  }
 }
 
 function toggleOpenSidesSubfields(sel){
@@ -7221,7 +7372,7 @@ function getMissingRequirements(m){
   const desc = String(document.getElementById('f_desc').value).trim();
   const totalHeight = String(document.getElementById('f_totalHeight').value).trim();
   const levels = document.getElementById('f_levels').value;
-  const upperFloor = String(document.getElementById('f_upperFloor').value).trim();
+  const upperDeckPurposeCount = document.querySelectorAll('.upperdeck-purpose-cb:checked').length;
   const industryStyle = document.getElementById('f_industryStyle').value;
   const colorHexes = Array.from(document.querySelectorAll('.color-hex'))
     .map(i => String(i.value).trim())
@@ -7279,7 +7430,7 @@ function getMissingRequirements(m){
     if(!width) missing.push('width');
     if(!depth) missing.push('depth');
     if(!totalHeight) missing.push('booth height');
-    if(levels === '2' && !upperFloor) missing.push('the upper floor program (since you selected a double-deck booth)');
+    if(levels === '2' && upperDeckPurposeCount === 0) missing.push('at least one Purpose of the Upper Deck (since you selected a double-deck booth)');
     if(colorHexes.length === 0) missing.push('at least one brand color');
     if(!logoDataUrl) missing.push('a company logo');
     if(hasPosters.startsWith('yes') && posterFiles.length === 0) missing.push('at least one poster file (or switch to "No — need new designs")');
@@ -7506,7 +7657,8 @@ async function generateDesign(){
 
   const levels = document.getElementById('f_levels').value;
   const totalHeight = document.getElementById('f_totalHeight').value.trim();
-  const upperFloorProgram = document.getElementById('f_upperFloor').value.trim();
+  const upperDeckPurposeCount = document.querySelectorAll('.upperdeck-purpose-cb:checked').length;
+  const upperDeckSpecificationText = levels === '2' ? collectUpperDeckSpecification() : '';
 
   const hasPosters = document.getElementById('f_hasPosters').value;
   const posterCount = document.getElementById('f_posterCount').value.trim();
@@ -7574,8 +7726,8 @@ async function generateDesign(){
     errBox.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
-  if(mode === 'booth' && levels === '2' && !upperFloorProgram){
-    errBox.textContent = 'Please describe the upper floor program — required since you selected a double-deck booth.';
+  if(mode === 'booth' && levels === '2' && upperDeckPurposeCount === 0){
+    errBox.textContent = 'Please select at least one Purpose of the Upper Deck — required since you selected a double-deck booth.';
     errBox.style.display = 'block';
     errBox.scrollIntoView({behavior:'smooth', block:'center'});
     return;
@@ -7691,7 +7843,7 @@ ${structuralShellText}
 ${spatialPlanText}
 ${mode==='booth' ? 'Number of levels: ' + levels + (levels==='2' ? ' (ground floor + upper floor)' : '') : ''}
 ${mode==='booth' && totalHeight ? 'Target total height: ' + totalHeight + ' m' : ''}
-${mode==='booth' && levels==='2' && upperFloorProgram ? 'Upper floor program: ' + upperFloorProgram : ''}
+${upperDeckSpecificationText}
 ${mode==='event' ? 'Event type: ' + (eventType || 'not specified') : ''}
 ${mode==='event' && (country || city) ? 'Location: ' + [city, country].filter(Boolean).join(', ') : ''}
 ${mode==='event' && venue ? 'Venue: ' + venue : ''}
@@ -11322,6 +11474,12 @@ function collectFormSnapshot(){
     f_peninsulaClosedSide: document.getElementById('f_peninsulaClosedSide').value,
     f_levels: document.getElementById('f_levels').value,
     f_totalHeight: document.getElementById('f_totalHeight').value,
+    f_upperDeckPurpose: Array.from(document.querySelectorAll('.upperdeck-purpose-cb:checked')).map(cb => cb.value),
+    f_upperDeckCapacity: document.getElementById('f_upperDeckCapacity').value,
+    f_upperDeckPrivacy: document.getElementById('f_upperDeckPrivacy').value,
+    f_staircasePosition: document.getElementById('f_staircasePosition').value,
+    f_upperDeckStyle: document.getElementById('f_upperDeckStyle').value,
+    f_upperDeckFeatures: Array.from(document.querySelectorAll('.upperdeck-feature-cb:checked')).map(cb => cb.value),
     f_upperFloor: document.getElementById('f_upperFloor').value,
     f_hasPosters: document.getElementById('f_hasPosters').value,
     f_posterCount: document.getElementById('f_posterCount').value,
@@ -11461,8 +11619,21 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_peninsulaClosedSide').value = snap.f_peninsulaClosedSide || 'Back';
   toggleOpenSidesSubfields(document.getElementById('f_openSides'));
   document.getElementById('f_levels').value = snap.f_levels || '1';
-  toggleUpperFloor(document.getElementById('f_levels'));
   document.getElementById('f_totalHeight').value = snap.f_totalHeight || '';
+  // Called AFTER restoring the saved height, not before — for a double-deck snapshot this
+  // deliberately overrides whatever height was actually saved (older double-deck projects,
+  // from before this height was locked, may have saved a different value) so a
+  // restored double-deck project always ends up locked at the same 6 m as a newly created one,
+  // never silently left editable/short just because of when it was originally saved.
+  toggleUpperFloor(document.getElementById('f_levels'));
+  const savedUpperDeckPurpose = new Set(snap.f_upperDeckPurpose || []);
+  document.querySelectorAll('.upperdeck-purpose-cb').forEach(cb => { cb.checked = savedUpperDeckPurpose.has(cb.value); });
+  document.getElementById('f_upperDeckCapacity').value = snap.f_upperDeckCapacity || '4–8 people';
+  document.getElementById('f_upperDeckPrivacy').value = snap.f_upperDeckPrivacy || 'Semi-Private';
+  document.getElementById('f_staircasePosition').value = snap.f_staircasePosition || 'Auto Optimize';
+  document.getElementById('f_upperDeckStyle').value = snap.f_upperDeckStyle || 'Glass Balustrade';
+  const savedUpperDeckFeatures = new Set(snap.f_upperDeckFeatures || []);
+  document.querySelectorAll('.upperdeck-feature-cb').forEach(cb => { cb.checked = savedUpperDeckFeatures.has(cb.value); });
   document.getElementById('f_upperFloor').value = snap.f_upperFloor || '';
   document.getElementById('f_hasPosters').value = snap.f_hasPosters || 'no, new poster designs are needed as part of this project';
   togglePosterUpload(document.getElementById('f_hasPosters'));
