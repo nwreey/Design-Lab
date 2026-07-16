@@ -493,14 +493,16 @@
 
     <div class="sidebar-upload-existing">
       <div class="sidebar-upload-divider">or</div>
-      <div class="sidebar-upload-dims-label">Booth size (optional, but recommended)</div>
+      <div class="sidebar-upload-dims-label">Booth size (required)</div>
       <div class="sidebar-upload-dims-row">
-        <input type="number" id="uploadExistingWidth" placeholder="W (m)" min="1" step="0.1">
-        <input type="number" id="uploadExistingDepth" placeholder="D (m)" min="1" step="0.1">
-        <input type="number" id="uploadExistingHeight" placeholder="H (m)" min="1" step="0.1">
+        <input type="number" id="uploadExistingWidth" placeholder="W (m)" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
+        <input type="number" id="uploadExistingDepth" placeholder="D (m)" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
+        <input type="number" id="uploadExistingHeight" placeholder="H (m)" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
       </div>
+      <input type="text" id="uploadExistingProjectName" placeholder="Project name" style="margin-top:8px;" oninput="updateUploadExistingButtonState()">
       <input type="file" id="existingDesignUpload" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleExistingDesignUpload(this)">
-      <button class="ghost small" style="width:100%;" onclick="document.getElementById('existingDesignUpload').click()">Upload an existing design</button>
+      <button class="ghost small" id="uploadExistingBtn" style="width:100%;" disabled onclick="document.getElementById('existingDesignUpload').click()">Upload an existing design</button>
+      <div class="hint" style="margin-top:4px;">Enter the booth size and a project name above to enable upload.</div>
       <div class="sidebar-note">Already have a finished design? Upload it to skip the form and jump straight to camera views.</div>
     </div>
 
@@ -11499,6 +11501,20 @@ async function deleteProjectPrompt(id){
     });
 }
 
+// Width/Depth/Height and a Project Name are now mandatory before the upload button itself
+// becomes clickable — previously the size fields were "optional, but recommended" and the
+// button was always active, letting someone upload a picture with no dimensions or name to
+// identify it by. Called on every keystroke in any of the four fields.
+function updateUploadExistingButtonState(){
+  const btn = document.getElementById('uploadExistingBtn');
+  if(!btn) return;
+  const width = document.getElementById('uploadExistingWidth').value.trim();
+  const depth = document.getElementById('uploadExistingDepth').value.trim();
+  const height = document.getElementById('uploadExistingHeight').value.trim();
+  const name = document.getElementById('uploadExistingProjectName').value.trim();
+  btn.disabled = !(width && depth && height && name);
+}
+
 /* Lets a user who already has a finished design skip the form, OpenAI, and Gemini
    entirely — the uploaded image becomes the approved picture directly, dropped into the
    exact same results view a generated design would produce, ready for Approve → camera
@@ -11513,20 +11529,29 @@ function handleExistingDesignUpload(input){
   // generate, other option, or camera views) is still running for the project currently on
   // screen, exactly like clicking another project mid-generation used to.
   if(blockIfGenerating()){ input.value = ''; return; }
+  const enteredWidth = document.getElementById('uploadExistingWidth').value.trim();
+  const enteredDepth = document.getElementById('uploadExistingDepth').value.trim();
+  const enteredHeight = document.getElementById('uploadExistingHeight').value.trim();
+  const enteredProjectName = document.getElementById('uploadExistingProjectName').value.trim();
+  // The button itself is disabled until all four are filled (see
+  // updateUploadExistingButtonState), but re-check here too — belt and suspenders against
+  // the input firing some other way with an incomplete form.
+  if(!enteredWidth || !enteredDepth || !enteredHeight || !enteredProjectName){
+    input.value = '';
+    customAlert('Please enter the booth size (W/D/H) and a project name before uploading.', 'Upload an Existing Design');
+    return;
+  }
   const file = input.files[0];
   if(!file) return;
-  const enteredWidth = document.getElementById('uploadExistingWidth').value;
-  const enteredDepth = document.getElementById('uploadExistingDepth').value;
-  const enteredHeight = document.getElementById('uploadExistingHeight').value;
   const reader = new FileReader();
   reader.onload = async function(e){
     currentProjectId = null;
     pendingPromptResult = null;
-    currentProjectName = (file.name || 'Uploaded Design').replace(/\.[^.]+$/, '') || 'Uploaded Design';
-    document.getElementById('f_name').value = '';
-    if(enteredWidth) document.getElementById('f_width').value = enteredWidth;
-    if(enteredDepth) document.getElementById('f_depth').value = enteredDepth;
-    if(enteredHeight) document.getElementById('f_totalHeight').value = enteredHeight;
+    currentProjectName = enteredProjectName;
+    document.getElementById('f_name').value = enteredProjectName;
+    document.getElementById('f_width').value = enteredWidth;
+    document.getElementById('f_depth').value = enteredDepth;
+    document.getElementById('f_totalHeight').value = enteredHeight;
 
     resetLumaState();
     document.getElementById('viewer3dGeneratedCard').style.display = 'none';
@@ -11574,11 +11599,18 @@ function handleExistingDesignUpload(input){
     showOptionV2(0);
     document.getElementById('result').scrollIntoView({behavior:'smooth', block:'start'});
 
-    saveCurrentProject();
+    // Deliberately NOT saved here. The project (and the account's project quota, which is
+    // consumed on a project's very first save — see saveCurrentProject/api/projects.js) must
+    // only actually be created once the person commits by clicking Approve, not merely by
+    // uploading a picture. Leaving currentProjectId unset means generateCameraViewsFromHero's
+    // own first saveCurrentProject() call, once Approve is confirmed, becomes this project's
+    // real first save — exactly when it should count against the quota.
     input.value = '';
     document.getElementById('uploadExistingWidth').value = '';
     document.getElementById('uploadExistingDepth').value = '';
     document.getElementById('uploadExistingHeight').value = '';
+    document.getElementById('uploadExistingProjectName').value = '';
+    updateUploadExistingButtonState();
   };
   reader.readAsDataURL(file);
 }
@@ -11635,6 +11667,7 @@ initReqCategoryAccordion();
 renderProjectSidebar();
 adminCheckPromise = checkAdminAccess();
 setMode('booth'); // must run once on load — otherwise every element whose correct visibility depends on setMode() (the new section headlines included) stays at its raw HTML default until a tab is actually clicked
+updateUploadExistingButtonState(); // covers browser autofill restoring these fields before any oninput fires
 
 // Safety net: re-checks the Generate button state on any standard field change anywhere
 // on the page. Cheap to run, and means no individual field needs its own wiring — the
