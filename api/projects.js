@@ -203,11 +203,15 @@ export default async function handler(req, res) {
       return;
     }
 
-    // No id — lightweight list for the sidebar, no image data at all. Admins see every
-    // project; everyone else sees only their own.
-    const result = caller.role === 'admin'
-      ? await sql`SELECT id, name, saved_at, user_id FROM projects ORDER BY saved_at DESC;`
-      : await sql`SELECT id, name, saved_at, user_id FROM projects WHERE user_id = ${caller.userId} ORDER BY saved_at DESC;`;
+    // No id — lightweight list for the sidebar, no image data at all. Every caller, admin
+    // included, sees only their own projects here — this is each person's private
+    // workspace, not a cross-user project browser. Admins previously saw every user's
+    // project mixed into their own sidebar, which is exactly the "why is a user's project
+    // showing up for admin" bug this scoping fixes. Admin's ability to open, rename, or
+    // delete any SPECIFIC project by id (below) is intentionally left alone — that's a
+    // legitimate support capability (helping a user with a project they've been given the
+    // id/link for), not the same thing as it showing up unsolicited in admin's own list.
+    const result = await sql`SELECT id, name, saved_at, user_id FROM projects WHERE user_id = ${caller.userId} ORDER BY saved_at DESC;`;
     res.status(200).json(result.rows.map(r => ({ id: r.id, name: r.name, savedAt: r.saved_at })));
     return;
   }
