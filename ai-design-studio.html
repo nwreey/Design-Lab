@@ -332,7 +332,7 @@
   .result-layout-grid{
     display:grid;
     grid-template-columns: 1fr;
-    grid-template-areas: "approved" "history" "actionbar" "threed" "camerapanel" "generated";
+    grid-template-areas: "approved" "actionbar" "history" "threed" "camerapanel" "generated";
     gap:0;
   }
   .grid-area-history{grid-area:history;min-width:0;}
@@ -2600,7 +2600,7 @@ Replace only the materials and graphics."></textarea>
           <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()" style="margin-left:auto;">Other option</button>
         </div>
         <div class="free-modification-note" id="freeModificationNote" style="display:none;">
-          ✦ Your first modification on this design is on us — occasionally the initial render needs a quick adjustment, and that one won't count against your usage.
+          ✦ Your first modification or other option on this design is on us — occasionally the initial render needs a quick adjustment, and that one won't count against your usage.
         </div>
         <div class="action-status" id="actionStatus"></div>
         <div class="approve-progress" id="approveProgress" style="display:none;">
@@ -8098,7 +8098,7 @@ ARCHITECTURAL RULE: never move, resize, or alter the architecture itself — wal
 
 The final result should look as though a real exhibition contractor installed the client's original, unmodified artwork on the booth — never like a sticker pasted on top, and never like something an AI generated.`;
 
-    const response = await fetch('/api/edit-image-openai', {
+    const response = await fetchWithTimeout('/api/edit-image-openai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -8171,7 +8171,7 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
       requestBody.referenceMimeType = logoMediaType;
       requestBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
     }
-    fetch('/api/generate-image-gemini', {
+    fetchWithTimeout('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)
@@ -8469,6 +8469,29 @@ function dataUrlParts(dataUrl){
   return { mime: match ? match[1] : 'image/png', base64: base64 };
 }
 
+// Real production bug: none of the image-generation fetch calls below had a client-side
+// timeout, so if the serverless function ever stalled (cold start, upstream API hang, a
+// dropped connection that never resolves) the await just sat there forever — the progress
+// bar (e.g. Other option's "Generating another option..." at 15%, or the approve flow's
+// camera-view progress) stayed frozen at whatever percent it was on when the request
+// started, with no error ever surfacing for the user to retry from. Wrapping fetch with an
+// AbortController turns that silent, indefinite hang into a real, catchable error after
+// timeoutMs — every existing catch block already knows how to show a message and hand
+// controls back to the user for a real error; this just guarantees one always eventually
+// arrives instead of the request hanging forever.
+function fetchWithTimeout(url, options, timeoutMs = 100000){
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .catch(err => {
+      if(err && err.name === 'AbortError'){
+        throw new Error('The request took too long and timed out — please try again.');
+      }
+      throw err;
+    })
+    .finally(() => clearTimeout(timer));
+}
+
 /* Vercel serverless functions reject any request body over ~4.5MB. A full-resolution PNG
    (original render + markup, or two reference images) can easily exceed that once
    base64-encoded. This resizes to a sane max dimension and re-encodes as JPEG, which is
@@ -8559,7 +8582,7 @@ async function regenerateOtherOption(){
   // before it runs, not just Modify Design.
   const noticeText = document.getElementById('otherOptionNoticeText');
   if(!opt.usedFreeModification){
-    noticeText.textContent = "Your first modification on this design won't count against your usage — occasionally the initial render needs a quick adjustment, and this one is on us.";
+    noticeText.textContent = "Your first modification or other option on this design won't count against your usage — occasionally the initial render needs a quick adjustment, and this one is on us.";
   }else if(isAdminUser){
     noticeText.textContent = 'This will generate a new variation of the current design.';
   }else if(currentUserModifyLimit == null){
@@ -8606,7 +8629,7 @@ async function confirmRegenerateOtherOption(){
       otherOptionBody.referenceMimeType = logoMediaType;
       otherOptionBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
     }
-    const response = await fetch('/api/generate-image-gemini', {
+    const response = await fetchWithTimeout('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(otherOptionBody)
@@ -8876,7 +8899,7 @@ ${buildApprovedDecisionsText()}
   statusEl.textContent = 'Applying your edit... this can take up to a minute.';
 
   try{
-    const response = await fetch('/api/edit-image-openai', {
+    const response = await fetchWithTimeout('/api/edit-image-openai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)
@@ -9091,7 +9114,7 @@ async function submitModifyDesign(){
   const opt = optionResults[activeOptionIndex];
   const noticeText = document.getElementById('modifyNoticeText');
   if(opt && !opt.usedFreeModification){
-    noticeText.textContent = "Your first modification on this design won't count against your usage — occasionally the initial render needs a quick adjustment, and this one is on us.";
+    noticeText.textContent = "Your first modification or other option on this design won't count against your usage — occasionally the initial render needs a quick adjustment, and this one is on us.";
   }else if(isAdminUser){
     noticeText.textContent = 'Submit this modification?';
   }else if(currentUserModifyLimit == null){
@@ -9162,7 +9185,7 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
     : '16:9';
 
   try{
-    const response = await fetch('/api/generate-image-gemini', {
+    const response = await fetchWithTimeout('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: modifyPrompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: true, isFreeFirstModification, aspectRatio: modifyAspectRatio })
@@ -9258,7 +9281,7 @@ function computeImageSimilarity(dataUrlA, dataUrlB){
 }
 
 async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry){
-  const response = await fetch('/api/edit-image-openai', {
+  const response = await fetchWithTimeout('/api/edit-image-openai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -9523,7 +9546,7 @@ async function generateTechnicalBoard(){
     }
 
     const editPrompt = buildTechnicalBoardEditPrompt(presentLabels);
-    const response = await fetch('/api/edit-image-openai', {
+    const response = await fetchWithTimeout('/api/edit-image-openai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
