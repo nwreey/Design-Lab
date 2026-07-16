@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DesignsLab AI — AI Design Studio for Events & Exhibition Professionals</title>
+<title>DesignsLab AI — AI Design Studio for Events &amp; Exhibition Professionals</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -61,13 +61,18 @@
   .hero{padding:14px 0 80px;text-align:center;}
   .hero-logo{height:172px;margin-bottom:44px;}
 
-  /* ---------- top bar: login / signup ---------- */
+  /* ---------- top bar: login / signup / language ---------- */
   .topbar{
     display:flex;
     justify-content:flex-end;
     align-items:center;
     gap:12px;
     padding:6px 0 0;
+  }
+  .lang-switcher{display:flex;align-items:center;gap:5px;font-size:13px;margin-right:auto;}
+  .lang-switcher select{
+    font-family:'Inter',sans-serif;font-size:12.5px;font-weight:600;padding:7px 8px;
+    border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer;
   }
   .login-btn{
     font-family:'Inter',sans-serif;
@@ -243,6 +248,16 @@
   footer .footer-tag{font-size:14px;font-weight:600;color:var(--ink);}
   footer .footer-sub{font-size:12.5px;color:var(--muted);margin-top:6px;}
   footer .footer-copy{font-size:11.5px;color:#9A9A9A;margin-top:22px;}
+
+  /* ---------- RTL (Arabic) — mirrors layout direction and text alignment; numeric/ASCII
+     badges and the copyright line stay visually stable since they carry no directional text
+     of their own. Toggled by setLanguage() setting dir="rtl" on <html>. ---------- */
+  html[dir="rtl"] body{direction:rtl;}
+  html[dir="rtl"] .topbar{flex-direction:row-reverse;}
+  html[dir="rtl"] .lang-switcher{margin-right:0;margin-left:auto;}
+  html[dir="rtl"] .feature-card,
+  html[dir="rtl"] .tool-card{text-align:right;}
+  html[dir="rtl"] .step-arrow{transform:scaleX(-1);}
 </style>
 </head>
 <body>
@@ -250,27 +265,28 @@
   <!-- ================= HERO ================= -->
   <section class="hero wrap">
     <div class="topbar">
-      <a href="/login.html" class="login-btn">Log in</a>
-      <span class="signup-btn-disabled" title="Not active in this preview">Sign up</span>
+      <div class="lang-switcher"><span aria-hidden="true">🌐</span><select id="languageSelector" onchange="setLanguage(this.value)" aria-label="Language / اللغة / Langue / Sprache / Idioma / Lingua / 语言 / 言語"></select></div>
+      <a href="/login.html" class="login-btn" data-i18n="hp.login">Log in</a>
+      <span class="signup-btn-disabled" data-i18n="hp.signup" data-i18n-title="hp.signupTitle" title="Not active in this preview">Sign up</span>
     </div>
 
     <img src="logo-black-transparent.png" alt="DesignsLab AI" class="hero-logo">
 
-    <h1>AI Design Studio for Events &amp; Exhibition Professionals</h1>
+    <h1 data-i18n="hp.heroTitle">AI Design Studio for Events &amp; Exhibition Professionals</h1>
 
-    <p class="sub1">Create exhibition booths, event concepts, display stands, and presentation-ready visuals in minutes using AI.</p>
-    <p class="sub2">DesignsLab AI helps event agencies, designers, and exhibition contractors transform ideas into professional 3D concepts with speed and consistency.</p>
+    <p class="sub1" data-i18n="hp.sub1">Create exhibition booths, event concepts, display stands, and presentation-ready visuals in minutes using AI.</p>
+    <p class="sub2" data-i18n="hp.sub2">DesignsLab AI helps event agencies, designers, and exhibition contractors transform ideas into professional 3D concepts with speed and consistency.</p>
 
     <div class="badges">
-      <span class="badge"><span class="check">✓</span> AI-Powered Design</span>
-      <span class="badge"><span class="check">✓</span> 3D Visualization</span>
-      <span class="badge"><span class="check">✓</span> Professional Event Concepts</span>
-      <span class="badge"><span class="check">✓</span> Presentation Ready</span>
+      <span class="badge"><span class="check">✓</span> <span data-i18n="hp.badge1">AI-Powered Design</span></span>
+      <span class="badge"><span class="check">✓</span> <span data-i18n="hp.badge2">3D Visualization</span></span>
+      <span class="badge"><span class="check">✓</span> <span data-i18n="hp.badge3">Professional Event Concepts</span></span>
+      <span class="badge"><span class="check">✓</span> <span data-i18n="hp.badge4">Presentation Ready</span></span>
     </div>
 
     <div class="hero-actions">
-      <a href="/login.html" class="btn btn-primary">🚀 Try It Now</a>
-      <a href="#features" class="btn btn-secondary">View Features</a>
+      <a href="/login.html" class="btn btn-primary">🚀 <span data-i18n="hp.tryNow">Try It Now</span></a>
+      <a href="#features" class="btn btn-secondary" data-i18n="hp.viewFeatures">View Features</a>
     </div>
 
   </section>
@@ -279,29 +295,29 @@
   <section class="section" id="features">
     <div class="wrap">
       <div class="section-head">
-        <div class="eyebrow">What We Do</div>
-        <h2>AI-Powered Creative Solutions</h2>
+        <div class="eyebrow" data-i18n="hp.featuresEyebrow">What We Do</div>
+        <h2 data-i18n="hp.featuresHeading">AI-Powered Creative Solutions</h2>
       </div>
       <div class="feature-grid">
         <div class="feature-card">
           <div class="feature-icon">🏛</div>
-          <h3>Exhibition Booth</h3>
-          <p>Create professional exhibition booth concepts — layouts, structural ideas, and presentation-ready renderings from multiple perspectives.</p>
+          <h3 data-i18n="hp.feature1Title">Exhibition Booth</h3>
+          <p data-i18n="hp.feature1Desc">Create professional exhibition booth concepts — layouts, structural ideas, and presentation-ready renderings from multiple perspectives.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🎪</div>
-          <h3>Event Concept</h3>
-          <p>Create complete event environments, stages, entrances, registration areas, and immersive experiences.</p>
+          <h3 data-i18n="hp.feature2Title">Event Concept</h3>
+          <p data-i18n="hp.feature2Desc">Create complete event environments, stages, entrances, registration areas, and immersive experiences.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🛍</div>
-          <h3>Display Stand</h3>
-          <p>Design premium retail displays, kiosks, product showcases, POS units, and promotional stands.</p>
+          <h3 data-i18n="hp.feature3Title">Display Stand</h3>
+          <p data-i18n="hp.feature3Desc">Design premium retail displays, kiosks, product showcases, POS units, and promotional stands.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">✏️</div>
-          <h3>Edit Design</h3>
-          <p>Modify existing concepts without redesigning everything. Change materials, colors, furniture, branding, layouts, walls, lighting, and perspectives.</p>
+          <h3 data-i18n="hp.feature4Title">Edit Design</h3>
+          <p data-i18n="hp.feature4Desc">Modify existing concepts without redesigning everything. Change materials, colors, furniture, branding, layouts, walls, lighting, and perspectives.</p>
         </div>
       </div>
     </div>
@@ -311,29 +327,29 @@
   <section class="section section-alt">
     <div class="wrap">
       <div class="section-head">
-        <div class="eyebrow">Why DesignsLab AI</div>
-        <h2>Built for Events &amp; Exhibition Professionals</h2>
+        <div class="eyebrow" data-i18n="hp.whyEyebrow">Why DesignsLab AI</div>
+        <h2 data-i18n="hp.whyHeading">Built for Events &amp; Exhibition Professionals</h2>
       </div>
       <div class="why-grid">
         <div class="why-item">
           <div class="why-emoji">⚡</div>
-          <h3>Faster Design Process</h3>
-          <p>Reduce concept creation from days to minutes.</p>
+          <h3 data-i18n="hp.why1Title">Faster Design Process</h3>
+          <p data-i18n="hp.why1Desc">Reduce concept creation from days to minutes.</p>
         </div>
         <div class="why-item">
           <div class="why-emoji">🎯</div>
-          <h3>Professional Quality</h3>
-          <p>Architectural visualization built for events and exhibitions.</p>
+          <h3 data-i18n="hp.why2Title">Professional Quality</h3>
+          <p data-i18n="hp.why2Desc">Architectural visualization built for events and exhibitions.</p>
         </div>
         <div class="why-item">
           <div class="why-emoji">🏗</div>
-          <h3>Engineering-Oriented</h3>
-          <p>Designed using professional exhibition planning rules and industry standards.</p>
+          <h3 data-i18n="hp.why3Title">Engineering-Oriented</h3>
+          <p data-i18n="hp.why3Desc">Designed using professional exhibition planning rules and industry standards.</p>
         </div>
         <div class="why-item">
           <div class="why-emoji">🤖</div>
-          <h3>AI Assisted</h3>
-          <p>Combines AI with structured architectural logic for consistent, high-quality results.</p>
+          <h3 data-i18n="hp.why4Title">AI Assisted</h3>
+          <p data-i18n="hp.why4Desc">Combines AI with structured architectural logic for consistent, high-quality results.</p>
         </div>
       </div>
     </div>
@@ -343,33 +359,33 @@
   <section class="section">
     <div class="wrap">
       <div class="section-head">
-        <div class="eyebrow">How It Works</div>
-        <h2>From Idea to Presentation-Ready Design</h2>
+        <div class="eyebrow" data-i18n="hp.howEyebrow">How It Works</div>
+        <h2 data-i18n="hp.howHeading">From Idea to Presentation-Ready Design</h2>
       </div>
       <div class="steps">
         <div class="step">
           <div class="step-num">👤</div>
-          <p>Create an Account</p>
+          <p data-i18n="hp.step1">Create an Account</p>
           <span class="step-arrow">→</span>
         </div>
         <div class="step">
           <div class="step-num">🔑</div>
-          <p>Request Access</p>
+          <p data-i18n="hp.step2">Request Access</p>
           <span class="step-arrow">→</span>
         </div>
         <div class="step">
           <div class="step-num">✅</div>
-          <p>Get Approved</p>
+          <p data-i18n="hp.step3">Get Approved</p>
           <span class="step-arrow">→</span>
         </div>
         <div class="step">
           <div class="step-num">🎨</div>
-          <p>Start Creating</p>
+          <p data-i18n="hp.step4">Start Creating</p>
           <span class="step-arrow">→</span>
         </div>
         <div class="step">
           <div class="step-num">📥</div>
-          <p>Download Presentation-Ready Designs</p>
+          <p data-i18n="hp.step5">Download Presentation-Ready Designs</p>
         </div>
       </div>
     </div>
@@ -379,25 +395,25 @@
   <section class="section section-alt">
     <div class="wrap">
       <div class="section-head">
-        <div class="eyebrow">Available AI Tools</div>
-        <h2>Everything You Need in One Platform</h2>
+        <div class="eyebrow" data-i18n="hp.toolsEyebrow">Available AI Tools</div>
+        <h2 data-i18n="hp.toolsHeading">Everything You Need in One Platform</h2>
       </div>
       <div class="tools-grid">
         <div class="tool-card">
-          <h3>Exhibition Booth Designer</h3>
-          <p>Professional 3D booth concepts</p>
+          <h3 data-i18n="hp.tool1Title">Exhibition Booth Designer</h3>
+          <p data-i18n="hp.tool1Desc">Professional 3D booth concepts</p>
         </div>
         <div class="tool-card">
-          <h3>Event Concept Generator</h3>
-          <p>Stage and event visualization</p>
+          <h3 data-i18n="hp.tool2Title">Event Concept Generator</h3>
+          <p data-i18n="hp.tool2Desc">Stage and event visualization</p>
         </div>
         <div class="tool-card">
-          <h3>Display Stand Designer</h3>
-          <p>Retail and promotional display concepts</p>
+          <h3 data-i18n="hp.tool3Title">Display Stand Designer</h3>
+          <p data-i18n="hp.tool3Desc">Retail and promotional display concepts</p>
         </div>
         <div class="tool-card">
-          <h3>AI Image Editor</h3>
-          <p>Modify existing designs</p>
+          <h3 data-i18n="hp.tool4Title">AI Image Editor</h3>
+          <p data-i18n="hp.tool4Desc">Modify existing designs</p>
         </div>
       </div>
     </div>
@@ -407,10 +423,10 @@
   <section class="section">
     <div class="wrap">
       <div class="trial-cta">
-        <div class="eyebrow">Trial Version</div>
-        <h2>Early Access Program</h2>
-        <p>DesignsLab AI is currently available as a trial version. Access is granted after account review to ensure the platform is used by professionals in the events and exhibition industry.</p>
-        <a href="#" class="btn btn-primary">Request Access</a>
+        <div class="eyebrow" data-i18n="hp.trialEyebrow">Trial Version</div>
+        <h2 data-i18n="hp.trialHeading">Early Access Program</h2>
+        <p data-i18n="hp.trialText">DesignsLab AI is currently available as a trial version. Access is granted after account review to ensure the platform is used by professionals in the events and exhibition industry.</p>
+        <a href="#" class="btn btn-primary" data-i18n="hp.trialBtn">Request Access</a>
       </div>
     </div>
   </section>
@@ -419,11 +435,554 @@
   <footer>
     <div class="wrap">
       <img src="logo-black-transparent.png" alt="DesignsLab AI" class="footer-logo">
-      <div class="footer-tag">AI Design Studio for Events &amp; Brands</div>
-      <div class="footer-sub">Events • Exhibition Booths • Display Stands</div>
-      <div class="footer-copy">© 2026 DMR Arabia. All rights reserved.</div>
+      <div class="footer-tag" data-i18n="hp.footerTag">AI Design Studio for Events &amp; Brands</div>
+      <div class="footer-sub" data-i18n="hp.footerSub">Events • Exhibition Booths • Display Stands</div>
+      <div class="footer-copy" data-i18n="hp.footerCopy">© 2026 DMR Arabia. All rights reserved.</div>
     </div>
   </footer>
+
+<script>
+/* ================= I18N — Localization Engine (homepage) =================
+   Same architecture and same localStorage key ("designLabLanguage") as the main app
+   (ai-design-studio.html) and the login page, so a language choice made on any one of the
+   three pages carries over to the others. Adding a language: copy I18N_EN as a template,
+   add it to I18N_DICTIONARIES, add one entry to LANGUAGE_OPTIONS — no other code changes. */
+const LANGUAGE_OPTIONS = [
+  { code: 'en', name: 'English', dir: 'ltr' },
+  { code: 'ar', name: 'العربية', dir: 'rtl' },
+  { code: 'fr', name: 'Français', dir: 'ltr' },
+  { code: 'de', name: 'Deutsch', dir: 'ltr' },
+  { code: 'es', name: 'Español', dir: 'ltr' },
+  { code: 'it', name: 'Italiano', dir: 'ltr' },
+  { code: 'zh', name: '中文', dir: 'ltr' },
+  { code: 'ja', name: '日本語', dir: 'ltr' },
+];
+
+const I18N_EN = {
+  'hp.login': 'Log in',
+  'hp.signup': 'Sign up',
+  'hp.signupTitle': 'Not active in this preview',
+  'hp.heroTitle': 'AI Design Studio for Events & Exhibition Professionals',
+  'hp.sub1': 'Create exhibition booths, event concepts, display stands, and presentation-ready visuals in minutes using AI.',
+  'hp.sub2': 'DesignsLab AI helps event agencies, designers, and exhibition contractors transform ideas into professional 3D concepts with speed and consistency.',
+  'hp.badge1': 'AI-Powered Design',
+  'hp.badge2': '3D Visualization',
+  'hp.badge3': 'Professional Event Concepts',
+  'hp.badge4': 'Presentation Ready',
+  'hp.tryNow': 'Try It Now',
+  'hp.viewFeatures': 'View Features',
+  'hp.featuresEyebrow': 'What We Do',
+  'hp.featuresHeading': 'AI-Powered Creative Solutions',
+  'hp.feature1Title': 'Exhibition Booth',
+  'hp.feature1Desc': 'Create professional exhibition booth concepts — layouts, structural ideas, and presentation-ready renderings from multiple perspectives.',
+  'hp.feature2Title': 'Event Concept',
+  'hp.feature2Desc': 'Create complete event environments, stages, entrances, registration areas, and immersive experiences.',
+  'hp.feature3Title': 'Display Stand',
+  'hp.feature3Desc': 'Design premium retail displays, kiosks, product showcases, POS units, and promotional stands.',
+  'hp.feature4Title': 'Edit Design',
+  'hp.feature4Desc': 'Modify existing concepts without redesigning everything. Change materials, colors, furniture, branding, layouts, walls, lighting, and perspectives.',
+  'hp.whyEyebrow': 'Why DesignsLab AI',
+  'hp.whyHeading': 'Built for Events & Exhibition Professionals',
+  'hp.why1Title': 'Faster Design Process',
+  'hp.why1Desc': 'Reduce concept creation from days to minutes.',
+  'hp.why2Title': 'Professional Quality',
+  'hp.why2Desc': 'Architectural visualization built for events and exhibitions.',
+  'hp.why3Title': 'Engineering-Oriented',
+  'hp.why3Desc': 'Designed using professional exhibition planning rules and industry standards.',
+  'hp.why4Title': 'AI Assisted',
+  'hp.why4Desc': 'Combines AI with structured architectural logic for consistent, high-quality results.',
+  'hp.howEyebrow': 'How It Works',
+  'hp.howHeading': 'From Idea to Presentation-Ready Design',
+  'hp.step1': 'Create an Account',
+  'hp.step2': 'Request Access',
+  'hp.step3': 'Get Approved',
+  'hp.step4': 'Start Creating',
+  'hp.step5': 'Download Presentation-Ready Designs',
+  'hp.toolsEyebrow': 'Available AI Tools',
+  'hp.toolsHeading': 'Everything You Need in One Platform',
+  'hp.tool1Title': 'Exhibition Booth Designer',
+  'hp.tool1Desc': 'Professional 3D booth concepts',
+  'hp.tool2Title': 'Event Concept Generator',
+  'hp.tool2Desc': 'Stage and event visualization',
+  'hp.tool3Title': 'Display Stand Designer',
+  'hp.tool3Desc': 'Retail and promotional display concepts',
+  'hp.tool4Title': 'AI Image Editor',
+  'hp.tool4Desc': 'Modify existing designs',
+  'hp.trialEyebrow': 'Trial Version',
+  'hp.trialHeading': 'Early Access Program',
+  'hp.trialText': 'DesignsLab AI is currently available as a trial version. Access is granted after account review to ensure the platform is used by professionals in the events and exhibition industry.',
+  'hp.trialBtn': 'Request Access',
+  'hp.footerTag': 'AI Design Studio for Events & Brands',
+  'hp.footerSub': 'Events • Exhibition Booths • Display Stands',
+  'hp.footerCopy': '© 2026 DMR Arabia. All rights reserved.',
+};
+
+const I18N_AR = {
+  'hp.login': 'تسجيل الدخول',
+  'hp.signup': 'إنشاء حساب',
+  'hp.signupTitle': 'غير مفعّل في هذه النسخة التجريبية',
+  'hp.heroTitle': 'استوديو تصميم بالذكاء الاصطناعي لمحترفي الفعاليات والمعارض',
+  'hp.sub1': 'أنشئ أجنحة معارض ومفاهيم فعاليات وستاندات عرض ومرئيات جاهزة للعرض التقديمي في دقائق باستخدام الذكاء الاصطناعي.',
+  'hp.sub2': 'يساعد DesignsLab AI وكالات الفعاليات والمصممين ومقاولي المعارض على تحويل الأفكار إلى مفاهيم ثلاثية الأبعاد احترافية بسرعة واتساق.',
+  'hp.badge1': 'تصميم مدعوم بالذكاء الاصطناعي',
+  'hp.badge2': 'تصور ثلاثي الأبعاد',
+  'hp.badge3': 'مفاهيم فعاليات احترافية',
+  'hp.badge4': 'جاهز للعرض التقديمي',
+  'hp.tryNow': 'جرّب الآن',
+  'hp.viewFeatures': 'عرض الميزات',
+  'hp.featuresEyebrow': 'ماذا نقدّم',
+  'hp.featuresHeading': 'حلول إبداعية مدعومة بالذكاء الاصطناعي',
+  'hp.feature1Title': 'جناح معرض',
+  'hp.feature1Desc': 'أنشئ مفاهيم احترافية لأجنحة المعارض — تخطيطات، أفكار إنشائية، ومرئيات جاهزة للعرض من زوايا متعددة.',
+  'hp.feature2Title': 'مفهوم فعالية',
+  'hp.feature2Desc': 'أنشئ بيئات فعاليات متكاملة، منصات، مداخل، مناطق تسجيل، وتجارب غامرة.',
+  'hp.feature3Title': 'ستاند عرض',
+  'hp.feature3Desc': 'صمّم عروض تجزئة فاخرة، أكشاك، واجهات عرض منتجات، وحدات نقاط بيع، وستاندات ترويجية.',
+  'hp.feature4Title': 'تعديل التصميم',
+  'hp.feature4Desc': 'عدّل المفاهيم الحالية دون إعادة تصميم كل شيء. غيّر المواد والألوان والأثاث والهوية والتخطيطات والجدران والإضاءة والزوايا.',
+  'hp.whyEyebrow': 'لماذا DesignsLab AI',
+  'hp.whyHeading': 'مصمم لمحترفي الفعاليات والمعارض',
+  'hp.why1Title': 'عملية تصميم أسرع',
+  'hp.why1Desc': 'قلّص إنشاء المفهوم من أيام إلى دقائق.',
+  'hp.why2Title': 'جودة احترافية',
+  'hp.why2Desc': 'تصور معماري مصمم خصيصًا للفعاليات والمعارض.',
+  'hp.why3Title': 'موجّه هندسيًا',
+  'hp.why3Desc': 'مصمم باستخدام قواعد تخطيط معارض احترافية ومعايير الصناعة.',
+  'hp.why4Title': 'مدعوم بالذكاء الاصطناعي',
+  'hp.why4Desc': 'يجمع بين الذكاء الاصطناعي والمنطق المعماري المنظم لنتائج متسقة وعالية الجودة.',
+  'hp.howEyebrow': 'كيف يعمل',
+  'hp.howHeading': 'من الفكرة إلى تصميم جاهز للعرض التقديمي',
+  'hp.step1': 'إنشاء حساب',
+  'hp.step2': 'طلب الوصول',
+  'hp.step3': 'الحصول على الموافقة',
+  'hp.step4': 'ابدأ التصميم',
+  'hp.step5': 'تنزيل التصاميم الجاهزة للعرض',
+  'hp.toolsEyebrow': 'أدوات الذكاء الاصطناعي المتاحة',
+  'hp.toolsHeading': 'كل ما تحتاجه في منصة واحدة',
+  'hp.tool1Title': 'مصمم جناح المعرض',
+  'hp.tool1Desc': 'مفاهيم أجنحة ثلاثية الأبعاد احترافية',
+  'hp.tool2Title': 'مولّد مفهوم الفعالية',
+  'hp.tool2Desc': 'تصور المنصات والفعاليات',
+  'hp.tool3Title': 'مصمم ستاند العرض',
+  'hp.tool3Desc': 'مفاهيم عروض تجزئة وترويجية',
+  'hp.tool4Title': 'محرر الصور بالذكاء الاصطناعي',
+  'hp.tool4Desc': 'تعديل التصاميم الحالية',
+  'hp.trialEyebrow': 'نسخة تجريبية',
+  'hp.trialHeading': 'برنامج الوصول المبكر',
+  'hp.trialText': 'يتوفر DesignsLab AI حاليًا كنسخة تجريبية. يُمنح الوصول بعد مراجعة الحساب لضمان استخدام المنصة من قبل محترفين في صناعة الفعاليات والمعارض.',
+  'hp.trialBtn': 'طلب الوصول',
+  'hp.footerTag': 'استوديو تصميم بالذكاء الاصطناعي للفعاليات والعلامات التجارية',
+  'hp.footerSub': 'فعاليات • أجنحة معارض • ستاندات عرض',
+  'hp.footerCopy': '© 2026 DMR Arabia. جميع الحقوق محفوظة.',
+};
+
+const I18N_FR = {
+  'hp.login': 'Connexion',
+  'hp.signup': "S'inscrire",
+  'hp.signupTitle': "Non actif dans cet aperçu",
+  'hp.heroTitle': 'Studio de design IA pour les professionnels des événements et des salons',
+  'hp.sub1': "Créez des stands d'exposition, des concepts d'événements, des présentoirs et des visuels prêts pour la présentation en quelques minutes grâce à l'IA.",
+  'hp.sub2': "DesignsLab AI aide les agences événementielles, les designers et les constructeurs de stands à transformer leurs idées en concepts 3D professionnels, rapidement et avec cohérence.",
+  'hp.badge1': 'Design propulsé par IA',
+  'hp.badge2': 'Visualisation 3D',
+  'hp.badge3': "Concepts d'événements professionnels",
+  'hp.badge4': 'Prêt pour la présentation',
+  'hp.tryNow': 'Essayer maintenant',
+  'hp.viewFeatures': 'Voir les fonctionnalités',
+  'hp.featuresEyebrow': 'Ce que nous faisons',
+  'hp.featuresHeading': 'Solutions créatives propulsées par IA',
+  'hp.feature1Title': "Stand d'exposition",
+  'hp.feature1Desc': "Créez des concepts professionnels de stands d'exposition — plans, idées structurelles et rendus prêts pour la présentation sous plusieurs angles.",
+  'hp.feature2Title': "Concept d'événement",
+  'hp.feature2Desc': "Créez des environnements d'événements complets, des scènes, des entrées, des zones d'inscription et des expériences immersives.",
+  'hp.feature3Title': 'Présentoir',
+  'hp.feature3Desc': "Concevez des présentoirs de vente au détail haut de gamme, des kiosques, des vitrines de produits, des unités de point de vente et des présentoirs promotionnels.",
+  'hp.feature4Title': 'Modifier le design',
+  'hp.feature4Desc': "Modifiez des concepts existants sans tout redessiner. Changez les matériaux, les couleurs, le mobilier, l'image de marque, les plans, les murs, l'éclairage et les perspectives.",
+  'hp.whyEyebrow': 'Pourquoi DesignsLab AI',
+  'hp.whyHeading': 'Conçu pour les professionnels des événements et des salons',
+  'hp.why1Title': 'Processus de conception plus rapide',
+  'hp.why1Desc': 'Réduisez la création de concept de plusieurs jours à quelques minutes.',
+  'hp.why2Title': 'Qualité professionnelle',
+  'hp.why2Desc': 'Visualisation architecturale conçue pour les événements et les salons.',
+  'hp.why3Title': 'Orienté ingénierie',
+  'hp.why3Desc': "Conçu selon des règles professionnelles de planification de salons et les normes du secteur.",
+  'hp.why4Title': 'Assisté par IA',
+  'hp.why4Desc': "Combine l'IA avec une logique architecturale structurée pour des résultats cohérents et de haute qualité.",
+  'hp.howEyebrow': 'Comment ça marche',
+  'hp.howHeading': "De l'idée au design prêt pour la présentation",
+  'hp.step1': 'Créer un compte',
+  'hp.step2': "Demander l'accès",
+  'hp.step3': 'Être approuvé',
+  'hp.step4': 'Commencer à créer',
+  'hp.step5': 'Télécharger les designs prêts pour la présentation',
+  'hp.toolsEyebrow': 'Outils IA disponibles',
+  'hp.toolsHeading': 'Tout ce dont vous avez besoin sur une seule plateforme',
+  'hp.tool1Title': "Concepteur de stand d'exposition",
+  'hp.tool1Desc': 'Concepts de stands 3D professionnels',
+  'hp.tool2Title': "Générateur de concept d'événement",
+  'hp.tool2Desc': "Visualisation de scènes et d'événements",
+  'hp.tool3Title': 'Concepteur de présentoir',
+  'hp.tool3Desc': 'Concepts de présentoirs de vente au détail et promotionnels',
+  'hp.tool4Title': "Éditeur d'images IA",
+  'hp.tool4Desc': 'Modifier les designs existants',
+  'hp.trialEyebrow': "Version d'essai",
+  'hp.trialHeading': 'Programme d\'accès anticipé',
+  'hp.trialText': "DesignsLab AI est actuellement disponible en version d'essai. L'accès est accordé après examen du compte afin de garantir que la plateforme est utilisée par des professionnels du secteur des événements et des salons.",
+  'hp.trialBtn': "Demander l'accès",
+  'hp.footerTag': 'Studio de design IA pour événements et marques',
+  'hp.footerSub': "Événements • Stands d'exposition • Présentoirs",
+  'hp.footerCopy': '© 2026 DMR Arabia. Tous droits réservés.',
+};
+
+const I18N_DE = {
+  'hp.login': 'Anmelden',
+  'hp.signup': 'Registrieren',
+  'hp.signupTitle': 'In dieser Vorschau nicht aktiv',
+  'hp.heroTitle': 'KI-Design-Studio für Veranstaltungs- und Messeprofis',
+  'hp.sub1': 'Erstellen Sie Messestände, Veranstaltungskonzepte, Verkaufsständer und präsentationsreife Visualisierungen in Minuten mit KI.',
+  'hp.sub2': 'DesignsLab AI hilft Eventagenturen, Designern und Messebauern, Ideen mit Geschwindigkeit und Konsistenz in professionelle 3D-Konzepte zu verwandeln.',
+  'hp.badge1': 'KI-gestütztes Design',
+  'hp.badge2': '3D-Visualisierung',
+  'hp.badge3': 'Professionelle Veranstaltungskonzepte',
+  'hp.badge4': 'Präsentationsbereit',
+  'hp.tryNow': 'Jetzt ausprobieren',
+  'hp.viewFeatures': 'Funktionen ansehen',
+  'hp.featuresEyebrow': 'Was wir tun',
+  'hp.featuresHeading': 'KI-gestützte kreative Lösungen',
+  'hp.feature1Title': 'Messestand',
+  'hp.feature1Desc': 'Erstellen Sie professionelle Messestandkonzepte — Layouts, konstruktive Ideen und präsentationsreife Renderings aus mehreren Perspektiven.',
+  'hp.feature2Title': 'Veranstaltungskonzept',
+  'hp.feature2Desc': 'Erstellen Sie komplette Veranstaltungsumgebungen, Bühnen, Eingänge, Anmeldebereiche und immersive Erlebnisse.',
+  'hp.feature3Title': 'Verkaufsständer',
+  'hp.feature3Desc': 'Gestalten Sie hochwertige Einzelhandelsdisplays, Kioske, Produktpräsentationen, POS-Einheiten und Werbeständer.',
+  'hp.feature4Title': 'Design ändern',
+  'hp.feature4Desc': 'Ändern Sie bestehende Konzepte, ohne alles neu zu gestalten. Ändern Sie Materialien, Farben, Möbel, Branding, Layouts, Wände, Beleuchtung und Perspektiven.',
+  'hp.whyEyebrow': 'Warum DesignsLab AI',
+  'hp.whyHeading': 'Entwickelt für Veranstaltungs- und Messeprofis',
+  'hp.why1Title': 'Schnellerer Designprozess',
+  'hp.why1Desc': 'Reduzieren Sie die Konzepterstellung von Tagen auf Minuten.',
+  'hp.why2Title': 'Professionelle Qualität',
+  'hp.why2Desc': 'Architektonische Visualisierung, entwickelt für Veranstaltungen und Messen.',
+  'hp.why3Title': 'Technisch orientiert',
+  'hp.why3Desc': 'Entwickelt nach professionellen Messeplanungsregeln und Branchenstandards.',
+  'hp.why4Title': 'KI-unterstützt',
+  'hp.why4Desc': 'Kombiniert KI mit strukturierter architektonischer Logik für konsistente, hochwertige Ergebnisse.',
+  'hp.howEyebrow': 'So funktioniert es',
+  'hp.howHeading': 'Von der Idee zum präsentationsreifen Design',
+  'hp.step1': 'Konto erstellen',
+  'hp.step2': 'Zugang anfragen',
+  'hp.step3': 'Genehmigung erhalten',
+  'hp.step4': 'Mit der Gestaltung beginnen',
+  'hp.step5': 'Präsentationsreife Designs herunterladen',
+  'hp.toolsEyebrow': 'Verfügbare KI-Tools',
+  'hp.toolsHeading': 'Alles, was Sie auf einer Plattform brauchen',
+  'hp.tool1Title': 'Messestand-Designer',
+  'hp.tool1Desc': 'Professionelle 3D-Standkonzepte',
+  'hp.tool2Title': 'Veranstaltungskonzept-Generator',
+  'hp.tool2Desc': 'Bühnen- und Veranstaltungsvisualisierung',
+  'hp.tool3Title': 'Verkaufsständer-Designer',
+  'hp.tool3Desc': 'Konzepte für Einzelhandels- und Werbedisplays',
+  'hp.tool4Title': 'KI-Bildeditor',
+  'hp.tool4Desc': 'Bestehende Designs ändern',
+  'hp.trialEyebrow': 'Testversion',
+  'hp.trialHeading': 'Früher-Zugang-Programm',
+  'hp.trialText': 'DesignsLab AI ist derzeit als Testversion verfügbar. Der Zugang wird nach einer Kontoprüfung gewährt, um sicherzustellen, dass die Plattform von Fachleuten der Veranstaltungs- und Messebranche genutzt wird.',
+  'hp.trialBtn': 'Zugang anfragen',
+  'hp.footerTag': 'KI-Design-Studio für Veranstaltungen und Marken',
+  'hp.footerSub': 'Veranstaltungen • Messestände • Verkaufsständer',
+  'hp.footerCopy': '© 2026 DMR Arabia. Alle Rechte vorbehalten.',
+};
+
+const I18N_ES = {
+  'hp.login': 'Iniciar sesión',
+  'hp.signup': 'Registrarse',
+  'hp.signupTitle': 'No activo en esta vista previa',
+  'hp.heroTitle': 'Estudio de diseño con IA para profesionales de eventos y exposiciones',
+  'hp.sub1': 'Cree stands de exposición, conceptos de eventos, expositores y visuales listos para presentar en minutos usando IA.',
+  'hp.sub2': 'DesignsLab AI ayuda a agencias de eventos, diseñadores y contratistas de exposiciones a transformar ideas en conceptos 3D profesionales con rapidez y consistencia.',
+  'hp.badge1': 'Diseño impulsado por IA',
+  'hp.badge2': 'Visualización 3D',
+  'hp.badge3': 'Conceptos de eventos profesionales',
+  'hp.badge4': 'Listo para presentar',
+  'hp.tryNow': 'Pruébelo ahora',
+  'hp.viewFeatures': 'Ver funciones',
+  'hp.featuresEyebrow': 'Qué hacemos',
+  'hp.featuresHeading': 'Soluciones creativas impulsadas por IA',
+  'hp.feature1Title': 'Stand de exposición',
+  'hp.feature1Desc': 'Cree conceptos profesionales de stands de exposición — diseños, ideas estructurales y renderizados listos para presentar desde múltiples perspectivas.',
+  'hp.feature2Title': 'Concepto de evento',
+  'hp.feature2Desc': 'Cree entornos de eventos completos, escenarios, entradas, áreas de registro y experiencias inmersivas.',
+  'hp.feature3Title': 'Expositor',
+  'hp.feature3Desc': 'Diseñe expositores minoristas premium, quioscos, vitrinas de productos, unidades de punto de venta y expositores promocionales.',
+  'hp.feature4Title': 'Modificar diseño',
+  'hp.feature4Desc': 'Modifique conceptos existentes sin rediseñar todo. Cambie materiales, colores, mobiliario, identidad de marca, diseños, paredes, iluminación y perspectivas.',
+  'hp.whyEyebrow': 'Por qué DesignsLab AI',
+  'hp.whyHeading': 'Creado para profesionales de eventos y exposiciones',
+  'hp.why1Title': 'Proceso de diseño más rápido',
+  'hp.why1Desc': 'Reduzca la creación de conceptos de días a minutos.',
+  'hp.why2Title': 'Calidad profesional',
+  'hp.why2Desc': 'Visualización arquitectónica creada para eventos y exposiciones.',
+  'hp.why3Title': 'Orientado a la ingeniería',
+  'hp.why3Desc': 'Diseñado utilizando reglas profesionales de planificación de exposiciones y estándares de la industria.',
+  'hp.why4Title': 'Asistido por IA',
+  'hp.why4Desc': 'Combina IA con lógica arquitectónica estructurada para resultados consistentes y de alta calidad.',
+  'hp.howEyebrow': 'Cómo funciona',
+  'hp.howHeading': 'De la idea al diseño listo para presentar',
+  'hp.step1': 'Crear una cuenta',
+  'hp.step2': 'Solicitar acceso',
+  'hp.step3': 'Ser aprobado',
+  'hp.step4': 'Empezar a crear',
+  'hp.step5': 'Descargar diseños listos para presentar',
+  'hp.toolsEyebrow': 'Herramientas de IA disponibles',
+  'hp.toolsHeading': 'Todo lo que necesita en una sola plataforma',
+  'hp.tool1Title': 'Diseñador de stands de exposición',
+  'hp.tool1Desc': 'Conceptos profesionales de stands en 3D',
+  'hp.tool2Title': 'Generador de conceptos de eventos',
+  'hp.tool2Desc': 'Visualización de escenarios y eventos',
+  'hp.tool3Title': 'Diseñador de expositores',
+  'hp.tool3Desc': 'Conceptos de expositores minoristas y promocionales',
+  'hp.tool4Title': 'Editor de imágenes con IA',
+  'hp.tool4Desc': 'Modificar diseños existentes',
+  'hp.trialEyebrow': 'Versión de prueba',
+  'hp.trialHeading': 'Programa de acceso anticipado',
+  'hp.trialText': 'DesignsLab AI está actualmente disponible como versión de prueba. El acceso se otorga después de revisar la cuenta para garantizar que la plataforma sea utilizada por profesionales de la industria de eventos y exposiciones.',
+  'hp.trialBtn': 'Solicitar acceso',
+  'hp.footerTag': 'Estudio de diseño con IA para eventos y marcas',
+  'hp.footerSub': 'Eventos • Stands de exposición • Expositores',
+  'hp.footerCopy': '© 2026 DMR Arabia. Todos los derechos reservados.',
+};
+
+const I18N_IT = {
+  'hp.login': 'Accedi',
+  'hp.signup': 'Registrati',
+  'hp.signupTitle': 'Non attivo in questa anteprima',
+  'hp.heroTitle': 'Studio di design IA per professionisti di eventi e fiere',
+  'hp.sub1': "Crea stand espositivi, concept di eventi, espositori e visual pronti per la presentazione in pochi minuti con l'IA.",
+  'hp.sub2': "DesignsLab AI aiuta agenzie eventi, designer e allestitori fieristici a trasformare le idee in concept 3D professionali con rapidità e coerenza.",
+  'hp.badge1': 'Design basato su IA',
+  'hp.badge2': 'Visualizzazione 3D',
+  'hp.badge3': 'Concept di eventi professionali',
+  'hp.badge4': 'Pronto per la presentazione',
+  'hp.tryNow': 'Provalo ora',
+  'hp.viewFeatures': 'Vedi le funzionalità',
+  'hp.featuresEyebrow': 'Cosa facciamo',
+  'hp.featuresHeading': 'Soluzioni creative basate su IA',
+  'hp.feature1Title': 'Stand espositivo',
+  'hp.feature1Desc': 'Crea concept professionali di stand espositivi — layout, idee strutturali e rendering pronti per la presentazione da più prospettive.',
+  'hp.feature2Title': 'Concept evento',
+  'hp.feature2Desc': 'Crea ambienti evento completi, palchi, ingressi, aree di registrazione ed esperienze immersive.',
+  'hp.feature3Title': 'Espositore',
+  'hp.feature3Desc': 'Progetta espositori retail premium, chioschi, vetrine prodotto, unità POS ed espositori promozionali.',
+  'hp.feature4Title': 'Modifica design',
+  'hp.feature4Desc': "Modifica i concept esistenti senza riprogettare tutto. Cambia materiali, colori, arredi, branding, layout, pareti, illuminazione e prospettive.",
+  'hp.whyEyebrow': 'Perché DesignsLab AI',
+  'hp.whyHeading': 'Pensato per professionisti di eventi e fiere',
+  'hp.why1Title': 'Processo di design più veloce',
+  'hp.why1Desc': 'Riduci la creazione del concept da giorni a minuti.',
+  'hp.why2Title': 'Qualità professionale',
+  'hp.why2Desc': 'Visualizzazione architettonica pensata per eventi e fiere.',
+  'hp.why3Title': 'Orientato all\'ingegneria',
+  'hp.why3Desc': 'Progettato secondo regole professionali di pianificazione fieristica e standard di settore.',
+  'hp.why4Title': 'Assistito da IA',
+  'hp.why4Desc': "Combina l'IA con una logica architettonica strutturata per risultati coerenti e di alta qualità.",
+  'hp.howEyebrow': 'Come funziona',
+  'hp.howHeading': "Dall'idea al design pronto per la presentazione",
+  'hp.step1': 'Crea un account',
+  'hp.step2': 'Richiedi accesso',
+  'hp.step3': 'Ottieni approvazione',
+  'hp.step4': 'Inizia a creare',
+  'hp.step5': 'Scarica design pronti per la presentazione',
+  'hp.toolsEyebrow': 'Strumenti IA disponibili',
+  'hp.toolsHeading': 'Tutto ciò di cui hai bisogno su un\'unica piattaforma',
+  'hp.tool1Title': 'Progettista stand espositivi',
+  'hp.tool1Desc': 'Concept professionali di stand 3D',
+  'hp.tool2Title': 'Generatore di concept evento',
+  'hp.tool2Desc': 'Visualizzazione palchi ed eventi',
+  'hp.tool3Title': 'Progettista espositori',
+  'hp.tool3Desc': 'Concept di espositori retail e promozionali',
+  'hp.tool4Title': 'Editor immagini IA',
+  'hp.tool4Desc': 'Modifica design esistenti',
+  'hp.trialEyebrow': 'Versione di prova',
+  'hp.trialHeading': 'Programma di accesso anticipato',
+  'hp.trialText': "DesignsLab AI è attualmente disponibile come versione di prova. L'accesso viene concesso dopo la verifica dell'account per garantire che la piattaforma sia utilizzata da professionisti del settore eventi e fiere.",
+  'hp.trialBtn': 'Richiedi accesso',
+  'hp.footerTag': 'Studio di design IA per eventi e brand',
+  'hp.footerSub': 'Eventi • Stand espositivi • Espositori',
+  'hp.footerCopy': '© 2026 DMR Arabia. Tutti i diritti riservati.',
+};
+
+const I18N_ZH = {
+  'hp.login': '登录',
+  'hp.signup': '注册',
+  'hp.signupTitle': '此预览版中未启用',
+  'hp.heroTitle': '面向活动与展览专业人士的 AI 设计工作室',
+  'hp.sub1': '使用 AI 在几分钟内创建展览展位、活动概念、展示架和可用于展示的视觉效果。',
+  'hp.sub2': 'DesignsLab AI 帮助活动机构、设计师和展览承包商快速、稳定地将创意转化为专业的三维概念方案。',
+  'hp.badge1': 'AI 驱动设计',
+  'hp.badge2': '三维可视化',
+  'hp.badge3': '专业活动概念',
+  'hp.badge4': '可直接用于展示',
+  'hp.tryNow': '立即试用',
+  'hp.viewFeatures': '查看功能',
+  'hp.featuresEyebrow': '我们提供什么',
+  'hp.featuresHeading': 'AI 驱动的创意解决方案',
+  'hp.feature1Title': '展览展位',
+  'hp.feature1Desc': '创建专业的展览展位概念 — 布局、结构构想以及多角度可展示渲染图。',
+  'hp.feature2Title': '活动概念',
+  'hp.feature2Desc': '创建完整的活动环境、舞台、入口、签到区以及沉浸式体验。',
+  'hp.feature3Title': '展示架',
+  'hp.feature3Desc': '设计高端零售展示架、展亭、产品展示柜、销售点单元和促销展架。',
+  'hp.feature4Title': '编辑设计',
+  'hp.feature4Desc': '无需重新设计整体，即可修改现有概念。更改材料、颜色、家具、品牌形象、布局、墙体、照明和视角。',
+  'hp.whyEyebrow': '为什么选择 DesignsLab AI',
+  'hp.whyHeading': '专为活动与展览专业人士打造',
+  'hp.why1Title': '更快的设计流程',
+  'hp.why1Desc': '将概念创建时间从数天缩短至几分钟。',
+  'hp.why2Title': '专业品质',
+  'hp.why2Desc': '专为活动和展览打造的建筑级可视化效果。',
+  'hp.why3Title': '以工程为导向',
+  'hp.why3Desc': '依据专业展览规划规则和行业标准进行设计。',
+  'hp.why4Title': 'AI 辅助',
+  'hp.why4Desc': '将 AI 与结构化的建筑逻辑相结合，提供一致的高质量结果。',
+  'hp.howEyebrow': '工作原理',
+  'hp.howHeading': '从创意到可展示的设计',
+  'hp.step1': '创建账户',
+  'hp.step2': '申请访问权限',
+  'hp.step3': '获得批准',
+  'hp.step4': '开始创作',
+  'hp.step5': '下载可用于展示的设计',
+  'hp.toolsEyebrow': '可用的 AI 工具',
+  'hp.toolsHeading': '一个平台满足您的所有需求',
+  'hp.tool1Title': '展览展位设计工具',
+  'hp.tool1Desc': '专业三维展位概念',
+  'hp.tool2Title': '活动概念生成工具',
+  'hp.tool2Desc': '舞台与活动可视化',
+  'hp.tool3Title': '展示架设计工具',
+  'hp.tool3Desc': '零售与促销展示概念',
+  'hp.tool4Title': 'AI 图像编辑器',
+  'hp.tool4Desc': '修改现有设计',
+  'hp.trialEyebrow': '试用版',
+  'hp.trialHeading': '早期访问计划',
+  'hp.trialText': 'DesignsLab AI 目前以试用版形式提供。账户审核通过后方可获得访问权限，以确保平台由活动与展览行业的专业人士使用。',
+  'hp.trialBtn': '申请访问权限',
+  'hp.footerTag': '面向活动与品牌的 AI 设计工作室',
+  'hp.footerSub': '活动 • 展览展位 • 展示架',
+  'hp.footerCopy': '© 2026 DMR Arabia. 保留所有权利。',
+};
+
+const I18N_JA = {
+  'hp.login': 'ログイン',
+  'hp.signup': '新規登録',
+  'hp.signupTitle': 'このプレビューでは無効です',
+  'hp.heroTitle': 'イベント・展示会のプロフェッショナルのためのAIデザインスタジオ',
+  'hp.sub1': 'AIを使って、展示ブース、イベントコンセプト、ディスプレイスタンド、プレゼンテーション用ビジュアルを数分で作成できます。',
+  'hp.sub2': 'DesignsLab AIは、イベント代理店、デザイナー、展示会施工会社がアイデアを迅速かつ一貫性のあるプロフェッショナルな3Dコンセプトへと変換するのを支援します。',
+  'hp.badge1': 'AI駆動のデザイン',
+  'hp.badge2': '3Dビジュアライゼーション',
+  'hp.badge3': 'プロフェッショナルなイベントコンセプト',
+  'hp.badge4': 'プレゼンテーション対応',
+  'hp.tryNow': '今すぐ試す',
+  'hp.viewFeatures': '機能を見る',
+  'hp.featuresEyebrow': '私たちが提供するもの',
+  'hp.featuresHeading': 'AI駆動のクリエイティブソリューション',
+  'hp.feature1Title': '展示ブース',
+  'hp.feature1Desc': 'プロフェッショナルな展示ブースコンセプトを作成 — レイアウト、構造アイデア、複数視点からのプレゼンテーション対応レンダリング。',
+  'hp.feature2Title': 'イベントコンセプト',
+  'hp.feature2Desc': 'ステージ、入口、受付エリア、没入型体験を含む完全なイベント環境を作成。',
+  'hp.feature3Title': 'ディスプレイスタンド',
+  'hp.feature3Desc': '高級小売ディスプレイ、キオスク、製品ショーケース、POSユニット、販促スタンドをデザイン。',
+  'hp.feature4Title': 'デザインを編集',
+  'hp.feature4Desc': '全体を再設計せずに既存のコンセプトを修正。素材、色、家具、ブランディング、レイアウト、壁、照明、視点を変更可能。',
+  'hp.whyEyebrow': 'DesignsLab AIが選ばれる理由',
+  'hp.whyHeading': 'イベント・展示会のプロフェッショナルのために構築',
+  'hp.why1Title': 'より速いデザインプロセス',
+  'hp.why1Desc': 'コンセプト作成を数日から数分に短縮。',
+  'hp.why2Title': 'プロフェッショナルな品質',
+  'hp.why2Desc': 'イベントと展示会のために構築された建築ビジュアライゼーション。',
+  'hp.why3Title': 'エンジニアリング志向',
+  'hp.why3Desc': 'プロフェッショナルな展示会計画ルールと業界標準を用いて設計。',
+  'hp.why4Title': 'AIアシスト',
+  'hp.why4Desc': 'AIと構造化された建築ロジックを組み合わせ、一貫性のある高品質な結果を実現。',
+  'hp.howEyebrow': '仕組み',
+  'hp.howHeading': 'アイデアからプレゼンテーション対応デザインまで',
+  'hp.step1': 'アカウントを作成',
+  'hp.step2': 'アクセスをリクエスト',
+  'hp.step3': '承認を受ける',
+  'hp.step4': '制作を開始',
+  'hp.step5': 'プレゼンテーション対応デザインをダウンロード',
+  'hp.toolsEyebrow': '利用可能なAIツール',
+  'hp.toolsHeading': '1つのプラットフォームで必要なものすべて',
+  'hp.tool1Title': '展示ブースデザイナー',
+  'hp.tool1Desc': 'プロフェッショナルな3Dブースコンセプト',
+  'hp.tool2Title': 'イベントコンセプトジェネレーター',
+  'hp.tool2Desc': 'ステージとイベントのビジュアライゼーション',
+  'hp.tool3Title': 'ディスプレイスタンドデザイナー',
+  'hp.tool3Desc': '小売・販促ディスプレイコンセプト',
+  'hp.tool4Title': 'AI画像エディター',
+  'hp.tool4Desc': '既存デザインの修正',
+  'hp.trialEyebrow': '試用版',
+  'hp.trialHeading': 'アーリーアクセスプログラム',
+  'hp.trialText': 'DesignsLab AIは現在試用版として提供されています。プラットフォームがイベント・展示会業界のプロフェッショナルによって利用されることを確実にするため、アカウント審査後にアクセスが許可されます。',
+  'hp.trialBtn': 'アクセスをリクエスト',
+  'hp.footerTag': 'イベントとブランドのためのAIデザインスタジオ',
+  'hp.footerSub': 'イベント • 展示ブース • ディスプレイスタンド',
+  'hp.footerCopy': '© 2026 DMR Arabia. 全著作権所有。',
+};
+
+const I18N_DICTIONARIES = { en: I18N_EN, ar: I18N_AR, fr: I18N_FR, de: I18N_DE, es: I18N_ES, it: I18N_IT, zh: I18N_ZH, ja: I18N_JA };
+
+let currentLanguage = 'en';
+
+function t(key){
+  const dict = I18N_DICTIONARIES[currentLanguage] || I18N_EN;
+  if(dict[key] != null) return dict[key];
+  if(I18N_EN[key] != null) return I18N_EN[key];
+  return key;
+}
+
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder'))); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { el.setAttribute('title', t(el.getAttribute('data-i18n-title'))); });
+}
+
+function renderLanguageSelectorOptions(){
+  const sel = document.getElementById('languageSelector');
+  if(!sel || sel.options.length) return;
+  LANGUAGE_OPTIONS.forEach(opt => {
+    const o = document.createElement('option');
+    o.value = opt.code;
+    o.textContent = opt.name;
+    sel.appendChild(o);
+  });
+}
+
+// Persists under the same localStorage key the main app and the login page use, so a language
+// choice made on any one of the three pages is already the default the next time either of
+// the other two loads.
+function setLanguage(lang, skipPersist){
+  currentLanguage = I18N_DICTIONARIES[lang] ? lang : 'en';
+  const opt = LANGUAGE_OPTIONS.find(o => o.code === currentLanguage) || LANGUAGE_OPTIONS[0];
+  document.documentElement.lang = currentLanguage;
+  document.documentElement.dir = opt.dir;
+  renderLanguageSelectorOptions();
+  applyTranslations();
+  const sel = document.getElementById('languageSelector');
+  if(sel && sel.value !== currentLanguage) sel.value = currentLanguage;
+  if(!skipPersist){
+    try{ localStorage.setItem('designLabLanguage', currentLanguage); }catch(e){ /* ignore */ }
+  }
+}
+
+function initLanguage(){
+  let saved = null;
+  try{ saved = localStorage.getItem('designLabLanguage'); }catch(e){ /* ignore */ }
+  setLanguage(saved || 'en', true);
+}
+
+initLanguage();
+</script>
 
 </body>
 </html>
