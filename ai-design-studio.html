@@ -4662,6 +4662,55 @@ The generated booth must appear as a standalone architectural object. No neighbo
 RENDERING PHILOSOPHY
 The purpose of the image is to showcase the booth architecture — not the exhibition venue. The booth is always the hero. The exhibition hall is only a subtle contextual background.`;
 
+const EPS_020 = `DOUBLE DECK ARCHITECTURAL RULES (EPS-020)
+
+GENERAL RULE (core rule) — this rule applies whenever the brief's Number of levels is 2 (a double-deck booth). The following twelve rules are mandatory and cannot be overridden, softened, or partially applied by any other guidance elsewhere in this brief. A real production test confirmed the failure mode these rules close: a double-deck booth was generated with no staircase anywhere in the finished image — visually indistinguishable from a single-level booth with a tall ceiling, which defeats the entire point of a two-story structure.
+
+RULE 1 — TWO FLOORS REQUIRED
+The booth must include two clearly distinguishable levels: a Ground Floor and an Upper Floor (Second Deck). Never generate a single-floor booth, and never let the upper floor read as a mezzanine afterthought — it must be a genuine, fully realized second story.
+
+RULE 2 — STAIRCASE REQUIRED
+A staircase is mandatory, with no exceptions. It must:
+- Connect the ground floor to the upper floor directly.
+- Use realistic human dimensions — real treads and risers, never a symbolic or decorative suggestion of stairs.
+- Be at least 1.0 m wide.
+- Be structurally integrated into the architecture, never a separate or applied-on object.
+- Never float or appear disconnected from either floor.
+- Never be omitted from the design or the render, for any reason.
+This booth's footprint has already been checked for staircase feasibility before this stage — if you are generating this design, that check has already passed, so you will never need to render an undersized or unsafe staircase to make the numbers fit.
+
+RULE 3 — STRUCTURAL SUPPORT
+The upper deck must never appear unsupported. Show real, visible structural support — columns, beams, or load-bearing walls — carrying the upper floor's weight down to the ground floor. The upper deck must never look like it is floating, cantilevered with no visible support, or resting on something too slender to be structurally credible.
+
+RULE 4 — UPPER FLOOR PROGRAM
+The second floor must contain ONLY the functions explicitly selected by the client under Purpose of the Upper Deck in the SECOND FLOOR CONFIGURATION section of this brief (e.g. VIP Lounge, Meeting Rooms, Hospitality, Product Display, Office, Storage — whichever were actually selected). Do not invent additional rooms, zones, or furniture on the upper floor beyond what was explicitly selected — this is the same STRICT PROGRAM ADHERENCE discipline SFE-001 already applies to the ground floor, extended to the upper floor.
+
+RULE 5 — GUARD RAILS
+Every exposed edge of the second floor — anywhere a person could step off the upper deck into open air — must include a guard rail. Allowed materials: glass, steel, aluminum, or a mix of these, chosen to match the client's selected Upper Deck Style. Minimum realistic height: approximately 1.1 m. An exposed upper-deck edge with no guard rail is never acceptable, regardless of the Privacy Level selected.
+
+RULE 6 — CEILING INTEGRATION
+The client's selected Ceiling & Rigging system must integrate architecturally with the double-deck structure — for example as a floating canopy above the upper deck, a self-supported ceiling feature over the upper deck, a suspended frame, or an architectural roof feature spanning both levels. Never remove or omit the ceiling simply because a second floor now exists — the ceiling and the double-deck structure must read as one coherent design, not two competing decisions.
+
+RULE 7 — SCALE VALIDATION
+This booth's footprint has already been checked deterministically for double-deck feasibility before this stage (staircase footprint, upper floor area, required circulation, selected furniture, and required clearances all considered) — if you are generating this design, that check has already passed. Continue to respect human scale throughout: never shrink the staircase, guard rails, or any furniture item below its real-world minimum size to force a fit. If a lower-priority zone must be trimmed to keep everything else at true human scale, follow SFE-001's own Program Adaptation priority order (lowest tier first) exactly as it already does for the ground floor.
+
+RULE 8 — ORIENTATION
+The booth's open and closed sides (per EPS-016's BOOTH ORIENTATION MODEL) remain mandatory and apply identically to the upper floor. Never add a balcony, staircase, or wall on the upper floor that would violate the ground floor's own selected open or closed sides — both floors share the exact same orientation.
+
+RULE 9 — HUMAN SCALE
+Maintain realistic, deterministic dimensions throughout: ground floor clear height 3.0 m, a 0.3 m floor slab/structure between levels, upper floor clear height 2.4 m, and 0.3 m of ceiling/roof structure above the upper deck — summing to exactly this booth's fixed 6.0 m total height. Stair risers and treads must be realistic (standard human-scale proportions, never compressed to fit).
+
+RULE 10 — ARCHITECTURAL CONSISTENCY
+Both floors must use the same architectural language, the same materials, the same lighting strategy, the same branding, and the same geometric concept. The second floor must read as a direct continuation of the ground floor's design — never as a separate, disconnected design bolted on top.
+
+RULE 11 — NO AI HALLUCINATION
+Never invent: extra staircases, extra rooms, additional walls, additional roofs, extra balconies, extra furniture, or extra branding anywhere in this design. Generate only the elements explicitly selected by the client — one staircase (per Rule 2), only the upper-floor functions actually selected (per Rule 4), and nothing invented "because it would be typical" for a double-deck booth.
+
+RULE 12 — VISIBILITY
+The primary render (the master reference image every later camera angle is generated from) must clearly show: the ground floor, the upper floor, the staircase, the structural supports carrying the upper deck, and the ceiling feature (if one is selected). The second floor must never be hidden, cropped out, or omitted from this master render — if it isn't visible in the primary render, camera views generated from it will never be able to show it either.
+
+Before finalizing any double-deck design, silently verify each of these twelve rules against what you are about to write; if any fails, revise the relevant section until it passes before responding.`;
+
 const ECS_001 = `EVENT PLANNING PRINCIPLES
 
 An event is not a collection of beautiful objects — it is a carefully designed visitor experience. Design experiences, not isolated spaces. Every event should guide visitors naturally from arrival to departure. Every area should support the event's actual objectives. Architecture, branding, technology, and circulation must work together as one experience, not as separate decisions made independently of each other.
@@ -6160,11 +6209,14 @@ function collectUpperDeckSpecification(){
   const notes = document.getElementById('f_upperFloor').value.trim();
 
   const lines = [
-    `Purpose of the Upper Deck: ${purpose.length ? purpose.join(', ') : 'not specified'} — this is the actual program for the upper level; everything else in this brief belongs on the ground floor instead.`,
+    `Purpose of the Upper Deck: ${purpose.length ? purpose.join(', ') : 'not specified'} — this is the COMPLETE and ONLY program for the upper level (per EPS-020 Rule 4); everything else in this brief belongs on the ground floor instead, and no additional room, zone, or furniture item may be invented up there beyond what is listed here.`,
     `Capacity: ${capacity}.`,
     `Privacy Level: ${privacy}.`,
-    `Staircase Position: ${staircase === 'Auto Optimize' ? 'Auto Optimize — choose whichever position best preserves open ground-floor circulation and sightlines for this specific booth footprint and orientation.' : staircase}.`,
+    `Staircase Position: ${staircase === 'Auto Optimize' ? 'Auto Optimize — choose whichever position best preserves open ground-floor circulation and sightlines for this specific booth footprint and orientation.' : staircase}. MANDATORY per EPS-020 Rule 2: a real, physical staircase must be visibly built and rendered at this position, connecting the ground floor to the upper deck — minimum ${DOUBLE_DECK_MIN_STAIR_WIDTH_M.toFixed(1)} m wide, structurally integrated (never floating or applied-on), a required load-bearing architectural element exactly like a structural wall or the hero structure, never optional and never omitted from the finished render.`,
     `Upper Deck Style: ${style}.`,
+    `Guard Rails (MANDATORY per EPS-020 Rule 5): every exposed edge of the upper deck must have a guard rail, approximately ${DOUBLE_DECK_GUARD_RAIL_HEIGHT_M.toFixed(1)} m high, in glass, steel, aluminum, or a mix — matched to the Upper Deck Style above. No exposed upper-deck edge may be left without one.`,
+    `Structural Support (MANDATORY per EPS-020 Rule 3): the upper deck must be carried on real, visible columns, beams, or load-bearing walls down to the ground floor — never rendered as floating or unsupported.`,
+    `Clear Heights (fixed per EPS-020 Rule 9, summing to this booth's locked ${DOUBLE_DECK_GROUND_CLEAR_HEIGHT_M + DOUBLE_DECK_SLAB_THICKNESS_M + DOUBLE_DECK_UPPER_CLEAR_HEIGHT_M + DOUBLE_DECK_ROOF_STRUCTURE_M} m total height): Ground Floor clear height ${DOUBLE_DECK_GROUND_CLEAR_HEIGHT_M.toFixed(1)} m, floor slab/structure between levels ${DOUBLE_DECK_SLAB_THICKNESS_M.toFixed(1)} m, Upper Floor clear height ${DOUBLE_DECK_UPPER_CLEAR_HEIGHT_M.toFixed(1)} m, ceiling/roof structure above the upper deck ${DOUBLE_DECK_ROOF_STRUCTURE_M.toFixed(1)} m.`,
     features.length
       ? `Optional Features — EXPLICITLY REQUESTED BY THE CLIENT: ${features.join(', ')}.`
       : 'Optional Features: none requested.'
@@ -6173,7 +6225,7 @@ function collectUpperDeckSpecification(){
 
   return `
 
-SECOND FLOOR CONFIGURATION — EXPLICITLY SPECIFIED BY THE CLIENT (mandatory facts, not suggestions; this is the complete program for the upper level of this double-deck structure):
+SECOND FLOOR CONFIGURATION — EXPLICITLY SPECIFIED BY THE CLIENT (mandatory facts, not suggestions; this is the complete program for the upper level of this double-deck structure). Per EPS-020, this booth MUST include a real, visible staircase, real structural support, and guard rails on every exposed upper-deck edge — none of this is optional or may be left out of the final render:
 ${lines.join('\n')}`;
 }
 
@@ -6932,6 +6984,47 @@ function buildBoothOrientationModel(widthM, depthM){
 // here (xFrac*widthM, yFrac*depthM) with no separate coordinate system to reconcile.
 const STRUCTURAL_WALL_THICKNESS_MM = 150;
 
+/* EPS-020 — Double Deck Architectural Rules. Fixed, deterministic constants every part of the
+   double-deck pipeline (the feasibility gate below, the brief text, and the Stage 2 rule block)
+   reads from — never re-derived or re-estimated independently in more than one place, the same
+   reasoning as STRUCTURAL_WALL_THICKNESS_MM above.
+   - MIN_DOUBLE_DECK_AREA_SQM: the minimum booth footprint this app considers structurally
+     feasible for a real double-deck build — Rule 2's 1.0 m minimum staircase width, plus real
+     landing/circulation clearance around it (never narrower, per Rule 7's "never shrink below
+     human scale"), plus enough remaining floor for at least one genuinely usable upper-deck
+     function zone, adds up to roughly 20 sqm as a hard floor. Below this, Rule 7 requires
+     rejecting Double Deck outright rather than quietly shrinking the staircase or the upper
+     deck's only function zone to something no longer human-scale.
+   - Clear heights resolve the "typical" ranges from Rule 9 (Ground 2.7–3.2 m, Upper 2.4–2.8 m)
+     to one deterministic set of numbers that sums exactly to the 6 m total height every
+     double-deck booth is locked to (see toggleUpperFloor) — 3.0 m ground clearance + 0.3 m
+     slab/structure between floors + 2.4 m upper clearance + 0.3 m ceiling/roof structure above
+     the upper deck = 6.0 m exactly, matching this app's general philosophy of giving the
+     rendering model one specific number instead of a range to interpret. */
+const MIN_DOUBLE_DECK_AREA_SQM = 20;
+const DOUBLE_DECK_MIN_STAIR_WIDTH_M = 1.0;
+const DOUBLE_DECK_GUARD_RAIL_HEIGHT_M = 1.1;
+const DOUBLE_DECK_GROUND_CLEAR_HEIGHT_M = 3.0;
+const DOUBLE_DECK_SLAB_THICKNESS_M = 0.3;
+const DOUBLE_DECK_UPPER_CLEAR_HEIGHT_M = 2.4;
+const DOUBLE_DECK_ROOF_STRUCTURE_M = 0.3;
+
+// Rule 7 (Scale Validation Engine) — a real, hard feasibility gate, not just prompt-level
+// guidance: a booth footprint too small to fit a code-realistic staircase plus a usable upper
+// deck must reject Double Deck outright rather than let the model quietly render an undersized,
+// unsafe, or merely symbolic staircase to make the numbers fit.
+function computeDoubleDeckFeasibility(widthM, depthM){
+  const areaSqm = (widthM || 0) * (depthM || 0);
+  if(areaSqm <= 0) return { feasible: true, areaSqm: 0 }; // no footprint entered yet — nothing to reject yet
+  if(areaSqm < MIN_DOUBLE_DECK_AREA_SQM){
+    return {
+      feasible: false, areaSqm,
+      reason: `Double Deck is not feasible for a ${areaSqm.toFixed(1)} sqm booth — a real ${DOUBLE_DECK_MIN_STAIR_WIDTH_M.toFixed(1)} m-wide staircase plus a genuinely usable upper deck needs at least ${MIN_DOUBLE_DECK_AREA_SQM} sqm of footprint. Please increase the booth size or switch to a single level.`
+    };
+  }
+  return { feasible: true, areaSqm };
+}
+
 // Reads which of Front/Back(Rear)/Left/Right an LPE-001 position label (e.g. "Front Left",
 // "Rear", "Center") actually touches, so a storage enclosure assigned that position can be
 // flushed exactly against a real perimeter wall instead of floating with arbitrary margin.
@@ -7431,6 +7524,10 @@ function getMissingRequirements(m){
     if(!depth) missing.push('depth');
     if(!totalHeight) missing.push('booth height');
     if(levels === '2' && upperDeckPurposeCount === 0) missing.push('at least one Purpose of the Upper Deck (since you selected a double-deck booth)');
+    if(levels === '2'){
+      const feasibility = computeDoubleDeckFeasibility(parseFloat(width), parseFloat(depth));
+      if(!feasibility.feasible) missing.push(feasibility.reason);
+    }
     if(colorHexes.length === 0) missing.push('at least one brand color');
     if(!logoDataUrl) missing.push('a company logo');
     if(hasPosters.startsWith('yes') && posterFiles.length === 0) missing.push('at least one poster file (or switch to "No — need new designs")');
@@ -7732,6 +7829,19 @@ async function generateDesign(){
     errBox.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
+  if(mode === 'booth' && levels === '2'){
+    // Rule 7 (Scale Validation Engine) — a hard block, not just prompt-level guidance: a
+    // booth too small to fit a real staircase plus a usable upper deck must reject Double
+    // Deck outright here, before ever reaching the model, rather than rely on the model to
+    // notice on its own and quietly shrink something below human scale to make it fit.
+    const doubleDeckFeasibility = computeDoubleDeckFeasibility(parseFloat(width), parseFloat(depth));
+    if(!doubleDeckFeasibility.feasible){
+      errBox.textContent = doubleDeckFeasibility.reason;
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+  }
   if(mode === 'booth' && colorHexes.length === 0){
     errBox.textContent = 'Please add at least one brand color.';
     errBox.style.display = 'block';
@@ -7988,6 +8098,12 @@ ${EPS_019}
 
 <<EPS-019 END>>
 
+<<EPS-020 START>>
+
+${EPS_020}
+
+<<EPS-020 END>>
+
 <<APS-001 START>>
 
 ${APS_001}
@@ -8110,7 +8226,7 @@ DIR-007 — CAMERA INSTRUCTIONS (core rule): a real production test (Red Bull) s
 
 CAMERA ANGLE FOR THIS INITIAL RENDER (belongs only in the final RENDERING INSTRUCTIONS section, never earlier): write it in this exact deterministic form, never generic top-view language — this exact sentence is already computed for this specific booth's orientation, copy it verbatim, never substitute a different corner or angle:
 "${cameraApproachText}"
-The image must clearly show: architecture, roof/canopy, furniture, circulation, and spatial depth. Never generate: CAD plans, blueprints, orthographic plans, flat floor plans, or 2D graphics — this must read as a real photorealistic three-dimensional render, not a technical drawing. Never use the phrase "directly above," "looking straight down," or "bird's-eye," and never describe the camera as positioned "directly above" the booth — that specific phrasing has been observed to push the rendering model toward flat, plan-view, blueprint-style output instead of a photorealistic 3D image. This image still becomes the master reference every later camera-angle render is generated from, so keep as much of the layout visible and unambiguous as the 35-45 degree angle allows — but a genuinely three-dimensional, photorealistic image always takes priority over maximizing visibility at the cost of becoming a flat plan. Per EPS-019, this framing is also what keeps the render from wasting frame space on the exhibition hall itself: never a wide shot that leaves large empty aisle space, neighboring booths, or hall signage visible around the design — zoom and crop until the generated booth, and only the generated booth, fills the frame. Still specify lighting setup (e.g. soft diffused daylight simulation plus warm accent spotlights) and overall render quality (photorealistic, high detail, sharp focus, no motion blur, studio-quality composition, empty of people, clean neutral exhibition-hall backdrop per EPS-019 — no neighboring booths, hall branding, aisle numbering, banners, or venue signage anywhere in frame).
+The image must clearly show: architecture, roof/canopy, furniture, circulation, and spatial depth.${levels === '2' ? ' This is a double-deck booth — per EPS-020, the staircase connecting the ground floor to the upper deck is a mandatory element and MUST be clearly visible within this exact camera framing, at the client\'s stated Staircase Position; never crop it out of frame, never let the upper deck read as unreachable, and never substitute a flat railing or implied gap for a real, visible, climbable staircase.' : ''} Never generate: CAD plans, blueprints, orthographic plans, flat floor plans, or 2D graphics — this must read as a real photorealistic three-dimensional render, not a technical drawing. Never use the phrase "directly above," "looking straight down," or "bird's-eye," and never describe the camera as positioned "directly above" the booth — that specific phrasing has been observed to push the rendering model toward flat, plan-view, blueprint-style output instead of a photorealistic 3D image. This image still becomes the master reference every later camera-angle render is generated from, so keep as much of the layout visible and unambiguous as the 35-45 degree angle allows — but a genuinely three-dimensional, photorealistic image always takes priority over maximizing visibility at the cost of becoming a flat plan. Per EPS-019, this framing is also what keeps the render from wasting frame space on the exhibition hall itself: never a wide shot that leaves large empty aisle space, neighboring booths, or hall signage visible around the design — zoom and crop until the generated booth, and only the generated booth, fills the frame. Still specify lighting setup (e.g. soft diffused daylight simulation plus warm accent spotlights) and overall render quality (photorealistic, high detail, sharp focus, no motion blur, studio-quality composition, empty of people, clean neutral exhibition-hall backdrop per EPS-019 — no neighboring booths, hall branding, aisle numbering, banners, or venue signage anywhere in frame).
 
 ARCHITECTURAL PRIORITY CHECKLIST (core rule) — before finalizing image_prompt, silently verify every item below is actually true of what you're about to write; if any item fails, revise the relevant section until it passes before responding. Never print this checklist itself — it is a silent internal check, not part of the output:
 ✓ Hero Structure visible — architecture.hero_structure's ten facts are all present and specific in ARCHITECTURAL CONCEPT.
@@ -8132,6 +8248,13 @@ ARCHITECTURAL PRIORITY CHECKLIST (core rule) — before finalizing image_prompt,
 ✓ No invented zones — per SFE-001's STRICT PROGRAM ADHERENCE rule, every zone anywhere in this prompt (functional_zones, spatial_composition, and the final rendering instructions) is one the VALIDATED SPATIAL PROGRAM's own zone list actually contains; no additional showcase, kiosk, screen, meeting pod, storage room, or display area has been added from EPS-006 or EPS-011's general vocabulary just because it would be typical for this industry or booth size.
 ✓ No unassigned architectural mass — per EPS-017, every architectural volume in this prompt, including the hero structure, corresponds to a named functional element from the VALIDATED SPATIAL PROGRAM (its Functional integration fact is stated explicitly, never "standalone" or "none"); no freestanding cube, tower, monolith, portal, or sculptural feature block appears anywhere with no zone it actually serves or houses.
 ✓ Small booth hero form respected — per EPS-018, if the VALIDATED SPATIAL PROGRAM's total booth area is 16 sqm or smaller, the hero structure's Geometry is one of a feature wall, ceiling element, portal, frame, graphic panel, lighting treatment, or material treatment — never a cube, tower, monolith, or other large central mass, even one that satisfies EPS-017's functional integration requirement.
+✓ Double-deck staircase present — per EPS-020 Rule 2, if the brief's Number of levels is 2, STRUCTURAL PLANNING names a real staircase with its own real-world size (at least 1.0 m wide), positioned exactly at the client's stated Staircase Position, and the rendering instruction for the master image explicitly confirms it is visibly present and reads as a genuine, climbable connection between the ground floor and upper deck — never omitted, never merely implied.
+✓ Double-deck structural support shown — per EPS-020 Rule 3, if Number of levels is 2, the upper deck is carried on real, visible columns, beams, or load-bearing walls down to the ground floor — never floating, never cantilevered with no visible support.
+✓ Double-deck upper floor program is exact — per EPS-020 Rule 4, if Number of levels is 2, the upper floor contains only the functions the client selected under Purpose of the Upper Deck — no additional room, zone, or furniture item invented up there.
+✓ Double-deck guard rails present — per EPS-020 Rule 5, if Number of levels is 2, every exposed edge of the upper deck has a guard rail (glass, steel, aluminum, or a mix, matched to the Upper Deck Style), approximately 1.1 m high — no exposed edge left without one.
+✓ Double-deck ceiling integrated — per EPS-020 Rule 6, if Number of levels is 2, the selected Ceiling & Rigging system is architecturally integrated with the double-deck structure (e.g. a canopy or roof feature over the upper deck) — never omitted just because a second floor exists.
+✓ Double-deck floors architecturally consistent — per EPS-020 Rule 10, if Number of levels is 2, both floors use the same materials, lighting strategy, branding, and geometric concept — the upper floor reads as a continuation of the ground floor, never a separate design.
+✓ Double-deck fully visible in the master render — per EPS-020 Rule 12, if Number of levels is 2, the primary render clearly shows the ground floor, upper floor, staircase, structural supports, and ceiling feature (if selected) — the second floor is never hidden, cropped out, or omitted.
 
 You are given two things in the user message: (1) the hidden analysis JSON, organized into modules — concept (design_objective, architectural_concept), space_planning (visitor_flow, functional_zones), spatial_feasibility (scale_validation), spatial_composition (composition_strategy), architecture (architectural_geometry, hero_structure), materials (primary_materials), lighting (lighting_strategy, accent_lighting_palette), branding (brand_integration) — and (2) the client's original brief, included only so you can pull literal facts (exact numbers, hex codes, counts, style names) precisely. Use (1) as the architectural backbone of every section below; use (2) only to insert precise literal facts into the correct sections — never let (2) reopen a decision already settled in (1). architecture.architectural_geometry and architecture.hero_structure are already the concrete, deterministic translation of architectural_concept's narrative (per DIR-005) — carry their labeled facts into ARCHITECTURAL CONCEPT verbatim (geometry before hero structure, the same order they were decided in), never re-abstract them back into mood language or storytelling. spatial_composition.composition_strategy is likewise already decided (per SCE-001) — carry its labeled facts into SPACE PLANNING verbatim, never re-derive a different composition. lighting.accent_lighting_palette is likewise already decided (per DIR-012) — carry its labeled facts into LIGHTING STRATEGY verbatim, and enforce it on every decorative/accent lighting mention anywhere else in the prompt. spatial_feasibility.scale_validation is likewise already decided (per SFE-001) and is never printed anywhere in the output — it is a hidden validation record only; use its Hero Structure Scale Tier, surviving zones, and Circulation Density to keep ARCHITECTURAL CONCEPT, SPACE PLANNING, VISITOR FLOW, and STRUCTURAL PLANNING all consistent with this booth's real scale, never re-deriving a different scale of your own. Per SSE-001, that same field's zone list already carries each surviving zone's own literal "Build ___ exactly ___ mm" sentence — copy those verbatim into STRUCTURAL PLANNING, never re-estimating a dimension the plan already gives. Per LPE-001, that same zone list also already carries each surviving zone's assigned Position (region label and coordinates) — copy those verbatim into SPACE PLANNING and architecture.hero_structure wherever a position is stated, never re-deriving a different layout of your own.
 
