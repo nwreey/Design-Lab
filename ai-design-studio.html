@@ -313,6 +313,8 @@
   .prompt-card textarea.prompt-text-input{width:100%;min-height:110px;font-family:'Space Grotesk',sans-serif;font-size:13.5px;line-height:1.6;border:1.5px solid var(--line);border-radius:2px;padding:10px 12px;resize:vertical;}
 
   .action-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 6px;padding:12px;background:#fff;border:1.5px solid var(--line);border-radius:2px;}
+  .download-bar{display:flex;justify-content:flex-end;margin:10px 0 0;}
+  .download-bar #downloadRenderBtn{margin:0;}
   .action-bar select{padding:8px 10px;border:1.5px solid var(--line);border-radius:2px;font-family:'Space Grotesk',sans-serif;font-size:12.5px;background:#fff;}
   .free-modification-note{
     font-size:12.5px;line-height:1.55;color:#7a5c00;
@@ -2580,6 +2582,9 @@ Replace only the materials and graphics."></textarea>
         <div class="render-frame" id="renderSlotFrame">
           <img id="renderSlotImg" alt="AI rendered concept" style="display:none;" onclick="openImageLightbox(this.src)">
         </div>
+        <div class="download-bar" id="downloadBar">
+          <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;">Download image</button>
+        </div>
       </div>
 
       <div class="grid-area-history">
@@ -2594,7 +2599,6 @@ Replace only the materials and graphics."></textarea>
 
       <div class="grid-area-actionbar">
         <div class="action-bar" id="actionBar">
-          <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;">Download image</button>
           <button class="ghost small" onclick="openModifyDesignPanel()">Modify design</button>
           <button class="primary small" id="approveDesignBtn" onclick="approveDesign()">Approve</button>
           <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()" style="margin-left:auto;">Other option</button>
@@ -8693,9 +8697,15 @@ async function confirmRegenerateOtherOption(){
   // both are handed back in the finally block below regardless of success or failure.
   if(approveBtn) approveBtn.disabled = true;
   if(modifyBtn) modifyBtn.disabled = true;
+  let stopSim = null;
   if(activeOptionIndex === idx){
     setStatusError(statusEl, '');
-    updateApproveProgress(15, 'Generating another option... this can take up to a minute. Your existing pictures and views are untouched.');
+    const otherOptionProgressMsg = 'Generating another option... this can take up to a minute. Your existing pictures and views are untouched.';
+    updateApproveProgress(15, otherOptionProgressMsg);
+    // Creeps from 15% toward 92% over ~45s while the single generation call is in flight —
+    // see startSimulatedProgress's comment for why this replaces the old frozen-then-jump
+    // behavior between the initial 15% and the final 100%.
+    stopSim = startSimulatedProgress(15, 92, otherOptionProgressMsg, 45000);
   }
 
   try{
@@ -8735,6 +8745,7 @@ async function confirmRegenerateOtherOption(){
       renderModifyUsageIndicator();
     }
     if(activeOptionIndex === idx){
+      if(stopSim) stopSim();
       document.getElementById('renderSlotImg').src = compressed;
       renderGalleryStrip();
       renderGalleryNav();
@@ -8744,6 +8755,7 @@ async function confirmRegenerateOtherOption(){
       hideApproveProgress();
     }
   }catch(err){
+    if(stopSim) stopSim();
     if(activeOptionIndex === idx){
       hideApproveProgress();
       setStatusError(statusEl, 'Could not generate another option: ' + (err && err.message ? err.message : 'unknown error'));
@@ -9893,6 +9905,29 @@ function updateApproveProgress(percent, message){
 function hideApproveProgress(){
   const wrap = document.getElementById('approveProgress');
   if(wrap) wrap.style.display = 'none';
+}
+
+// Real reported problem: "Other option" (and any other single-blocking-call flow) set the
+// bar to one fixed percent the instant the request started, then never touched it again
+// until the real response came back and jumped straight to 100% — so for the entire wait
+// (anywhere from a few seconds to nearly a minute) the bar looked completely frozen, then
+// snapped, instead of ever reflecting how much of that wait had actually passed. This fakes
+// smooth, continuous motion for exactly that in-between span: it creeps the displayed
+// percent from startPercent toward (but deliberately never reaching) capPercent, fast at
+// first and slowing to a crawl the longer it runs, so the bar always looks alive while the
+// real request is still in flight — without ever claiming to be further along than a
+// typical request of this kind actually is. Call the returned stop() the moment the real
+// result lands (success or failure), then set the real final percent yourself right after.
+function startSimulatedProgress(startPercent, capPercent, message, estimatedDurationMs){
+  let elapsed = 0;
+  const stepMs = 400;
+  const timer = setInterval(() => {
+    elapsed += stepMs;
+    const t = elapsed / estimatedDurationMs;
+    const eased = 1 - Math.exp(-t * 2.2); // fast early, asymptotically slows — never hits 1
+    updateApproveProgress(startPercent + (capPercent - startPercent) * eased, message);
+  }, stepMs);
+  return function stopSimulatedProgress(){ clearInterval(timer); };
 }
 
 // Once a design is approved, the concept itself is permanently locked — Modify design,
