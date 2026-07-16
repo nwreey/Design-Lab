@@ -9524,6 +9524,14 @@ async function generateCameraViewsFromHero(heroImage){
   renderGeneratedViewCard(heroCamId, 'done', compressedFront);
   let previousViewDataUrl = compressedFront;
   updateApproveProgress(10, `Creating All Views — 1 of ${CAMERA_SPECS.length}...`);
+  // Real reported problem: only ever saving once, at the very end of this whole loop, meant
+  // a page refresh (or a lost connection, or just closing the tab) partway through a
+  // multi-minute run wiped out every view already generated — restoreGeneratedViewsIfSaved
+  // had nothing to restore, because nothing had been saved yet. Saving after every single
+  // view (this one included) means a refresh mid-generation only ever loses the ONE view
+  // that was in flight at that exact moment — everything already finished survives, and
+  // that one in-flight view just becomes another card the person can hit Retry on.
+  saveCurrentProject();
 
   let stoppedEarly = false;
   for(let i = 1; i < CAMERA_SPECS.length; i++){
@@ -9563,6 +9571,9 @@ async function generateCameraViewsFromHero(heroImage){
       console.error('Could not generate view for', spec.camId, err);
       renderGeneratedViewCard(spec.camId, 'failed', err.message || 'Could not generate that view.');
     }
+    // Saved after every view, success or failure — see the comment above the first save
+    // call for why this can't just wait until the whole batch finishes.
+    saveCurrentProject();
   }
 
   if(stopBtn) stopBtn.style.display = 'none';
@@ -11023,9 +11034,44 @@ function restoreGeneratedViewsIfSaved(project){
   viewCardHistories = savedHistories;
   approvedDesignDecisions = project.approvedDesignDecisions || [];
   editDesignApprovedCount = project.editDesignApprovedCount || 0;
+
+  // Restore the camera plan itself and the hero reference image, if this project was saved
+  // after that support was added. Without these, Retry has no spec/hero image to work from
+  // for any view that failed or was never attempted before a reload — old saves simply won't
+  // have this field, and that's fine, everything below degrades gracefully without it.
+  if(project.cameraSpecs && project.cameraSpecs.length){
+    CAMERA_SPECS = project.cameraSpecs;
+    Object.keys(VIEWER_CAMERA_LABELS).forEach(key => {
+      if(/^CAM\d+$/.test(key)) delete VIEWER_CAMERA_LABELS[key];
+    });
+    CAMERA_SPECS.forEach(spec => { VIEWER_CAMERA_LABELS[spec.camId] = spec.name; });
+  }
+  if(project.cameraViewsHeroRef){
+    cameraViewsHeroRef = project.cameraViewsHeroRef;
+  }
+
   document.getElementById('viewer3dGeneratedCard').style.display = 'block';
   document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
+
+  // Iterate the full expected camera list (when known) instead of only the keys present in
+  // viewCardHistories, so a view that failed or was never reached before a refresh still
+  // shows up as an explicit "not yet generated — click Retry" card rather than silently
+  // being missing from the grid.
+  const expectedCamIds = (CAMERA_SPECS && CAMERA_SPECS.length) ? CAMERA_SPECS.map(s => s.camId) : Object.keys(viewCardHistories);
+  const seen = new Set();
+  expectedCamIds.forEach(camId => {
+    seen.add(camId);
+    const hist = viewCardHistories[camId];
+    if(hist && hist.images && hist.images.length){
+      renderGeneratedViewCard(camId, 'done', hist.images[hist.activeIndex]);
+    }else{
+      renderGeneratedViewCard(camId, 'failed', 'Not yet generated — click Retry to generate this view.');
+    }
+  });
+  // Any saved history keys outside the current expected list (e.g. edit-design uploads,
+  // the technical board) still need to render — they aren't part of the camera plan.
   Object.keys(viewCardHistories).forEach(camId => {
+    if(seen.has(camId)) return;
     const hist = viewCardHistories[camId];
     if(hist && hist.images && hist.images.length){
       if(camId.startsWith('EDITDESIGN_') && !VIEWER_CAMERA_LABELS[camId]){
@@ -11037,6 +11083,7 @@ function restoreGeneratedViewsIfSaved(project){
       renderGeneratedViewCard(camId, 'done', hist.images[hist.activeIndex]);
     }
   });
+
   document.getElementById('goodLuckMessage').style.display = 'block';
   document.getElementById('techBoardActions').style.display = 'flex';
   document.getElementById('rateUsLabel').textContent = 'How would you rate this design?';
@@ -11081,7 +11128,12 @@ async function saveCurrentProject(){
     cameraPanelApproved: document.getElementById('viewer3dGeneratedCard').style.display === 'block',
     viewCardHistories: viewCardHistories || {},
     approvedDesignDecisions: approvedDesignDecisions || [],
-    editDesignApprovedCount: editDesignApprovedCount || 0
+    editDesignApprovedCount: editDesignApprovedCount || 0,
+    // Persisted so a mid-generation page refresh can fully resume: without these, the
+    // camera plan (names/types/azimuths) and the hero reference image used to generate
+    // each view are both gone after reload, and Retry has nothing to retry with.
+    cameraSpecs: (CAMERA_SPECS && CAMERA_SPECS.length) ? CAMERA_SPECS : null,
+    cameraViewsHeroRef: cameraViewsHeroRef || null
   };
   return dbPutProject(project)
     .then(() => {
