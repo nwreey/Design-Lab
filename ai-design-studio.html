@@ -7145,6 +7145,63 @@ function extractJsonFromModelText(rawText){
   return rawText.trim();
 }
 
+// Real production failure: a Stage 2 response came back starting cleanly with
+// { "title": "Vault Elegance", "image_prompt": "LAYER 1 — ARCHITECTURAL LAYER\n\n..." — a
+// complete, correctly-shaped response (finish_reason was NOT 'length', so it wasn't
+// truncated) that still failed strict JSON.parse. image_prompt is a huge multi-paragraph
+// free-text document, and a documented GPT-4o failure mode is quoting a phrase inside it
+// (e.g. describing something as "Inspired by trust and protection") without escaping that
+// inner quote — one stray unescaped " anywhere in thousands of words of prose is enough to
+// break strict JSON parsing even though the response is otherwise exactly right. Stage 2's
+// schema is fixed — always exactly these three string keys, in this exact order (see the
+// literal example in buildPromptFromAnalysisSystem) — so instead of asking JSON.parse to
+// tolerate malformed escaping, this locates each field by its known key boundary and takes
+// the raw text between them directly, tolerating stray quotes inside the values.
+function extractStage2FieldsLeniently(rawText){
+  const titleKeyIdx = rawText.indexOf('"title"');
+  const promptKeyIdx = rawText.indexOf('"image_prompt"');
+  const descKeyIdx = rawText.indexOf('"concept_description"');
+  if(titleKeyIdx === -1 || promptKeyIdx === -1 || descKeyIdx === -1) return null;
+
+  function valueStartAfterKey(text, keyIdx){
+    const colonIdx = text.indexOf(':', keyIdx);
+    if(colonIdx === -1) return null;
+    let i = colonIdx + 1;
+    while(i < text.length && /\s/.test(text[i])) i++;
+    return text[i] === '"' ? i + 1 : null;
+  }
+
+  // Walks backward from the start of the NEXT known key to the nearest preceding quote —
+  // reliable here because the model never legitimately writes the literal key names
+  // ("image_prompt", "concept_description") inside its own prose.
+  function valueEndBeforeNextKey(text, valStart, nextKeyIdx){
+    let i = nextKeyIdx - 1;
+    while(i > valStart && text[i] !== '"') i--;
+    return i > valStart ? i : -1;
+  }
+
+  const titleValStart = valueStartAfterKey(rawText, titleKeyIdx);
+  const promptValStart = valueStartAfterKey(rawText, promptKeyIdx);
+  const descValStart = valueStartAfterKey(rawText, descKeyIdx);
+  if(titleValStart == null || promptValStart == null || descValStart == null) return null;
+
+  const titleEnd = valueEndBeforeNextKey(rawText, titleValStart, promptKeyIdx);
+  const promptEnd = valueEndBeforeNextKey(rawText, promptValStart, descKeyIdx);
+  const lastBrace = rawText.lastIndexOf('}');
+  const descEnd = valueEndBeforeNextKey(rawText, descValStart, lastBrace === -1 ? rawText.length : lastBrace);
+  if(titleEnd === -1 || promptEnd === -1 || descEnd === -1) return null;
+
+  function unescape(s){
+    return s.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  }
+
+  return {
+    title: unescape(rawText.slice(titleValStart, titleEnd)),
+    image_prompt: unescape(rawText.slice(promptValStart, promptEnd)),
+    concept_description: unescape(rawText.slice(descValStart, descEnd))
+  };
+}
+
 async function callPromptWriterApi(system, content){
   const response = await fetch("/api/generate", {
     method: "POST",
@@ -7186,6 +7243,12 @@ async function callPromptWriterApi(system, content){
     if(data.finish_reason === 'length'){
       throw new Error('The response was cut off because it hit the model\'s output length limit before finishing — try Generate again; if this keeps happening, the design record has grown too large for a single response and needs a higher token limit.');
     }
+    // Recover Stage 2's fixed title/image_prompt/concept_description shape directly by key
+    // boundary before giving up — see extractStage2FieldsLeniently's comment for why this is
+    // needed (a stray unescaped quote inside image_prompt's long prose is a real, observed
+    // failure mode that breaks strict JSON.parse on an otherwise complete, correct response).
+    const lenient = extractStage2FieldsLeniently(cleaned);
+    if(lenient) return lenient;
     throw new Error('Could not parse the response as JSON. It may have been cut off — response started with: "' + cleaned.slice(0, 160) + '..."');
   }
 }
