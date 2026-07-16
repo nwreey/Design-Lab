@@ -117,6 +117,34 @@
     .sidebar{width:100%;border-right:none;border-bottom:1.5px solid var(--navy);position:static;min-height:0;max-height:none;}
   }
 
+  /* RTL layout (Arabic) — scoped to the structural layout and text-alignment defaults that
+     matter for a genuinely mirrored reading experience: sidebar moves to the right, body text
+     and form labels flip to right-aligned, the header's brandmark/right-side controls swap
+     sides. Deliberately not an exhaustive per-element audit of every inline style in the file
+     (matches the "core flow now, extend later" scope already agreed for translation coverage);
+     numeric inputs (dimensions, hex codes) are explicitly kept LTR below since digits and hex
+     values read the same direction regardless of UI language. Toggled by setLanguage() setting
+     dir="rtl" on <html> for Arabic and dir="ltr" for every other language. */
+  html[dir="rtl"]{direction:rtl;}
+  html[dir="rtl"] body{direction:rtl;text-align:right;}
+  html[dir="rtl"] .app-layout{flex-direction:row-reverse;}
+  html[dir="rtl"] .sidebar{border-right:none;border-left:1.5px solid var(--navy);}
+  html[dir="rtl"] header{flex-direction:row-reverse;}
+  html[dir="rtl"] .brandmark{flex-direction:row-reverse;}
+  html[dir="rtl"] .header-right{align-items:flex-start;}
+  html[dir="rtl"] .ref{text-align:left;}
+  html[dir="rtl"] .lang-switcher{flex-direction:row-reverse;}
+  html[dir="rtl"] label{text-align:right;}
+  html[dir="rtl"] .required-mark{margin-right:4px;margin-left:0;}
+  html[dir="rtl"] input[type="number"],
+  html[dir="rtl"] input.color-hex,
+  html[dir="rtl"] #uploadExistingWidth, html[dir="rtl"] #uploadExistingDepth, html[dir="rtl"] #uploadExistingHeight{
+    direction:ltr;text-align:right;
+  }
+  @media(max-width:820px){
+    html[dir="rtl"] .sidebar{border-left:none;border-bottom:1.5px solid var(--navy);}
+  }
+
   .wrap{flex:1;max-width:920px;margin:0 auto;padding:36px 20px 80px;min-width:0;}
 
   /* header */
@@ -127,6 +155,8 @@
   .tagline{font-size:13px;color:var(--ink);opacity:.65;margin-top:4px;}
   .ref{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--navy);opacity:.55;text-align:right;}
   .header-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+  .lang-switcher{display:flex;align-items:center;gap:5px;font-size:13px;}
+  .lang-switcher select{font-family:'Space Grotesk',sans-serif;font-size:12.5px;padding:4px 6px;border:1.5px solid var(--line);border-radius:2px;background:#fff;color:var(--ink);cursor:pointer;}
   .logout-btn{
     font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.03em;
     background:transparent;color:var(--navy);border:1.5px solid var(--navy);
@@ -476,8 +506,8 @@
   <aside class="sidebar">
     <div class="sidebar-top-fixed">
       <div class="sidebar-header">
-        <h2>Projects</h2>
-        <button class="ghost small" onclick="startNewProject()">+ New</button>
+        <h2 data-i18n="sidebar.projectsHeading">Projects</h2>
+        <button class="ghost small" onclick="startNewProject()" data-i18n="sidebar.newProject">+ New</button>
       </div>
       <div id="projectSaveError" class="project-save-error" style="display:none;"></div>
     </div>
@@ -489,32 +519,32 @@
       </div>
       <button type="button" class="project-scroll-arrow" id="projectScrollDownBtn" onclick="scrollProjectList(1)" aria-label="Scroll down" style="display:none;">▼</button>
     </div>
-    <div class="sidebar-note">Projects save automatically and sync across devices.</div>
+    <div class="sidebar-note" data-i18n="sidebar.autoSaveNote">Projects save automatically and sync across devices.</div>
 
     <div class="sidebar-upload-existing">
-      <div class="sidebar-upload-divider">or</div>
-      <div class="sidebar-upload-dims-label">Booth size (required)</div>
+      <div class="sidebar-upload-divider" data-i18n="sidebar.or">or</div>
+      <div class="sidebar-upload-dims-label" data-i18n="sidebar.boothSizeRequired">Booth size (required)</div>
       <div class="sidebar-upload-dims-row">
-        <input type="number" id="uploadExistingWidth" placeholder="W (m)" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
-        <input type="number" id="uploadExistingDepth" placeholder="D (m)" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
-        <input type="number" id="uploadExistingHeight" placeholder="H (m)" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
+        <input type="number" id="uploadExistingWidth" placeholder="W (m)" data-i18n-placeholder="ph.widthShort" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
+        <input type="number" id="uploadExistingDepth" placeholder="D (m)" data-i18n-placeholder="ph.depthShort" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
+        <input type="number" id="uploadExistingHeight" placeholder="H (m)" data-i18n-placeholder="ph.heightShort" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
       </div>
-      <input type="text" id="uploadExistingProjectName" placeholder="Project name" style="margin-top:8px;" oninput="updateUploadExistingButtonState()">
+      <input type="text" id="uploadExistingProjectName" placeholder="Project name" data-i18n-placeholder="ph.projectNameShort" style="margin-top:8px;" oninput="updateUploadExistingButtonState()">
       <input type="file" id="existingDesignUpload" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleExistingDesignUpload(this)">
-      <button class="ghost small" id="uploadExistingBtn" style="width:100%;" disabled onclick="document.getElementById('existingDesignUpload').click()">Upload an existing design</button>
-      <div class="hint" style="margin-top:4px;">Enter the booth size and a project name above to enable upload.</div>
-      <div class="sidebar-note">Already have a finished design? Upload it to skip the form and jump straight to camera views.</div>
+      <button class="ghost small" id="uploadExistingBtn" style="width:100%;" disabled onclick="document.getElementById('existingDesignUpload').click()" data-i18n="sidebar.uploadExistingBtn">Upload an existing design</button>
+      <div class="hint" style="margin-top:4px;" data-i18n="sidebar.uploadExistingHint">Enter the booth size and a project name above to enable upload.</div>
+      <div class="sidebar-note" data-i18n="sidebar.uploadExistingNote">Already have a finished design? Upload it to skip the form and jump straight to camera views.</div>
     </div>
 
     <div class="sidebar-bottom-fixed">
       <div class="usage-summary" id="usageSummaryPanel" style="display:none;">
-        <div class="usage-summary-eyebrow">Account Usage</div>
+        <div class="usage-summary-eyebrow" data-i18n="sidebar.accountUsage">Account Usage</div>
         <div id="projectUsageIndicator" class="usage-row"></div>
         <div id="modifyUsageIndicator" class="usage-row"></div>
         <div id="editUsageIndicator" class="usage-row"></div>
       </div>
 
-      <div class="buy-more-prompt" id="buyMorePrompt" style="display:none;">
+      <div class="buy-more-prompt" id="buyMorePrompt" style="display:none;" data-i18n="sidebar.buyMore">
         Buy more usage — coming soon.
       </div>
 
@@ -542,22 +572,26 @@
         <circle cx="29" cy="28" r="6" stroke="#6B6F76" stroke-width="2"/>
       </svg>
       <div>
-        <h1>AI Design Studio</h1>
-        <div class="tagline">Describe your idea in words, get a starting concept layout for your booth or event</div>
+        <h1 data-i18n="app.title">AI Design Studio</h1>
+        <div class="tagline" data-i18n="app.tagline">Describe your idea in words, get a starting concept layout for your booth or event</div>
       </div>
     </div>
     <div class="header-right">
+      <div class="lang-switcher">
+        <span aria-hidden="true">🌐</span>
+        <select id="languageSelector" onchange="setLanguage(this.value)" aria-label="Language / اللغة / Langue / Sprache / Idioma / Lingua / 语言 / 言語"></select>
+      </div>
       <div class="ref">REV. AI‑01</div>
-      <a href="/admin.html" class="logout-btn" id="adminPanelLink" style="display:none;text-decoration:none;">Admin panel</a>
-      <button type="button" class="logout-btn primary-action" onclick="logOut()">Log out</button>
+      <a href="/admin.html" class="logout-btn" id="adminPanelLink" style="display:none;text-decoration:none;" data-i18n="app.adminPanel">Admin panel</a>
+      <button type="button" class="logout-btn primary-action" onclick="logOut()" data-i18n="app.logout">Log out</button>
     </div>
   </header>
 
   <div class="tabs" id="modeTabs">
-    <button class="tab active" id="tabBooth" onclick="setMode('booth')">Exhibition Booth</button>
-    <button class="tab" id="tabEvent" onclick="setMode('event')" style="display:none;">Event Concept</button>
-    <button class="tab" id="tabDisplayStand" onclick="setMode('displaystand')" style="display:none;">Display Stand</button>
-    <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')" style="display:none;">Modify Design</button>
+    <button class="tab active" id="tabBooth" onclick="setMode('booth')" data-i18n="tabs.booth">Exhibition Booth</button>
+    <button class="tab" id="tabEvent" onclick="setMode('event')" style="display:none;" data-i18n="tabs.event">Event Concept</button>
+    <button class="tab" id="tabDisplayStand" onclick="setMode('displaystand')" style="display:none;" data-i18n="tabs.displayStand">Display Stand</button>
+    <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')" style="display:none;" data-i18n="tabs.editDesign">Modify Design</button>
   </div>
 
   <div class="show-form-bar" id="showFormBar" style="display:none;">
@@ -1182,8 +1216,8 @@ Replace only the materials and graphics."></textarea>
   <div class="card" id="formCard">
 
     <!-- shared -->
-    <div class="section-headline" id="eventDetailsHeadline" style="display:none;margin-top:0;">Event Details</div>
-    <div class="section-headline" id="boothDetailsHeadline" style="display:none;margin-top:0;">Booth Details</div>
+    <div class="section-headline" id="eventDetailsHeadline" style="display:none;margin-top:0;" data-i18n="section.eventDetails">Event Details</div>
+    <div class="section-headline" id="boothDetailsHeadline" style="display:none;margin-top:0;" data-i18n="section.boothDetails">Booth Details</div>
     <div class="field">
       <label id="lblName">Project Name</label>
       <input type="text" id="f_name" placeholder="">
@@ -1263,11 +1297,11 @@ Replace only the materials and graphics."></textarea>
     <div id="boothSizeFields">
       <div class="row2">
         <div class="field" id="widthField">
-          <label>Width — W (m) <span class="required-mark">*</span></label>
+          <label><span data-i18n="field.width">Width — W (m)</span> <span class="required-mark">*</span></label>
           <input type="number" id="f_width" placeholder="e.g. 6" min="1" step="0.1">
         </div>
         <div class="field" id="depthField">
-          <label>Depth — D (m) <span class="required-mark">*</span></label>
+          <label><span data-i18n="field.depth">Depth — D (m)</span> <span class="required-mark">*</span></label>
           <input type="number" id="f_depth" placeholder="e.g. 4" min="1" step="0.1">
         </div>
       </div>
@@ -1275,24 +1309,24 @@ Replace only the materials and graphics."></textarea>
 
     <div id="boothDetailsFields" style="display:none;">
       <div class="field">
-        <label>Booth Height (m) <span class="required-mark">*</span></label>
+        <label><span data-i18n="field.boothHeight">Booth Height (m)</span> <span class="required-mark">*</span></label>
         <input type="number" min="0" step="0.1" id="f_totalHeight" placeholder="e.g. 5.5">
       </div>
 
       <div class="field" id="levelsField">
-        <label>Number of levels <span class="required-mark">*</span></label>
+        <label><span data-i18n="field.numberOfLevels">Number of levels</span> <span class="required-mark">*</span></label>
         <select id="f_levels" onchange="toggleUpperFloor(this)">
-          <option value="1" selected>1 — Single level</option>
-          <option value="2">2 — Double-deck (ground + upper floor)</option>
+          <option value="1" selected data-i18n="option.singleLevel">1 — Single level</option>
+          <option value="2" data-i18n="option.doubleDeck">2 — Double-deck (ground + upper floor)</option>
         </select>
       </div>
 
       <div id="upperFloorField" style="display:none;">
-        <div class="section-headline" style="margin-top:18px;">Second Floor Configuration</div>
+        <div class="section-headline" style="margin-top:18px;" data-i18n="sfc.headline">Second Floor Configuration</div>
 
         <div class="field">
-          <label>Purpose of the Upper Deck <span class="required-mark">*</span></label>
-          <div class="hint" style="margin-bottom:10px;">Select all that apply — everything not placed up here is assumed to belong on the ground floor instead.</div>
+          <label><span data-i18n="sfc.purpose">Purpose of the Upper Deck</span> <span class="required-mark">*</span></label>
+          <div class="hint" style="margin-bottom:10px;" data-i18n="sfc.purposeHint">Select all that apply — everything not placed up here is assumed to belong on the ground floor instead.</div>
           <div class="checkbox-grid">
             <label><input type="checkbox" class="upperdeck-purpose-cb" value="VIP Meeting Lounge"> VIP Meeting Lounge</label>
             <label><input type="checkbox" class="upperdeck-purpose-cb" value="Private Meeting Rooms"> Private Meeting Rooms</label>
@@ -1320,53 +1354,53 @@ Replace only the materials and graphics."></textarea>
         </div>
 
         <div class="field">
-          <label>Capacity <span class="required-mark">*</span></label>
+          <label><span data-i18n="sfc.capacity">Capacity</span> <span class="required-mark">*</span></label>
           <select id="f_upperDeckCapacity">
-            <option value="2–4 people">2–4 people</option>
-            <option value="4–8 people" selected>4–8 people</option>
-            <option value="8–12 people">8–12 people</option>
-            <option value="12+ people">12+ people</option>
+            <option value="2–4 people" data-i18n="sfc.capacity.2to4">2–4 people</option>
+            <option value="4–8 people" selected data-i18n="sfc.capacity.4to8">4–8 people</option>
+            <option value="8–12 people" data-i18n="sfc.capacity.8to12">8–12 people</option>
+            <option value="12+ people" data-i18n="sfc.capacity.12plus">12+ people</option>
           </select>
         </div>
 
         <div class="field">
-          <label>Privacy Level <span class="required-mark">*</span></label>
+          <label><span data-i18n="sfc.privacyLevel">Privacy Level</span> <span class="required-mark">*</span></label>
           <select id="f_upperDeckPrivacy">
-            <option value="Fully Open">Fully Open</option>
-            <option value="Semi-Private" selected>Semi-Private</option>
-            <option value="Fully Enclosed">Fully Enclosed</option>
+            <option value="Fully Open" data-i18n="sfc.privacy.open">Fully Open</option>
+            <option value="Semi-Private" selected data-i18n="sfc.privacy.semi">Semi-Private</option>
+            <option value="Fully Enclosed" data-i18n="sfc.privacy.enclosed">Fully Enclosed</option>
           </select>
         </div>
 
         <div class="field">
-          <label>Staircase Position <span class="required-mark">*</span></label>
+          <label><span data-i18n="sfc.staircasePosition">Staircase Position</span> <span class="required-mark">*</span></label>
           <select id="f_staircasePosition">
-            <option value="Front Left">Front Left</option>
-            <option value="Front Right">Front Right</option>
-            <option value="Rear Left">Rear Left</option>
-            <option value="Rear Right">Rear Right</option>
-            <option value="Center">Center</option>
-            <option value="Auto Optimize" selected>Auto Optimize</option>
+            <option value="Front Left" data-i18n="sfc.stair.frontLeft">Front Left</option>
+            <option value="Front Right" data-i18n="sfc.stair.frontRight">Front Right</option>
+            <option value="Rear Left" data-i18n="sfc.stair.rearLeft">Rear Left</option>
+            <option value="Rear Right" data-i18n="sfc.stair.rearRight">Rear Right</option>
+            <option value="Center" data-i18n="sfc.stair.center">Center</option>
+            <option value="Auto Optimize" selected data-i18n="sfc.stair.autoOptimize">Auto Optimize</option>
           </select>
-          <div class="hint">"Auto Optimize" lets the design place the staircase wherever it best preserves open floor and sightlines for this specific booth.</div>
+          <div class="hint" data-i18n="sfc.stairHint">"Auto Optimize" lets the design place the staircase wherever it best preserves open floor and sightlines for this specific booth.</div>
         </div>
 
         <div class="field">
-          <label>Upper Deck Style <span class="required-mark">*</span></label>
+          <label><span data-i18n="sfc.upperDeckStyle">Upper Deck Style</span> <span class="required-mark">*</span></label>
           <select id="f_upperDeckStyle">
-            <option value="Open Terrace">Open Terrace</option>
-            <option value="Glass Balustrade" selected>Glass Balustrade</option>
-            <option value="Solid Walls">Solid Walls</option>
-            <option value="Mixed Open + Glass">Mixed Open + Glass</option>
-            <option value="Luxury Lounge">Luxury Lounge</option>
-            <option value="Minimalist">Minimalist</option>
-            <option value="Industrial">Industrial</option>
+            <option value="Open Terrace" data-i18n="sfc.style.openTerrace">Open Terrace</option>
+            <option value="Glass Balustrade" selected data-i18n="sfc.style.glassBalustrade">Glass Balustrade</option>
+            <option value="Solid Walls" data-i18n="sfc.style.solidWalls">Solid Walls</option>
+            <option value="Mixed Open + Glass" data-i18n="sfc.style.mixed">Mixed Open + Glass</option>
+            <option value="Luxury Lounge" data-i18n="sfc.style.luxury">Luxury Lounge</option>
+            <option value="Minimalist" data-i18n="sfc.style.minimalist">Minimalist</option>
+            <option value="Industrial" data-i18n="sfc.style.industrial">Industrial</option>
           </select>
         </div>
 
         <div class="field">
-          <label>Optional Features</label>
-          <div class="hint" style="margin-bottom:10px;">Select all that apply.</div>
+          <label data-i18n="sfc.optionalFeatures">Optional Features</label>
+          <div class="hint" style="margin-bottom:10px;" data-i18n="sfc.optionalFeaturesHint">Select all that apply.</div>
           <div class="checkbox-grid">
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Pantry"> Pantry</label>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Coffee Bar"> Coffee Bar</label>
@@ -1388,20 +1422,20 @@ Replace only the materials and graphics."></textarea>
         </div>
 
         <div class="field">
-          <label>Additional Notes (Optional)</label>
-          <textarea id="f_upperFloor" placeholder="Describe any special requirements for the second floor..."></textarea>
+          <label data-i18n="sfc.additionalNotes">Additional Notes (Optional)</label>
+          <textarea id="f_upperFloor" placeholder="Describe any special requirements for the second floor..." data-i18n-placeholder="ph.upperFloorNotes"></textarea>
         </div>
       </div>
 
       <div class="field" id="openSidesField">
-        <label>Number of open sides <span class="required-mark">*</span></label>
+        <label><span data-i18n="field.numberOfOpenSides">Number of open sides</span> <span class="required-mark">*</span></label>
         <select id="f_openSides" onchange="toggleOpenSidesSubfields(this)">
-          <option value="1">1 — Inline (walls on 3 sides)</option>
-          <option value="2" selected>2 — Corner (walls on 2 sides)</option>
-          <option value="3">3 — Peninsula (wall on 1 side)</option>
-          <option value="4">4 — Island (no walls)</option>
+          <option value="1" data-i18n="option.inline">1 — Inline (walls on 3 sides)</option>
+          <option value="2" selected data-i18n="option.corner">2 — Corner (walls on 2 sides)</option>
+          <option value="3" data-i18n="option.peninsula">3 — Peninsula (wall on 1 side)</option>
+          <option value="4" data-i18n="option.island">4 — Island (no walls)</option>
         </select>
-        <div class="hint">Determines which sides can carry walls, signage, and branding versus open sightlines into the aisle.</div>
+        <div class="hint" data-i18n="hint.openSides">Determines which sides can carry walls, signage, and branding versus open sightlines into the aisle.</div>
       </div>
 
       <div class="field" id="inlineOpenSideField" style="display:none;">
@@ -1436,11 +1470,11 @@ Replace only the materials and graphics."></textarea>
       </div>
     </div>
 
-    <div class="section-headline" id="eventThemeHeadline" style="display:none;">Event Theme</div>
-    <div class="section-headline" id="boothThemeHeadline" style="display:none;">Booth Theme</div>
+    <div class="section-headline" id="eventThemeHeadline" style="display:none;" data-i18n="section.eventTheme">Event Theme</div>
+    <div class="section-headline" id="boothThemeHeadline" style="display:none;" data-i18n="section.boothTheme">Booth Theme</div>
     <div id="boothThemeFieldsTop" style="display:none;">
       <div class="field" id="colorsField">
-        <label>Brand colors <span class="required-mark">*</span></label>
+        <label><span data-i18n="field.brandColors">Brand colors</span> <span class="required-mark">*</span></label>
         <div id="colorRows">
           <div class="color-row">
             <input type="color" class="color-picker" value="#152241" oninput="syncColorHex(this)">
@@ -1453,8 +1487,8 @@ Replace only the materials and graphics."></textarea>
             <button type="button" class="color-remove" onclick="removeColorRow(this)" aria-label="Remove color">×</button>
           </div>
         </div>
-        <button type="button" class="ghost small" onclick="addColorRow()">+ Add color</button>
-        <div class="hint">Add at least one brand color — the AI will build the full palette around these.</div>
+        <button type="button" class="ghost small" onclick="addColorRow()" data-i18n="btn.addColor">+ Add color</button>
+        <div class="hint" data-i18n="hint.brandColors">Add at least one brand color — the AI will build the full palette around these.</div>
       </div>
 
       <div class="field" id="logoField">
@@ -1462,13 +1496,13 @@ Replace only the materials and graphics."></textarea>
         <div class="logo-upload" id="logoUploadBox" onclick="document.getElementById('f_logo').click()">
           <input type="file" id="f_logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleLogoUpload(this)">
           <img id="logoPreview" alt="Logo preview" style="display:none;">
-          <div id="logoPlaceholder">Click to upload your logo — PNG, JPG, WebP, or SVG</div>
+          <div id="logoPlaceholder" data-i18n="field.logoPlaceholder">Click to upload your logo — PNG, JPG, WebP, or SVG</div>
         </div>
-        <div class="hint">Required. The AI uses the logo's colors and style to keep the concept on-brand.</div>
+        <div class="hint" data-i18n="hint.logo">Required. The AI uses the logo's colors and style to keep the concept on-brand.</div>
       </div>
     </div>
     <div class="field">
-      <label>Architectural style <span class="required-mark">*</span></label>
+      <label><span data-i18n="field.archStyle">Architectural style</span> <span class="required-mark">*</span></label>
       <select id="f_archStyle" onchange="updateArchStyleHint(this)">
         <option value="Modern" selected>Modern</option>
         <option value="Contemporary">Contemporary</option>
@@ -1541,7 +1575,7 @@ Replace only the materials and graphics."></textarea>
     </div>
 
     <div class="field">
-      <label>Construction style <span class="required-mark">*</span></label>
+      <label><span data-i18n="field.constructionStyle">Construction style</span> <span class="required-mark">*</span></label>
       <select id="f_constructionStyle">
         <option value="Shell Scheme">Shell Scheme</option>
         <option value="Enhanced Shell Scheme">Enhanced Shell Scheme</option>
@@ -1552,11 +1586,11 @@ Replace only the materials and graphics."></textarea>
         <option value="Double Deck Structure">Double Deck Structure</option>
         <option value="Sustainable / Eco Build">Sustainable / Eco Build</option>
       </select>
-      <div class="hint">Defines material quality and build complexity — important for construction feasibility.</div>
+      <div class="hint" data-i18n="hint.constructionStyle">Defines material quality and build complexity — important for construction feasibility.</div>
     </div>
 
     <div class="field">
-      <label>Brand personality <span class="required-mark">*</span></label>
+      <label><span data-i18n="field.brandPersonality">Brand personality</span> <span class="required-mark">*</span></label>
       <div class="requirements-grid" id="brandPersonalityGrid"></div>
       <div class="hint" id="brandPersonalityHint">Select up to 3, in order — the first you check is Primary (greatest influence), then Secondary, then Accent. Adds an emotional/brand layer on top of the styles above — never overrides them.</div>
     </div>
@@ -2029,12 +2063,12 @@ Replace only the materials and graphics."></textarea>
         </div>
       </div>
 
-      <div class="section-headline" id="requirementsHeadline" style="display:none;">Requirements</div>
+      <div class="section-headline" id="requirementsHeadline" style="display:none;" data-i18n="section.requirements">Requirements</div>
       <div class="field" id="additionalReqField">
-        <div class="hint" style="margin-top:0;margin-bottom:10px;">Select at least 2 <span class="required-mark">*</span> — check any that apply and specify exact quantities. Anything left unchecked here follows EPS-011's normal size-based defaults instead. Categories are collapsed by default — click a category name to expand it.</div>
+        <div class="hint" style="margin-top:0;margin-bottom:10px;"><span data-i18n="hint.requirements">Select at least 2</span> <span class="required-mark">*</span> <span data-i18n="hint.requirementsRest">— check any that apply and specify exact quantities. Anything left unchecked here follows EPS-011's normal size-based defaults instead. Categories are collapsed by default — click a category name to expand it.</span></div>
         <div style="margin-bottom:10px;">
-          <button type="button" class="ghost small" onclick="setAllReqCategoriesCollapsed(false)">Expand all</button>
-          <button type="button" class="ghost small" onclick="setAllReqCategoriesCollapsed(true)">Collapse all</button>
+          <button type="button" class="ghost small" onclick="setAllReqCategoriesCollapsed(false)" data-i18n="btn.expandAll">Expand all</button>
+          <button type="button" class="ghost small" onclick="setAllReqCategoriesCollapsed(true)" data-i18n="btn.collapseAll">Collapse all</button>
         </div>
 
         <div class="requirements-grid">
@@ -2630,8 +2664,12 @@ Replace only the materials and graphics."></textarea>
 
     <div class="field">
       <label id="lblDesc">Describe what you want in detail: the goal, products or activities on display, visual identity, any special requirements</label>
-      <textarea id="f_desc" placeholder="e.g. Booth for a tech startup. We need an interactive product display area, a private meeting corner, and a large display screen. Brand identity in deep navy and gold."></textarea>
-      <div class="hint">This description is what the AI builds the concept from — the more specific it is, the closer the result will be to what you have in mind.</div>
+      <textarea id="f_desc" placeholder="e.g. Booth for a tech startup. We need an interactive product display area, a private meeting corner, and a large display screen. Brand identity in deep navy and gold." data-i18n-placeholder="ph.desc"></textarea>
+      <!-- See translateDescriptionIfNeeded() — shown only when the description was actually
+           auto-translated to English for generation; the original text in the textarea above
+           is never overwritten, only what's sent to the AI. -->
+      <div class="hint" id="descTranslateNotice" style="display:none;"></div>
+      <div class="hint" data-i18n="hint.desc">This description is what the AI builds the concept from — the more specific it is, the closer the result will be to what you have in mind.</div>
     </div>
 
     <div class="field" id="modularWallLayoutField">
@@ -2650,7 +2688,7 @@ Replace only the materials and graphics."></textarea>
     </div>
 
     <div class="submit-bar">
-      <button class="primary" id="submitBtn" onclick="generateDesign()">Generate Design</button>
+      <button class="primary" id="submitBtn" onclick="generateDesign()" data-i18n="btn.generateDesign">Generate Design</button>
     </div>
 
     <div id="loading">
@@ -2697,20 +2735,20 @@ Replace only the materials and graphics."></textarea>
         <div id="galleryStrip" class="gallery-strip"></div>
 
         <div class="gallery-nav" id="galleryNav" style="display:none;">
-          <button class="ghost small" id="galleryPrevBtn" onclick="goToPreviousGalleryEntry()">‹ Previous</button>
+          <button class="ghost small" id="galleryPrevBtn" onclick="goToPreviousGalleryEntry()" data-i18n="btn.previous">‹ Previous</button>
           <div class="gallery-nav-label" id="galleryNavLabel"></div>
-          <button class="ghost small" id="galleryNextBtn" onclick="goToNextGalleryEntry()">Next ›</button>
+          <button class="ghost small" id="galleryNextBtn" onclick="goToNextGalleryEntry()" data-i18n="btn.next">Next ›</button>
         </div>
       </div>
 
       <div class="grid-area-actionbar">
         <div class="action-bar" id="actionBar">
-          <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;">Download image</button>
-          <button class="ghost small" onclick="openModifyDesignPanel()">Modify design</button>
-          <button class="primary small" id="approveDesignBtn" onclick="approveDesign()">Approve</button>
-          <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()" style="margin-left:auto;">Other option</button>
+          <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;" data-i18n="btn.downloadImage">Download image</button>
+          <button class="ghost small" onclick="openModifyDesignPanel()" data-i18n="btn.modifyDesign">Modify design</button>
+          <button class="primary small" id="approveDesignBtn" onclick="approveDesign()" data-i18n="btn.approve">Approve</button>
+          <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()" style="margin-left:auto;" data-i18n="btn.otherOption">Other option</button>
         </div>
-        <div class="free-modification-note" id="freeModificationNote" style="display:none;">
+        <div class="free-modification-note" id="freeModificationNote" style="display:none;" data-i18n="note.freeModification">
           ✦ Your first modification or other option on this design is on us — occasionally the initial render needs a quick adjustment, and that one won't count against your usage.
         </div>
         <div class="action-status" id="actionStatus"></div>
@@ -2843,7 +2881,7 @@ Replace only the materials and graphics."></textarea>
       <h3 id="customAlertTitle" style="display:none;"></h3>
       <p id="customAlertText"></p>
       <div style="display:flex;gap:10px;">
-        <button class="ghost" id="customAlertCancelBtn" onclick="__resolveCustomAlert(false)" style="flex:1;display:none;">Cancel</button>
+        <button class="ghost" id="customAlertCancelBtn" onclick="__resolveCustomAlert(false)" style="flex:1;display:none;" data-i18n="common.cancel">Cancel</button>
         <button class="primary" id="customAlertOkBtn" onclick="__resolveCustomAlert(true)" style="flex:1;">OK</button>
       </div>
     </div>
@@ -2859,7 +2897,7 @@ Replace only the materials and graphics."></textarea>
       <p id="customPromptText"></p>
       <input type="text" id="customPromptInput" class="custom-prompt-input" onkeydown="if(event.key==='Enter'){ event.preventDefault(); __resolveCustomPrompt(true); }">
       <div style="display:flex;gap:10px;margin-top:14px;">
-        <button class="ghost" id="customPromptCancelBtn" onclick="__resolveCustomPrompt(false)" style="flex:1;">Cancel</button>
+        <button class="ghost" id="customPromptCancelBtn" onclick="__resolveCustomPrompt(false)" style="flex:1;" data-i18n="common.cancel">Cancel</button>
         <button class="primary" id="customPromptOkBtn" onclick="__resolveCustomPrompt(true)" style="flex:1;">OK</button>
       </div>
     </div>
@@ -2969,6 +3007,1133 @@ Replace only the materials and graphics."></textarea>
 </div>
 
 <script>
+/* ================= I18N — Localization Engine =================
+   Architecture: one flat, dot-namespaced key -> string dictionary per language, all registered
+   in I18N_DICTIONARIES near the bottom of this section. ADDING A NEW LANGUAGE requires exactly
+   two steps and no other application-code changes anywhere else in this file:
+     1. Add a new `const I18N_XX = { ...same keys as I18N_EN... };` object (copy I18N_EN as the
+        template — every key it doesn't yet have simply falls back to English, so a partial
+        translation still renders a fully working app).
+     2. Add one entry to LANGUAGE_OPTIONS (code, native display name, text direction) and one
+        line to I18N_DICTIONARIES (`xx: I18N_XX`).
+   That's it — the selector, persistence, RTL handling, and every t()/applyTranslations() call
+   site already work generically off these two registries.
+
+   SCOPE (Phase 1 — core flow, by deliberate agreement): every field on the primary Exhibition
+   Booth path a person must fill in to generate a design, the main action buttons, the generic
+   dialog buttons, and the core validation/status messages. Event mode's own fields, Display
+   Stand mode, admin-only fields, and the long enumerated checklists (Requirements, Required
+   Areas, Flooring/Ceiling sub-fields, the individual Second Floor Purpose/Feature checkbox
+   items, and every dropdown's full option list beyond the ones explicitly keyed below) are
+   intentionally left in English for this pass — they render exactly as before regardless of
+   language, and are additive, not blocking, to extend later: add the key to I18N_EN (and the
+   other language objects), then add the matching data-i18n attribute to that element.
+
+   INTERNAL VALUES ARE NEVER TOUCHED BY THIS SYSTEM: every enum value, JSON key, the Spatial
+   Planning Engine's own output, and every prompt sent to the AI stay in English regardless of
+   UI language — only text actually rendered to the person changes. Concretely: data-i18n
+   attributes only ever replace an element's visible textContent/placeholder/title, never a
+   form field's underlying value attribute — so nothing downstream in generateDesign() or any
+   of the deterministic engines ever sees a translated string.
+
+   Lookup: t(key) resolves currentLanguage's dictionary, falling back to English, then to the
+   key itself (so a missing translation is visibly obvious rather than silently blank). tf(key,
+   vars) is the same lookup with {placeholder} substitution for the handful of messages that
+   need a runtime number/value spliced in (e.g. the double-deck feasibility message). */
+const LANGUAGE_OPTIONS = [
+  { code: 'en', name: 'English', dir: 'ltr' },
+  { code: 'ar', name: 'العربية', dir: 'rtl' },
+  { code: 'fr', name: 'Français', dir: 'ltr' },
+  { code: 'de', name: 'Deutsch', dir: 'ltr' },
+  { code: 'es', name: 'Español', dir: 'ltr' },
+  { code: 'it', name: 'Italiano', dir: 'ltr' },
+  { code: 'zh', name: '中文', dir: 'ltr' },
+  { code: 'ja', name: '日本語', dir: 'ltr' },
+];
+
+const I18N_EN = {
+  'sidebar.projectsHeading': 'Projects',
+  'sidebar.newProject': '+ New',
+  'sidebar.autoSaveNote': 'Projects save automatically and sync across devices.',
+  'sidebar.or': 'or',
+  'sidebar.boothSizeRequired': 'Booth size (required)',
+  'ph.widthShort': 'W (m)',
+  'ph.depthShort': 'D (m)',
+  'ph.heightShort': 'H (m)',
+  'ph.projectNameShort': 'Project name',
+  'sidebar.uploadExistingBtn': 'Upload an existing design',
+  'sidebar.uploadExistingHint': 'Enter the booth size and a project name above to enable upload.',
+  'sidebar.uploadExistingNote': 'Already have a finished design? Upload it to skip the form and jump straight to camera views.',
+  'sidebar.accountUsage': 'Account Usage',
+  'sidebar.buyMore': 'Buy more usage — coming soon.',
+  'app.title': 'AI Design Studio',
+  'app.tagline': 'Describe your idea in words, get a starting concept layout for your booth or event',
+  'app.adminPanel': 'Admin panel',
+  'app.logout': 'Log out',
+  'tabs.booth': 'Exhibition Booth',
+  'tabs.event': 'Event Concept',
+  'tabs.displayStand': 'Display Stand',
+  'tabs.editDesign': 'Modify Design',
+  'section.eventDetails': 'Event Details',
+  'section.boothDetails': 'Booth Details',
+  'field.width': 'Width — W (m)',
+  'field.depth': 'Depth — D (m)',
+  'field.boothHeight': 'Booth Height (m)',
+  'field.numberOfLevels': 'Number of levels',
+  'option.singleLevel': '1 — Single level',
+  'option.doubleDeck': '2 — Double-deck (ground + upper floor)',
+  'sfc.headline': 'Second Floor Configuration',
+  'sfc.purpose': 'Purpose of the Upper Deck',
+  'sfc.purposeHint': 'Select all that apply — everything not placed up here is assumed to belong on the ground floor instead.',
+  'sfc.capacity': 'Capacity',
+  'sfc.capacity.2to4': '2–4 people',
+  'sfc.capacity.4to8': '4–8 people',
+  'sfc.capacity.8to12': '8–12 people',
+  'sfc.capacity.12plus': '12+ people',
+  'sfc.privacyLevel': 'Privacy Level',
+  'sfc.privacy.open': 'Fully Open',
+  'sfc.privacy.semi': 'Semi-Private',
+  'sfc.privacy.enclosed': 'Fully Enclosed',
+  'sfc.staircasePosition': 'Staircase Position',
+  'sfc.stair.frontLeft': 'Front Left',
+  'sfc.stair.frontRight': 'Front Right',
+  'sfc.stair.rearLeft': 'Rear Left',
+  'sfc.stair.rearRight': 'Rear Right',
+  'sfc.stair.center': 'Center',
+  'sfc.stair.autoOptimize': 'Auto Optimize',
+  'sfc.stairHint': '"Auto Optimize" lets the design place the staircase wherever it best preserves open floor and sightlines for this specific booth.',
+  'sfc.upperDeckStyle': 'Upper Deck Style',
+  'sfc.style.openTerrace': 'Open Terrace',
+  'sfc.style.glassBalustrade': 'Glass Balustrade',
+  'sfc.style.solidWalls': 'Solid Walls',
+  'sfc.style.mixed': 'Mixed Open + Glass',
+  'sfc.style.luxury': 'Luxury Lounge',
+  'sfc.style.minimalist': 'Minimalist',
+  'sfc.style.industrial': 'Industrial',
+  'sfc.optionalFeatures': 'Optional Features',
+  'sfc.optionalFeaturesHint': 'Select all that apply.',
+  'sfc.additionalNotes': 'Additional Notes (Optional)',
+  'ph.upperFloorNotes': 'Describe any special requirements for the second floor...',
+  'field.numberOfOpenSides': 'Number of open sides',
+  'option.inline': '1 — Inline (walls on 3 sides)',
+  'option.corner': '2 — Corner (walls on 2 sides)',
+  'option.peninsula': '3 — Peninsula (wall on 1 side)',
+  'option.island': '4 — Island (no walls)',
+  'hint.openSides': 'Determines which sides can carry walls, signage, and branding versus open sightlines into the aisle.',
+  'section.eventTheme': 'Event Theme',
+  'section.boothTheme': 'Booth Theme',
+  'field.brandColors': 'Brand colors',
+  'btn.addColor': '+ Add color',
+  'hint.brandColors': 'Add at least one brand color — the AI will build the full palette around these.',
+  'field.logoPlaceholder': 'Click to upload your logo — PNG, JPG, WebP, or SVG',
+  'hint.logo': "Required. The AI uses the logo's colors and style to keep the concept on-brand.",
+  'field.archStyle': 'Architectural style',
+  'field.constructionStyle': 'Construction style',
+  'hint.constructionStyle': 'Defines material quality and build complexity — important for construction feasibility.',
+  'field.brandPersonality': 'Brand personality',
+  'section.requirements': 'Requirements',
+  'hint.requirements': 'Select at least 2',
+  'hint.requirementsRest': "— check any that apply and specify exact quantities. Anything left unchecked here follows EPS-011's normal size-based defaults instead. Categories are collapsed by default — click a category name to expand it.",
+  'btn.expandAll': 'Expand all',
+  'btn.collapseAll': 'Collapse all',
+  'ph.desc': 'e.g. Booth for a tech startup. We need an interactive product display area, a private meeting corner, and a large display screen. Brand identity in deep navy and gold.',
+  'hint.desc': 'This description is what the AI builds the concept from — the more specific it is, the closer the result will be to what you have in mind.',
+  'btn.generateDesign': 'Generate Design',
+  'btn.previous': '‹ Previous',
+  'btn.next': 'Next ›',
+  'btn.downloadImage': 'Download image',
+  'btn.modifyDesign': 'Modify design',
+  'btn.approve': 'Approve',
+  'btn.otherOption': 'Other option',
+  'note.freeModification': "✦ Your first modification or other option on this design is on us — occasionally the initial render needs a quick adjustment, and that one won't count against your usage.",
+  'common.cancel': 'Cancel',
+  'common.ok': 'OK',
+  'common.notice': 'Notice',
+  'common.confirm': 'Confirm',
+  'field.eventName': 'Event name',
+  'field.industryStyle': 'Industry style',
+  'field.projectName': 'Project Name',
+  'field.descBooth': 'Describe what you want in detail: the goal, products on display, visual identity, any special requirements',
+  'field.descEvent': 'Describe what you want in detail: the event goal, overall mood, activities or sessions, visual identity',
+  'validation.projectName': 'a project name',
+  'validation.width': 'width',
+  'validation.depth': 'depth',
+  'validation.boothHeight': 'booth height',
+  'validation.upperDeckPurpose': 'at least one Purpose of the Upper Deck (since you selected a double-deck booth)',
+  'validation.brandColor': 'at least one brand color',
+  'validation.logo': 'a company logo',
+  'validation.posterFile': 'at least one poster file (or switch to "No — need new designs")',
+  'validation.requirementsCount': 'at least 2 selections under Requirements',
+  'validation.stillNeeded': 'Still needed: ',
+  'validation.enterPrefix': 'Please enter ',
+  'validation.boothFieldSuffix': ' — this field is above, in the main form (not the sidebar\'s optional "Booth size" fields, which are only for uploading an existing finished design).',
+  'validation.upperDeckPurposeFull': 'Please select at least one Purpose of the Upper Deck — required since you selected a double-deck booth.',
+  'validation.brandColorFull': 'Please add at least one brand color.',
+  'validation.logoFull': 'Please upload your company logo — it is required.',
+  'validation.posterFileFull': 'Please upload at least one poster file, or switch to "No — need new designs".',
+  'validation.requirementsCountFull': 'Please select at least 2 items under Requirements.',
+  'validation.doubleDeckInfeasible': 'Double Deck is not feasible for a {area} sqm booth — a real {minWidth} m-wide staircase plus a genuinely usable upper deck needs at least {minArea} sqm of footprint. Please increase the booth size or switch to a single level.',
+  'notice.descTranslated': 'Translated to English for generation — your original text is kept.',
+};
+
+const I18N_AR = {
+  'sidebar.projectsHeading': 'المشاريع',
+  'sidebar.newProject': '+ جديد',
+  'sidebar.autoSaveNote': 'يتم حفظ المشاريع تلقائيًا ومزامنتها عبر الأجهزة.',
+  'sidebar.or': 'أو',
+  'sidebar.boothSizeRequired': 'مقاس الجناح (مطلوب)',
+  'ph.widthShort': 'العرض (م)',
+  'ph.depthShort': 'العمق (م)',
+  'ph.heightShort': 'الارتفاع (م)',
+  'ph.projectNameShort': 'اسم المشروع',
+  'sidebar.uploadExistingBtn': 'رفع تصميم موجود',
+  'sidebar.uploadExistingHint': 'أدخل مقاس الجناح واسم المشروع أعلاه لتفعيل الرفع.',
+  'sidebar.uploadExistingNote': 'هل لديك تصميم جاهز؟ ارفعه لتخطي النموذج والانتقال مباشرة إلى زوايا الكاميرا.',
+  'sidebar.accountUsage': 'استخدام الحساب',
+  'sidebar.buyMore': 'شراء استخدام إضافي — قريبًا.',
+  'app.title': 'استوديو التصميم بالذكاء الاصطناعي',
+  'app.tagline': 'صف فكرتك بالكلمات، واحصل على تصميم مبدئي لجناحك أو فعاليتك',
+  'app.adminPanel': 'لوحة الإدارة',
+  'app.logout': 'تسجيل الخروج',
+  'tabs.booth': 'جناح معرض',
+  'tabs.event': 'فعالية',
+  'tabs.displayStand': 'ستاند عرض',
+  'tabs.editDesign': 'تعديل التصميم',
+  'section.eventDetails': 'تفاصيل الفعالية',
+  'section.boothDetails': 'تفاصيل الجناح',
+  'field.width': 'العرض (م)',
+  'field.depth': 'العمق (م)',
+  'field.boothHeight': 'ارتفاع الجناح (م)',
+  'field.numberOfLevels': 'عدد الطوابق',
+  'option.singleLevel': '1 — طابق واحد',
+  'option.doubleDeck': '2 — طابقان (أرضي + علوي)',
+  'sfc.headline': 'إعدادات الطابق العلوي',
+  'sfc.purpose': 'الغرض من الطابق العلوي',
+  'sfc.purposeHint': 'اختر كل ما ينطبق — يُفترض أن كل ما لا يُختار هنا موجود في الطابق الأرضي بدلاً من ذلك.',
+  'sfc.capacity': 'السعة',
+  'sfc.capacity.2to4': '2–4 أشخاص',
+  'sfc.capacity.4to8': '4–8 أشخاص',
+  'sfc.capacity.8to12': '8–12 شخصًا',
+  'sfc.capacity.12plus': '+12 شخصًا',
+  'sfc.privacyLevel': 'مستوى الخصوصية',
+  'sfc.privacy.open': 'مفتوح بالكامل',
+  'sfc.privacy.semi': 'شبه خاص',
+  'sfc.privacy.enclosed': 'مغلق بالكامل',
+  'sfc.staircasePosition': 'موقع السلم',
+  'sfc.stair.frontLeft': 'أمام يسار',
+  'sfc.stair.frontRight': 'أمام يمين',
+  'sfc.stair.rearLeft': 'خلف يسار',
+  'sfc.stair.rearRight': 'خلف يمين',
+  'sfc.stair.center': 'المنتصف',
+  'sfc.stair.autoOptimize': 'تحسين تلقائي',
+  'sfc.stairHint': '"تحسين تلقائي" يجعل التصميم يضع السلم في المكان الذي يحافظ بشكل أفضل على المساحة المفتوحة وخطوط الرؤية لهذا الجناح تحديدًا.',
+  'sfc.upperDeckStyle': 'طراز الطابق العلوي',
+  'sfc.style.openTerrace': 'شرفة مفتوحة',
+  'sfc.style.glassBalustrade': 'درابزين زجاجي',
+  'sfc.style.solidWalls': 'جدران مصمتة',
+  'sfc.style.mixed': 'مزيج مفتوح وزجاجي',
+  'sfc.style.luxury': 'صالة فاخرة',
+  'sfc.style.minimalist': 'بسيط',
+  'sfc.style.industrial': 'صناعي',
+  'sfc.optionalFeatures': 'ميزات اختيارية',
+  'sfc.optionalFeaturesHint': 'اختر كل ما ينطبق.',
+  'sfc.additionalNotes': 'ملاحظات إضافية (اختياري)',
+  'ph.upperFloorNotes': 'صف أي متطلبات خاصة للطابق العلوي...',
+  'field.numberOfOpenSides': 'عدد الجهات المفتوحة',
+  'option.inline': '1 — خطي (جدران على 3 جهات)',
+  'option.corner': '2 — زاوية (جدران على جهتين)',
+  'option.peninsula': '3 — شبه جزيرة (جدار على جهة واحدة)',
+  'option.island': '4 — جزيرة (بدون جدران)',
+  'hint.openSides': 'يحدد أي الجهات يمكن أن تحمل جدرانًا ولافتات وعلامات تجارية مقابل خطوط رؤية مفتوحة على الممر.',
+  'section.eventTheme': 'طابع الفعالية',
+  'section.boothTheme': 'طابع الجناح',
+  'field.brandColors': 'ألوان العلامة التجارية',
+  'btn.addColor': '+ إضافة لون',
+  'hint.brandColors': 'أضف لونًا واحدًا على الأقل للعلامة التجارية — سيبني الذكاء الاصطناعي اللوحة الكاملة حولها.',
+  'field.logoPlaceholder': 'انقر لرفع شعارك — PNG أو JPG أو WebP أو SVG',
+  'hint.logo': 'مطلوب. يستخدم الذكاء الاصطناعي ألوان الشعار وطرازه للحفاظ على اتساق العلامة التجارية.',
+  'field.archStyle': 'الطراز المعماري',
+  'field.constructionStyle': 'طراز البناء',
+  'hint.constructionStyle': 'يحدد جودة المواد وتعقيد البناء — مهم لجدوى التنفيذ.',
+  'field.brandPersonality': 'شخصية العلامة التجارية',
+  'section.requirements': 'المتطلبات',
+  'hint.requirements': 'اختر عنصرين على الأقل',
+  'hint.requirementsRest': '— حدد أي عناصر تنطبق وأدخل الكميات الدقيقة. أي عنصر يُترك دون تحديد هنا يتبع القيم الافتراضية القياسية حسب المساحة في EPS-011. الفئات مطوية افتراضيًا — انقر على اسم الفئة لتوسيعها.',
+  'btn.expandAll': 'توسيع الكل',
+  'btn.collapseAll': 'طي الكل',
+  'ph.desc': 'مثال: جناح لشركة تقنية ناشئة. نحتاج منطقة عرض منتجات تفاعلية، وركن اجتماعات خاص، وشاشة عرض كبيرة. هوية العلامة التجارية باللونين الكحلي الغامق والذهبي.',
+  'hint.desc': 'هذا الوصف هو ما يبني الذكاء الاصطناعي المفهوم بناءً عليه — كلما كان أكثر تحديدًا، كانت النتيجة أقرب لما تتخيله.',
+  'btn.generateDesign': 'إنشاء التصميم',
+  'btn.previous': '‹ السابق',
+  'btn.next': 'التالي ›',
+  'btn.downloadImage': 'تنزيل الصورة',
+  'btn.modifyDesign': 'تعديل التصميم',
+  'btn.approve': 'اعتماد',
+  'btn.otherOption': 'خيار آخر',
+  'note.freeModification': '✦ أول تعديل أو خيار آخر على هذا التصميم مجاني — أحيانًا يحتاج التصميم الأولي لتعديل سريع، ولن يُحتسب ذلك من استخدامك.',
+  'common.cancel': 'إلغاء',
+  'common.ok': 'موافق',
+  'common.notice': 'إشعار',
+  'common.confirm': 'تأكيد',
+  'field.eventName': 'اسم الفعالية',
+  'field.industryStyle': 'طراز القطاع',
+  'field.projectName': 'اسم المشروع',
+  'field.descBooth': 'صف بالتفصيل ما تريده: الهدف، المنتجات المعروضة، الهوية البصرية، وأي متطلبات خاصة',
+  'field.descEvent': 'صف بالتفصيل ما تريده: هدف الفعالية، الطابع العام، الأنشطة أو الجلسات، الهوية البصرية',
+  'validation.projectName': 'اسم المشروع',
+  'validation.width': 'العرض',
+  'validation.depth': 'العمق',
+  'validation.boothHeight': 'ارتفاع الجناح',
+  'validation.upperDeckPurpose': 'غرض واحد على الأقل للطابق العلوي (لأنك اخترت جناحًا بطابقين)',
+  'validation.brandColor': 'لون واحد على الأقل للعلامة التجارية',
+  'validation.logo': 'شعار الشركة',
+  'validation.posterFile': 'ملف بوستر واحد على الأقل (أو التبديل إلى "لا — أحتاج تصاميم جديدة")',
+  'validation.requirementsCount': 'اختيارين على الأقل تحت المتطلبات',
+  'validation.stillNeeded': 'لا يزال مطلوبًا: ',
+  'validation.enterPrefix': 'يرجى إدخال ',
+  'validation.boothFieldSuffix': ' — هذا الحقل أعلاه، في النموذج الرئيسي (وليس حقول "مقاس الجناح" الاختيارية في الشريط الجانبي، المخصصة فقط لرفع تصميم جاهز).',
+  'validation.upperDeckPurposeFull': 'يرجى اختيار غرض واحد على الأقل للطابق العلوي — مطلوب لأنك اخترت جناحًا بطابقين.',
+  'validation.brandColorFull': 'يرجى إضافة لون واحد على الأقل للعلامة التجارية.',
+  'validation.logoFull': 'يرجى رفع شعار الشركة — مطلوب.',
+  'validation.posterFileFull': 'يرجى رفع ملف بوستر واحد على الأقل، أو التبديل إلى "لا — أحتاج تصاميم جديدة".',
+  'validation.requirementsCountFull': 'يرجى اختيار عنصرين على الأقل تحت المتطلبات.',
+  'validation.doubleDeckInfeasible': 'التصميم بطابقين غير ممكن لجناح مساحته {area} م² — سلم حقيقي بعرض {minWidth} م مع طابق علوي قابل للاستخدام فعليًا يحتاج مساحة {minArea} م² على الأقل. يرجى زيادة مساحة الجناح أو التبديل إلى طابق واحد.',
+  'notice.descTranslated': 'تمت الترجمة إلى الإنجليزية لأغراض الإنشاء — نصك الأصلي محفوظ.',
+};
+
+const I18N_FR = {
+  'sidebar.projectsHeading': 'Projets',
+  'sidebar.newProject': '+ Nouveau',
+  'sidebar.autoSaveNote': 'Les projets sont enregistrés automatiquement et synchronisés entre les appareils.',
+  'sidebar.or': 'ou',
+  'sidebar.boothSizeRequired': 'Taille du stand (obligatoire)',
+  'ph.widthShort': 'L (m)',
+  'ph.depthShort': 'P (m)',
+  'ph.heightShort': 'H (m)',
+  'ph.projectNameShort': 'Nom du projet',
+  'sidebar.uploadExistingBtn': 'Importer un design existant',
+  'sidebar.uploadExistingHint': 'Saisissez la taille du stand et un nom de projet ci-dessus pour activer l\'import.',
+  'sidebar.uploadExistingNote': 'Vous avez déjà un design terminé ? Importez-le pour passer directement aux vues caméra.',
+  'sidebar.accountUsage': 'Utilisation du compte',
+  'sidebar.buyMore': 'Acheter plus d\'utilisation — bientôt disponible.',
+  'app.title': 'AI Design Studio',
+  'app.tagline': 'Décrivez votre idée avec des mots, obtenez un concept de départ pour votre stand ou événement',
+  'app.adminPanel': 'Panneau admin',
+  'app.logout': 'Déconnexion',
+  'tabs.booth': 'Stand d\'exposition',
+  'tabs.event': 'Concept d\'événement',
+  'tabs.displayStand': 'Présentoir',
+  'tabs.editDesign': 'Modifier le design',
+  'section.eventDetails': 'Détails de l\'événement',
+  'section.boothDetails': 'Détails du stand',
+  'field.width': 'Largeur — L (m)',
+  'field.depth': 'Profondeur — P (m)',
+  'field.boothHeight': 'Hauteur du stand (m)',
+  'field.numberOfLevels': 'Nombre de niveaux',
+  'option.singleLevel': '1 — Niveau unique',
+  'option.doubleDeck': '2 — Double niveau (rez-de-chaussée + étage)',
+  'sfc.headline': 'Configuration de l\'étage',
+  'sfc.purpose': 'Fonction de l\'étage',
+  'sfc.purposeHint': 'Sélectionnez tout ce qui s\'applique — tout ce qui n\'est pas placé ici est supposé appartenir au rez-de-chaussée.',
+  'sfc.capacity': 'Capacité',
+  'sfc.capacity.2to4': '2–4 personnes',
+  'sfc.capacity.4to8': '4–8 personnes',
+  'sfc.capacity.8to12': '8–12 personnes',
+  'sfc.capacity.12plus': '12+ personnes',
+  'sfc.privacyLevel': 'Niveau d\'intimité',
+  'sfc.privacy.open': 'Entièrement ouvert',
+  'sfc.privacy.semi': 'Semi-privé',
+  'sfc.privacy.enclosed': 'Entièrement fermé',
+  'sfc.staircasePosition': 'Position de l\'escalier',
+  'sfc.stair.frontLeft': 'Avant gauche',
+  'sfc.stair.frontRight': 'Avant droit',
+  'sfc.stair.rearLeft': 'Arrière gauche',
+  'sfc.stair.rearRight': 'Arrière droit',
+  'sfc.stair.center': 'Centre',
+  'sfc.stair.autoOptimize': 'Optimisation automatique',
+  'sfc.stairHint': '« Optimisation automatique » place l\'escalier là où il préserve le mieux l\'espace ouvert et les perspectives visuelles pour ce stand précis.',
+  'sfc.upperDeckStyle': 'Style de l\'étage',
+  'sfc.style.openTerrace': 'Terrasse ouverte',
+  'sfc.style.glassBalustrade': 'Balustrade en verre',
+  'sfc.style.solidWalls': 'Murs pleins',
+  'sfc.style.mixed': 'Mixte ouvert + verre',
+  'sfc.style.luxury': 'Salon de luxe',
+  'sfc.style.minimalist': 'Minimaliste',
+  'sfc.style.industrial': 'Industriel',
+  'sfc.optionalFeatures': 'Fonctionnalités optionnelles',
+  'sfc.optionalFeaturesHint': 'Sélectionnez tout ce qui s\'applique.',
+  'sfc.additionalNotes': 'Notes supplémentaires (facultatif)',
+  'ph.upperFloorNotes': 'Décrivez toute exigence particulière pour l\'étage...',
+  'field.numberOfOpenSides': 'Nombre de côtés ouverts',
+  'option.inline': '1 — Aligné (murs sur 3 côtés)',
+  'option.corner': '2 — Angle (murs sur 2 côtés)',
+  'option.peninsula': '3 — Péninsule (mur sur 1 côté)',
+  'option.island': '4 — Îlot (sans murs)',
+  'hint.openSides': 'Détermine quels côtés peuvent porter des murs, de la signalétique et de la marque, par rapport aux perspectives ouvertes sur l\'allée.',
+  'section.eventTheme': 'Thème de l\'événement',
+  'section.boothTheme': 'Thème du stand',
+  'field.brandColors': 'Couleurs de la marque',
+  'btn.addColor': '+ Ajouter une couleur',
+  'hint.brandColors': 'Ajoutez au moins une couleur de marque — l\'IA construira la palette complète autour de celles-ci.',
+  'field.logoPlaceholder': 'Cliquez pour importer votre logo — PNG, JPG, WebP ou SVG',
+  'hint.logo': 'Obligatoire. L\'IA utilise les couleurs et le style du logo pour rester fidèle à la marque.',
+  'field.archStyle': 'Style architectural',
+  'field.constructionStyle': 'Style de construction',
+  'hint.constructionStyle': 'Définit la qualité des matériaux et la complexité de construction — important pour la faisabilité.',
+  'field.brandPersonality': 'Personnalité de la marque',
+  'section.requirements': 'Exigences',
+  'hint.requirements': 'Sélectionnez au moins 2',
+  'hint.requirementsRest': '— cochez celles qui s\'appliquent et précisez les quantités exactes. Tout ce qui reste décoché suit les valeurs par défaut d\'EPS-011 basées sur la taille. Les catégories sont repliées par défaut — cliquez sur un nom de catégorie pour la déplier.',
+  'btn.expandAll': 'Tout déplier',
+  'btn.collapseAll': 'Tout replier',
+  'ph.desc': 'ex. Stand pour une start-up technologique. Nous avons besoin d\'une zone de présentation de produits interactive, d\'un coin réunion privé et d\'un grand écran. Identité de marque en bleu marine profond et or.',
+  'hint.desc': 'Cette description est ce à partir de quoi l\'IA construit le concept — plus elle est précise, plus le résultat se rapprochera de ce que vous avez en tête.',
+  'btn.generateDesign': 'Générer le design',
+  'btn.previous': '‹ Précédent',
+  'btn.next': 'Suivant ›',
+  'btn.downloadImage': 'Télécharger l\'image',
+  'btn.modifyDesign': 'Modifier le design',
+  'btn.approve': 'Approuver',
+  'btn.otherOption': 'Autre option',
+  'note.freeModification': '✦ Votre première modification ou autre option sur ce design est offerte — parfois le rendu initial a besoin d\'un ajustement rapide, et celui-ci ne comptera pas dans votre utilisation.',
+  'common.cancel': 'Annuler',
+  'common.ok': 'OK',
+  'common.notice': 'Avis',
+  'common.confirm': 'Confirmer',
+  'field.eventName': 'Nom de l\'événement',
+  'field.industryStyle': 'Style sectoriel',
+  'field.projectName': 'Nom du projet',
+  'field.descBooth': 'Décrivez en détail ce que vous voulez : l\'objectif, les produits exposés, l\'identité visuelle, toute exigence particulière',
+  'field.descEvent': 'Décrivez en détail ce que vous voulez : l\'objectif de l\'événement, l\'ambiance générale, les activités ou sessions, l\'identité visuelle',
+  'validation.projectName': 'un nom de projet',
+  'validation.width': 'la largeur',
+  'validation.depth': 'la profondeur',
+  'validation.boothHeight': 'la hauteur du stand',
+  'validation.upperDeckPurpose': 'au moins une fonction pour l\'étage (puisque vous avez choisi un stand à double niveau)',
+  'validation.brandColor': 'au moins une couleur de marque',
+  'validation.logo': 'un logo d\'entreprise',
+  'validation.posterFile': 'au moins un fichier d\'affiche (ou passez à « Non — nouveaux designs nécessaires »)',
+  'validation.requirementsCount': 'au moins 2 sélections dans Exigences',
+  'validation.stillNeeded': 'Encore nécessaire : ',
+  'validation.enterPrefix': 'Veuillez saisir ',
+  'validation.boothFieldSuffix': ' — ce champ se trouve ci-dessus, dans le formulaire principal (pas les champs optionnels « Taille du stand » de la barre latérale, réservés à l\'import d\'un design déjà terminé).',
+  'validation.upperDeckPurposeFull': 'Veuillez sélectionner au moins une fonction pour l\'étage — requis puisque vous avez choisi un stand à double niveau.',
+  'validation.brandColorFull': 'Veuillez ajouter au moins une couleur de marque.',
+  'validation.logoFull': 'Veuillez importer le logo de votre entreprise — il est requis.',
+  'validation.posterFileFull': 'Veuillez importer au moins un fichier d\'affiche, ou passez à « Non — nouveaux designs nécessaires ».',
+  'validation.requirementsCountFull': 'Veuillez sélectionner au moins 2 éléments dans Exigences.',
+  'validation.doubleDeckInfeasible': 'Le double niveau n\'est pas réalisable pour un stand de {area} m² — un véritable escalier de {minWidth} m de large plus un étage réellement utilisable nécessitent au moins {minArea} m² d\'emprise. Veuillez agrandir le stand ou passer à un niveau unique.',
+  'notice.descTranslated': 'Traduit en anglais pour la génération — votre texte original est conservé.',
+};
+
+const I18N_DE = {
+  'sidebar.projectsHeading': 'Projekte',
+  'sidebar.newProject': '+ Neu',
+  'sidebar.autoSaveNote': 'Projekte werden automatisch gespeichert und geräteübergreifend synchronisiert.',
+  'sidebar.or': 'oder',
+  'sidebar.boothSizeRequired': 'Standgröße (erforderlich)',
+  'ph.widthShort': 'B (m)',
+  'ph.depthShort': 'T (m)',
+  'ph.heightShort': 'H (m)',
+  'ph.projectNameShort': 'Projektname',
+  'sidebar.uploadExistingBtn': 'Vorhandenes Design hochladen',
+  'sidebar.uploadExistingHint': 'Geben Sie oben die Standgröße und einen Projektnamen ein, um den Upload zu aktivieren.',
+  'sidebar.uploadExistingNote': 'Haben Sie bereits ein fertiges Design? Laden Sie es hoch, um das Formular zu überspringen und direkt zu den Kameraansichten zu gelangen.',
+  'sidebar.accountUsage': 'Kontonutzung',
+  'sidebar.buyMore': 'Mehr Nutzung kaufen — demnächst verfügbar.',
+  'app.title': 'AI Design Studio',
+  'app.tagline': 'Beschreiben Sie Ihre Idee in Worten und erhalten Sie ein erstes Konzept für Ihren Stand oder Ihre Veranstaltung',
+  'app.adminPanel': 'Admin-Bereich',
+  'app.logout': 'Abmelden',
+  'tabs.booth': 'Messestand',
+  'tabs.event': 'Veranstaltungskonzept',
+  'tabs.displayStand': 'Verkaufsständer',
+  'tabs.editDesign': 'Design ändern',
+  'section.eventDetails': 'Veranstaltungsdetails',
+  'section.boothDetails': 'Standdetails',
+  'field.width': 'Breite — B (m)',
+  'field.depth': 'Tiefe — T (m)',
+  'field.boothHeight': 'Standhöhe (m)',
+  'field.numberOfLevels': 'Anzahl der Ebenen',
+  'option.singleLevel': '1 — Eine Ebene',
+  'option.doubleDeck': '2 — Doppelstöckig (Erdgeschoss + Obergeschoss)',
+  'sfc.headline': 'Konfiguration des Obergeschosses',
+  'sfc.purpose': 'Zweck des Obergeschosses',
+  'sfc.purposeHint': 'Wählen Sie alles Zutreffende aus — alles, was hier nicht platziert wird, gehört stattdessen zum Erdgeschoss.',
+  'sfc.capacity': 'Kapazität',
+  'sfc.capacity.2to4': '2–4 Personen',
+  'sfc.capacity.4to8': '4–8 Personen',
+  'sfc.capacity.8to12': '8–12 Personen',
+  'sfc.capacity.12plus': '12+ Personen',
+  'sfc.privacyLevel': 'Privatsphäre',
+  'sfc.privacy.open': 'Vollständig offen',
+  'sfc.privacy.semi': 'Halbprivat',
+  'sfc.privacy.enclosed': 'Vollständig geschlossen',
+  'sfc.staircasePosition': 'Position der Treppe',
+  'sfc.stair.frontLeft': 'Vorne links',
+  'sfc.stair.frontRight': 'Vorne rechts',
+  'sfc.stair.rearLeft': 'Hinten links',
+  'sfc.stair.rearRight': 'Hinten rechts',
+  'sfc.stair.center': 'Mitte',
+  'sfc.stair.autoOptimize': 'Automatisch optimieren',
+  'sfc.stairHint': '„Automatisch optimieren" platziert die Treppe dort, wo sie die offene Fläche und Sichtachsen für diesen Stand am besten erhält.',
+  'sfc.upperDeckStyle': 'Stil des Obergeschosses',
+  'sfc.style.openTerrace': 'Offene Terrasse',
+  'sfc.style.glassBalustrade': 'Glasbrüstung',
+  'sfc.style.solidWalls': 'Massive Wände',
+  'sfc.style.mixed': 'Gemischt offen + Glas',
+  'sfc.style.luxury': 'Luxus-Lounge',
+  'sfc.style.minimalist': 'Minimalistisch',
+  'sfc.style.industrial': 'Industriell',
+  'sfc.optionalFeatures': 'Optionale Merkmale',
+  'sfc.optionalFeaturesHint': 'Wählen Sie alles Zutreffende aus.',
+  'sfc.additionalNotes': 'Zusätzliche Hinweise (optional)',
+  'ph.upperFloorNotes': 'Beschreiben Sie besondere Anforderungen für das Obergeschoss...',
+  'field.numberOfOpenSides': 'Anzahl der offenen Seiten',
+  'option.inline': '1 — Reihe (Wände auf 3 Seiten)',
+  'option.corner': '2 — Ecke (Wände auf 2 Seiten)',
+  'option.peninsula': '3 — Halbinsel (Wand auf 1 Seite)',
+  'option.island': '4 — Insel (keine Wände)',
+  'hint.openSides': 'Legt fest, welche Seiten Wände, Beschilderung und Branding tragen können und welche offene Sichtachsen zum Gang bieten.',
+  'section.eventTheme': 'Veranstaltungsthema',
+  'section.boothTheme': 'Standthema',
+  'field.brandColors': 'Markenfarben',
+  'btn.addColor': '+ Farbe hinzufügen',
+  'hint.brandColors': 'Fügen Sie mindestens eine Markenfarbe hinzu — die KI baut die vollständige Palette darum herum auf.',
+  'field.logoPlaceholder': 'Klicken Sie, um Ihr Logo hochzuladen — PNG, JPG, WebP oder SVG',
+  'hint.logo': 'Erforderlich. Die KI nutzt Farben und Stil des Logos, um das Konzept markenkonform zu halten.',
+  'field.archStyle': 'Architekturstil',
+  'field.constructionStyle': 'Baustil',
+  'hint.constructionStyle': 'Legt Materialqualität und Baukomplexität fest — wichtig für die bauliche Machbarkeit.',
+  'field.brandPersonality': 'Markenpersönlichkeit',
+  'section.requirements': 'Anforderungen',
+  'hint.requirements': 'Wählen Sie mindestens 2 aus',
+  'hint.requirementsRest': '— kreuzen Sie Zutreffendes an und geben Sie genaue Mengen an. Alles, was hier nicht angekreuzt wird, folgt den normalen größenbasierten Standardwerten von EPS-011. Kategorien sind standardmäßig eingeklappt — klicken Sie auf einen Kategorienamen, um ihn aufzuklappen.',
+  'btn.expandAll': 'Alle aufklappen',
+  'btn.collapseAll': 'Alle einklappen',
+  'ph.desc': 'z. B. Stand für ein Technologie-Startup. Wir benötigen einen interaktiven Produktpräsentationsbereich, eine private Besprechungsecke und einen großen Bildschirm. Markenidentität in tiefem Marineblau und Gold.',
+  'hint.desc': 'Diese Beschreibung ist die Grundlage, aus der die KI das Konzept entwickelt — je spezifischer sie ist, desto näher kommt das Ergebnis Ihrer Vorstellung.',
+  'btn.generateDesign': 'Design generieren',
+  'btn.previous': '‹ Zurück',
+  'btn.next': 'Weiter ›',
+  'btn.downloadImage': 'Bild herunterladen',
+  'btn.modifyDesign': 'Design ändern',
+  'btn.approve': 'Genehmigen',
+  'btn.otherOption': 'Andere Option',
+  'note.freeModification': '✦ Ihre erste Änderung oder andere Option für dieses Design geht auf uns — manchmal braucht das erste Rendering eine schnelle Anpassung, und das zählt nicht gegen Ihre Nutzung.',
+  'common.cancel': 'Abbrechen',
+  'common.ok': 'OK',
+  'common.notice': 'Hinweis',
+  'common.confirm': 'Bestätigen',
+  'field.eventName': 'Veranstaltungsname',
+  'field.industryStyle': 'Branchenstil',
+  'field.projectName': 'Projektname',
+  'field.descBooth': 'Beschreiben Sie im Detail, was Sie möchten: das Ziel, ausgestellte Produkte, visuelle Identität, besondere Anforderungen',
+  'field.descEvent': 'Beschreiben Sie im Detail, was Sie möchten: das Ziel der Veranstaltung, die allgemeine Stimmung, Aktivitäten oder Sessions, visuelle Identität',
+  'validation.projectName': 'einen Projektnamen',
+  'validation.width': 'die Breite',
+  'validation.depth': 'die Tiefe',
+  'validation.boothHeight': 'die Standhöhe',
+  'validation.upperDeckPurpose': 'mindestens einen Zweck für das Obergeschoss (da Sie einen doppelstöckigen Stand gewählt haben)',
+  'validation.brandColor': 'mindestens eine Markenfarbe',
+  'validation.logo': 'ein Firmenlogo',
+  'validation.posterFile': 'mindestens eine Posterdatei (oder wechseln Sie zu „Nein — neue Designs werden benötigt")',
+  'validation.requirementsCount': 'mindestens 2 Auswahlen unter Anforderungen',
+  'validation.stillNeeded': 'Noch erforderlich: ',
+  'validation.enterPrefix': 'Bitte geben Sie ',
+  'validation.boothFieldSuffix': ' ein — dieses Feld befindet sich oben im Hauptformular (nicht die optionalen „Standgröße"-Felder in der Seitenleiste, die nur zum Hochladen eines bereits fertigen Designs dienen).',
+  'validation.upperDeckPurposeFull': 'Bitte wählen Sie mindestens einen Zweck für das Obergeschoss aus — erforderlich, da Sie einen doppelstöckigen Stand gewählt haben.',
+  'validation.brandColorFull': 'Bitte fügen Sie mindestens eine Markenfarbe hinzu.',
+  'validation.logoFull': 'Bitte laden Sie Ihr Firmenlogo hoch — es ist erforderlich.',
+  'validation.posterFileFull': 'Bitte laden Sie mindestens eine Posterdatei hoch, oder wechseln Sie zu „Nein — neue Designs werden benötigt".',
+  'validation.requirementsCountFull': 'Bitte wählen Sie mindestens 2 Elemente unter Anforderungen aus.',
+  'validation.doubleDeckInfeasible': 'Doppelstöckig ist für einen Stand mit {area} m² nicht machbar — eine echte {minWidth} m breite Treppe plus ein wirklich nutzbares Obergeschoss benötigen mindestens {minArea} m² Grundfläche. Bitte vergrößern Sie den Stand oder wechseln Sie zu einer Ebene.',
+  'notice.descTranslated': 'Für die Generierung ins Englische übersetzt — Ihr Originaltext bleibt erhalten.',
+};
+
+const I18N_ES = {
+  'sidebar.projectsHeading': 'Proyectos',
+  'sidebar.newProject': '+ Nuevo',
+  'sidebar.autoSaveNote': 'Los proyectos se guardan automáticamente y se sincronizan entre dispositivos.',
+  'sidebar.or': 'o',
+  'sidebar.boothSizeRequired': 'Tamaño del stand (obligatorio)',
+  'ph.widthShort': 'A (m)',
+  'ph.depthShort': 'P (m)',
+  'ph.heightShort': 'H (m)',
+  'ph.projectNameShort': 'Nombre del proyecto',
+  'sidebar.uploadExistingBtn': 'Subir un diseño existente',
+  'sidebar.uploadExistingHint': 'Introduzca el tamaño del stand y un nombre de proyecto arriba para habilitar la subida.',
+  'sidebar.uploadExistingNote': '¿Ya tiene un diseño terminado? Súbalo para saltarse el formulario e ir directo a las vistas de cámara.',
+  'sidebar.accountUsage': 'Uso de la cuenta',
+  'sidebar.buyMore': 'Comprar más uso — próximamente.',
+  'app.title': 'AI Design Studio',
+  'app.tagline': 'Describa su idea con palabras y obtenga un concepto inicial para su stand o evento',
+  'app.adminPanel': 'Panel de administración',
+  'app.logout': 'Cerrar sesión',
+  'tabs.booth': 'Stand de exposición',
+  'tabs.event': 'Concepto de evento',
+  'tabs.displayStand': 'Expositor',
+  'tabs.editDesign': 'Modificar diseño',
+  'section.eventDetails': 'Detalles del evento',
+  'section.boothDetails': 'Detalles del stand',
+  'field.width': 'Ancho — A (m)',
+  'field.depth': 'Profundidad — P (m)',
+  'field.boothHeight': 'Altura del stand (m)',
+  'field.numberOfLevels': 'Número de niveles',
+  'option.singleLevel': '1 — Un solo nivel',
+  'option.doubleDeck': '2 — Doble nivel (planta baja + piso superior)',
+  'sfc.headline': 'Configuración del piso superior',
+  'sfc.purpose': 'Propósito del piso superior',
+  'sfc.purposeHint': 'Seleccione todo lo que corresponda — se asume que todo lo no marcado aquí pertenece a la planta baja.',
+  'sfc.capacity': 'Capacidad',
+  'sfc.capacity.2to4': '2–4 personas',
+  'sfc.capacity.4to8': '4–8 personas',
+  'sfc.capacity.8to12': '8–12 personas',
+  'sfc.capacity.12plus': '12+ personas',
+  'sfc.privacyLevel': 'Nivel de privacidad',
+  'sfc.privacy.open': 'Totalmente abierto',
+  'sfc.privacy.semi': 'Semiprivado',
+  'sfc.privacy.enclosed': 'Totalmente cerrado',
+  'sfc.staircasePosition': 'Posición de la escalera',
+  'sfc.stair.frontLeft': 'Delantera izquierda',
+  'sfc.stair.frontRight': 'Delantera derecha',
+  'sfc.stair.rearLeft': 'Trasera izquierda',
+  'sfc.stair.rearRight': 'Trasera derecha',
+  'sfc.stair.center': 'Centro',
+  'sfc.stair.autoOptimize': 'Optimización automática',
+  'sfc.stairHint': '"Optimización automática" hace que el diseño coloque la escalera donde mejor preserve el espacio abierto y las visuales para este stand en concreto.',
+  'sfc.upperDeckStyle': 'Estilo del piso superior',
+  'sfc.style.openTerrace': 'Terraza abierta',
+  'sfc.style.glassBalustrade': 'Barandilla de vidrio',
+  'sfc.style.solidWalls': 'Paredes sólidas',
+  'sfc.style.mixed': 'Mixto abierto + vidrio',
+  'sfc.style.luxury': 'Salón de lujo',
+  'sfc.style.minimalist': 'Minimalista',
+  'sfc.style.industrial': 'Industrial',
+  'sfc.optionalFeatures': 'Características opcionales',
+  'sfc.optionalFeaturesHint': 'Seleccione todo lo que corresponda.',
+  'sfc.additionalNotes': 'Notas adicionales (opcional)',
+  'ph.upperFloorNotes': 'Describa cualquier requisito especial para el piso superior...',
+  'field.numberOfOpenSides': 'Número de lados abiertos',
+  'option.inline': '1 — En línea (paredes en 3 lados)',
+  'option.corner': '2 — Esquina (paredes en 2 lados)',
+  'option.peninsula': '3 — Península (pared en 1 lado)',
+  'option.island': '4 — Isla (sin paredes)',
+  'hint.openSides': 'Determina qué lados pueden llevar paredes, señalización y marca frente a visuales abiertas hacia el pasillo.',
+  'section.eventTheme': 'Tema del evento',
+  'section.boothTheme': 'Tema del stand',
+  'field.brandColors': 'Colores de marca',
+  'btn.addColor': '+ Añadir color',
+  'hint.brandColors': 'Añada al menos un color de marca — la IA construirá la paleta completa alrededor de estos.',
+  'field.logoPlaceholder': 'Haga clic para subir su logotipo — PNG, JPG, WebP o SVG',
+  'hint.logo': 'Obligatorio. La IA usa los colores y el estilo del logotipo para mantener el concepto fiel a la marca.',
+  'field.archStyle': 'Estilo arquitectónico',
+  'field.constructionStyle': 'Estilo de construcción',
+  'hint.constructionStyle': 'Define la calidad de los materiales y la complejidad de construcción — importante para la viabilidad.',
+  'field.brandPersonality': 'Personalidad de marca',
+  'section.requirements': 'Requisitos',
+  'hint.requirements': 'Seleccione al menos 2',
+  'hint.requirementsRest': '— marque los que correspondan e indique cantidades exactas. Todo lo que quede sin marcar aquí sigue los valores predeterminados de EPS-011 según el tamaño. Las categorías están contraídas por defecto — haga clic en el nombre de una categoría para expandirla.',
+  'btn.expandAll': 'Expandir todo',
+  'btn.collapseAll': 'Contraer todo',
+  'ph.desc': 'p. ej. Stand para una startup tecnológica. Necesitamos una zona interactiva de exhibición de productos, un rincón privado de reuniones y una gran pantalla. Identidad de marca en azul marino profundo y dorado.',
+  'hint.desc': 'Esta descripción es la base con la que la IA construye el concepto — cuanto más específica sea, más se acercará el resultado a lo que tiene en mente.',
+  'btn.generateDesign': 'Generar diseño',
+  'btn.previous': '‹ Anterior',
+  'btn.next': 'Siguiente ›',
+  'btn.downloadImage': 'Descargar imagen',
+  'btn.modifyDesign': 'Modificar diseño',
+  'btn.approve': 'Aprobar',
+  'btn.otherOption': 'Otra opción',
+  'note.freeModification': '✦ Su primera modificación u otra opción en este diseño corre por nuestra cuenta — a veces el renderizado inicial necesita un ajuste rápido, y ese no contará contra su uso.',
+  'common.cancel': 'Cancelar',
+  'common.ok': 'Aceptar',
+  'common.notice': 'Aviso',
+  'common.confirm': 'Confirmar',
+  'field.eventName': 'Nombre del evento',
+  'field.industryStyle': 'Estilo de industria',
+  'field.projectName': 'Nombre del proyecto',
+  'field.descBooth': 'Describa en detalle lo que desea: el objetivo, productos en exhibición, identidad visual, cualquier requisito especial',
+  'field.descEvent': 'Describa en detalle lo que desea: el objetivo del evento, el ambiente general, actividades o sesiones, identidad visual',
+  'validation.projectName': 'un nombre de proyecto',
+  'validation.width': 'el ancho',
+  'validation.depth': 'la profundidad',
+  'validation.boothHeight': 'la altura del stand',
+  'validation.upperDeckPurpose': 'al menos un propósito para el piso superior (ya que seleccionó un stand de doble nivel)',
+  'validation.brandColor': 'al menos un color de marca',
+  'validation.logo': 'un logotipo de la empresa',
+  'validation.posterFile': 'al menos un archivo de póster (o cambie a "No — se necesitan diseños nuevos")',
+  'validation.requirementsCount': 'al menos 2 selecciones en Requisitos',
+  'validation.stillNeeded': 'Aún se necesita: ',
+  'validation.enterPrefix': 'Por favor, introduzca ',
+  'validation.boothFieldSuffix': ' — este campo está arriba, en el formulario principal (no los campos opcionales de "Tamaño del stand" de la barra lateral, que son solo para subir un diseño ya terminado).',
+  'validation.upperDeckPurposeFull': 'Por favor, seleccione al menos un propósito para el piso superior — obligatorio ya que seleccionó un stand de doble nivel.',
+  'validation.brandColorFull': 'Por favor, añada al menos un color de marca.',
+  'validation.logoFull': 'Por favor, suba el logotipo de su empresa — es obligatorio.',
+  'validation.posterFileFull': 'Por favor, suba al menos un archivo de póster, o cambie a "No — se necesitan diseños nuevos".',
+  'validation.requirementsCountFull': 'Por favor, seleccione al menos 2 elementos en Requisitos.',
+  'validation.doubleDeckInfeasible': 'El doble nivel no es viable para un stand de {area} m² — una escalera real de {minWidth} m de ancho más un piso superior genuinamente utilizable necesitan al menos {minArea} m² de superficie. Por favor, aumente el tamaño del stand o cambie a un solo nivel.',
+  'notice.descTranslated': 'Traducido al inglés para la generación — su texto original se conserva.',
+};
+
+const I18N_IT = {
+  'sidebar.projectsHeading': 'Progetti',
+  'sidebar.newProject': '+ Nuovo',
+  'sidebar.autoSaveNote': 'I progetti vengono salvati automaticamente e sincronizzati tra i dispositivi.',
+  'sidebar.or': 'oppure',
+  'sidebar.boothSizeRequired': 'Dimensioni dello stand (obbligatorio)',
+  'ph.widthShort': 'L (m)',
+  'ph.depthShort': 'P (m)',
+  'ph.heightShort': 'H (m)',
+  'ph.projectNameShort': 'Nome del progetto',
+  'sidebar.uploadExistingBtn': 'Carica un design esistente',
+  'sidebar.uploadExistingHint': 'Inserisci le dimensioni dello stand e un nome progetto sopra per abilitare il caricamento.',
+  'sidebar.uploadExistingNote': 'Hai già un design finito? Caricalo per saltare il modulo e passare direttamente alle viste della fotocamera.',
+  'sidebar.accountUsage': 'Utilizzo dell\'account',
+  'sidebar.buyMore': 'Acquista più utilizzo — presto disponibile.',
+  'app.title': 'AI Design Studio',
+  'app.tagline': 'Descrivi la tua idea a parole, ottieni un concept iniziale per il tuo stand o evento',
+  'app.adminPanel': 'Pannello di amministrazione',
+  'app.logout': 'Esci',
+  'tabs.booth': 'Stand espositivo',
+  'tabs.event': 'Concept evento',
+  'tabs.displayStand': 'Espositore',
+  'tabs.editDesign': 'Modifica design',
+  'section.eventDetails': 'Dettagli evento',
+  'section.boothDetails': 'Dettagli stand',
+  'field.width': 'Larghezza — L (m)',
+  'field.depth': 'Profondità — P (m)',
+  'field.boothHeight': 'Altezza dello stand (m)',
+  'field.numberOfLevels': 'Numero di livelli',
+  'option.singleLevel': '1 — Livello singolo',
+  'option.doubleDeck': '2 — Doppio livello (piano terra + piano superiore)',
+  'sfc.headline': 'Configurazione del piano superiore',
+  'sfc.purpose': 'Scopo del piano superiore',
+  'sfc.purposeHint': 'Seleziona tutto ciò che si applica — tutto ciò che non viene collocato qui si presume appartenga al piano terra.',
+  'sfc.capacity': 'Capienza',
+  'sfc.capacity.2to4': '2–4 persone',
+  'sfc.capacity.4to8': '4–8 persone',
+  'sfc.capacity.8to12': '8–12 persone',
+  'sfc.capacity.12plus': '12+ persone',
+  'sfc.privacyLevel': 'Livello di privacy',
+  'sfc.privacy.open': 'Completamente aperto',
+  'sfc.privacy.semi': 'Semi-privato',
+  'sfc.privacy.enclosed': 'Completamente chiuso',
+  'sfc.staircasePosition': 'Posizione della scala',
+  'sfc.stair.frontLeft': 'Anteriore sinistra',
+  'sfc.stair.frontRight': 'Anteriore destra',
+  'sfc.stair.rearLeft': 'Posteriore sinistra',
+  'sfc.stair.rearRight': 'Posteriore destra',
+  'sfc.stair.center': 'Centro',
+  'sfc.stair.autoOptimize': 'Ottimizzazione automatica',
+  'sfc.stairHint': '"Ottimizzazione automatica" fa sì che il design collochi la scala dove preserva meglio lo spazio aperto e le visuali per questo specifico stand.',
+  'sfc.upperDeckStyle': 'Stile del piano superiore',
+  'sfc.style.openTerrace': 'Terrazza aperta',
+  'sfc.style.glassBalustrade': 'Balaustra in vetro',
+  'sfc.style.solidWalls': 'Pareti piene',
+  'sfc.style.mixed': 'Misto aperto + vetro',
+  'sfc.style.luxury': 'Lounge di lusso',
+  'sfc.style.minimalist': 'Minimalista',
+  'sfc.style.industrial': 'Industriale',
+  'sfc.optionalFeatures': 'Caratteristiche opzionali',
+  'sfc.optionalFeaturesHint': 'Seleziona tutto ciò che si applica.',
+  'sfc.additionalNotes': 'Note aggiuntive (facoltativo)',
+  'ph.upperFloorNotes': 'Descrivi eventuali requisiti speciali per il piano superiore...',
+  'field.numberOfOpenSides': 'Numero di lati aperti',
+  'option.inline': '1 — In linea (pareti su 3 lati)',
+  'option.corner': '2 — Angolo (pareti su 2 lati)',
+  'option.peninsula': '3 — Penisola (parete su 1 lato)',
+  'option.island': '4 — Isola (senza pareti)',
+  'hint.openSides': 'Determina quali lati possono avere pareti, segnaletica e branding rispetto a visuali aperte verso il corridoio.',
+  'section.eventTheme': 'Tema dell\'evento',
+  'section.boothTheme': 'Tema dello stand',
+  'field.brandColors': 'Colori del brand',
+  'btn.addColor': '+ Aggiungi colore',
+  'hint.brandColors': 'Aggiungi almeno un colore del brand — l\'IA costruirà l\'intera palette attorno a questi.',
+  'field.logoPlaceholder': 'Clicca per caricare il tuo logo — PNG, JPG, WebP o SVG',
+  'hint.logo': 'Obbligatorio. L\'IA usa i colori e lo stile del logo per mantenere il concept coerente con il brand.',
+  'field.archStyle': 'Stile architettonico',
+  'field.constructionStyle': 'Stile costruttivo',
+  'hint.constructionStyle': 'Definisce la qualità dei materiali e la complessità costruttiva — importante per la fattibilità.',
+  'field.brandPersonality': 'Personalità del brand',
+  'section.requirements': 'Requisiti',
+  'hint.requirements': 'Seleziona almeno 2',
+  'hint.requirementsRest': '— seleziona quelli applicabili e specifica le quantità esatte. Tutto ciò che rimane deselezionato segue i valori predefiniti di EPS-011 basati sulla dimensione. Le categorie sono compresse per impostazione predefinita — clicca sul nome di una categoria per espanderla.',
+  'btn.expandAll': 'Espandi tutto',
+  'btn.collapseAll': 'Comprimi tutto',
+  'ph.desc': 'es. Stand per una startup tecnologica. Abbiamo bisogno di un\'area espositiva interattiva per i prodotti, un angolo riunioni privato e un grande schermo. Identità del brand in blu navy intenso e oro.',
+  'hint.desc': 'Questa descrizione è la base da cui l\'IA costruisce il concept — più è specifica, più il risultato si avvicinerà a ciò che hai in mente.',
+  'btn.generateDesign': 'Genera design',
+  'btn.previous': '‹ Precedente',
+  'btn.next': 'Successivo ›',
+  'btn.downloadImage': 'Scarica immagine',
+  'btn.modifyDesign': 'Modifica design',
+  'btn.approve': 'Approva',
+  'btn.otherOption': 'Altra opzione',
+  'note.freeModification': '✦ La tua prima modifica o altra opzione su questo design è offerta da noi — a volte il rendering iniziale necessita di una rapida modifica, e questa non verrà conteggiata nel tuo utilizzo.',
+  'common.cancel': 'Annulla',
+  'common.ok': 'OK',
+  'common.notice': 'Avviso',
+  'common.confirm': 'Conferma',
+  'field.eventName': 'Nome evento',
+  'field.industryStyle': 'Stile di settore',
+  'field.projectName': 'Nome del progetto',
+  'field.descBooth': 'Descrivi in dettaglio cosa desideri: l\'obiettivo, i prodotti esposti, l\'identità visiva, eventuali requisiti speciali',
+  'field.descEvent': 'Descrivi in dettaglio cosa desideri: l\'obiettivo dell\'evento, l\'atmosfera generale, attività o sessioni, identità visiva',
+  'validation.projectName': 'un nome di progetto',
+  'validation.width': 'la larghezza',
+  'validation.depth': 'la profondità',
+  'validation.boothHeight': 'l\'altezza dello stand',
+  'validation.upperDeckPurpose': 'almeno uno scopo per il piano superiore (poiché hai selezionato uno stand a doppio livello)',
+  'validation.brandColor': 'almeno un colore del brand',
+  'validation.logo': 'un logo aziendale',
+  'validation.posterFile': 'almeno un file poster (oppure passa a "No — servono nuovi design")',
+  'validation.requirementsCount': 'almeno 2 selezioni sotto Requisiti',
+  'validation.stillNeeded': 'Ancora necessario: ',
+  'validation.enterPrefix': 'Inserisci ',
+  'validation.boothFieldSuffix': ' — questo campo si trova sopra, nel modulo principale (non i campi opzionali "Dimensioni dello stand" nella barra laterale, riservati solo al caricamento di un design già finito).',
+  'validation.upperDeckPurposeFull': 'Seleziona almeno uno scopo per il piano superiore — obbligatorio poiché hai selezionato uno stand a doppio livello.',
+  'validation.brandColorFull': 'Aggiungi almeno un colore del brand.',
+  'validation.logoFull': 'Carica il logo della tua azienda — è obbligatorio.',
+  'validation.posterFileFull': 'Carica almeno un file poster, oppure passa a "No — servono nuovi design".',
+  'validation.requirementsCountFull': 'Seleziona almeno 2 elementi sotto Requisiti.',
+  'validation.doubleDeckInfeasible': 'Il doppio livello non è fattibile per uno stand di {area} mq — una vera scala larga {minWidth} m più un piano superiore realmente utilizzabile richiedono almeno {minArea} mq di superficie. Aumenta le dimensioni dello stand o passa a un livello singolo.',
+  'notice.descTranslated': 'Tradotto in inglese per la generazione — il tuo testo originale viene conservato.',
+};
+
+const I18N_ZH = {
+  'sidebar.projectsHeading': '项目',
+  'sidebar.newProject': '+ 新建',
+  'sidebar.autoSaveNote': '项目会自动保存并在设备间同步。',
+  'sidebar.or': '或',
+  'sidebar.boothSizeRequired': '展位尺寸（必填）',
+  'ph.widthShort': '宽 (米)',
+  'ph.depthShort': '深 (米)',
+  'ph.heightShort': '高 (米)',
+  'ph.projectNameShort': '项目名称',
+  'sidebar.uploadExistingBtn': '上传已有设计',
+  'sidebar.uploadExistingHint': '请在上方填写展位尺寸和项目名称以启用上传。',
+  'sidebar.uploadExistingNote': '已经有完成的设计了吗？上传即可跳过表单，直接进入相机视角。',
+  'sidebar.accountUsage': '账户用量',
+  'sidebar.buyMore': '购买更多用量 — 即将推出。',
+  'app.title': 'AI 设计工作室',
+  'app.tagline': '用文字描述您的想法，获得展位或活动的初始概念方案',
+  'app.adminPanel': '管理面板',
+  'app.logout': '退出登录',
+  'tabs.booth': '展览展位',
+  'tabs.event': '活动概念',
+  'tabs.displayStand': '展示架',
+  'tabs.editDesign': '修改设计',
+  'section.eventDetails': '活动详情',
+  'section.boothDetails': '展位详情',
+  'field.width': '宽度 — W (米)',
+  'field.depth': '深度 — D (米)',
+  'field.boothHeight': '展位高度 (米)',
+  'field.numberOfLevels': '楼层数',
+  'option.singleLevel': '1 — 单层',
+  'option.doubleDeck': '2 — 双层（一楼 + 二楼）',
+  'sfc.headline': '二楼配置',
+  'sfc.purpose': '二楼用途',
+  'sfc.purposeHint': '请选择所有适用项 — 未在此处选择的功能将默认归入一楼。',
+  'sfc.capacity': '容纳人数',
+  'sfc.capacity.2to4': '2–4 人',
+  'sfc.capacity.4to8': '4–8 人',
+  'sfc.capacity.8to12': '8–12 人',
+  'sfc.capacity.12plus': '12 人以上',
+  'sfc.privacyLevel': '私密程度',
+  'sfc.privacy.open': '完全开放',
+  'sfc.privacy.semi': '半私密',
+  'sfc.privacy.enclosed': '完全封闭',
+  'sfc.staircasePosition': '楼梯位置',
+  'sfc.stair.frontLeft': '前左',
+  'sfc.stair.frontRight': '前右',
+  'sfc.stair.rearLeft': '后左',
+  'sfc.stair.rearRight': '后右',
+  'sfc.stair.center': '中央',
+  'sfc.stair.autoOptimize': '自动优化',
+  'sfc.stairHint': '"自动优化"会将楼梯设置在最能保留开放空间和视线通透性的位置，专为此展位量身定制。',
+  'sfc.upperDeckStyle': '二楼风格',
+  'sfc.style.openTerrace': '开放露台',
+  'sfc.style.glassBalustrade': '玻璃栏杆',
+  'sfc.style.solidWalls': '实体墙',
+  'sfc.style.mixed': '开放+玻璃混合',
+  'sfc.style.luxury': '豪华休息区',
+  'sfc.style.minimalist': '极简风格',
+  'sfc.style.industrial': '工业风格',
+  'sfc.optionalFeatures': '可选功能',
+  'sfc.optionalFeaturesHint': '请选择所有适用项。',
+  'sfc.additionalNotes': '补充说明（可选）',
+  'ph.upperFloorNotes': '请描述二楼的任何特殊要求……',
+  'field.numberOfOpenSides': '开放面数量',
+  'option.inline': '1 — 单面开放（3 面有墙）',
+  'option.corner': '2 — 转角（2 面有墙）',
+  'option.peninsula': '3 — 半岛型（1 面有墙）',
+  'option.island': '4 — 岛型（无墙）',
+  'hint.openSides': '决定哪些面可以设置墙体、标识和品牌展示，哪些面朝向通道保持开放视线。',
+  'section.eventTheme': '活动主题',
+  'section.boothTheme': '展位主题',
+  'field.brandColors': '品牌颜色',
+  'btn.addColor': '+ 添加颜色',
+  'hint.brandColors': '请至少添加一种品牌颜色 — AI 将围绕这些颜色构建完整的配色方案。',
+  'field.logoPlaceholder': '点击上传您的标志 — 支持 PNG、JPG、WebP 或 SVG',
+  'hint.logo': '必填。AI 会使用标志的颜色和风格，以保持设计与品牌一致。',
+  'field.archStyle': '建筑风格',
+  'field.constructionStyle': '施工风格',
+  'hint.constructionStyle': '决定材料质量和施工复杂度 — 对施工可行性很重要。',
+  'field.brandPersonality': '品牌个性',
+  'section.requirements': '需求配置',
+  'hint.requirements': '至少选择 2 项',
+  'hint.requirementsRest': '— 勾选适用项并填写确切数量。未勾选的项目将按照 EPS-011 的常规尺寸默认值处理。各类别默认折叠 — 点击类别名称即可展开。',
+  'btn.expandAll': '全部展开',
+  'btn.collapseAll': '全部折叠',
+  'ph.desc': '例如：为一家科技初创公司设计展位。我们需要一个互动产品展示区、一个私密洽谈角和一块大屏幕。品牌形象采用深藏蓝色和金色。',
+  'hint.desc': '这段描述是 AI 构建方案的基础 — 描述越具体，最终结果就越接近您的设想。',
+  'btn.generateDesign': '生成设计',
+  'btn.previous': '‹ 上一个',
+  'btn.next': '下一个 ›',
+  'btn.downloadImage': '下载图片',
+  'btn.modifyDesign': '修改设计',
+  'btn.approve': '批准',
+  'btn.otherOption': '其他方案',
+  'note.freeModification': '✦ 本设计的首次修改或其他方案由我们免费提供 — 有时初始渲染需要快速调整，这次调整不会计入您的用量。',
+  'common.cancel': '取消',
+  'common.ok': '确定',
+  'common.notice': '提示',
+  'common.confirm': '确认',
+  'field.eventName': '活动名称',
+  'field.industryStyle': '行业风格',
+  'field.projectName': '项目名称',
+  'field.descBooth': '请详细描述您的需求：目标、展示的产品、视觉形象、任何特殊要求',
+  'field.descEvent': '请详细描述您的需求：活动目标、整体氛围、活动或环节安排、视觉形象',
+  'validation.projectName': '项目名称',
+  'validation.width': '宽度',
+  'validation.depth': '深度',
+  'validation.boothHeight': '展位高度',
+  'validation.upperDeckPurpose': '至少一项二楼用途（因为您选择了双层展位）',
+  'validation.brandColor': '至少一种品牌颜色',
+  'validation.logo': '公司标志',
+  'validation.posterFile': '至少一个海报文件（或切换为"否 — 需要新的设计"）',
+  'validation.requirementsCount': '需求配置中至少选择 2 项',
+  'validation.stillNeeded': '仍需填写：',
+  'validation.enterPrefix': '请输入',
+  'validation.boothFieldSuffix': ' — 该字段位于上方主表单中（不是侧边栏中用于上传已完成设计的可选"展位尺寸"字段）。',
+  'validation.upperDeckPurposeFull': '请至少选择一项二楼用途 — 由于您选择了双层展位，此项为必填。',
+  'validation.brandColorFull': '请至少添加一种品牌颜色。',
+  'validation.logoFull': '请上传公司标志 — 此项为必填。',
+  'validation.posterFileFull': '请至少上传一个海报文件，或切换为"否 — 需要新的设计"。',
+  'validation.requirementsCountFull': '请在需求配置中至少选择 2 项。',
+  'validation.doubleDeckInfeasible': '面积为 {area} 平方米的展位无法采用双层设计 — 一个真实的 {minWidth} 米宽楼梯，加上一个真正可用的二楼，至少需要 {minArea} 平方米的占地面积。请增大展位面积，或改为单层设计。',
+  'notice.descTranslated': '已翻译为英文用于生成 — 您的原文将被保留。',
+};
+
+const I18N_JA = {
+  'sidebar.projectsHeading': 'プロジェクト',
+  'sidebar.newProject': '+ 新規',
+  'sidebar.autoSaveNote': 'プロジェクトは自動保存され、デバイス間で同期されます。',
+  'sidebar.or': 'または',
+  'sidebar.boothSizeRequired': 'ブース サイズ（必須）',
+  'ph.widthShort': '幅 (m)',
+  'ph.depthShort': '奥行 (m)',
+  'ph.heightShort': '高さ (m)',
+  'ph.projectNameShort': 'プロジェクト名',
+  'sidebar.uploadExistingBtn': '既存のデザインをアップロード',
+  'sidebar.uploadExistingHint': '上のブースサイズとプロジェクト名を入力するとアップロードが有効になります。',
+  'sidebar.uploadExistingNote': '完成したデザインをお持ちですか？アップロードしてフォームをスキップし、カメラビューに直接進めます。',
+  'sidebar.accountUsage': 'アカウント使用状況',
+  'sidebar.buyMore': '使用量を追加購入 — 近日公開。',
+  'app.title': 'AI デザインスタジオ',
+  'app.tagline': 'アイデアを言葉で説明すると、ブースやイベントの初期コンセプトが得られます',
+  'app.adminPanel': '管理者パネル',
+  'app.logout': 'ログアウト',
+  'tabs.booth': '展示ブース',
+  'tabs.event': 'イベントコンセプト',
+  'tabs.displayStand': 'ディスプレイスタンド',
+  'tabs.editDesign': 'デザインを変更',
+  'section.eventDetails': 'イベント詳細',
+  'section.boothDetails': 'ブース詳細',
+  'field.width': '幅 — W (m)',
+  'field.depth': '奥行 — D (m)',
+  'field.boothHeight': 'ブースの高さ (m)',
+  'field.numberOfLevels': '階数',
+  'option.singleLevel': '1 — 単層',
+  'option.doubleDeck': '2 — 二層（1階＋2階）',
+  'sfc.headline': '2階の設定',
+  'sfc.purpose': '2階の用途',
+  'sfc.purposeHint': '該当するものをすべて選択してください — ここで配置しないものはすべて1階に属するものとみなされます。',
+  'sfc.capacity': '収容人数',
+  'sfc.capacity.2to4': '2〜4名',
+  'sfc.capacity.4to8': '4〜8名',
+  'sfc.capacity.8to12': '8〜12名',
+  'sfc.capacity.12plus': '12名以上',
+  'sfc.privacyLevel': 'プライバシーレベル',
+  'sfc.privacy.open': '完全オープン',
+  'sfc.privacy.semi': 'セミプライベート',
+  'sfc.privacy.enclosed': '完全個室',
+  'sfc.staircasePosition': '階段の位置',
+  'sfc.stair.frontLeft': '前方左',
+  'sfc.stair.frontRight': '前方右',
+  'sfc.stair.rearLeft': '後方左',
+  'sfc.stair.rearRight': '後方右',
+  'sfc.stair.center': '中央',
+  'sfc.stair.autoOptimize': '自動最適化',
+  'sfc.stairHint': '「自動最適化」を選ぶと、このブース固有の開放スペースと視線を最も損なわない位置に階段が配置されます。',
+  'sfc.upperDeckStyle': '2階のスタイル',
+  'sfc.style.openTerrace': 'オープンテラス',
+  'sfc.style.glassBalustrade': 'ガラス手すり',
+  'sfc.style.solidWalls': 'ソリッドウォール',
+  'sfc.style.mixed': 'オープン＋ガラスの混合',
+  'sfc.style.luxury': 'ラグジュアリーラウンジ',
+  'sfc.style.minimalist': 'ミニマリスト',
+  'sfc.style.industrial': 'インダストリアル',
+  'sfc.optionalFeatures': 'オプション機能',
+  'sfc.optionalFeaturesHint': '該当するものをすべて選択してください。',
+  'sfc.additionalNotes': '補足事項（任意）',
+  'ph.upperFloorNotes': '2階に関する特別な要望があれば記入してください…',
+  'field.numberOfOpenSides': '開放面の数',
+  'option.inline': '1 — インライン（3面が壁）',
+  'option.corner': '2 — コーナー（2面が壁）',
+  'option.peninsula': '3 — ペニンシュラ（1面が壁）',
+  'option.island': '4 — アイランド（壁なし）',
+  'hint.openSides': 'どの面に壁・サイン・ブランディングを配置でき、どの面が通路に向けて開放されるかを決定します。',
+  'section.eventTheme': 'イベントテーマ',
+  'section.boothTheme': 'ブースのテーマ',
+  'field.brandColors': 'ブランドカラー',
+  'btn.addColor': '+ 色を追加',
+  'hint.brandColors': 'ブランドカラーを少なくとも1色追加してください — AIがこれらを基に配色全体を構築します。',
+  'field.logoPlaceholder': 'クリックしてロゴをアップロード — PNG、JPG、WebP、SVG に対応',
+  'hint.logo': '必須項目です。AIはロゴの色とスタイルを使用して、コンセプトをブランドに沿ったものにします。',
+  'field.archStyle': '建築スタイル',
+  'field.constructionStyle': '施工スタイル',
+  'hint.constructionStyle': '素材の品質と施工の複雑さを決定します — 施工の実現可能性に関わる重要な項目です。',
+  'field.brandPersonality': 'ブランドパーソナリティ',
+  'section.requirements': '要件',
+  'hint.requirements': '少なくとも2つ選択してください',
+  'hint.requirementsRest': '— 該当する項目にチェックを入れ、正確な数量を指定してください。ここでチェックしなかった項目はEPS-011の通常のサイズ基準デフォルトに従います。カテゴリはデフォルトで折りたたまれています — カテゴリ名をクリックすると展開されます。',
+  'btn.expandAll': 'すべて展開',
+  'btn.collapseAll': 'すべて折りたたむ',
+  'ph.desc': '例：テック系スタートアップ向けのブース。インタラクティブな製品展示エリア、プライベートな商談スペース、大型ディスプレイが必要です。ブランドアイデンティティは濃紺とゴールド。',
+  'hint.desc': 'この説明をもとにAIがコンセプトを構築します — 具体的であるほど、思い描いているものに近い結果が得られます。',
+  'btn.generateDesign': 'デザインを生成',
+  'btn.previous': '‹ 前へ',
+  'btn.next': '次へ ›',
+  'btn.downloadImage': '画像をダウンロード',
+  'btn.modifyDesign': 'デザインを変更',
+  'btn.approve': '承認',
+  'btn.otherOption': '別の案',
+  'note.freeModification': '✦ このデザインの最初の修正または別の案の生成は無料です — 初回レンダリングに簡単な調整が必要になることがありますが、その分は利用量にカウントされません。',
+  'common.cancel': 'キャンセル',
+  'common.ok': 'OK',
+  'common.notice': 'お知らせ',
+  'common.confirm': '確認',
+  'field.eventName': 'イベント名',
+  'field.industryStyle': '業界スタイル',
+  'field.projectName': 'プロジェクト名',
+  'field.descBooth': 'ご希望の内容を詳しく説明してください：目的、展示する製品、ビジュアルアイデンティティ、特別な要望など',
+  'field.descEvent': 'ご希望の内容を詳しく説明してください：イベントの目的、全体の雰囲気、アクティビティやセッション、ビジュアルアイデンティティ',
+  'validation.projectName': 'プロジェクト名',
+  'validation.width': '幅',
+  'validation.depth': '奥行',
+  'validation.boothHeight': 'ブースの高さ',
+  'validation.upperDeckPurpose': '2階の用途を少なくとも1つ（二層ブースを選択したため）',
+  'validation.brandColor': 'ブランドカラーを少なくとも1色',
+  'validation.logo': '会社のロゴ',
+  'validation.posterFile': 'ポスターファイルを少なくとも1つ（または「いいえ — 新しいデザインが必要」に切り替え）',
+  'validation.requirementsCount': '要件で少なくとも2項目の選択',
+  'validation.stillNeeded': '入力が必要な項目: ',
+  'validation.enterPrefix': '次を入力してください: ',
+  'validation.boothFieldSuffix': ' — このフィールドは上部のメインフォームにあります（サイドバーの任意項目「ブースサイズ」ではありません。これは既に完成したデザインをアップロードする場合専用です）。',
+  'validation.upperDeckPurposeFull': '2階の用途を少なくとも1つ選択してください — 二層ブースを選択したため必須です。',
+  'validation.brandColorFull': 'ブランドカラーを少なくとも1色追加してください。',
+  'validation.logoFull': '会社のロゴをアップロードしてください — 必須項目です。',
+  'validation.posterFileFull': 'ポスターファイルを少なくとも1つアップロードするか、「いいえ — 新しいデザインが必要」に切り替えてください。',
+  'validation.requirementsCountFull': '要件で少なくとも2項目を選択してください。',
+  'validation.doubleDeckInfeasible': '{area}平方メートルのブースでは二層構造は実現できません — 実用的な幅{minWidth}mの階段と本当に使える2階には、少なくとも{minArea}平方メートルの面積が必要です。ブースを大きくするか、単層に切り替えてください。',
+  'notice.descTranslated': '生成のために英語に翻訳されました — 元のテキストはそのまま保持されます。',
+};
+
+const I18N_DICTIONARIES = {
+  en: I18N_EN, ar: I18N_AR, fr: I18N_FR, de: I18N_DE, es: I18N_ES, it: I18N_IT, zh: I18N_ZH, ja: I18N_JA,
+};
+
+let currentLanguage = 'en';
+
+function t(key){
+  const dict = I18N_DICTIONARIES[currentLanguage] || I18N_EN;
+  if(dict[key] != null) return dict[key];
+  if(I18N_EN[key] != null) return I18N_EN[key];
+  return key;
+}
+
+// Same lookup as t(), with {placeholder} substitution for the handful of messages that need a
+// runtime value spliced in (e.g. "{area} sqm" in the double-deck feasibility message) — kept
+// as simple string splitting rather than a templating library, since only a few messages ever
+// need this and every placeholder name is already known ahead of time.
+function tf(key, vars){
+  let str = t(key);
+  if(vars){
+    Object.keys(vars).forEach(k => { str = str.split('{' + k + '}').join(vars[k]); });
+  }
+  return str;
+}
+
+// Walks every element carrying a data-i18n* attribute and applies the current language's
+// translation — called once on page load (see initLanguage at the bottom of this file) and
+// again every time setLanguage() runs. Three attribute forms, matching the three kinds of text
+// a form element can carry: element text content, a placeholder, or a title/tooltip. Deliberately
+// only ever touches these three DOM-facing properties — never a form field's own `value`, so
+// this can never leak a translated string into anything generateDesign() or any deterministic
+// engine reads.
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder')));
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.setAttribute('title', t(el.getAttribute('data-i18n-title')));
+  });
+  updateModeDependentLabels();
+}
+
+function renderLanguageSelectorOptions(){
+  const sel = document.getElementById('languageSelector');
+  if(!sel || sel.options.length) return; // built once — no reason to rebuild on every language switch
+  LANGUAGE_OPTIONS.forEach(opt => {
+    const o = document.createElement('option');
+    o.value = opt.code;
+    o.textContent = opt.name;
+    sel.appendChild(o);
+  });
+}
+
+// Switches the active UI language: applies every data-i18n translation, flips the page's own
+// text direction to RTL for Arabic (see the [dir="rtl"] CSS block), and remembers the choice —
+// as the default for the NEXT brand-new project / first visit only. A specific project's own
+// saved language (see collectFormSnapshot/restoreFormSnapshot) always takes priority over this
+// once that project is open; this localStorage value is only ever the starting point for a
+// fresh session with no project open yet.
+function setLanguage(lang, skipPersist){
+  currentLanguage = I18N_DICTIONARIES[lang] ? lang : 'en';
+  const opt = LANGUAGE_OPTIONS.find(o => o.code === currentLanguage) || LANGUAGE_OPTIONS[0];
+  document.documentElement.lang = currentLanguage;
+  document.documentElement.dir = opt.dir;
+  renderLanguageSelectorOptions();
+  applyTranslations();
+  const sel = document.getElementById('languageSelector');
+  if(sel && sel.value !== currentLanguage) sel.value = currentLanguage;
+  if(!skipPersist){
+    try{ localStorage.setItem('designLabLanguage', currentLanguage); }catch(e){ /* ignore */ }
+  }
+}
+
+function initLanguage(){
+  let saved = null;
+  try{ saved = localStorage.getItem('designLabLanguage'); }catch(e){ /* ignore */ }
+  setLanguage(saved || 'en', true);
+}
+/* ================= End I18N ================= */
+
 let mode = 'booth';
 let pendingGenerateAction = null; // holds the deferred generation logic while the "Before you generate" popup is showing
 
@@ -6719,6 +7884,28 @@ function applyModeSnapshot(snapshot){
   updateBrandPersonalityHint();
 }
 
+// Three labels whose actual wording depends on which mode is active (Booth vs. Event phrase
+// the same field differently) — rebuilt via innerHTML here rather than marked up as static
+// data-i18n text in the HTML, since their content genuinely isn't static. Called from both
+// setMode() (mode just changed) and setLanguage() (language just changed, mode didn't) so
+// these three stay in sync with whichever changed most recently.
+function updateModeDependentLabels(){
+  const nameLabel = document.getElementById('lblName');
+  if(nameLabel){
+    nameLabel.innerHTML = mode === 'booth'
+      ? `${t('field.projectName')} <span class="required-mark">*</span>`
+      : t('field.eventName');
+  }
+  const industryLabel = document.getElementById('lblIndustryStyle');
+  if(industryLabel) industryLabel.innerHTML = `${t('field.industryStyle')} <span class="required-mark">*</span>`;
+  const descLabel = document.getElementById('lblDesc');
+  if(descLabel){
+    descLabel.innerHTML = mode === 'booth'
+      ? t('field.descBooth')
+      : `${t('field.descEvent')} <span class="required-mark">*</span>`;
+  }
+}
+
 function setMode(m){
   // Save the outgoing mode's own field values, and load the incoming mode's own — only
   // when actually moving between booth and event, since those are the two modes that
@@ -6778,12 +7965,14 @@ function setMode(m){
     document.getElementById('ceilingRiggingHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('requirementsHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('referenceImageHeadline').style.display = m==='booth' ? 'block' : 'none';
-    document.getElementById('lblName').innerHTML = m==='booth' ? 'Project Name <span class="required-mark">*</span>' : 'Event name';
-    document.getElementById('lblIndustryStyle').innerHTML = 'Industry style <span class="required-mark">*</span>';
     document.getElementById('f_name').placeholder = '';
-    document.getElementById('lblDesc').innerHTML = (m==='booth'
-      ? 'Describe what you want in detail: the goal, products on display, visual identity, any special requirements'
-      : 'Describe what you want in detail: the event goal, overall mood, activities or sessions, visual identity' + ' <span class="required-mark">*</span>');
+    // Rebuilds every label whose text depends on which mode is active (Booth vs. Event use
+    // different wording for the same field) — pulled into its own function, shared with
+    // setLanguage(), because innerHTML-rebuilding a label this way overwrites any data-i18n
+    // attribute that used to be on it; without also re-running this on a language change (not
+    // just a mode change), these three labels would silently freeze in whatever language was
+    // active the first time setMode() ever ran, ignoring every later language switch.
+    updateModeDependentLabels();
   }
   updateGenerateButtonState();
 }
@@ -7019,7 +8208,11 @@ function computeDoubleDeckFeasibility(widthM, depthM){
   if(areaSqm < MIN_DOUBLE_DECK_AREA_SQM){
     return {
       feasible: false, areaSqm,
-      reason: `Double Deck is not feasible for a ${areaSqm.toFixed(1)} sqm booth — a real ${DOUBLE_DECK_MIN_STAIR_WIDTH_M.toFixed(1)} m-wide staircase plus a genuinely usable upper deck needs at least ${MIN_DOUBLE_DECK_AREA_SQM} sqm of footprint. Please increase the booth size or switch to a single level.`
+      reason: tf('validation.doubleDeckInfeasible', {
+        area: areaSqm.toFixed(1),
+        minWidth: DOUBLE_DECK_MIN_STAIR_WIDTH_M.toFixed(1),
+        minArea: MIN_DOUBLE_DECK_AREA_SQM
+      })
     };
   }
   return { feasible: true, areaSqm };
@@ -7519,19 +8712,19 @@ function getMissingRequirements(m){
       missing.push('width and depth (or check "I don\'t know the exact size of the space")');
     }
   } else if(m === 'booth'){
-    if(!name) missing.push('a project name');
-    if(!width) missing.push('width');
-    if(!depth) missing.push('depth');
-    if(!totalHeight) missing.push('booth height');
-    if(levels === '2' && upperDeckPurposeCount === 0) missing.push('at least one Purpose of the Upper Deck (since you selected a double-deck booth)');
+    if(!name) missing.push(t('validation.projectName'));
+    if(!width) missing.push(t('validation.width'));
+    if(!depth) missing.push(t('validation.depth'));
+    if(!totalHeight) missing.push(t('validation.boothHeight'));
+    if(levels === '2' && upperDeckPurposeCount === 0) missing.push(t('validation.upperDeckPurpose'));
     if(levels === '2'){
       const feasibility = computeDoubleDeckFeasibility(parseFloat(width), parseFloat(depth));
       if(!feasibility.feasible) missing.push(feasibility.reason);
     }
-    if(colorHexes.length === 0) missing.push('at least one brand color');
-    if(!logoDataUrl) missing.push('a company logo');
-    if(hasPosters.startsWith('yes') && posterFiles.length === 0) missing.push('at least one poster file (or switch to "No — need new designs")');
-    if(selectedRequirementsCount < 2) missing.push('at least 2 selections under Requirements');
+    if(colorHexes.length === 0) missing.push(t('validation.brandColor'));
+    if(!logoDataUrl) missing.push(t('validation.logo'));
+    if(hasPosters.startsWith('yes') && posterFiles.length === 0) missing.push(t('validation.posterFile'));
+    if(selectedRequirementsCount < 2) missing.push(t('validation.requirementsCount'));
     if(floorType === 'Custom' && !floorTypeCustom) missing.push('a description for the custom floor type');
     if(floorFinish === 'Custom Finish' && !floorFinishCustom) missing.push('a description for the custom floor finish');
     if(MARBLE_FLOOR_FINISHES.includes(floorFinish) && marbleColor === 'Custom' && !marbleColorCustom) missing.push('a description for the custom marble color');
@@ -7550,7 +8743,7 @@ function updateGenerateButtonState(){
   if(!btn) return;
   const missing = getMissingRequirements(mode);
   btn.disabled = missing.length > 0;
-  btn.title = missing.length > 0 ? 'Still needed: ' + missing.join(', ') : '';
+  btn.title = missing.length > 0 ? t('validation.stillNeeded') + missing.join(', ') : '';
 }
 
 // Shared by both stages of the Project Analysis Engine (see generateDesign below): sends
@@ -7630,6 +8823,76 @@ function extractStage2FieldsLeniently(rawText){
     image_prompt: unescape(rawText.slice(promptValStart, promptEnd)),
     concept_description: unescape(rawText.slice(descValStart, descEnd))
   };
+}
+
+// Auto-translate description (i18n requirement): the description field is the one place a
+// person writes free-form prose, and it may be written in any language regardless of what the
+// UI happens to be set to — so detection below is script/character-based on the actual text,
+// never on currentLanguage, meaning English text typed while the UI is set to Arabic never
+// triggers a needless API call, and Arabic text typed while the UI is set to English still
+// gets caught correctly.
+function detectNonEnglishText(text){
+  if(!text) return false;
+  // Non-Latin scripts are unambiguous on their own — any of these ranges means "not English".
+  if(/[؀-ۿݐ-ݿ]/.test(text)) return true; // Arabic
+  if(/[一-鿿㐀-䶿]/.test(text)) return true; // Chinese (Han)
+  if(/[぀-ヿ]/.test(text)) return true; // Japanese hiragana/katakana
+  if(/[가-힯]/.test(text)) return true; // Korean, in case it ever comes up
+  if(/[Ѐ-ӿ]/.test(text)) return true; // Cyrillic
+  if(/[֐-׿]/.test(text)) return true; // Hebrew
+  // French/German/Spanish/Italian share the Latin alphabet with English — detected instead via
+  // accented characters that essentially never appear in plain English prose.
+  if(/[àâäæçèéêëîïôœùûüÿñáíóúÁÉÍÓÚÑÀÂÄÆÇÈÉÊËÎÏÔŒÙÛÜŸÑüÜßØøÅå]/.test(text)) return true;
+  return false;
+}
+
+// Calls the same /api/generate passthrough Stage 1/Stage 2 use, but for a plain-text
+// translation rather than a JSON-shaped design decision — kept separate from
+// callPromptWriterApi since that function's whole job is parsing a JSON response, and a
+// translated sentence is not JSON. This is a deliberate, narrow exception to the two-call
+// pipeline (Stage 1 analysis + Stage 2 prompt writing): it only ever runs when
+// detectNonEnglishText() finds real non-English text in the description, so an English
+// submission still makes exactly the same two calls it always did.
+async function translateTextToEnglish(text){
+  const response = await fetch("/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      max_tokens: 1024,
+      system: "You are a translation engine. Translate the user's message into natural, fluent English. Reply with ONLY the translated text — no quotes, no explanation, no preamble, no postscript. If the text is already in English, return it completely unchanged.",
+      messages: [{ role: "user", content: text }]
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if(!response.ok) throw new Error('Translation request failed (HTTP ' + response.status + ').');
+  const rawText = (data.content || []).map(b => b.text || '').join('').trim();
+  return rawText || text;
+}
+
+// Returns the text that should actually be sent to the AI pipeline (always English) and shows
+// the small inline notice near the description field when a translation actually happened.
+// The textarea's own value is NEVER modified by this — only the copy fed into userBrief
+// changes, per the requirement that a person's original wording stays exactly as written and
+// fully editable afterward. If the translation call itself fails for any reason, this falls
+// back to sending the original text rather than blocking generation on a translation error.
+async function translateDescriptionIfNeeded(rawDesc){
+  const notice = document.getElementById('descTranslateNotice');
+  if(!detectNonEnglishText(rawDesc)){
+    if(notice) notice.style.display = 'none';
+    return { text: rawDesc, wasTranslated: false };
+  }
+  try{
+    const translated = await translateTextToEnglish(rawDesc);
+    if(notice){
+      notice.textContent = t('notice.descTranslated');
+      notice.style.display = 'block';
+    }
+    return { text: translated, wasTranslated: true };
+  }catch(e){
+    console.warn('[translateDescriptionIfNeeded] translation failed, falling back to original text:', e);
+    if(notice) notice.style.display = 'none';
+    return { text: rawDesc, wasTranslated: false };
+  }
 }
 
 async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
@@ -7733,7 +8996,7 @@ async function generateDesign(){
   const city = document.getElementById('f_city').value.trim();
   const venue = document.getElementById('f_venue').value.trim();
   const environment = document.getElementById('f_environment').value;
-  const desc = document.getElementById('f_desc').value.trim();
+  let desc = document.getElementById('f_desc').value.trim(); // reassigned below (after all validation passes) to the English translation actually sent to the AI, if translation was needed — see translateDescriptionIfNeeded()
   const openSides = mode === 'booth' ? buildOpenSidesDescription() : '';
   const boothOrientationModel = mode === 'booth' ? buildBoothOrientationModel(parseFloat(width), parseFloat(depth)) : '';
   const boothHasValidFootprint = mode === 'booth' && parseFloat(width) > 0 && parseFloat(depth) > 0;
@@ -7814,17 +9077,17 @@ async function generateDesign(){
     }
   } else if(!name || !width || !depth || !totalHeight){
     const missing = [];
-    if(!name) missing.push('a project name');
-    if(!width) missing.push('width');
-    if(!depth) missing.push('depth');
-    if(!totalHeight) missing.push('booth height');
-    errBox.textContent = 'Please enter ' + missing.join(', ') + ' — this field is above, in the main form (not the sidebar\'s optional "Booth size" fields, which are only for uploading an existing finished design).';
+    if(!name) missing.push(t('validation.projectName'));
+    if(!width) missing.push(t('validation.width'));
+    if(!depth) missing.push(t('validation.depth'));
+    if(!totalHeight) missing.push(t('validation.boothHeight'));
+    errBox.textContent = t('validation.enterPrefix') + missing.join(', ') + t('validation.boothFieldSuffix');
     errBox.style.display = 'block';
     errBox.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
   if(mode === 'booth' && levels === '2' && upperDeckPurposeCount === 0){
-    errBox.textContent = 'Please select at least one Purpose of the Upper Deck — required since you selected a double-deck booth.';
+    errBox.textContent = t('validation.upperDeckPurposeFull');
     errBox.style.display = 'block';
     errBox.scrollIntoView({behavior:'smooth', block:'center'});
     return;
@@ -7843,24 +9106,24 @@ async function generateDesign(){
     }
   }
   if(mode === 'booth' && colorHexes.length === 0){
-    errBox.textContent = 'Please add at least one brand color.';
+    errBox.textContent = t('validation.brandColorFull');
     errBox.style.display = 'block';
     return;
   }
   if(mode === 'booth' && !logoDataUrl){
-    errBox.textContent = 'Please upload your company logo — it is required.';
+    errBox.textContent = t('validation.logoFull');
     errBox.style.display = 'block';
     return;
   }
   if(mode === 'booth' && hasPosters.startsWith('yes') && posterFiles.length === 0){
-    errBox.textContent = 'Please upload at least one poster file, or switch to "No — need new designs".';
+    errBox.textContent = t('validation.posterFileFull');
     errBox.style.display = 'block';
     return;
   }
   if(mode === 'booth'){
     const selectedRequirementsCount = ADDREQ_ALL_CHECKBOX_IDS.filter(id => document.getElementById(id).checked).length;
     if(selectedRequirementsCount < 2){
-      errBox.textContent = 'Please select at least 2 items under Requirements.';
+      errBox.textContent = t('validation.requirementsCountFull');
       errBox.style.display = 'block';
       errBox.scrollIntoView({behavior:'smooth', block:'center'});
       return;
@@ -7939,6 +9202,12 @@ async function generateDesign(){
       ? `Exact size: not specified by the client. ${noFootprintInstruction}`
       : `Dimensions: ${eventWidth} m (width) × ${eventDepth} m (depth) — approximate area ${(parseFloat(eventWidth) * parseFloat(eventDepth)).toFixed(1)} square meters`;
   }
+
+  // All validation returns above have already passed by this point — translate only now, so an
+  // invalid submission never spends an extra API call. Internal values (enums, dimensions, hex
+  // codes, every deterministic engine's own output) never pass through this — only the client's
+  // own free-text description does, and only when it's actually detected as non-English.
+  desc = (await translateDescriptionIfNeeded(desc)).text;
 
   const userBrief = `
 ${modularWallLayout ? 'PRIORITY REQUIREMENT FOR THIS PROJECT: this booth must use a strict modular wall system — identical repeated panel/divider spacing and mandatory symmetry across every wall. Full detail on this requirement is given later in this brief; treat it as equal in importance to the dimensions and brand colors below, not as an afterthought.\n' : ''}Request type: ${kindLabel} design
@@ -8405,11 +9674,11 @@ let __customAlertResolve = null;
 function customAlert(message, eyebrow){
   return new Promise(resolve => {
     __customAlertResolve = resolve;
-    document.getElementById('customAlertEyebrow').textContent = eyebrow || 'Notice';
+    document.getElementById('customAlertEyebrow').textContent = eyebrow || t('common.notice');
     document.getElementById('customAlertTitle').style.display = 'none';
     document.getElementById('customAlertText').textContent = message;
     document.getElementById('customAlertCancelBtn').style.display = 'none';
-    document.getElementById('customAlertOkBtn').textContent = 'OK';
+    document.getElementById('customAlertOkBtn').textContent = t('common.ok');
     document.getElementById('customAlertOverlay').style.display = 'flex';
   });
 }
@@ -8417,11 +9686,11 @@ function customAlert(message, eyebrow){
 function customConfirm(message, eyebrow, okLabel){
   return new Promise(resolve => {
     __customAlertResolve = resolve;
-    document.getElementById('customAlertEyebrow').textContent = eyebrow || 'Confirm';
+    document.getElementById('customAlertEyebrow').textContent = eyebrow || t('common.confirm');
     document.getElementById('customAlertTitle').style.display = 'none';
     document.getElementById('customAlertText').textContent = message;
     document.getElementById('customAlertCancelBtn').style.display = 'block';
-    document.getElementById('customAlertOkBtn').textContent = okLabel || 'OK';
+    document.getElementById('customAlertOkBtn').textContent = okLabel || t('common.ok');
     document.getElementById('customAlertOverlay').style.display = 'flex';
   });
 }
@@ -8444,12 +9713,12 @@ let __customPromptResolve = null;
 function customPrompt(message, defaultValue, eyebrow, okLabel){
   return new Promise(resolve => {
     __customPromptResolve = resolve;
-    document.getElementById('customPromptEyebrow').textContent = eyebrow || 'Notice';
+    document.getElementById('customPromptEyebrow').textContent = eyebrow || t('common.notice');
     document.getElementById('customPromptTitle').style.display = 'none';
     document.getElementById('customPromptText').textContent = message;
     const input = document.getElementById('customPromptInput');
     input.value = defaultValue || '';
-    document.getElementById('customPromptOkBtn').textContent = okLabel || 'OK';
+    document.getElementById('customPromptOkBtn').textContent = okLabel || t('common.ok');
     document.getElementById('customPromptOverlay').style.display = 'flex';
     setTimeout(() => { input.focus(); input.select(); }, 0);
   });
@@ -11517,6 +12786,7 @@ function formatSavedDate(iso){
 function collectFormSnapshot(){
   return {
     mode: mode,
+    language: currentLanguage,
     f_name: document.getElementById('f_name').value,
     f_width: document.getElementById('f_width').value,
     f_depth: document.getElementById('f_depth').value,
@@ -11612,6 +12882,7 @@ function collectFormSnapshot(){
 
 function restoreFormSnapshot(snap){
   snap = snap || {};
+  setLanguage(snap.language || currentLanguage, true); // project's own saved language wins; falls back to whatever's already active (set by initLanguage()) rather than forcing English
   setMode(snap.mode || 'booth');
   document.getElementById('f_name').value = snap.f_name || '';
   document.getElementById('f_width').value = snap.f_width || '';
@@ -12338,6 +13609,7 @@ renderBrandPersonalityGrid();
 initReqCategoryAccordion();
 renderProjectSidebar();
 adminCheckPromise = checkAdminAccess();
+initLanguage(); // must run before setMode() below so the very first render already reflects the saved/default language instead of flashing English first
 setMode('booth'); // must run once on load — otherwise every element whose correct visibility depends on setMode() (the new section headlines included) stays at its raw HTML default until a tab is actually clicked
 updateUploadExistingButtonState(); // covers browser autofill restoring these fields before any oninput fires
 
