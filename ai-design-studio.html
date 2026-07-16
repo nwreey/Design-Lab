@@ -2611,6 +2611,7 @@ Replace only the materials and graphics."></textarea>
         <div class="approve-progress" id="approveProgress" style="display:none;">
           <div class="approve-progress-header">
             <span class="approve-progress-message" id="approveProgressMessage"></span>
+            <button class="ghost small" id="stopCameraViewsBtn" onclick="stopCameraViewsGeneration()" style="display:none;">Stop</button>
             <span class="approve-progress-percent" id="approveProgressPercent">0%</span>
           </div>
           <div class="approve-progress-track">
@@ -2625,6 +2626,18 @@ Replace only the materials and graphics."></textarea>
       <div class="grid-area-camerapanel">
       </div>
     </div>
+  </div>
+
+  <!-- Admin-only debug/comparison tool: a Luma 360 orbit video generated from the same
+       approved hero image, shown above and separate from the 12 OpenAI camera-view renders
+       so an admin can compare the two and spot exactly where they diverge. Luma has no role
+       in the actual production pipeline (see the comment above buildLogoBrandAssetProvider)
+       — this is strictly an extra, parallel, non-blocking comparison aid, never a dependency
+       of the real generation flow. Regular users never see this card. -->
+  <div class="card" id="adminLumaVideoCard" style="display:none;">
+    <div class="section-label-light">Admin Only — Luma 360 Video (comparison reference, not part of the real generation)</div>
+    <div class="admin-preview-note" id="adminLumaVideoStatus" style="margin-bottom:10px;"></div>
+    <video id="adminLumaVideoEl" controls loop playsinline style="max-width:480px;width:100%;border:1px solid var(--line);border-radius:2px;display:none;"></video>
   </div>
 
   <div class="card" id="viewer3dGeneratedCard" style="display:none;">
@@ -8604,17 +8617,37 @@ function dataUrlParts(dataUrl){
 // timeoutMs — every existing catch block already knows how to show a message and hand
 // controls back to the user for a real error; this just guarantees one always eventually
 // arrives instead of the request hanging forever.
-function fetchWithTimeout(url, options, timeoutMs = 100000){
+// externalSignal is optional — used by the admin-only "Stop" control on the camera-views
+// generation loop so an in-flight request can be cancelled immediately, not just left to
+// time out on its own. When it fires, this is indistinguishable from a timeout at the fetch
+// level, so the caller can check externalSignal.aborted itself to tell "the admin stopped
+// this" apart from "this genuinely timed out" if it needs to show a different message.
+function fetchWithTimeout(url, options, timeoutMs = 100000, externalSignal){
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let onExternalAbort = null;
+  if(externalSignal){
+    if(externalSignal.aborted){
+      controller.abort();
+    }else{
+      onExternalAbort = () => controller.abort();
+      externalSignal.addEventListener('abort', onExternalAbort);
+    }
+  }
   return fetch(url, { ...options, signal: controller.signal })
     .catch(err => {
       if(err && err.name === 'AbortError'){
+        if(externalSignal && externalSignal.aborted){
+          throw new Error('Stopped.');
+        }
         throw new Error('The request took too long and timed out — please try again.');
       }
       throw err;
     })
-    .finally(() => clearTimeout(timer));
+    .finally(() => {
+      clearTimeout(timer);
+      if(externalSignal && onExternalAbort) externalSignal.removeEventListener('abort', onExternalAbort);
+    });
 }
 
 /* Vercel serverless functions reject any request body over ~4.5MB. A full-resolution PNG
@@ -9369,6 +9402,12 @@ function resetLumaState(){
   document.getElementById('goodLuckMessage').style.display = 'none';
   document.getElementById('techBoardActions').style.display = 'none';
   resetRatingBar();
+  // Clears any leftover admin Luma comparison video from a previous design — a new render
+  // session should never show a stale video that belonged to a different, earlier concept.
+  const lumaCard = document.getElementById('adminLumaVideoCard');
+  if(lumaCard) lumaCard.style.display = 'none';
+  const lumaVideoEl = document.getElementById('adminLumaVideoEl');
+  if(lumaVideoEl){ lumaVideoEl.style.display = 'none'; lumaVideoEl.removeAttribute('src'); }
 }
 
 function computeImageSimilarity(dataUrlA, dataUrlB){
@@ -9424,7 +9463,7 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry){
       size: '1536x1024',
       isUserInitiatedEdit: false
     })
-  });
+  }, 100000, cameraViewsAbortController ? cameraViewsAbortController.signal : undefined);
   const rawText = await response.text();
   let data = {};
   try{ data = JSON.parse(rawText); }catch(e){ /* leave as {} */ }
@@ -9448,10 +9487,25 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry){
 // and without regenerating the other 11 views.
 let cameraViewsHeroRef = null;
 
+// Admin-only testing aid: lets a full 12-view generation run be cancelled mid-way (e.g.
+// after spotting a bad view or a prompt gap) instead of having to sit through the whole
+// remaining batch just to start the next test. Non-admins never see the Stop button that
+// triggers this, so this only ever gets set during an admin session, but the abort/cleanup
+// logic itself doesn't need to know or care who started the run.
+let cameraViewsAbortController = null;
+
+function stopCameraViewsGeneration(){
+  if(cameraViewsAbortController) cameraViewsAbortController.abort();
+}
+
 async function generateCameraViewsFromHero(heroImage){
   const compressedHero = await compressDataUrl(heroImage, 1536, 0.88);
   const { mime, base64 } = dataUrlParts(compressedHero);
   cameraViewsHeroRef = { base64, mime };
+
+  cameraViewsAbortController = new AbortController();
+  const stopBtn = document.getElementById('stopCameraViewsBtn');
+  if(stopBtn) stopBtn.style.display = isAdminUser ? 'inline-block' : 'none';
 
   document.getElementById('viewer3dGeneratedCard').style.display = 'block';
   document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
@@ -9463,13 +9517,28 @@ async function generateCameraViewsFromHero(heroImage){
 
   const SIMILARITY_THRESHOLD = 0.8;
   const compressedFront = await compressDataUrlToTarget(compressedHero, 300 * 1024);
-  initCardHistory('CAM01', compressedFront);
-  renderGeneratedViewCard('CAM01', 'done', compressedFront);
+  // CAMERA_SPECS[0] is always the Hero View by construction (see computeCameraViewPlan) —
+  // the approved hero image itself, reused unmodified, never a separate request.
+  const heroCamId = CAMERA_SPECS[0] ? CAMERA_SPECS[0].camId : 'CAM01';
+  initCardHistory(heroCamId, compressedFront);
+  renderGeneratedViewCard(heroCamId, 'done', compressedFront);
   let previousViewDataUrl = compressedFront;
-  updateApproveProgress(10, 'Creating All Views — 1 of 12...');
+  updateApproveProgress(10, `Creating All Views — 1 of ${CAMERA_SPECS.length}...`);
 
+  let stoppedEarly = false;
   for(let i = 1; i < CAMERA_SPECS.length; i++){
     const spec = CAMERA_SPECS[i];
+
+    // Checked BEFORE starting the next view (not just relying on the in-flight request's own
+    // abort) so a Stop click that lands between views doesn't fire one more request first —
+    // and every still-pending card gets an explicit, retryable "stopped" state instead of
+    // staying frozen on "Building this view..." forever.
+    if(cameraViewsAbortController.signal.aborted){
+      stoppedEarly = true;
+      renderGeneratedViewCard(spec.camId, 'failed', 'Stopped by admin before this view was generated — click Retry to generate it later.');
+      continue;
+    }
+
     updateApproveProgress(10 + (i / CAMERA_SPECS.length) * 85, `Creating All Views — ${i + 1} of ${CAMERA_SPECS.length}...`);
     try{
       let resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false);
@@ -9486,10 +9555,21 @@ async function generateCameraViewsFromHero(heroImage){
       renderGeneratedViewCard(spec.camId, 'done', compressedResult);
       previousViewDataUrl = compressedResult;
     }catch(err){
+      if(cameraViewsAbortController.signal.aborted){
+        stoppedEarly = true;
+        renderGeneratedViewCard(spec.camId, 'failed', 'Stopped by admin — click Retry to generate it later.');
+        continue;
+      }
       console.error('Could not generate view for', spec.camId, err);
       renderGeneratedViewCard(spec.camId, 'failed', err.message || 'Could not generate that view.');
     }
   }
+
+  if(stopBtn) stopBtn.style.display = 'none';
+  // Reset for next time — an individual Retry later (via retryGeneratedView) must never
+  // inherit this run's now-permanently-aborted signal, or every retry attempt would fail
+  // instantly without ever reaching the network.
+  cameraViewsAbortController = null;
 
   document.getElementById('goodLuckMessage').style.display = 'block';
   document.getElementById('techBoardActions').style.display = 'flex';
@@ -9499,7 +9579,7 @@ async function generateCameraViewsFromHero(heroImage){
   previewRatingStars(0);
   document.getElementById('rateUsBar').style.display = 'flex';
   saveCurrentProject();
-  updateApproveProgress(100, 'All views are ready.');
+  updateApproveProgress(100, stoppedEarly ? 'Stopped — the remaining views can be generated individually via Retry.' : 'All views are ready.');
 }
 
 // Regenerates a single camera view — used both for the "Retry" button on a failed card
@@ -9532,48 +9612,200 @@ async function retryGeneratedView(camId){
   }
 }
 
-/* This ring of 12 camera positions is intentionally smaller than the old Tripo/Gemini
-   pipeline's 28 options — it covers one horizontal orbit around the booth at a constant
-   eye-level elevation, not the top, interior, or any named room, so those camera types
-   were dropped rather than faked. Each of these 12 is now an independent, explicitly
-   positioned render generated directly from the approved hero image (see
-   generateCameraViewsFromHero above), not a frame extracted from a video. */
-const VIEWER_CAMERA_LABELS = {
-  CAM01: 'Front (12 o\'clock)', CAM02: '1 o\'clock — Front Right', CAM03: '2 o\'clock — Right Front',
-  CAM04: 'Right (3 o\'clock)', CAM05: '4 o\'clock — Right Rear', CAM06: '5 o\'clock — Rear Right',
-  CAM07: 'Rear (6 o\'clock)', CAM08: '7 o\'clock — Rear Left', CAM09: '8 o\'clock — Left Rear',
-  CAM10: 'Left (9 o\'clock)', CAM11: '10 o\'clock — Left Front', CAM12: '11 o\'clock — Front Left'
-};
+/* CVP-001 — Camera View Planner (replaces the old fixed 12-position clock ring).
+   The old system generated exactly 12 evenly-spaced camera positions (every 30° around a
+   full 360° orbit) for EVERY booth, regardless of its actual shape — which only ever made
+   physical sense for an island booth open on all four sides. For an inline, corner, or
+   peninsula booth (any booth with at least one STRUCTURAL WALL side), several of those 12
+   fixed positions land physically behind a closed wall — vantage points no real visitor
+   could ever stand at, producing renders that show the back of a wall, imply looking
+   through one, or waste a camera slot on an angle nobody will ever see. This is fixed by
+   computing the camera list fresh, per booth, from the SAME orientation data already
+   computed for that booth's own structural shell and hero-image camera angle
+   (getBoothOpenSidesSet / computeCameraApproachCorner / computeSpatialPlan) — never a
+   second, separately-maintained model of "which sides are open." See
+   computeCameraViewPlan below and recomputeCameraViewPlan, which is what actually calls it
+   at Approve time. VIEWER_CAMERA_LABELS and CAMERA_SPECS are now `let`, not `const` — both
+   start empty and are (re)populated by recomputeCameraViewPlan() the moment Approve is
+   clicked, rather than being fixed at page load. */
+let VIEWER_CAMERA_LABELS = {};
+let CAMERA_SPECS = [];
 
-/* Degree position of each camera around the booth, assuming the orbit video is a smooth,
-   constant-speed 360° clockwise rotation starting at the front (0°) — this is what the video
-   generation prompt explicitly requests. timestamp = (degrees / 360) * video duration.
-   12 evenly-spaced points (every 30°) rather than the original 8 (every 45°) — every one of
-   these is a genuinely free extraction from the same single orbit video, just a different
-   timestamp, so there's no reason not to offer finer coverage. */
-const CAMERA_DEGREES = {
-  CAM01: 0, CAM02: 30, CAM03: 60, CAM04: 90, CAM05: 120, CAM06: 150,
-  CAM07: 180, CAM08: 210, CAM09: 240, CAM10: 270, CAM11: 300, CAM12: 330
-};
+// The four cardinal compass directions this app's own orientation model already uses
+// (matches ALL_BOOTH_SIDES / getBoothOpenSidesSet / buildBoothOrientationModel), mapped to
+// a fixed absolute azimuth purely as an internal bookkeeping convention — never shown to
+// the rendering model directly; every camera's azimuth is always converted to be RELATIVE
+// to the hero image's own actual viewpoint before it's used in a prompt (see
+// buildCameraViewPrompt's "0° is the reference image's own viewpoint" convention).
+const COMPASS_AZIMUTH = { Front: 0, Right: 90, Back: 180, Left: 270 };
+const CORNER_TO_ABSOLUTE_AZIMUTH = { 'Front-Right': 45, 'Back-Right': 135, 'Back-Left': 225, 'Front-Left': 315 };
 
-/* Every clock position is an absolute camera location, not a loosely-interpreted prompt —
-   see buildCameraViewPrompt below. Elevation, radius, and lens stay constant across all 12
-   (matching "distance from booth remains constant" / "camera height remains constant"),
-   since only azimuth is meant to change position to position. target is always the booth's
-   own center — the camera reframes around a fixed point, the booth never moves. */
-const CAMERA_SPECS = Object.keys(VIEWER_CAMERA_LABELS).map((camId, i) => ({
-  camId,
-  clock: i + 1,
-  label: VIEWER_CAMERA_LABELS[camId],
-  azimuth: CAMERA_DEGREES[camId],
-  elevation: 15,
-  radius: 8,
-  target: 'booth_center',
-  lens: 35
-}));
+// Dynamic camera count, per the client's own table — scaled to how many sides are
+// genuinely open (and therefore how much of the booth a real visitor can actually approach
+// and photograph from outside, per the client's Exterior Camera Rules), with a modest bump
+// for very large booths ("large landmark booths may exceed 12 if required").
+function getCameraCountForBooth(openCount, totalAreaSqm){
+  let base;
+  if(openCount <= 1) base = 5;       // Inline (1 open side): 4–6
+  else if(openCount === 2) base = 7; // Corner (2 open sides): 6–8
+  else if(openCount === 3) base = 9; // Peninsula (3 open sides): 8–10
+  else base = 11;                    // Island (4 open sides): 10–12
+  if(totalAreaSqm >= 100) base = Math.min(base + 2, 14);
+  return base;
+}
+
+// Builds the actual ordered camera list for this exact booth. zonePlan is
+// computeSpatialPlan(...)'s own zonePlan array — the same Kept/Merged/Removed decisions
+// already used to write this design's brief — so an interior view is only ever promised
+// for a zone that genuinely survived the Spatial Planning Engine's own program, never
+// invented just because it's a "typical" exhibition zone (matching EPS-017's spirit,
+// applied here to camera planning instead of architecture).
+function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet){
+  const openSides = ALL_BOOTH_SIDES.filter(s => openSidesSet.has(s));
+  const closedSides = ALL_BOOTH_SIDES.filter(s => !openSidesSet.has(s));
+  const openCount = openSides.length;
+
+  // The exact same corner this booth's hero image was actually shot from (per DIR-007 /
+  // computeCameraApproachCorner, computed once for the render and reused here rather than
+  // re-derived) — every azimuth below is expressed relative to that same viewpoint.
+  const heroApproach = computeCameraApproachCorner(openSidesSet);
+  const heroAbsoluteAzimuth = CORNER_TO_ABSOLUTE_AZIMUTH[heroApproach.corner] ?? 45;
+  const toRelativeAzimuth = (compassAzimuth) => ((compassAzimuth - heroAbsoluteAzimuth) % 360 + 360) % 360;
+  const angularDistanceFromHero = (relativeAzimuth) => Math.min(relativeAzimuth, 360 - relativeAzimuth);
+  const shortestAngleDelta = (fromDeg, toDeg) => (((toDeg - fromDeg + 540) % 360) - 180);
+
+  const targetCount = getCameraCountForBooth(openCount, totalAreaSqm);
+  const hasZone = (pattern) => (zonePlan || []).some(z => (z.status === 'Kept' || z.status === 'Merged') && pattern.test(z.name));
+
+  const candidates = [];
+
+  // Priority 1 — Hero exterior view: this IS the already-approved hero image, unmodified
+  // (generateCameraViewsFromHero never sends a request for whichever camera is first in
+  // this list — see its own comment). Always relative azimuth 0 by definition.
+  candidates.push({ name: 'Hero View', type: 'exterior', azimuth: 0, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' });
+
+  // Priority 2 — Entrance: a distinct angle near the same open frontage the hero was shot
+  // from, emphasizing the walk-in approach rather than repeating the hero's own framing.
+  // heroApproach.corner is always two adjacent cardinal sides (e.g. "Front-Right") — for an
+  // island/corner/peninsula booth both are usually genuinely open, but for a single-open-
+  // side inline booth where that one open side is Left or Right (not Front/Back), only ONE
+  // of the two is genuinely open; the other is just computeCameraApproachCorner's own
+  // tiebreak default and may actually be a CLOSED side. Leaning blindly toward a fixed +30°
+  // (always "toward the LR component") was a real bug caught by testing: for those inline
+  // cases it could rotate the Entrance View further toward the closed side instead of
+  // deeper into the one genuinely open side. This always leans toward whichever of the two
+  // is ACTUALLY open, falling back to the previous default direction only when both are.
+  const [heroFBSide, heroLRSide] = heroApproach.corner.split('-');
+  const lrGenuinelyOpen = openSidesSet.has(heroLRSide);
+  const fbGenuinelyOpen = openSidesSet.has(heroFBSide);
+  const entranceTargetAbsolute = (!lrGenuinelyOpen && fbGenuinelyOpen) ? COMPASS_AZIMUTH[heroFBSide] : COMPASS_AZIMUTH[heroLRSide];
+  const entranceAbsolute = heroAbsoluteAzimuth + shortestAngleDelta(heroAbsoluteAzimuth, entranceTargetAbsolute) * 0.5;
+  candidates.push({ name: 'Entrance View', type: 'exterior', azimuth: toRelativeAzimuth(entranceAbsolute), promptHint: 'The main visitor entrance and walk-in approach, emphasizing the threshold into the booth.' });
+
+  // Priority 3+ — one straight-on elevation for every OTHER genuinely open side (Exterior
+  // Camera Rules: an exterior camera may ONLY be placed on an OPEN side — a CLOSED side
+  // never contributes a candidate here at all, which is the actual fix for the reported
+  // bug). Skips a side whose straight-on angle is nearly identical to the hero/entrance
+  // angle already queued, so no camera slot is wasted on a near-duplicate.
+  const sidePriorityOrder = ['Front', 'Right', 'Back', 'Left'];
+  sidePriorityOrder.filter(s => openSides.includes(s)).forEach(side => {
+    const relative = toRelativeAzimuth(COMPASS_AZIMUTH[side]);
+    if(angularDistanceFromHero(relative) < 20) return; // effectively the same view the hero/entrance already covers
+    candidates.push({ name: `${side} Perspective`, type: 'exterior', azimuth: relative, promptHint: `A straight-on exterior elevation of the booth's ${side} open face.` });
+  });
+
+  // Brand Wall — the primary logo/branding is always present somewhere in every approved
+  // design (per BRANDING PLACEMENT HIERARCHY), so this is always included.
+  candidates.push({ name: 'Brand Wall', type: 'interior', focusZone: 'branding', promptHint: 'A close-up interior view centered on the booth\'s primary branding / logo wall.' });
+
+  // Interior views below are only ever included if their zone genuinely survived this
+  // booth's own Spatial Planning Engine decisions (per zonePlan) — Interior Camera Rules
+  // say interior cameras are always physically allowed, but that's not the same as
+  // promising a zone that was never actually part of this program.
+  if(hasZone(/product|display|pedestal|demo|kiosk|touch\s*screen/i)){
+    candidates.push({ name: 'Product Experience', type: 'interior', focusZone: 'product', promptHint: 'An interior view centered on this booth\'s product display / demo zone.' });
+  }
+  if(hasZone(/reception/i)){
+    candidates.push({ name: 'Reception View', type: 'interior', focusZone: 'reception', promptHint: 'An interior view centered on this booth\'s reception counter.' });
+  }
+  if(hasZone(/meeting|consultation|vip/i)){
+    candidates.push({ name: 'Meeting Area', type: 'interior', focusZone: 'meeting', promptHint: 'An interior view centered on this booth\'s meeting / consultation area.' });
+  }
+
+  // Architectural Detail, Lighting Detail, and Interior Wide are generic, always-valid
+  // interior views (every design has structure, lighting, and an overall interior space),
+  // included regardless of which optional zones this specific program happens to have.
+  candidates.push({ name: 'Architectural Detail', type: 'interior', focusZone: 'architecture', promptHint: 'A close-up interior detail shot of a distinctive structural or material feature of this exact design.' });
+  candidates.push({ name: 'Lighting Detail', type: 'interior', focusZone: 'lighting', promptHint: 'A close-up interior detail shot showcasing this design\'s lighting treatment.' });
+  candidates.push({ name: 'Interior Wide', type: 'interior', focusZone: 'wide', promptHint: 'A wide interior view showing the overall booth space and circulation.' });
+
+  // If the booth's camera budget still isn't full, add angled lean variants of the already-
+  // open sides (still always confined to that same open side's own facing arc — never a
+  // closed one) rather than leaving slots empty.
+  sidePriorityOrder.filter(s => openSides.includes(s)).forEach(side => {
+    [-25, 25].forEach(offset => {
+      const relative = toRelativeAzimuth(COMPASS_AZIMUTH[side] + offset);
+      const label = offset < 0 ? `${side} Left` : `${side} Right`;
+      candidates.push({ name: label, type: 'exterior', azimuth: relative, promptHint: `A ${offset < 0 ? 'left-leaning' : 'right-leaning'} angled exterior view of the booth's ${side} open face.` });
+    });
+  });
+
+  const plan = candidates.slice(0, targetCount).map((c, i) => ({
+    camId: 'CAM' + String(i + 1).padStart(2, '0'),
+    clock: i + 1,
+    elevation: 15,
+    radius: 8,
+    target: 'booth_center',
+    lens: 35,
+    ...c
+  }));
+
+  return { plan, openSides, closedSides, heroApproach, targetCount };
+}
+
+// Called once, right when Approve is clicked (see approveDesign()) — reads the current form
+// state (unchanged since generation; Modify Design / Other option never alter it) to
+// recompute this exact booth's zonePlan and camera plan, then repopulates the module-level
+// VIEWER_CAMERA_LABELS / CAMERA_SPECS so every downstream consumer (the admin preview, the
+// real generation loop, retry, filenames) sees the same, current, correct plan. Non-booth
+// modes (event/display stand) have no open/closed-wall concept in this app's form data, so
+// they fall back to a generic island-equivalent plan (every direction available) rather
+// than attempting to apply a booth-only orientation model where none exists.
+function recomputeCameraViewPlan(){
+  let result;
+  if(mode === 'booth'){
+    const widthM = parseFloat(document.getElementById('f_width').value) || 0;
+    const depthM = parseFloat(document.getElementById('f_depth').value) || 0;
+    const boothHeightM = parseFloat(document.getElementById('f_totalHeight').value) || 0;
+    const heroStructureModeEl = document.getElementById('f_heroStructureMode');
+    const heroStructureMode = heroStructureModeEl ? heroStructureModeEl.value : 'standard';
+    const totalAreaSqm = widthM * depthM;
+    const spatialPlan = computeSpatialPlan(widthM, depthM, '', boothHeightM, heroStructureMode);
+    result = computeCameraViewPlan(totalAreaSqm, spatialPlan.zonePlan, getBoothOpenSidesSet());
+  }else{
+    // No booth-orientation form data applies to this mode — every direction is treated as
+    // open, same as an island booth, so the exterior side-perspective loop simply includes
+    // all four sides rather than restricting any of them. Passed explicitly rather than
+    // read from the booth-only form fields, so this never depends on whatever value those
+    // fields happen to be holding while a non-booth tab is active.
+    result = computeCameraViewPlan(0, [], new Set(ALL_BOOTH_SIDES));
+  }
+
+  // Preserve any non-CAM keys already set elsewhere (EDITDESIGN_*, TECHBOARD) — only the
+  // base CAM01..CAMxx labels are ever replaced here.
+  Object.keys(VIEWER_CAMERA_LABELS).forEach(key => {
+    if(/^CAM\d+$/.test(key)) delete VIEWER_CAMERA_LABELS[key];
+  });
+  result.plan.forEach(spec => { VIEWER_CAMERA_LABELS[spec.camId] = spec.name; });
+  CAMERA_SPECS = result.plan;
+  return result;
+}
 
 function cameraSpecToJSON(spec){
-  return JSON.stringify({ camera: { clock: spec.clock, azimuth: spec.azimuth, elevation: spec.elevation, radius: spec.radius, target: spec.target, lens: spec.lens } });
+  if(spec.type === 'interior'){
+    return JSON.stringify({ camera: { type: 'interior', focus: spec.focusZone || spec.name, target: spec.target, lens: spec.lens } });
+  }
+  return JSON.stringify({ camera: { type: 'exterior', sequence: spec.clock, azimuth: spec.azimuth, elevation: spec.elevation, radius: spec.radius, target: spec.target, lens: spec.lens } });
 }
 
 /* ================= Technical Board ================= */
@@ -9718,9 +9950,28 @@ async function generateTechnicalBoard(){
    approved design — never a drifted reinterpretation of it. */
 function buildCameraViewPrompt(spec, isWiderRetry){
   const widerNote = isWiderRetry ? ' The previous attempt at this angle came out too similar to the neighboring view — for this attempt, pull the camera back further than usual and widen the field of view noticeably, so this position reveals a clearly distinct amount of new surface and depth.' : '';
-  return `Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific camera position.
 
-Camera position (absolute, not a suggestion): ${spec.label}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens. Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
+  // Interior views (per CVP-001's Interior Camera Rules: always allowed, regardless of
+  // orientation) are framed as a visitor standing inside the booth looking at a specific
+  // zone or detail, never as a point on an exterior orbit — a fundamentally different shot
+  // than the exterior views below, so it gets its own prompt structure rather than forcing
+  // an azimuth-around-the-outside description onto something that isn't one.
+  if(spec.type === 'interior'){
+    return `Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth from a NEW INTERIOR vantage point, as if a visitor were now standing inside the booth itself.
+
+View: ${spec.name} — ${spec.promptHint} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
+
+The booth's architecture, materials, branding, and furniture are completely unchanged from the reference — only the camera has moved to this new interior vantage.${widerNote} This must clearly read as a distinct interior viewpoint focused on ${spec.name.toLowerCase()}, revealing details and depth not visible in the reference's own framing — never a near-repeat of the reference from a marginally different angle. The attached photo may not show every interior detail directly — for anything not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into this interior view, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the space with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.`;
+  }
+
+  // Exterior views (per CVP-001's Exterior Camera Rules: only ever placed on this booth's
+  // own OPEN sides — see computeCameraViewPlan, which is what guarantees spec.azimuth here
+  // never corresponds to a CLOSED wall side). azimuth is always relative to the hero
+  // image's own actual viewpoint (0°), never an absolute compass figure, matching how the
+  // hero image itself was framed (see DIR-007 / computeCameraApproachCorner).
+  return `Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific EXTERIOR camera position.
+
+Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). This position is pre-validated to sit only in front of this booth's own OPEN side(s) — per this booth's approved orientation, it never requires standing behind, inside, or looking through a STRUCTURAL WALL side. The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens. Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
 
 The booth itself is completely static and unchanged from the reference — only the camera has moved to this new position. Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image — new side surfaces, structural elements, or depth — never a near-repeat of the reference from a marginally different angle.${widerNote} The attached photo may show only one side or angle of the booth — for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.`;
 }
@@ -9921,19 +10172,24 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
 function approveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
+  // Recomputed fresh every time Approve is opened — see recomputeCameraViewPlan's own
+  // comment. This has to happen before either branch below, since the admin preview must
+  // show the exact same plan the real generation is about to use, not a stale one.
+  const cameraPlanResult = recomputeCameraViewPlan();
   if(isAdminUser){
-    showAdminGenerationPreview(opt);
+    showAdminGenerationPreview(opt, cameraPlanResult);
   }else{
     document.getElementById('approveNoticeOverlay').style.display = 'flex';
   }
 }
 
 // Admin-only debug step (see the overlay's own HTML comment for why this exists): builds
-// the exact same prompt text generateCameraViewsFromHero() will send for each of the 11
-// real camera-view requests — CAM01 is the approved hero image itself, never a separate
-// request, so it's called out as a note instead of a prompt block — plus the one reference
-// image every real request reuses, and shows it all before anything is actually submitted.
-function showAdminGenerationPreview(opt){
+// the exact same prompt text generateCameraViewsFromHero() will send for each of the real
+// camera-view requests — the first camera in the plan is always the approved hero image
+// itself, never a separate request, so it's called out as a note instead of a prompt block
+// — plus the one reference image every real request reuses, this booth's own open/closed
+// orientation (per CVP-001), and shows it all before anything is actually submitted.
+function showAdminGenerationPreview(opt, cameraPlanResult){
   const heroImage = opt.gallery[opt.activeGalleryIndex].image;
   const heroImgEl = document.getElementById('adminPreviewHeroImg');
   if(heroImgEl) heroImgEl.src = heroImage;
@@ -9941,14 +10197,31 @@ function showAdminGenerationPreview(opt){
   const list = document.getElementById('adminPreviewViewsList');
   if(list){
     list.innerHTML = '';
+
+    if(cameraPlanResult){
+      const orientationBlock = document.createElement('div');
+      orientationBlock.className = 'admin-preview-view-block';
+      const orientationLabel = document.createElement('div');
+      orientationLabel.className = 'admin-preview-view-label';
+      orientationLabel.textContent = 'Camera Planner (CVP-001) — orientation this plan was built from';
+      const orientationText = document.createElement('div');
+      orientationText.className = 'admin-preview-note';
+      orientationText.textContent = `Open sides: ${cameraPlanResult.openSides.join(', ') || 'none'} | Closed sides: ${cameraPlanResult.closedSides.join(', ') || 'none'} | Camera count: ${cameraPlanResult.plan.length} (target ${cameraPlanResult.targetCount})`;
+      orientationBlock.appendChild(orientationLabel);
+      orientationBlock.appendChild(orientationText);
+      list.appendChild(orientationBlock);
+    }
+
     CAMERA_SPECS.forEach((spec, i) => {
       const block = document.createElement('div');
       block.className = 'admin-preview-view-block';
       const label = document.createElement('div');
       label.className = 'admin-preview-view-label';
-      label.textContent = `${spec.camId} — ${spec.label} (clock ${spec.clock}, ${spec.azimuth}° azimuth)`;
+      label.textContent = spec.type === 'interior'
+        ? `${spec.camId} — ${spec.name} (interior)`
+        : `${spec.camId} — ${spec.name} (exterior, ${spec.azimuth}° azimuth)`;
       block.appendChild(label);
-      if(i === 0){
+      if(spec.isHeroImage){
         const note = document.createElement('div');
         note.className = 'admin-preview-note';
         note.textContent = 'This is the approved hero image itself, unmodified — no request is sent for this view.';
@@ -10047,6 +10320,98 @@ function unlockApprovedActionBar(){
   if(approveBtn){ approveBtn.style.display = ''; approveBtn.disabled = false; }
 }
 
+// Admin-only debug/comparison aid (see adminLumaVideoCard's own HTML comment): polls a Luma
+// video generation until it finishes, returning the presigned video URL. Backed by the same
+// api/luma-status.js endpoint the app used before the switch to independent OpenAI camera
+// views — that backend logic still works, it's just never called from the real production
+// flow anymore, only from here.
+async function pollAdminLumaVideoStatus(generationId){
+  const maxAttempts = 40; // ~5s apart, so up to a little over 3 minutes before giving up
+  for(let attempt = 0; attempt < maxAttempts; attempt++){
+    await new Promise(r => setTimeout(r, 5000));
+    const response = await fetchWithTimeout(`/api/luma-status?generationId=${encodeURIComponent(generationId)}`, { method: 'GET' }, 15000);
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok){
+      throw new Error((data.error && data.error.message) || 'Could not check the Luma video status.');
+    }
+    if(data.state === 'completed' && data.videoUrl) return data.videoUrl;
+    if(data.state === 'failed') throw new Error(data.failureReason || 'Luma video generation failed.');
+    // otherwise still queued/generating — keep polling
+  }
+  throw new Error('Timed out waiting for the Luma video to finish.');
+}
+
+// Admin-only debug/comparison aid: generates a Luma 360 orbit video from the exact same
+// approved hero image the 12 OpenAI camera views are about to be built from, purely so an
+// admin can visually compare the two approaches and spot exactly where OpenAI's independent
+// per-view edits diverge from what a real continuous orbit would show. This is deliberately
+// fire-and-forget from confirmApproveDesign — it must never block, slow down, or be able to
+// fail the real generation flow; any error here only ever shows up inside this admin-only
+// card, never as a generation error for the actual approve step.
+async function startAdminLumaVideoComparison(heroImage, designTitle){
+  if(!isAdminUser) return;
+  const card = document.getElementById('adminLumaVideoCard');
+  const statusEl = document.getElementById('adminLumaVideoStatus');
+  const videoEl = document.getElementById('adminLumaVideoEl');
+  if(!card || !statusEl || !videoEl) return;
+
+  card.style.display = 'block';
+  videoEl.style.display = 'none';
+  videoEl.removeAttribute('src');
+  statusEl.textContent = 'Starting Luma 360 video generation for comparison...';
+
+  try{
+    const compressed = await compressDataUrl(heroImage, 1536, 0.88);
+    const { mime, base64 } = dataUrlParts(compressed);
+
+    // Same orientation data CVP-001's Camera Planner and this booth's own structural shell
+    // already use (getBoothOpenSidesSet) — passed through to Luma too, per the client's own
+    // suggested payload shape, purely as extra descriptive context for this comparison video
+    // (Luma's API has no dedicated per-side field to enforce it the way the real per-view
+    // OpenAI prompts do, but stating it plainly still steers the orbit away from implying a
+    // walk-through of a side that's actually closed).
+    let orientationJSON = null;
+    if(mode === 'booth'){
+      const openSidesSet = getBoothOpenSidesSet();
+      orientationJSON = {
+        orientation: {
+          front: openSidesSet.has('Front') ? 'open' : 'closed',
+          right: openSidesSet.has('Right') ? 'open' : 'closed',
+          left: openSidesSet.has('Left') ? 'open' : 'closed',
+          back: openSidesSet.has('Back') ? 'open' : 'closed'
+        },
+        camera_strategy: 'orientation_aware'
+      };
+    }
+    const orientationNote = orientationJSON
+      ? ` This booth's real orientation (open vs. closed sides) is: ${JSON.stringify(orientationJSON)}. Never imply the orbit passing through, or a visitor entering from, any side marked "closed" — the camera may approach and linger only near the "open" sides; closed sides should read as solid walls throughout the orbit.`
+      : '';
+    const promptText = `A smooth, continuous 360-degree orbit around this exact exhibition booth${designTitle ? ' ("' + designTitle + '")' : ''} — the booth itself stays completely static and unchanged throughout; only the camera moves around it, at a constant height and distance.${orientationNote}`;
+
+    const genResponse = await fetchWithTimeout('/api/luma-generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: promptText, imageBase64: base64, mimeType: mime })
+    }, 30000);
+    const genData = await genResponse.json().catch(() => ({}));
+    if(!genResponse.ok || !genData.generationId){
+      throw new Error((genData.error && genData.error.message) || 'Could not start Luma video generation.');
+    }
+
+    statusEl.textContent = 'Luma is rendering the 360 video for comparison... this can take a minute or two.';
+    const videoUrl = await pollAdminLumaVideoStatus(genData.generationId);
+    // Proxied through our own domain (api/luma-video-proxy.js) since Luma's presigned URLs
+    // expire after about an hour and aren't guaranteed to be playable cross-origin — same
+    // approach the app used before the switch away from Luma.
+    videoEl.src = `/api/luma-video-proxy?url=${encodeURIComponent(videoUrl)}`;
+    videoEl.style.display = 'block';
+    statusEl.textContent = 'Luma 360 video ready — compare it against the picture views below.';
+  }catch(err){
+    console.error('Admin Luma video comparison failed:', err);
+    statusEl.textContent = 'Could not generate the Luma comparison video: ' + (err.message || 'unknown error');
+  }
+}
+
 async function confirmApproveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
@@ -10069,6 +10434,10 @@ async function confirmApproveDesign(){
   if(otherOptionBtnEl) otherOptionBtnEl.disabled = true;
 
   const heroImage = opt.gallery[opt.activeGalleryIndex].image;
+
+  // Admin-only, fire-and-forget — runs alongside the real generation below, never awaited
+  // and never allowed to affect it. See startAdminLumaVideoComparison's own comment.
+  if(isAdminUser) startAdminLumaVideoComparison(heroImage, opt.title);
 
   statusEl.textContent = '';
   updateApproveProgress(2, 'Creating multiple views of your booth with DesignsLab... this can take a minute or two.');
