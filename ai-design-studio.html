@@ -6423,6 +6423,30 @@ function toggleCeilingFabricColor(select){
   document.getElementById('ceilingFabricColorField').style.display = select.value === 'LED Diffuser Panel' ? 'block' : 'none';
 }
 
+// Reported bug: clicking Generate/Approve, then switching to a different project in the
+// left sidebar while that generation was still running, then coming back — landed on a
+// form the user could freely type into again. Root cause: every project reuses the exact
+// same global state (optionResults, viewCardHistories, CAMERA_SPECS, the form fields
+// themselves) rather than each project owning its own isolated copy, so navigating away
+// mid-generation reassigns that shared state out from under the still-running generation,
+// and reopening a project can race with it. Rather than trying to fully isolate every
+// project's state (a much larger rework), this flag simply blocks the action that causes
+// the problem in the first place: switching projects (or starting a new one) while any
+// generation the user can currently see is in flight. Set true right as a generation
+// starts, false the moment it fully settles (success or failure) — see the Stage 1/2
+// pipeline, startRenderSession, confirmRegenerateOtherOption, and confirmApproveDesign for
+// where each side of that is set.
+let projectSwitchLocked = false;
+// Counts how many of the (possibly several, parallel) image-render calls kicked off by
+// startRenderSession are still in flight — projectSwitchLocked only comes back false once
+// every one of them has settled, not just the first.
+let pendingRenderCount = 0;
+function blockIfGenerating(){
+  if(!projectSwitchLocked) return false;
+  customAlert('A design is currently being generated for this project — please wait for it to finish before switching projects.', 'Please wait');
+  return true;
+}
+
 // Opening a saved project should land directly on its results — the concept box, the
 // picture, everything already done on it — rather than showing the input form
 // underneath too. These two functions toggle between that focused "just show me the
@@ -7512,6 +7536,7 @@ async function generateDesign(){
 
   pendingGenerateAction = async function proceedWithGeneration(){
   lockForm();
+  projectSwitchLocked = true;
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('loadingText').textContent = 'Analyzing your brief and generating concept and design...';
   document.getElementById('result').style.display = 'none';
@@ -7969,6 +7994,7 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
     errBox.textContent = 'Generation failed: ' + (err && err.message ? err.message : String(err));
     errBox.style.display = 'block';
     unlockForm();
+    projectSwitchLocked = false;
     document.getElementById('loading').style.display = 'none';
   }
   }; // end of pendingGenerateAction
@@ -8263,6 +8289,8 @@ The final result should look as though a real exhibition contractor installed th
 }
 
 function startRenderSession(promptOptions, isUserInitiatedEdit){
+  projectSwitchLocked = true;
+  pendingRenderCount += promptOptions.length;
   if(mode === 'booth' || mode === 'event') lastGeneratedMode = mode;
   resetLumaState();
   document.getElementById('viewer3dGeneratedCard').style.display = 'none';
@@ -8337,6 +8365,8 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
         renderOptionTabsV2();
         if(activeOptionIndex === i) showOptionV2(i);
         saveCurrentProject();
+        pendingRenderCount = Math.max(0, pendingRenderCount - 1);
+        if(pendingRenderCount === 0) projectSwitchLocked = false;
       })
       .catch(err => {
         optionResults[i].status = 'error';
@@ -8345,6 +8375,8 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
         renderOptionTabsV2();
         if(activeOptionIndex === i) showOptionV2(i);
         saveCurrentProject();
+        pendingRenderCount = Math.max(0, pendingRenderCount - 1);
+        if(pendingRenderCount === 0) projectSwitchLocked = false;
       });
   });
 }
@@ -8763,6 +8795,7 @@ async function confirmRegenerateOtherOption(){
   const btn = document.getElementById('otherOptionBtn');
   const approveBtn = document.getElementById('approveDesignBtn');
   const modifyBtn = document.querySelector('.action-bar button[onclick="openModifyDesignPanel()"]');
+  projectSwitchLocked = true;
   if(btn) btn.disabled = true;
   // Approve and Modify design are only disabled for the duration of this generation — not
   // permanently locked like lockApprovedActionBar() does after a real approval — since
@@ -8837,6 +8870,7 @@ async function confirmRegenerateOtherOption(){
     if(btn) btn.disabled = false;
     if(approveBtn) approveBtn.disabled = false;
     if(modifyBtn) modifyBtn.disabled = false;
+    projectSwitchLocked = false;
   }
   saveCurrentProject();
 }
@@ -10496,6 +10530,7 @@ async function confirmApproveDesign(){
   // in progress," so the form and tabs step aside the same way they do when reopening an
   // already-finished saved project.
   hideFormAndTabs();
+  projectSwitchLocked = true;
 
   const statusEl = document.getElementById('actionStatus');
   const approveBtn = document.getElementById('approveDesignBtn');
@@ -10535,6 +10570,7 @@ async function confirmApproveDesign(){
   }
 
   if(approveBtn) approveBtn.disabled = false;
+  projectSwitchLocked = false;
   saveCurrentProject();
 }
 
@@ -11208,6 +11244,7 @@ function renderProjectSidebar(){
 }
 
 function openProject(id){
+  if(blockIfGenerating()) return;
   dbGetProject(id)
     .then(project => {
       if(!project) return;
@@ -11264,6 +11301,7 @@ async function renameProjectPrompt(id){
 }
 
 async function deleteProjectPrompt(id){
+  if(blockIfGenerating()) return;
   const confirmed = await customConfirm('Delete this saved project? This cannot be undone.', 'Delete Project', 'Delete');
   if(!confirmed) return;
   dbDeleteProject(id)
@@ -11341,6 +11379,7 @@ function handleExistingDesignUpload(input){
 }
 
 function startNewProject(){
+  if(blockIfGenerating()) return;
   currentProjectId = null;
   pendingPromptResult = null;
   optionResults = [];
