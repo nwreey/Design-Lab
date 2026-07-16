@@ -2765,6 +2765,21 @@ Replace only the materials and graphics."></textarea>
     </div>
   </div>
 
+  <!-- Admin-only: lets the admin explicitly pick Gemini vs. OpenAI for a single "Other
+       option" click, instead of the automatic alternation every other user gets. Same
+       gen-notice-card styling as every other popup here. -->
+  <div class="gen-notice-overlay" id="engineChoiceOverlay">
+    <div class="gen-notice-card">
+      <div class="gen-notice-eyebrow" id="engineChoiceEyebrow">Choose Image Engine</div>
+      <p id="engineChoiceText"></p>
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="primary" style="flex:1;" onclick="__resolveEngineChoice('gemini')">Gemini</button>
+        <button class="primary" style="flex:1;" onclick="__resolveEngineChoice('openai')">OpenAI</button>
+      </div>
+      <button class="ghost" style="width:100%;margin-top:10px;" onclick="__resolveEngineChoice(null)">Cancel</button>
+    </div>
+  </div>
+
   <div class="lightbox-overlay" id="lightboxOverlay" onclick="closeImageLightbox()">
     <button class="lightbox-close" onclick="event.stopPropagation(); closeImageLightbox()">Close ✕</button>
     <img id="lightboxImg" alt="Full size preview" onclick="event.stopPropagation();">
@@ -8108,6 +8123,29 @@ function __resolveCustomPrompt(confirmed){
   }
 }
 
+// Admin-only "which engine for this one click" choice — same Promise/null-means-cancelled
+// contract as customPrompt above. Resolves to 'gemini', 'openai', or null if the admin backs
+// out, in which case the caller must not proceed with the regeneration at all.
+let __engineChoiceResolve = null;
+
+function chooseImageEngine(message, eyebrow){
+  return new Promise(resolve => {
+    __engineChoiceResolve = resolve;
+    document.getElementById('engineChoiceEyebrow').textContent = eyebrow || 'Choose Image Engine';
+    document.getElementById('engineChoiceText').textContent = message;
+    document.getElementById('engineChoiceOverlay').style.display = 'flex';
+  });
+}
+
+function __resolveEngineChoice(engine){
+  document.getElementById('engineChoiceOverlay').style.display = 'none';
+  if(__engineChoiceResolve){
+    const resolve = __engineChoiceResolve;
+    __engineChoiceResolve = null;
+    resolve(engine);
+  }
+}
+
 /* ---------- prompt review step: edit/approve before rendering ---------- */
 
 let pendingPromptResult = null;
@@ -8857,6 +8895,16 @@ async function confirmRegenerateOtherOption(){
   const opt = optionResults[idx];
   if(!opt) return;
 
+  // Admins choose the engine explicitly for this one click, via a dialog, instead of the
+  // automatic alternation every other user gets — asked here, before anything else is
+  // touched, so cancelling out of the choice leaves the UI completely untouched (no lock,
+  // no progress bar, no disabled buttons to undo).
+  let forcedEngine = null;
+  if(isAdminUser){
+    forcedEngine = await chooseImageEngine('Which engine should render this "Other option"?', 'Choose Image Engine');
+    if(!forcedEngine) return;
+  }
+
   const statusEl = document.getElementById('actionStatus');
   const isFreeFirstModification = !opt.usedFreeModification;
 
@@ -8894,15 +8942,17 @@ async function confirmRegenerateOtherOption(){
       otherOptionBody.referenceMimeType = logoMediaType;
       otherOptionBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
     }
-    // The very first render (Generate Design) always stays on Gemini. Every "Other option"
-    // click after that automatically alternates engines — 1st Other option -> OpenAI, 2nd ->
-    // Gemini, 3rd -> OpenAI, and so on — so the two engines end up compared directly against
-    // each other across a design's option history, for every user, not just admins. Counted
-    // from this option's own gallery (each prior "Other option" click already pushed one
-    // 'Other option' entry onto it), so the sequence survives page refreshes/project reopens
-    // rather than resetting to "always OpenAI first" every time.
-    const otherOptionAttemptNumber = opt.gallery.filter(g => g.label === 'Other option').length + 1;
-    const otherOptionUsesOpenAi = otherOptionAttemptNumber % 2 === 1;
+    // The very first render (Generate Design) always stays on Gemini. Admins picked an exact
+    // engine for this click via the dialog at the top of this function (forcedEngine); every
+    // other user instead gets automatic alternation — 1st Other option -> OpenAI, 2nd ->
+    // Gemini, 3rd -> OpenAI, and so on — so the two engines still end up compared directly
+    // against each other across a design's option history. Counted from this option's own
+    // gallery (each prior "Other option" click already pushed one 'Other option' entry onto
+    // it), so the sequence survives page refreshes/project reopens rather than resetting to
+    // "always OpenAI first" every time.
+    const otherOptionUsesOpenAi = forcedEngine
+      ? forcedEngine === 'openai'
+      : (opt.gallery.filter(g => g.label === 'Other option').length + 1) % 2 === 1;
     const otherOptionEndpoint = otherOptionUsesOpenAi ? '/api/generate-image-openai' : '/api/generate-image-gemini';
     const response = await fetchWithTimeout(otherOptionEndpoint, {
       method: 'POST',
