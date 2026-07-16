@@ -9700,6 +9700,36 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet){
   const fbGenuinelyOpen = openSidesSet.has(heroFBSide);
   const entranceTargetAbsolute = (!lrGenuinelyOpen && fbGenuinelyOpen) ? COMPASS_AZIMUTH[heroFBSide] : COMPASS_AZIMUTH[heroLRSide];
   const entranceAbsolute = heroAbsoluteAzimuth + shortestAngleDelta(heroAbsoluteAzimuth, entranceTargetAbsolute) * 0.5;
+
+  const sidePriorityOrder = ['Front', 'Right', 'Back', 'Left'];
+
+  // CORNER BOOTHS (exactly 2 open sides) get a fixed, specific 5-camera recipe per explicit
+  // client direction, replacing the general priority-candidate approach used for every other
+  // booth shape: Hero (the diagonal corner shot already approved), a straight-on centered
+  // elevation of EACH of the two open sides (camera aimed straight in, never diagonal), one
+  // elevated three-quarter Perspective View (same direction as the hero shot but from a
+  // visibly higher vantage), and one true top-down Top View showing the full footprint. The
+  // client explicitly confirmed the top-down view despite a known risk: a real production
+  // test (a Red Bull booth) showed overhead framing can push the model toward a flat 2D
+  // blueprint instead of a photorealistic render — see buildCameraViewPrompt's 'top-down'
+  // branch for how that's mitigated as much as possible while still honoring the request.
+  if(openCount === 2){
+    const [sideA, sideB] = sidePriorityOrder.filter(s => openSides.includes(s));
+    const fixedFive = [
+      { name: 'Hero View', type: 'exterior', azimuth: 0, elevation: 15, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' },
+      { name: `${sideA} Elevation`, type: 'exterior', azimuth: toRelativeAzimuth(COMPASS_AZIMUTH[sideA]), elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${sideA} open face — camera aimed straight in, not diagonal.` },
+      { name: `${sideB} Elevation`, type: 'exterior', azimuth: toRelativeAzimuth(COMPASS_AZIMUTH[sideB]), elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${sideB} open face — camera aimed straight in, not diagonal.` },
+      { name: 'Perspective View', type: 'exterior', azimuth: 0, elevation: 55, promptHint: 'An elevated three-quarter perspective view of the booth, same general direction as the hero shot but from a visibly higher vantage.' },
+      { name: 'Top View', type: 'top-down', azimuth: 0, elevation: 90, promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' }
+    ];
+    return {
+      plan: fixedFive.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, radius: 8, target: 'booth_center', lens: 35, ...c })),
+      openSides, closedSides, heroApproach, targetCount: 5
+    };
+  }
+
+  // Priority 2 — Entrance: a distinct angle near the same open frontage the hero was shot
+  // from, emphasizing the walk-in approach rather than repeating the hero's own framing.
   candidates.push({ name: 'Entrance View', type: 'exterior', azimuth: toRelativeAzimuth(entranceAbsolute), promptHint: 'The main visitor entrance and walk-in approach, emphasizing the threshold into the booth.' });
 
   // Priority 3+ — one straight-on elevation for every OTHER genuinely open side (Exterior
@@ -9707,7 +9737,6 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet){
   // never contributes a candidate here at all, which is the actual fix for the reported
   // bug). Skips a side whose straight-on angle is nearly identical to the hero/entrance
   // angle already queued, so no camera slot is wasted on a near-duplicate.
-  const sidePriorityOrder = ['Front', 'Right', 'Back', 'Left'];
   sidePriorityOrder.filter(s => openSides.includes(s)).forEach(side => {
     const relative = toRelativeAzimuth(COMPASS_AZIMUTH[side]);
     if(angularDistanceFromHero(relative) < 20) return; // effectively the same view the hero/entrance already covers
@@ -9804,6 +9833,9 @@ function recomputeCameraViewPlan(){
 function cameraSpecToJSON(spec){
   if(spec.type === 'interior'){
     return JSON.stringify({ camera: { type: 'interior', focus: spec.focusZone || spec.name, target: spec.target, lens: spec.lens } });
+  }
+  if(spec.type === 'top-down'){
+    return JSON.stringify({ camera: { type: 'top-down', elevation: spec.elevation, radius: spec.radius, target: spec.target, lens: spec.lens } });
   }
   return JSON.stringify({ camera: { type: 'exterior', sequence: spec.clock, azimuth: spec.azimuth, elevation: spec.elevation, radius: spec.radius, target: spec.target, lens: spec.lens } });
 }
@@ -9950,6 +9982,25 @@ async function generateTechnicalBoard(){
    approved design — never a drifted reinterpretation of it. */
 function buildCameraViewPrompt(spec, isWiderRetry){
   const widerNote = isWiderRetry ? ' The previous attempt at this angle came out too similar to the neighboring view — for this attempt, pull the camera back further than usual and widen the field of view noticeably, so this position reveals a clearly distinct amount of new surface and depth.' : '';
+
+  // Top-down view — used only by the corner (2-open-side) booth's fixed 5-camera recipe,
+  // per explicit client direction, confirmed even after flagging the known risk: a real
+  // production test (a Red Bull booth) showed overhead camera framing can push the model
+  // toward a flat 2D blueprint/plan drawing instead of a photorealistic render, which is
+  // exactly why every OTHER camera in this app is deliberately kept at 35-45 degrees and
+  // told never to use "directly above" / "bird's-eye" language. This view intentionally
+  // breaks that rule on purpose (it's the one view meant to show the full footprint from
+  // above), so it explicitly asks for a real aerial PHOTOGRAPH — not a technical drawing —
+  // to give the model the best chance of still returning a photorealistic image even at
+  // this angle, rather than silently reusing the same anti-blueprint phrasing that would
+  // fight against the very thing this view is supposed to show.
+  if(spec.type === 'top-down'){
+    return `Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as a real, photorealistic AERIAL PHOTOGRAPH captured from directly above, as if taken by a drone hovering over the booth.
+
+View: ${spec.name} — ${spec.promptHint} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
+
+This must be a genuine photograph-style aerial image — real materials, real shadows, real depth and lighting, exactly like a professional drone photo of a real physical structure — never a flat technical drawing, CAD plan, blueprint, or 2D diagram. The booth's architecture, materials, branding, and furniture are completely unchanged from the reference; only the camera has moved directly overhead.${widerNote} The full footprint and layout of the booth should be visible in one frame. The attached photo only shows one side of the booth — for whatever isn't visible from that angle, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into the parts only visible from above, so the whole booth reads as one coherent, intentional design. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same dark gray carpet flooring and surrounding aisle space, consistent and unchanging. Light the space with premium, even, professional exhibition lighting. Photorealistic.`;
+  }
 
   // Interior views (per CVP-001's Interior Camera Rules: always allowed, regardless of
   // orientation) are framed as a visitor standing inside the booth looking at a specific
@@ -10219,7 +10270,9 @@ function showAdminGenerationPreview(opt, cameraPlanResult){
       label.className = 'admin-preview-view-label';
       label.textContent = spec.type === 'interior'
         ? `${spec.camId} — ${spec.name} (interior)`
-        : `${spec.camId} — ${spec.name} (exterior, ${spec.azimuth}° azimuth)`;
+        : spec.type === 'top-down'
+        ? `${spec.camId} — ${spec.name} (top-down, 90° overhead)`
+        : `${spec.camId} — ${spec.name} (exterior, ${spec.azimuth}° azimuth, ${spec.elevation}° elevation)`;
       block.appendChild(label);
       if(spec.isHeroImage){
         const note = document.createElement('div');
