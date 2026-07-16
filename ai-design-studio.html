@@ -4749,7 +4749,7 @@ function updateIndustryStyleHint(sel){
    meaning — first checked = Primary (greatest influence), second = Secondary, third = Accent.
    selectedBrandPersonalities holds that order explicitly; a plain multi-select <select> can't
    express "order of checking" at all, so this is a checkbox grid with a rank badge instead. ---------- */
-let selectedBrandPersonalities = ['Elegant', 'Innovation', 'Creative'];
+let selectedBrandPersonalities = ['Elegant', 'Innovative', 'Creative'];
 const BRAND_PERSONALITY_RANK_LABELS = ['Primary', 'Secondary', 'Accent'];
 
 function renderBrandPersonalityGrid(){
@@ -6484,8 +6484,8 @@ function showFormAndTabs(){
 // section, which is not right"). These snapshots capture each mode's own values on the way
 // out and restore them on the way back in, so the two stay genuinely independent from the
 // person's point of view despite sharing the underlying fields.
-let boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
-let eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
+let boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
+let eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
 
 function captureModeSnapshot(){
   return {
@@ -6502,7 +6502,7 @@ function applyModeSnapshot(snapshot){
   document.getElementById('f_archStyle').value = snapshot.archStyle;
   document.getElementById('f_industryStyle').value = snapshot.industryStyle;
   document.getElementById('f_constructionStyle').value = snapshot.constructionStyle;
-  selectedBrandPersonalities = [...(snapshot.brandPersonalities || ['Elegant', 'Innovation', 'Creative'])];
+  selectedBrandPersonalities = [...(snapshot.brandPersonalities || ['Elegant', 'Innovative', 'Creative'])];
   updateArchStyleHint(document.getElementById('f_archStyle'));
   updateIndustryStyleHint(document.getElementById('f_industryStyle'));
   updateBrandPersonalityHint();
@@ -10657,9 +10657,17 @@ async function startAdminLumaVideoComparison(heroImage, designTitle){
     const islandOrbitEntries = ISLAND_CAMERA_RING.filter(c => c.type !== 'top-down');
     const islandTopEntry = ISLAND_CAMERA_RING.find(c => c.type === 'top-down');
     const islandOrderNote = isIslandBooth
-      ? ` Follow this exact camera order: first, one continuous clockwise rotation, each step exactly 45 degrees further clockwise than the last, pausing briefly to hold each named position before continuing to the next: ${islandOrbitEntries.map((c, i) => `(${i + 1}) ${c.name} at ${c.azimuth} degrees`).join(', ')}. Never skip a position, never reorder them, and never rotate counter-clockwise at any point.${islandTopEntry ? ` After completing that full rotation, finish with one final true top-down aerial shot directly overhead (${islandTopEntry.name}), showing 100% of the booth's footprint and layout in a single frame.` : ''}`
+      ? ` Follow this exact camera order: first, one continuous clockwise rotation at that same fixed eye-level height, each step exactly 45 degrees further clockwise than the last, pausing briefly to hold each named position before continuing to the next: ${islandOrbitEntries.map((c, i) => `(${i + 1}) ${c.name} at ${c.azimuth} degrees`).join(', ')}. Never skip a position, never reorder them, and never rotate counter-clockwise at any point.${islandTopEntry ? ` Only after that full orbit is complete does the camera rise to one final true top-down aerial shot directly overhead (${islandTopEntry.name}), showing 100% of the booth's footprint and layout in a single frame — that vertical rise happens once, at the very end, never partway through the orbit.` : ''}`
       : '';
-    const promptText = `A smooth, continuous 360-degree orbit around this exact exhibition booth${designTitle ? ' ("' + designTitle + '")' : ''} — the booth itself stays completely static and unchanged throughout; only the camera moves around it, at a constant height and distance.${orientationNote}${islandOrderNote}`;
+    // Explicit about camera HEIGHT and STARTING POSITION — a real production test showed the
+    // previous, vaguer "constant height and distance" phrasing let Luma default to an aerial,
+    // drone-like angle hovering above the booth for almost the entire clip (barely orbiting at
+    // all), and once even hallucinated a floating rig/artifact into the frame. This is
+    // deliberately explicit that the orbit itself is a genuine eye-level walk-around — camera
+    // height fixed at the middle of the booth's own walls, never above or overhead — starting
+    // from the exact position/angle already shown in the reference image and rotating only to
+    // the right (clockwise) from there.
+    const promptText = `A smooth, continuous 360-degree orbit around this exact exhibition booth${designTitle ? ' ("' + designTitle + '")' : ''} — the booth itself stays completely static and unchanged throughout; only the camera moves. During the orbit the camera stays at one fixed height, level with the middle of the booth's own walls — a genuine eye-level walk-around view, never an aerial, overhead, or drone-like angle looking down into the booth — and a constant distance from the booth. Start the orbit at exactly the same camera position and angle already shown in the reference image, then rotate smoothly and continuously to the right (clockwise) through a full 360 degrees back to that same starting position, never reversing direction and never changing height until the orbit itself is complete. Never introduce any floating object, camera rig, drone, person, or artifact anywhere in the frame — the only thing in frame is the booth itself.${orientationNote}${islandOrderNote}`;
 
     const genResponse = await fetchWithTimeout('/api/luma-generate', {
       method: 'POST',
@@ -10993,7 +11001,7 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_industryStyle').value = snap.f_industryStyle || '';
   updateIndustryStyleHint(document.getElementById('f_industryStyle'));
   document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || 'Premium Custom Build';
-  selectedBrandPersonalities = [...(snap.f_brandPersonalities || ['Elegant', 'Innovation', 'Creative'])];
+  selectedBrandPersonalities = [...(snap.f_brandPersonalities || ['Elegant', 'Innovative', 'Creative'])];
   updateBrandPersonalityHint();
   document.getElementById('f_attendees').value = snap.f_attendees || '';
   document.getElementById('f_eventType').value = snap.f_eventType || '';
@@ -11450,8 +11458,8 @@ function openProject(id){
       restoreFormSnapshot(project.formSnapshot);
       // Reset AFTER restoreFormSnapshot, not before — see the identical comment in
       // startNewProject() for why the order matters here.
-      boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
-      eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
+      boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
+      eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
       restoreLogoAndPosters(project);
       restoreResultsView(project);
       renderProjectSidebar();
@@ -11637,8 +11645,8 @@ function startNewProject(){
   // which would otherwise capture the outgoing mode's (possibly stale, leftover-from-a-
   // different-project) field values right back into the snapshot before this reset could
   // actually take effect.
-  boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
-  eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovation', 'Creative'] };
+  boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
+  eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
   logoDataUrl = null;
   logoMediaType = null;
   document.getElementById('logoPreview').style.display = 'none';
