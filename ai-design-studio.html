@@ -313,8 +313,6 @@
   .prompt-card textarea.prompt-text-input{width:100%;min-height:110px;font-family:'Space Grotesk',sans-serif;font-size:13.5px;line-height:1.6;border:1.5px solid var(--line);border-radius:2px;padding:10px 12px;resize:vertical;}
 
   .action-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 6px;padding:12px;background:#fff;border:1.5px solid var(--line);border-radius:2px;}
-  .download-bar{display:flex;justify-content:flex-end;margin:10px 0 0;}
-  .download-bar #downloadRenderBtn{margin:0;}
   .action-bar select{padding:8px 10px;border:1.5px solid var(--line);border-radius:2px;font-family:'Space Grotesk',sans-serif;font-size:12.5px;background:#fff;}
   .free-modification-note{
     font-size:12.5px;line-height:1.55;color:#7a5c00;
@@ -2582,9 +2580,6 @@ Replace only the materials and graphics."></textarea>
         <div class="render-frame" id="renderSlotFrame">
           <img id="renderSlotImg" alt="AI rendered concept" style="display:none;" onclick="openImageLightbox(this.src)">
         </div>
-        <div class="download-bar" id="downloadBar">
-          <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;">Download image</button>
-        </div>
       </div>
 
       <div class="grid-area-history">
@@ -2599,6 +2594,7 @@ Replace only the materials and graphics."></textarea>
 
       <div class="grid-area-actionbar">
         <div class="action-bar" id="actionBar">
+          <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;">Download image</button>
           <button class="ghost small" onclick="openModifyDesignPanel()">Modify design</button>
           <button class="primary small" id="approveDesignBtn" onclick="approveDesign()">Approve</button>
           <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()" style="margin-left:auto;">Other option</button>
