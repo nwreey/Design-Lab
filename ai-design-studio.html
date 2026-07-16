@@ -2540,6 +2540,15 @@ Replace only the materials and graphics."></textarea>
     </div>
 
 
+    <div class="field" id="imageEngineField" style="display:none;">
+      <label>Image Engine (admin test)</label>
+      <select id="f_imageEngine">
+        <option value="gemini">Gemini (default)</option>
+        <option value="openai">OpenAI gpt-image-2 (test)</option>
+      </select>
+      <div class="hint">Admin-only experiment: choose which model actually renders the image from the exact same finished prompt, to compare Gemini vs. OpenAI design quality side-by-side. Only this final image-rendering step changes — the two-stage analysis and prompt-writing above are unaffected either way.</div>
+    </div>
+
     <div class="submit-bar">
       <button class="primary" id="submitBtn" onclick="generateDesign()">Generate Design</button>
     </div>
@@ -6100,6 +6109,8 @@ async function checkAdminAccess(){
         const tab = document.getElementById(id);
         if(tab) tab.style.display = '';
       });
+      const engineField = document.getElementById('imageEngineField');
+      if(engineField) engineField.style.display = 'block';
     }
     currentUserProjectLimit = data.projectLimit != null ? data.projectLimit : null;
     lastKnownProjectCount = data.projectCount != null ? data.projectCount : lastKnownProjectCount;
@@ -8383,7 +8394,14 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
       requestBody.referenceMimeType = logoMediaType;
       requestBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
     }
-    fetchWithTimeout('/api/generate-image-gemini', {
+    // Admin-only "Image Engine" selector (see imageEngineField) lets an admin route this exact
+    // same finished prompt to OpenAI's image models instead of Gemini, purely to compare the
+    // two engines' design quality on identical input. Hidden/absent entirely for non-admins,
+    // who always render through Gemini as before.
+    const engineEl = document.getElementById('f_imageEngine');
+    const useOpenAiEngine = isAdminUser && engineEl && engineEl.value === 'openai';
+    const genEndpoint = useOpenAiEngine ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+    fetchWithTimeout(genEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)

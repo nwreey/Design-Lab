@@ -2,6 +2,7 @@
   "functions": {
     "api/generate.js": { "maxDuration": 60 },
     "api/generate-image-gemini.js": { "maxDuration": 60 },
+    "api/generate-image-openai.js": { "maxDuration": 60 },
     "api/edit-image-openai.js": { "maxDuration": 60 },
     "api/luma-generate.js": { "maxDuration": 60 },
     "api/luma-status.js": { "maxDuration": 30 },
