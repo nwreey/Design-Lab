@@ -391,6 +391,11 @@
   @keyframes genNoticeFadeIn{from{opacity:0;}to{opacity:1;}}
   @keyframes genNoticeCardIn{from{opacity:0;transform:translateY(6px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
   .gen-notice-card{background:var(--paper);border:1.5px solid var(--navy);border-radius:2px;padding:30px 30px 28px;max-width:460px;box-shadow:0 20px 60px rgba(11,12,16,.35);position:relative;animation:genNoticeCardIn .22s cubic-bezier(.2,.8,.3,1);}
+  .admin-preview-card{background:var(--paper);border:1.5px solid var(--navy);border-radius:2px;padding:26px 28px 24px;max-width:720px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(11,12,16,.35);position:relative;animation:genNoticeCardIn .22s cubic-bezier(.2,.8,.3,1);}
+  .admin-preview-view-block{border:1px solid var(--line);border-radius:2px;padding:12px 14px;margin-bottom:10px;background:#fff;}
+  .admin-preview-view-label{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12.5px;color:var(--navy);margin-bottom:6px;}
+  .admin-preview-view-text{font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.55;color:var(--ink);white-space:pre-wrap;max-height:150px;overflow-y:auto;}
+  .admin-preview-note{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink);opacity:.7;font-style:italic;}
   .gen-notice-card::before{content:'';position:absolute;top:-1px;left:-1px;width:16px;height:16px;border-top:2px solid var(--gold);border-left:2px solid var(--gold);}
   .gen-notice-card::after{content:'';position:absolute;bottom:-1px;right:-1px;width:16px;height:16px;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold);}
   .gen-notice-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1.5px;color:var(--teal);text-transform:uppercase;margin-bottom:8px;}
@@ -2688,6 +2693,27 @@ Replace only the materials and graphics."></textarea>
       <div style="display:flex;gap:10px;">
         <button class="ghost" onclick="document.getElementById('approveNoticeOverlay').style.display='none';" style="flex:1;">Cancel</button>
         <button class="primary" onclick="document.getElementById('approveNoticeOverlay').style.display='none'; confirmApproveDesign();" style="flex:1;">OK, approve</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin-only debug tool: shows exactly what generateCameraViewsFromHero() is about to
+       send (the hero reference image + all 11 real per-view text prompts — CAM01 is the
+       hero image itself, never a separate request) before anything is actually submitted,
+       so gaps in the prompts can be caught while testing rather than only after the fact.
+       Regular users never see this — approveDesign() sends them straight to the normal
+       approveNoticeOverlay confirmation instead. -->
+  <div class="gen-notice-overlay" id="adminGenerationPreviewOverlay">
+    <div class="admin-preview-card">
+      <div class="gen-notice-eyebrow">Admin Only — Generation Preview</div>
+      <h3>Requests about to be sent (12 camera views)</h3>
+      <p style="margin-bottom:14px;">This is exactly what will be sent once you approve — review it, then confirm to continue to the normal approval step.</p>
+      <div class="admin-preview-view-label">Reference image (sent with every real request below)</div>
+      <img id="adminPreviewHeroImg" style="max-width:220px;border:1px solid var(--line);border-radius:2px;display:block;margin:6px 0 16px;" alt="Hero reference">
+      <div id="adminPreviewViewsList"></div>
+      <div style="display:flex;gap:10px;margin-top:6px;">
+        <button class="ghost" onclick="document.getElementById('adminGenerationPreviewOverlay').style.display='none';" style="flex:1;">Cancel</button>
+        <button class="primary" onclick="document.getElementById('adminGenerationPreviewOverlay').style.display='none'; document.getElementById('approveNoticeOverlay').style.display='flex';" style="flex:1;">Looks good — continue to approve</button>
       </div>
     </div>
   </div>
@@ -9895,7 +9921,49 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
 function approveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
-  document.getElementById('approveNoticeOverlay').style.display = 'flex';
+  if(isAdminUser){
+    showAdminGenerationPreview(opt);
+  }else{
+    document.getElementById('approveNoticeOverlay').style.display = 'flex';
+  }
+}
+
+// Admin-only debug step (see the overlay's own HTML comment for why this exists): builds
+// the exact same prompt text generateCameraViewsFromHero() will send for each of the 11
+// real camera-view requests — CAM01 is the approved hero image itself, never a separate
+// request, so it's called out as a note instead of a prompt block — plus the one reference
+// image every real request reuses, and shows it all before anything is actually submitted.
+function showAdminGenerationPreview(opt){
+  const heroImage = opt.gallery[opt.activeGalleryIndex].image;
+  const heroImgEl = document.getElementById('adminPreviewHeroImg');
+  if(heroImgEl) heroImgEl.src = heroImage;
+
+  const list = document.getElementById('adminPreviewViewsList');
+  if(list){
+    list.innerHTML = '';
+    CAMERA_SPECS.forEach((spec, i) => {
+      const block = document.createElement('div');
+      block.className = 'admin-preview-view-block';
+      const label = document.createElement('div');
+      label.className = 'admin-preview-view-label';
+      label.textContent = `${spec.camId} — ${spec.label} (clock ${spec.clock}, ${spec.azimuth}° azimuth)`;
+      block.appendChild(label);
+      if(i === 0){
+        const note = document.createElement('div');
+        note.className = 'admin-preview-note';
+        note.textContent = 'This is the approved hero image itself, unmodified — no request is sent for this view.';
+        block.appendChild(note);
+      }else{
+        const text = document.createElement('div');
+        text.className = 'admin-preview-view-text';
+        text.textContent = buildCameraViewPrompt(spec, false) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX;
+        block.appendChild(text);
+      }
+      list.appendChild(block);
+    });
+  }
+
+  document.getElementById('adminGenerationPreviewOverlay').style.display = 'flex';
 }
 
 // A friendly, honest progress readout for the approve -> 360 video -> camera views flow.
