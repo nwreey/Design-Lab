@@ -1464,11 +1464,9 @@ Replace only the materials and graphics."></textarea>
       <div class="field">
         <label>Project Type</label>
         <select id="f_apProjectType">
-          <option value="Exhibition Booth">Exhibition Booth</option>
           <option value="Event" selected>Event</option>
           <option value="Conference">Conference</option>
           <option value="Forum">Forum</option>
-          <option value="Pavilion">Pavilion</option>
           <option value="Experience Center">Experience Center</option>
           <option value="Roadshow">Roadshow</option>
           <option value="Retail Activation">Retail Activation</option>
@@ -3087,20 +3085,28 @@ Replace only the materials and graphics."></textarea>
        part of #result below (the exhibition booth's multi-camera 3D render gallery/tabs/
        technical-board system) since event mode's Generate button never touches that pipeline
        at all anymore (see generateEventConceptBoard() / the mode==='event' branch inside
-       pendingGenerateAction). Just one A3-landscape board image plus the same six pieces of
-       creative copy shown as plain, always-legible text underneath — useful on its own since
-       AI image models can't reliably render six paragraphs of accurate text onto one image. -->
+       pendingGenerateAction). A single twelve-image mood board collage (3 rows x 4 columns,
+       Landscape A3) built from OpenAI's Creative Director spec — see the pipeline's own header
+       comment above generateEventConceptBoard's section for the full Claude/OpenAI/Gemini role
+       breakdown. The spec's full creative direction (theme, mood, colors, all twelve image
+       slot descriptions, etc.) lives inside the Modify Theme panel, not shown here directly. -->
   <div id="eventConceptResult" style="display:none;">
     <div class="eyebrow">Event Concept Board</div>
     <h2 class="concept-title" id="ecbTitle">Your Event Concept</h2>
     <div class="render-frame" id="ecbFrame">
       <img id="ecbImg" alt="Event Concept Board" style="display:none;" onclick="openImageLightbox(this.src)">
     </div>
-    <div class="submit-bar" style="justify-content:flex-start;gap:10px;margin:0 0 20px;">
-      <button class="secondary" onclick="regenerateEventConceptBoard()">↻ Regenerate</button>
-      <button class="secondary" onclick="downloadEventConceptBoardImage()">Download image</button>
+    <div class="action-bar" id="ecbActionBar">
+      <button class="ghost small" id="ecbDownloadBtn" onclick="downloadEventConceptBoardImage()">Download</button>
+      <button class="ghost small" id="ecbModifyBtn" onclick="openModifyThemePanel()">Modify Theme</button>
+      <button class="primary small" id="ecbApproveBtn" onclick="approveEventConceptBoard()">Approve</button>
+      <button class="ghost small" id="ecbOtherThemeBtn" onclick="regenerateEventConceptBoard()" style="margin-left:auto;">Other Theme</button>
     </div>
-    <div id="ecbSections"></div>
+    <div class="action-status" id="ecbActionStatus"></div>
+
+    <!-- The six creative-copy sections used to render directly under the image as
+         always-visible boxes; they now live only inside the Modify Theme panel
+         (#modifyThemePanel below) as editable fields, opened via the Modify Theme button. -->
   </div>
 
   <div id="result">
@@ -3385,6 +3391,53 @@ Replace only the materials and graphics."></textarea>
       <button class="primary" onclick="submitModifyDesign()">Submit</button>
     </div>
     <div class="edit-status" id="modifyDesignStatus"></div>
+  </div>
+
+  <!-- Event Concept Board's own "Modify Theme" panel — fully separate from the exhibition
+       booth's Modify Design panel above (per "keep the process of exhibition booth separate
+       dont mix it with events concept"). This edits the Creative Director's (OpenAI's) full
+       Mood Board Design Specification directly — including all twelve labeled image slots —
+       no longer shown as always-visible boxes under the board image. Saving rebuilds the
+       deterministic Gemini/OpenAI prompt from the edited spec and re-renders only the image;
+       Stage 1 (OpenAI) never runs again here, since the user is supplying the exact final
+       creative direction themselves. -->
+  <div id="modifyThemePanel" class="edit-panel" style="display:none;">
+    <div class="viewer3d-label" style="color:var(--ink);opacity:.75;margin-bottom:10px;">Edit the creative direction below, then save to regenerate the mood board image with your changes.</div>
+    <div class="field">
+      <label>Event Theme</label>
+      <input type="text" id="ecbEditEventTheme">
+    </div>
+    <div class="field">
+      <label>Creative Direction</label>
+      <textarea id="ecbEditCreativeDirection" rows="3"></textarea>
+    </div>
+    <div class="field">
+      <label>Mood <span class="hint" style="margin:0;">(comma-separated)</span></label>
+      <input type="text" id="ecbEditMood">
+    </div>
+    <div class="field">
+      <label>Colors <span class="hint" style="margin:0;">(comma-separated)</span></label>
+      <input type="text" id="ecbEditColors">
+    </div>
+    <div class="field">
+      <label>Keywords <span class="hint" style="margin:0;">(comma-separated)</span></label>
+      <input type="text" id="ecbEditKeywords">
+    </div>
+    <div class="field">
+      <label>Style Details</label>
+      <div class="hint" style="margin-bottom:6px;">One line per category — keep the label before the colon, edit the comma-separated list after it.</div>
+      <textarea id="ecbEditStyleDetails" rows="8"></textarea>
+    </div>
+    <div class="field">
+      <label>Image Slots <span class="hint" style="margin:0;">(exactly 12 — one per line)</span></label>
+      <div class="hint" style="margin-bottom:6px;">Each line becomes one image in the mood board's 3x4 grid, in this exact order.</div>
+      <textarea id="ecbEditImageSlots" rows="14"></textarea>
+    </div>
+    <div class="edit-actions">
+      <button class="ghost" onclick="closeModifyThemePanel()">Cancel</button>
+      <button class="primary" onclick="submitModifyTheme()">Save &amp; Regenerate</button>
+    </div>
+    <div class="edit-status" id="modifyThemeStatus"></div>
   </div>
 
   <footer>
@@ -9390,7 +9443,7 @@ function setMode(m){
     // output on screen — the exhibition booth's #result and event mode's #eventConceptResult
     // are two entirely separate pipelines/deliverables (see generateEventConceptBoard's header
     // comment) and must never both be visible at once.
-    if(m === 'booth') document.getElementById('eventConceptResult').style.display = 'none';
+    if(m === 'booth'){ document.getElementById('eventConceptResult').style.display = 'none'; closeModifyThemePanel(); }
     if(m === 'event') document.getElementById('result').style.display = 'none';
     if(m === 'booth'){
       // Booth mode always requires exact dimensions — always re-enabled, no "unknown size" concept applies here.
@@ -11143,44 +11196,66 @@ async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
 /* ================= Event Concept Board — event mode's own, separate generation pipeline =================
    Deliberately independent of generateDesign() below (the exhibition booth's architectural
    EPS/PAE-002 render pipeline), per an explicit product decision that event mode's Generate
-   button must never run booth's 3D architectural rendering logic. Two stages, the same shape
-   as booth's own pipeline (an OpenAI writing pass, then a single image-render call) but
-   producing a completely different kind of deliverable — one A3-landscape presentation board
-   laying out six pieces of creative concept writing, never a 3D rendering of a physical space.
+   button must never run booth's 3D architectural rendering logic. Three clearly separated
+   roles, per the workflow this pipeline follows: Claude (this app) is the Workflow Manager —
+   it only validates and organizes the form into structured JSON, it never writes creative
+   copy and never decides what the mood board looks like. OpenAI is the Creative Director —
+   given only that JSON, it produces a full Mood Board Design Specification, including twelve
+   explicitly labeled and described image slots; it never touches the image itself. Gemini (or
+   OpenAI's own image models, via the same admin engine toggle) is the Image Creator — it
+   receives one fully-specified prompt built deterministically from the Creative Director's
+   spec and renders exactly that, a twelve-image mood board collage in a 3x4 grid, never a 3D
+   rendering of a physical space and never something Gemini had to improvise on its own.
    Reuses only genuinely generic, mode-agnostic helpers from the booth pipeline (callPromptWriterApi,
    compressDataUrlToTarget, fetchWithTimeout, lockForm/unlockForm, the imageEngineField toggle) —
    never any booth-specific EPS text, variables, or functions. */
 
-const EVENT_CONCEPT_BOARD_SECTION_LABELS = {
-  eventConcept: 'Event Concept',
-  creativeTheme: 'Creative Theme',
-  conceptStatement: 'Concept Statement',
-  visitorJourney: 'Visitor Journey',
-  eventPersonality: 'Event Personality',
-  keywords: 'Keywords'
-};
+/* Event Theme Board / Mood Board pipeline — three distinct roles, never blurred together:
+   Claude (this app) is the Workflow Manager: it validates the form and organizes it into a
+   clean structured JSON brief, nothing more. OpenAI is the Creative Director: given only that
+   JSON, it never touches the image itself — it produces a full Mood Board Design Specification,
+   including twelve explicitly labeled/described image slots. Gemini (or OpenAI's own image
+   models, via the same admin engine toggle) is the Image Creator: it never improvises what the
+   board should contain — it receives one fully-specified prompt, built deterministically here
+   from the Creative Director's own spec, and renders exactly that. This keeps Gemini from ever
+   having to *decide* what the mood board looks like, which is the whole point of this pipeline. */
 
-let eventConceptBoard = null; // { image: dataUrl, sections: {...}, engine: 'gemini'|'openai' } | null
+let eventConceptBoard = null; // { image: dataUrl, spec: {...}, engine: 'gemini'|'openai' } | null
 
-const eventConceptBoardWriterSystem = `You are a senior event creative director writing the concept copy for a client-facing Event Concept Board — a single presentation board summarizing the creative direction of an event, before any physical/architectural design work begins. You are NOT designing a physical space, a booth, or any architecture — only writing the creative concept in words.
+const eventThemeBoardWriterSystem = `You are a senior event creative director acting as the Creative Director for an Event Theme Board — a twelve-image mood board collage used to pitch an event's creative direction to a client, before any physical/architectural design work begins. You are NOT designing a physical space, a booth, or any architecture, and you never generate or describe a single continuous image — you only define the creative direction and mood in words, precise enough that an image-generation model can turn it into a 12-image collage without having to invent anything itself.
 
-Read the client's brief below (their Events Concept form answers) and produce ONE JSON object, and nothing else — no markdown fencing, no commentary before or after — with exactly these keys:
+Read the structured JSON brief below (already validated and organized) and produce ONE JSON object, and nothing else — no markdown fencing, no commentary before or after — with exactly these keys:
 
 {
-  "eventConcept": "the overall big-picture concept/idea for this event, in confident, professional marketing language — what this event IS, at its core, in 35-55 words",
-  "creativeTheme": "a short, evocative theme name or phrase for this event, 2-6 words, title-cased, e.g. \\"Radiant Horizons\\" or \\"Beyond the Frame\\"",
-  "conceptStatement": "a polished single-paragraph concept statement, written the way a creative director would present it to a client, 35-55 words — the emotional and strategic reasoning behind the concept, not a repeat of eventConcept",
-  "visitorJourney": "a narrative describing the visitor's experience arc from arrival to departure — what they encounter, feel, and do, in sequence, in 35-55 words",
-  "eventPersonality": "3-5 short adjectives capturing this event's character and tone, comma-separated, e.g. \\"Bold, Modern, Welcoming\\"",
-  "keywords": ["6 to 10 short keywords or short phrases (1-3 words each) capturing this event's identity, as a JSON array of strings"]
+  "eventTheme": "a short, evocative theme name or phrase for this event, 2-6 words, title-cased, e.g. \\"Banking Beyond Boundaries\\"",
+  "creativeDirection": "1-2 confident sentences (30-50 words), the way a creative director would pitch it to a client — the reasoning behind the concept, specific to this brief",
+  "mood": ["4 to 6 short adjectives describing the overall mood, e.g. \\"Elegant\\", \\"Luxury\\", \\"High-tech\\""],
+  "colors": ["3 to 5 descriptive color names derived from the brief's brand colors and industry/style — always translate any hex codes given into real color names (e.g. \\"Deep Navy\\", \\"Gold Accent\\"), never repeat a raw hex code"],
+  "lighting": ["3 to 5 short lighting descriptors, e.g. \\"Architectural LED\\", \\"Warm White\\", \\"Hidden Cove Lighting\\""],
+  "materials": ["3 to 6 short material descriptors, e.g. \\"Glass\\", \\"Brushed Brass\\", \\"White Marble\\""],
+  "furniture": ["2 to 4 short furniture descriptors fitting this event's mood"],
+  "stageStyle": ["2 to 4 short descriptors for the main stage/keynote/focal area appropriate to this event type"],
+  "entrance": ["2 to 4 short descriptors for the entrance/arrival experience"],
+  "networking": ["2 to 4 short descriptors for networking/lounge/refreshment areas"],
+  "keywords": ["6 to 10 short keywords or short phrases (1-3 words each) capturing this event's identity"],
+  "imageStyle": ["3 to 5 short phrases describing the photographic/visualization style, e.g. \\"Ultra realistic\\", \\"Premium event photography\\", \\"Architectural visualization\\", \\"Corporate luxury\\""],
+  "imageSlots": [ EXACTLY 12 objects, each { "label": "2-4 word title for this single image", "description": "one specific, vivid sentence describing exactly what this one inspiration image should show" } ]
 }
 
-Every field must be genuinely specific to THIS event's brief below — never generic boilerplate that could describe any event. Never mention AI, prompts, or the generation process. Keep every string field free of literal double-quote characters (use single quotes instead if you need to quote a word) since this must remain strictly valid JSON.`;
+Rules for imageSlots specifically — this is the most important part, since each slot becomes exactly one image in a fixed 3x4 grid position:
+- Produce EXACTLY 12 entries, no more, no fewer.
+- The brief's "required_areas" list comes first: every area listed there (e.g. "VIP Lounge", "Registration", "Main Stage", "Coffee Area") must get its own dedicated, specifically-worded slot.
+- Fill any remaining slots with complementary, on-brand inspiration images that support the mood without repeating each other: lighting details, material/texture close-ups, ceiling or architectural features, entrance details, wayfinding/signage, reception, interactive technology, furniture vignettes — chosen to fit this specific brief, never generic filler.
+- Every slot's description must describe a real, photographable scene — never an abstract concept, and never mention text, logos, or people appearing in the image.
 
-// Reads the Events Concept + Area Planning form fields directly and independently — no shared
-// variables with generateDesign()'s own booth-oriented reads, by design (see this section's
-// header comment).
-function buildEventConceptBoardBrief(){
+Every field must be genuinely specific to THIS event's brief — never generic boilerplate that could describe any event. Never mention AI, prompts, or the generation process. Keep every string value free of literal double-quote characters (use single quotes instead if you need to quote a word) since this must remain strictly valid JSON.`;
+
+// Step 1 (Claude, the Workflow Manager): validates and organizes the raw form into a clean,
+// structured JSON brief — no freeform prose, exactly the shape OpenAI's system prompt above
+// expects. Reads the Events Concept + Area Planning fields directly and independently — no
+// shared variables with generateDesign()'s own booth-oriented reads, by design (see this
+// section's header comment).
+function buildEventThemeBoardBriefData(){
   const name = document.getElementById('f_name').value.trim();
   const eventTypeRaw = document.getElementById('f_eventType').value;
   const eventTypeCustom = document.getElementById('f_eventTypeCustom').value.trim();
@@ -11188,103 +11263,145 @@ function buildEventConceptBoardBrief(){
   const eventObjectiveRaw = document.getElementById('f_eventObjective').value;
   const eventObjectiveCustom = document.getElementById('f_eventObjectiveCustom').value.trim();
   const eventObjective = eventObjectiveRaw === 'Other' ? (eventObjectiveCustom || 'Other') : eventObjectiveRaw;
+  const industry = document.getElementById('f_industryStyle').value || null;
+  const archStyle = document.getElementById('f_archStyle').value || null;
+  const environment = document.getElementById('f_environment').value || null;
+  const attendeesRaw = document.getElementById('f_attendees').value.trim();
+  const attendees = attendeesRaw ? parseInt(attendeesRaw, 10) : null;
   const targetAudience = Array.from(document.querySelectorAll('.target-audience-cb:checked')).map(cb => cb.value);
   const visitorExperience = Array.from(document.querySelectorAll('.visitor-experience-cb:checked')).map(cb => cb.value);
-  const visitorJourneyRaw = document.getElementById('f_visitorJourney').value;
-  const visitorJourneyCustom = document.getElementById('f_visitorJourneyCustom').value.trim();
-  const visitorJourneyField = visitorJourneyRaw === 'Custom' ? (visitorJourneyCustom || 'Custom') : visitorJourneyRaw;
-  const visitorDuration = document.getElementById('f_visitorDuration').value;
   const eventMood = Array.from(document.querySelectorAll('.event-mood-cb:checked')).map(cb => cb.value);
   const eventBrandValues = Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value);
   const keyActivities = Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value);
   const specialRequirements = Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value);
-  const successMetrics = Array.from(document.querySelectorAll('.success-metrics-cb:checked')).map(cb => cb.value);
-  const archStyle = document.getElementById('f_archStyle').value;
-  const industryStyle = document.getElementById('f_industryStyle').value;
-  const desc = document.getElementById('f_desc').value.trim();
   const colorHexes = Array.from(document.querySelectorAll('.color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
-  const brandPersonalityBriefText = buildBrandPersonalityBriefText();
-  const areaPlanningBrief = buildAreaPlanningBriefText();
+  const brandPersonality = selectedBrandPersonalities.slice(); // ranked array, primary first (see BPE-001)
+  const areaPlanningData = buildAreaPlanningData();
+  const requiredAreas = areaPlanningData.areas.map(a => a.name).filter(Boolean);
+  const desc = document.getElementById('f_desc').value.trim();
 
-  return `EVENT NAME: ${name || 'not specified'}
-Event type: ${eventType || 'not specified'}
-Event objective: ${eventObjective || 'not specified'}
-Target audience: ${targetAudience.length ? targetAudience.join(', ') : 'not specified'}
-Visitor experience priorities: ${visitorExperience.length ? visitorExperience.join(', ') : 'not specified'}
-Visitor journey style: ${visitorJourneyField || 'not specified'}
-Visitor duration: ${visitorDuration || 'not specified'}
-Event mood: ${eventMood.length ? eventMood.join(', ') : 'not specified'}
-Brand values to express: ${eventBrandValues.length ? eventBrandValues.join(', ') : 'not specified'}
-Key activities: ${keyActivities.length ? keyActivities.join(', ') : 'not specified'}
-Special requirements: ${specialRequirements.length ? specialRequirements.join(', ') : 'not specified'}
-Success metrics: ${successMetrics.length ? successMetrics.join(', ') : 'not specified'}
-Architectural style reference: ${archStyle}
-${industryStyle ? 'Industry style: ' + industryStyle : ''}
-${colorHexes.length ? 'Brand colors: ' + colorHexes.join(', ') : ''}
-${brandPersonalityBriefText}
-Client's own description: """${desc}"""
-${areaPlanningBrief}`;
-}
-
-// Validates and normalizes Stage 1's JSON response into a fixed, guaranteed-complete shape — a
-// missing/malformed key here surfaces as one clearly-labeled "Not generated." panel rather than
-// a broken layout or a thrown error deep inside rendering.
-function normalizeEventConceptBoardSections(raw){
-  if(!raw || typeof raw !== 'object') return null;
-  const str = v => (typeof v === 'string' && v.trim()) ? v.trim() : '';
-  const keywords = Array.isArray(raw.keywords)
-    ? raw.keywords.map(k => String(k).trim()).filter(Boolean).slice(0, 10)
-    : [];
   return {
-    eventConcept: str(raw.eventConcept) || 'Not generated.',
-    creativeTheme: str(raw.creativeTheme) || 'Not generated.',
-    conceptStatement: str(raw.conceptStatement) || 'Not generated.',
-    visitorJourney: str(raw.visitorJourney) || 'Not generated.',
-    eventPersonality: str(raw.eventPersonality) || 'Not generated.',
-    keywords
+    event_name: name || null,
+    event_type: eventType || null,
+    event_objective: eventObjective || null,
+    industry: industry,
+    architectural_style: archStyle,
+    brand_personality: brandPersonality,
+    colors: colorHexes,
+    required_areas: requiredAreas,
+    venue: areaPlanningData.venue,
+    attendees: attendees,
+    environment: environment,
+    target_audience: targetAudience,
+    visitor_experience_priorities: visitorExperience,
+    mood: eventMood,
+    brand_values: eventBrandValues,
+    key_activities: keyActivities,
+    special_requirements: specialRequirements,
+    client_description: desc || null
   };
 }
 
-// The actual image-generation prompt for the A3 board itself — a flat graphic design layout,
-// never a photorealistic rendering and never architecture. That distinction is stated
-// explicitly and repeatedly below because, left unstated, an image model asked for an "event
-// board" tends to default toward rendering a physical booth or stage — exactly what this stage
-// must never produce.
-function buildEventConceptBoardLayoutPrompt(sections){
-  const colorHexes = Array.from(document.querySelectorAll('.color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
-  const archStyle = document.getElementById('f_archStyle').value;
-  const name = document.getElementById('f_name').value.trim();
-  const keywordsLine = sections.keywords.join('  •  ');
+// Twelve on-brand, generic-but-never-empty inspiration slots used to top up an OpenAI response
+// that came back with fewer than 12 image slots (or to top up a user's own edited list in
+// submitModifyTheme) — keeps the mood board grid always exactly 12 images without ever failing
+// the whole generation over one short array.
+const EVENT_MOOD_BOARD_FALLBACK_SLOTS = [
+  { label: 'Lighting Detail', description: 'A close-up of elegant architectural lighting fixtures in a premium event space.' },
+  { label: 'Material Texture', description: 'A macro shot of premium materials such as brushed metal, glass, and stone.' },
+  { label: 'Ceiling Feature', description: 'An architectural ceiling detail with integrated lighting in a modern venue.' },
+  { label: 'Reception Counter', description: 'A sleek, premium-style reception counter in a modern event lobby.' },
+  { label: 'Wayfinding', description: 'Elegant directional signage in a modern event venue corridor.' },
+  { label: 'Furniture Vignette', description: 'A curated arrangement of premium lounge furniture in soft lighting.' },
+  { label: 'Entrance Detail', description: 'An architectural entrance portal with ambient lighting.' },
+  { label: 'Networking Corner', description: 'A relaxed networking corner with premium seating and soft light.' },
+  { label: 'Technology Detail', description: 'A close-up of interactive event technology in a premium setting.' },
+  { label: 'Color Palette', description: 'An abstract composition of the event\'s color palette rendered in premium materials.' },
+  { label: 'Architectural Detail', description: 'A striking architectural detail typical of a premium modern venue.' },
+  { label: 'Ambient Atmosphere', description: 'A wide ambient shot capturing the overall mood and lighting of a premium event space.' }
+];
 
-  return `Design a single A3-size, HORIZONTAL (landscape) graphic presentation board for a creative agency client deck — a flat, print-ready graphic design layout, NOT a photograph and NOT a 3D architectural rendering of any physical space, booth, or stage. Think mood-board / concept-board for a creative pitch deck: clean modern typography, generous whitespace, a refined color palette${colorHexes.length ? ' built around these exact brand colors: ' + colorHexes.join(', ') : ''}, subtle abstract textures or geometric graphic elements only — no photos of real people, places, or objects.
+// Shared between Stage 1's raw output (normalizeEventMoodBoardSpec) and a user's own edited
+// list (readModifyThemeFields) — always returns exactly 12 well-formed slots.
+function normalizeImageSlots(rawSlots){
+  const str = v => (typeof v === 'string' && v.trim()) ? v.trim() : '';
+  let slots = Array.isArray(rawSlots)
+    ? rawSlots.map(s => ({ label: str(s && s.label) || 'Inspiration Image', description: str(s && s.description) })).filter(s => s.description)
+    : [];
+  slots = slots.slice(0, 12);
+  let i = 0;
+  while(slots.length < 12 && i < EVENT_MOOD_BOARD_FALLBACK_SLOTS.length){
+    slots.push(EVENT_MOOD_BOARD_FALLBACK_SLOTS[i]);
+    i++;
+  }
+  while(slots.length < 12){
+    slots.push({ label: `Inspiration Image ${slots.length + 1}`, description: 'A premium, on-brand event inspiration image.' });
+  }
+  return slots;
+}
 
-${name ? `Board title, prominently at the top: "${name}"` : 'No specific event name was given — leave the top area clean with just a small generic "EVENT CONCEPT" eyebrow label.'}
+// Validates and normalizes Stage 1's (OpenAI's) JSON response into a fixed, guaranteed-complete
+// shape — a missing/malformed key here surfaces as a sensible fallback value rather than a
+// broken layout or a thrown error deep inside prompt-building.
+function normalizeEventMoodBoardSpec(raw){
+  if(!raw || typeof raw !== 'object') return null;
+  const str = v => (typeof v === 'string' && v.trim()) ? v.trim() : '';
+  const strArr = (v, max) => Array.isArray(v) ? v.map(x => String(x).trim()).filter(Boolean).slice(0, max) : [];
+  return {
+    eventTheme: str(raw.eventTheme) || 'Event Theme',
+    creativeDirection: str(raw.creativeDirection) || 'A premium, on-brand creative direction for this event.',
+    mood: strArr(raw.mood, 6),
+    colors: strArr(raw.colors, 5),
+    lighting: strArr(raw.lighting, 5),
+    materials: strArr(raw.materials, 6),
+    furniture: strArr(raw.furniture, 4),
+    stageStyle: strArr(raw.stageStyle, 4),
+    entrance: strArr(raw.entrance, 4),
+    networking: strArr(raw.networking, 4),
+    keywords: strArr(raw.keywords, 10),
+    imageStyle: strArr(raw.imageStyle, 5),
+    imageSlots: normalizeImageSlots(raw.imageSlots),
+    title: 'Mood Board'
+  };
+}
 
-Lay out exactly six clearly labeled panels/sections across the board, each with its own short header in capitals and the exact text given below rendered legibly and accurately — do not paraphrase, shorten, or alter this text:
+// Step 3 (deterministic — not a further AI call): converts the Creative Director's spec into
+// the one long, fully-specified prompt Gemini (or OpenAI's image models) actually receives.
+// Gemini never has to decide what belongs in the mood board — every one of the twelve grid
+// positions is already labeled and described, in order, by the spec itself.
+function buildEventMoodBoardImagePrompt(spec){
+  const slotsList = spec.imageSlots.map((s, i) => `${i + 1}. ${s.label} — ${s.description}`).join('\n');
+  const styleLine = [...spec.imageStyle, ...spec.colors, ...spec.materials, ...spec.lighting].filter(Boolean).join(', ');
 
-1. EVENT CONCEPT — "${sections.eventConcept}"
-2. CREATIVE THEME — "${sections.creativeTheme}"
-3. CONCEPT STATEMENT — "${sections.conceptStatement}"
-4. VISITOR JOURNEY — "${sections.visitorJourney}"
-5. EVENT PERSONALITY — "${sections.eventPersonality}"
-6. KEYWORDS — ${keywordsLine}
+  return `Create a professional event mood board presentation — a flat, print-ready graphic design layout for a creative agency client deck, NOT a single photograph and NOT a 3D architectural rendering of one continuous space.
 
-Visual style reference for the graphic mood only, not literal architecture: ${archStyle}.
+Layout: 3 rows x 4 columns, twelve separate inspiration images arranged in a clean, evenly-spaced editorial grid. White background. Clean modern graphic design. Centered title at the top reading "${spec.title}". Generous white margins between images, consistent framing and color grading across all twelve images so they read as one cohesive board.
 
-Layout rules: arrange the six panels in a clean editorial grid (an asymmetric multi-column layout works well), each panel clearly separated by whitespace or thin rule lines, with a consistent typography hierarchy (bold section headers, readable body text). Professional agency-deck aesthetic. Every word of the six text blocks above must be spelled correctly and rendered exactly as given — legibility is the top priority, so keep text blocks generously sized rather than cramped. Do not include any people, faces, hands, or photorealistic imagery anywhere. Do not include any UI chrome, browser windows, or mockup devices. Full-bleed composition — no letterboxing, no borders, no empty padding on any edge.`;
+Include exactly twelve ultra-realistic inspiration images, one per grid position, in this exact order:
+${slotsList}
+
+Overall creative direction: ${spec.creativeDirection}
+Mood: ${spec.mood.join(', ')}
+Keywords: ${spec.keywords.join(', ')}
+
+Style for every image: ${styleLine}.
+
+Hard constraints: no logos, no branding, no readable text or typography inside any of the twelve images (the only text on the whole board is the "${spec.title}" title itself), no people, no faces, no hands. Consistent, premium color grading across all images. Editorial presentation quality, Behance-quality mood board. Landscape A3, full-bleed composition, no borders, no empty padding on any edge.`;
 }
 
 async function generateEventConceptBoard(){
   const errBox = document.getElementById('errorBox');
   try{
-    document.getElementById('loadingText').textContent = 'Writing your event concept...';
-    const briefText = buildEventConceptBoardBrief();
-    const analysis = await callPromptWriterApi(eventConceptBoardWriterSystem, [{ type: 'text', text: briefText }]);
-    const sections = normalizeEventConceptBoardSections(analysis);
-    if(!sections) throw new Error('Could not generate the event concept content — please try again.');
+    document.getElementById('loadingText').textContent = 'Organizing your event brief...';
+    const briefData = buildEventThemeBoardBriefData();
 
-    document.getElementById('loadingText').textContent = 'Designing your concept board...';
-    const layoutPrompt = buildEventConceptBoardLayoutPrompt(sections);
+    document.getElementById('loadingText').textContent = 'Writing your event theme board...';
+    const analysis = await callPromptWriterApi(eventThemeBoardWriterSystem, [{ type: 'text', text: JSON.stringify(briefData, null, 2) }]);
+    const spec = normalizeEventMoodBoardSpec(analysis);
+    if(!spec) throw new Error('Could not generate the event theme board content — please try again.');
+
+    document.getElementById('loadingText').textContent = 'Designing your mood board...';
+    const layoutPrompt = buildEventMoodBoardImagePrompt(spec);
 
     // Same admin-only engine toggle already used for the exhibition booth's own render (see
     // imageEngineField / startRenderSession) — reused here rather than duplicated, since it's
@@ -11301,10 +11418,10 @@ async function generateEventConceptBoard(){
     const rawText = await response.text();
     let data = {};
     try{ data = JSON.parse(rawText); }catch(e){ /* leave data as {} */ }
-    if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Could not generate the concept board image.');
+    if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Could not generate the mood board image.');
 
     const compressed = await compressDataUrlToTarget(data.image, 900 * 1024);
-    eventConceptBoard = { image: compressed, sections, engine: useOpenAiEngine ? 'openai' : 'gemini' };
+    eventConceptBoard = { image: compressed, spec, engine: useOpenAiEngine ? 'openai' : 'gemini' };
     // Keeps the form locked on success, same as the exhibition booth pipeline — renderEventConceptBoardResult()
     // itself calls lockForm(), covering both this live-generation path and the restore-from-
     // saved-project path (restoreLogoAndPosters) in one place.
@@ -11327,20 +11444,10 @@ async function generateEventConceptBoard(){
 function renderEventConceptBoardResult(){
   if(!eventConceptBoard) return;
   const name = document.getElementById('f_name').value.trim();
-  document.getElementById('ecbTitle').textContent = name || 'Your Event Concept';
+  document.getElementById('ecbTitle').textContent = (eventConceptBoard.spec && eventConceptBoard.spec.eventTheme) || name || 'Your Event Concept';
   const img = document.getElementById('ecbImg');
   img.src = eventConceptBoard.image;
   img.style.display = 'block';
-
-  const sections = eventConceptBoard.sections;
-  const order = ['eventConcept', 'creativeTheme', 'conceptStatement', 'visitorJourney', 'eventPersonality', 'keywords'];
-  document.getElementById('ecbSections').innerHTML = order.map(key => {
-    const value = key === 'keywords' ? sections.keywords.join('  ·  ') : sections[key];
-    return `<div class="concept-description-block">
-      <div class="concept-description-label">${escapeHtml(EVENT_CONCEPT_BOARD_SECTION_LABELS[key])}</div>
-      <p class="concept-description-text" style="margin-bottom:0;">${escapeHtml(value)}</p>
-    </div>`;
-  }).join('');
 
   document.getElementById('promptReview').style.display = 'none';
   document.getElementById('result').style.display = 'none';
@@ -11349,6 +11456,34 @@ function renderEventConceptBoardResult(){
   // A finished concept board locks the form, same as a finished booth render — covers both the
   // live-generation success path and reopening a saved project that already has one.
   lockForm();
+  // Reflects eventConceptBoard.approved (restored from a saved project, or just-set by
+  // approveEventConceptBoard) into the action bar's button visibility every time the board is
+  // (re)rendered, so a reopened already-approved project comes back locked automatically.
+  applyEventConceptBoardApprovalLock();
+}
+
+// Event Concept Board's own approve-lock, deliberately separate from the exhibition booth's
+// lockApprovedActionBar/unlockApprovedActionBar (different DOM ids, different data model) —
+// see the header comment above generateEventConceptBoard's section for why these two pipelines
+// never share state or DOM. Once approved, Modify Theme/Approve/Other Theme go away for good;
+// Download stays, since the finished image itself remains available either way.
+function applyEventConceptBoardApprovalLock(){
+  const approved = !!(eventConceptBoard && eventConceptBoard.approved);
+  const modifyBtn = document.getElementById('ecbModifyBtn');
+  const approveBtn = document.getElementById('ecbApproveBtn');
+  const otherThemeBtn = document.getElementById('ecbOtherThemeBtn');
+  if(modifyBtn) modifyBtn.style.display = approved ? 'none' : '';
+  if(approveBtn) approveBtn.style.display = approved ? 'none' : '';
+  if(otherThemeBtn) otherThemeBtn.style.display = approved ? 'none' : '';
+  const statusEl = document.getElementById('ecbActionStatus');
+  if(statusEl) statusEl.textContent = approved ? 'Approved — this theme is locked in.' : '';
+}
+
+function approveEventConceptBoard(){
+  if(!eventConceptBoard) return;
+  eventConceptBoard.approved = true;
+  applyEventConceptBoardApprovalLock();
+  saveCurrentProject();
 }
 
 async function regenerateEventConceptBoard(){
@@ -11371,6 +11506,149 @@ async function downloadEventConceptBoardImage(){
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+}
+
+// The six secondary style arrays (lighting/materials/furniture/stageStyle/entrance/networking/
+// imageStyle) are edited together as one labeled multi-line textarea rather than seven separate
+// fields — keeps the Modify Theme panel usable while still leaving every one of the Creative
+// Director's spec fields genuinely editable.
+const EVENT_MOOD_BOARD_STYLE_DETAIL_KEYS = [
+  { key: 'lighting', label: 'Lighting' },
+  { key: 'materials', label: 'Materials' },
+  { key: 'furniture', label: 'Furniture' },
+  { key: 'stageStyle', label: 'Stage Style' },
+  { key: 'entrance', label: 'Entrance' },
+  { key: 'networking', label: 'Networking' },
+  { key: 'imageStyle', label: 'Image Style' }
+];
+
+function serializeStyleDetailsText(spec){
+  return EVENT_MOOD_BOARD_STYLE_DETAIL_KEYS.map(({ key, label }) => `${label}: ${(spec[key] || []).join(', ')}`).join('\n');
+}
+
+function parseStyleDetailsText(text){
+  const result = {};
+  EVENT_MOOD_BOARD_STYLE_DETAIL_KEYS.forEach(({ key }) => { result[key] = []; });
+  text.split('\n').forEach(line => {
+    const idx = line.indexOf(':');
+    if(idx === -1) return;
+    const labelText = line.slice(0, idx).trim().toLowerCase();
+    const valuesText = line.slice(idx + 1).trim();
+    const match = EVENT_MOOD_BOARD_STYLE_DETAIL_KEYS.find(({ label }) => label.toLowerCase() === labelText);
+    if(match) result[match.key] = valuesText.split(',').map(v => v.trim()).filter(Boolean);
+  });
+  return result;
+}
+
+function serializeImageSlotsText(imageSlots){
+  return imageSlots.map((s, i) => `${i + 1}. ${s.label} — ${s.description}`).join('\n');
+}
+
+function parseImageSlotsText(text){
+  return text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    const withoutNumber = line.replace(/^\d+\.\s*/, '');
+    const sepIdx = withoutNumber.indexOf('—');
+    if(sepIdx === -1) return { label: withoutNumber.slice(0, 30) || 'Inspiration Image', description: withoutNumber };
+    const label = withoutNumber.slice(0, sepIdx).trim();
+    const description = withoutNumber.slice(sepIdx + 1).trim();
+    return { label: label || 'Inspiration Image', description: description || label };
+  });
+}
+
+// Modify Theme: the Creative Director's full spec, no longer shown as always-visible boxes
+// under the board image, is edited here instead — opened by the action bar's "Modify Theme"
+// button. Every field OpenAI produced (theme, direction, mood, colors, keywords, the seven
+// secondary style arrays, and all twelve image slots) is directly editable.
+function openModifyThemePanel(){
+  if(!eventConceptBoard) return;
+  const spec = eventConceptBoard.spec;
+  document.getElementById('ecbEditEventTheme').value = spec.eventTheme || '';
+  document.getElementById('ecbEditCreativeDirection').value = spec.creativeDirection || '';
+  document.getElementById('ecbEditMood').value = (spec.mood || []).join(', ');
+  document.getElementById('ecbEditColors').value = (spec.colors || []).join(', ');
+  document.getElementById('ecbEditKeywords').value = (spec.keywords || []).join(', ');
+  document.getElementById('ecbEditStyleDetails').value = serializeStyleDetailsText(spec);
+  document.getElementById('ecbEditImageSlots').value = serializeImageSlotsText(spec.imageSlots || []);
+  document.getElementById('modifyThemeStatus').textContent = '';
+  const panel = document.getElementById('modifyThemePanel');
+  panel.style.display = 'block';
+  panel.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function closeModifyThemePanel(){
+  document.getElementById('modifyThemePanel').style.display = 'none';
+  document.getElementById('modifyThemeStatus').textContent = '';
+}
+
+// Reads the edited fields straight into a spec object (the same shape normalizeEventMoodBoardSpec
+// produces) and re-renders only the image — Stage 1 (OpenAI, the Creative Director) never runs
+// again here, since the user has just supplied the exact final wording themselves; re-running it
+// would risk silently overwriting their edits with fresh AI text instead of honoring what they typed.
+function readModifyThemeFields(){
+  const str = v => v.trim();
+  const csv = (id, max) => document.getElementById(id).value.split(',').map(v => v.trim()).filter(Boolean).slice(0, max);
+  const styleDetails = parseStyleDetailsText(document.getElementById('ecbEditStyleDetails').value);
+  const imageSlots = normalizeImageSlots(parseImageSlotsText(document.getElementById('ecbEditImageSlots').value));
+  return {
+    eventTheme: str(document.getElementById('ecbEditEventTheme').value) || 'Event Theme',
+    creativeDirection: str(document.getElementById('ecbEditCreativeDirection').value) || 'A premium, on-brand creative direction for this event.',
+    mood: csv('ecbEditMood', 6),
+    colors: csv('ecbEditColors', 5),
+    keywords: csv('ecbEditKeywords', 10),
+    lighting: styleDetails.lighting,
+    materials: styleDetails.materials,
+    furniture: styleDetails.furniture,
+    stageStyle: styleDetails.stageStyle,
+    entrance: styleDetails.entrance,
+    networking: styleDetails.networking,
+    imageStyle: styleDetails.imageStyle,
+    imageSlots,
+    title: 'Mood Board'
+  };
+}
+
+async function submitModifyTheme(){
+  if(!eventConceptBoard) return;
+  if(blockIfGenerating()) return;
+  const statusEl = document.getElementById('modifyThemeStatus');
+  const saveBtn = document.querySelector('#modifyThemePanel .edit-actions button.primary');
+  try{
+    projectSwitchLocked = true;
+    if(saveBtn) saveBtn.disabled = true;
+    statusEl.textContent = 'Regenerating your mood board with these changes...';
+
+    const spec = readModifyThemeFields();
+    const layoutPrompt = buildEventMoodBoardImagePrompt(spec);
+
+    const engineEl = document.getElementById('f_imageEngine');
+    const useOpenAiEngine = isAdminUser && engineEl && engineEl.value === 'openai';
+    const genEndpoint = useOpenAiEngine ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+
+    const response = await fetchWithTimeout(genEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: layoutPrompt, isUserInitiatedEdit: false, aspectRatio: '4:3' })
+    }, 190000);
+    const rawText = await response.text();
+    let data = {};
+    try{ data = JSON.parse(rawText); }catch(e){ /* leave data as {} */ }
+    if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Could not regenerate the mood board image.');
+
+    const compressed = await compressDataUrlToTarget(data.image, 900 * 1024);
+    eventConceptBoard.image = compressed;
+    eventConceptBoard.spec = spec;
+    eventConceptBoard.engine = useOpenAiEngine ? 'openai' : 'gemini';
+
+    closeModifyThemePanel();
+    renderEventConceptBoardResult();
+    saveCurrentProject();
+  }catch(err){
+    console.error('Could not modify event theme:', err);
+    statusEl.textContent = err.message || 'Could not regenerate the mood board image.';
+  }finally{
+    projectSwitchLocked = false;
+    if(saveBtn) saveBtn.disabled = false;
+  }
 }
 
 async function generateDesign(){
@@ -16358,7 +16636,8 @@ function startNewProject(){
   eventConceptBoard = null;
   document.getElementById('eventConceptResult').style.display = 'none';
   document.getElementById('ecbImg').style.display = 'none';
-  document.getElementById('ecbSections').innerHTML = '';
+  closeModifyThemePanel();
+  applyEventConceptBoardApprovalLock();
   clearReferenceImage();
   resetAdditionalRequirements();
 
