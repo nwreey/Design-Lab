@@ -58,50 +58,85 @@
   .btn-secondary:hover{background:#F7F7F7;transform:translateY(-2px);}
 
   /* ---------- hero ---------- */
-  .hero{padding:14px 0 80px;text-align:center;}
+  .hero{padding:56px 0 80px;text-align:center;}
   .hero-logo{height:172px;margin-bottom:44px;}
 
-  /* ---------- top bar: login / signup / language ---------- */
-  .topbar{
-    display:flex;
-    justify-content:flex-end;
-    align-items:center;
-    gap:12px;
-    padding:6px 0 0;
+  /* ---------- site header: logo / nav / language / sign in ----------
+     Sticky so it's reachable while scrolling a long marketing page (matches the reference
+     site's own persistent header) — .scrolled is toggled by a scroll listener purely for a
+     subtle border/shadow once the page has moved, so the header reads as "floating" over the
+     hero at the very top and "docked" once content scrolls beneath it. */
+  .site-header{
+    position:sticky; top:0; z-index:50;
+    background:rgba(255,255,255,0.9);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid transparent;
+    transition:border-color .25s ease, box-shadow .25s ease;
   }
-  .lang-switcher{display:flex;align-items:center;gap:5px;font-size:13px;margin-right:auto;}
+  .site-header.scrolled{ border-bottom-color:var(--line); box-shadow:0 4px 24px -16px rgba(17,17,17,0.18); }
+  .site-header-inner{ display:flex; align-items:center; gap:30px; padding:14px 0; }
+  .site-logo{ display:flex; align-items:center; gap:9px; text-decoration:none; flex-shrink:0; }
+  .site-logo img{ height:24px; width:auto; display:block; }
+  .site-logo span{ font-weight:800; font-size:14.5px; letter-spacing:-0.01em; color:var(--ink); }
+  .site-nav{ display:flex; align-items:center; gap:28px; margin-right:auto; }
+  .site-nav a{
+    font-size:14px; font-weight:600; color:var(--muted); text-decoration:none;
+    position:relative; padding:5px 0; transition:color .15s ease;
+  }
+  .site-nav a::after{
+    content:''; position:absolute; left:0; right:100%; bottom:0; height:2px;
+    background:var(--ink); transition:right .2s ease;
+  }
+  .site-nav a:hover{ color:var(--ink); }
+  .site-nav a:hover::after, .site-nav a.active::after{ right:0; }
+  .site-nav a.active{ color:var(--ink); }
+  .site-header-actions{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
+  .lang-switcher{display:flex;align-items:center;gap:5px;font-size:13px;}
   .lang-switcher select{
     font-family:'Inter',sans-serif;font-size:12.5px;font-weight:600;padding:7px 8px;
     border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer;
   }
-  .login-btn{
-    font-family:'Inter',sans-serif;
-    font-size:14px;
-    font-weight:700;
-    color:var(--ink);
-    background:#fff;
-    padding:10px 20px;
-    border-radius:10px;
-    border:2px solid var(--ink);
-    text-decoration:none;
-    display:inline-flex;
-    align-items:center;
-    transition:background .15s ease, transform .15s ease;
+  .nav-signin{
+    font-family:'Inter',sans-serif; font-size:13.5px; font-weight:700; color:var(--ink);
+    background:#fff; padding:9px 18px; border-radius:10px; border:2px solid var(--ink);
+    text-decoration:none; white-space:nowrap; transition:background .15s ease, transform .15s ease;
   }
-  .login-btn:hover{background:#F7F7F7;transform:translateY(-1px);}
-  .signup-btn-disabled{
-    font-family:'Inter',sans-serif;
-    font-size:14px;
-    font-weight:700;
-    color:#fff;
-    background:var(--ink);
-    padding:10px 20px;
-    border-radius:10px;
-    border:2px solid var(--ink);
-    cursor:default;
-    user-select:none;
-    opacity:.55;
+  .nav-signin:hover{ background:#F7F7F7; transform:translateY(-1px); }
+  .nav-menu-toggle{
+    display:none; background:none; border:1.5px solid var(--line); border-radius:8px;
+    width:36px; height:36px; font-size:16px; cursor:pointer; color:var(--ink);
   }
+  .mobile-nav{
+    display:none; flex-direction:column; gap:2px; padding:6px 32px 16px;
+    border-top:1px solid var(--line);
+  }
+  .mobile-nav a{
+    padding:11px 4px; font-size:14.5px; font-weight:600; color:var(--ink);
+    text-decoration:none; border-bottom:1px solid var(--line);
+  }
+  .mobile-nav a:last-child{ border-bottom:none; }
+  .site-header.nav-open .mobile-nav{ display:flex; }
+  @media(max-width:860px){
+    .site-nav{ display:none; }
+    .nav-menu-toggle{ display:inline-flex; align-items:center; justify-content:center; }
+  }
+
+  /* ---------- scroll-reveal micro-animation ----------
+     Applied via the .reveal class on section-level elements throughout the page; toggled to
+     .reveal.in the moment each one first scrolls into view (see the IntersectionObserver at
+     the bottom of this file) rather than all at once on load, so the page feels alive as you
+     scroll rather than static. Kept to a small, consistent fade + rise — never anything
+     bouncy or attention-grabbing enough to distract from the content itself. */
+  .reveal{ opacity:0; transform:translateY(22px); transition:opacity .7s cubic-bezier(.16,.8,.3,1), transform .7s cubic-bezier(.16,.8,.3,1); }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+  .reveal-stagger > *{ opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal-stagger.in > *{ opacity:1; transform:translateY(0); }
+  .reveal-stagger.in > *:nth-child(1){ transition-delay:.02s; }
+  .reveal-stagger.in > *:nth-child(2){ transition-delay:.08s; }
+  .reveal-stagger.in > *:nth-child(3){ transition-delay:.14s; }
+  .reveal-stagger.in > *:nth-child(4){ transition-delay:.2s; }
+  .reveal-stagger.in > *:nth-child(5){ transition-delay:.26s; }
+
   .hero h1{
     font-size:46px;
     line-height:1.15;
@@ -247,14 +282,20 @@
   footer .footer-logo{height:102px;margin-bottom:14px;opacity:.9;}
   footer .footer-tag{font-size:14px;font-weight:600;color:var(--ink);}
   footer .footer-sub{font-size:12.5px;color:var(--muted);margin-top:6px;}
+  .footer-nav{display:flex;justify-content:center;flex-wrap:wrap;gap:22px;margin-top:26px;}
+  .footer-nav a{font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;transition:color .15s ease;}
+  .footer-nav a:hover{color:var(--ink);}
   footer .footer-copy{font-size:11.5px;color:#9A9A9A;margin-top:22px;}
 
   /* ---------- RTL (Arabic) — mirrors layout direction and text alignment; numeric/ASCII
      badges and the copyright line stay visually stable since they carry no directional text
      of their own. Toggled by setLanguage() setting dir="rtl" on <html>. ---------- */
   html[dir="rtl"] body{direction:rtl;}
-  html[dir="rtl"] .topbar{flex-direction:row-reverse;}
-  html[dir="rtl"] .lang-switcher{margin-right:0;margin-left:auto;}
+  html[dir="rtl"] .site-header-inner{flex-direction:row-reverse;}
+  html[dir="rtl"] .site-nav{margin-right:0;margin-left:auto;}
+  html[dir="rtl"] .site-nav a::after{left:100%;right:0;}
+  html[dir="rtl"] .site-nav a:hover::after, html[dir="rtl"] .site-nav a.active::after{left:0;}
+  html[dir="rtl"] .mobile-nav{text-align:right;}
   html[dir="rtl"] .feature-card,
   html[dir="rtl"] .tool-card{text-align:right;}
   html[dir="rtl"] .step-arrow{transform:scaleX(-1);}
@@ -262,14 +303,36 @@
 </head>
 <body>
 
+  <!-- ================= SITE HEADER ================= -->
+  <header class="site-header" id="siteHeader">
+    <div class="wrap site-header-inner">
+      <a href="/" class="site-logo">
+        <img src="logo-black-transparent.png" alt="DesignsLab AI">
+        <span>DesignsLab AI</span>
+      </a>
+      <nav class="site-nav">
+        <a href="/product.html" data-i18n="nav.product">Product</a>
+        <a href="/pricing.html" data-i18n="nav.pricing">Pricing</a>
+        <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
+        <a href="/news.html" data-i18n="nav.news">News</a>
+      </nav>
+      <div class="site-header-actions">
+        <div class="lang-switcher"><span aria-hidden="true">🌐</span><select id="languageSelector" onchange="setLanguage(this.value)" aria-label="Language / اللغة / Langue / Sprache / Idioma / Lingua / 语言 / 言語"></select></div>
+        <a href="/login.html" class="nav-signin" data-i18n="nav.signin">Sign in</a>
+        <button type="button" class="nav-menu-toggle" id="navMenuToggle" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
+      </div>
+    </div>
+    <nav class="mobile-nav" id="mobileNav">
+      <a href="/product.html" data-i18n="nav.product">Product</a>
+      <a href="/pricing.html" data-i18n="nav.pricing">Pricing</a>
+      <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
+      <a href="/news.html" data-i18n="nav.news">News</a>
+      <a href="/login.html" data-i18n="nav.signin">Sign in</a>
+    </nav>
+  </header>
+
   <!-- ================= HERO ================= -->
   <section class="hero wrap">
-    <div class="topbar">
-      <div class="lang-switcher"><span aria-hidden="true">🌐</span><select id="languageSelector" onchange="setLanguage(this.value)" aria-label="Language / اللغة / Langue / Sprache / Idioma / Lingua / 语言 / 言語"></select></div>
-      <a href="/login.html" class="login-btn" data-i18n="hp.login">Log in</a>
-      <span class="signup-btn-disabled" data-i18n="hp.signup" data-i18n-title="hp.signupTitle" title="Not active in this preview">Sign up</span>
-    </div>
-
     <img src="logo-black-transparent.png" alt="DesignsLab AI" class="hero-logo">
 
     <h1 data-i18n="hp.heroTitle">AI Design Studio for Events &amp; Exhibition Professionals</h1>
@@ -294,11 +357,11 @@
   <!-- ================= WHAT WE DO ================= -->
   <section class="section" id="features">
     <div class="wrap">
-      <div class="section-head">
+      <div class="section-head reveal">
         <div class="eyebrow" data-i18n="hp.featuresEyebrow">What We Do</div>
         <h2 data-i18n="hp.featuresHeading">AI-Powered Creative Solutions</h2>
       </div>
-      <div class="feature-grid">
+      <div class="feature-grid reveal-stagger">
         <div class="feature-card">
           <div class="feature-icon">🏛</div>
           <h3 data-i18n="hp.feature1Title">Exhibition Booth</h3>
@@ -326,11 +389,11 @@
   <!-- ================= WHY US ================= -->
   <section class="section section-alt">
     <div class="wrap">
-      <div class="section-head">
+      <div class="section-head reveal">
         <div class="eyebrow" data-i18n="hp.whyEyebrow">Why DesignsLab AI</div>
         <h2 data-i18n="hp.whyHeading">Built for Events &amp; Exhibition Professionals</h2>
       </div>
-      <div class="why-grid">
+      <div class="why-grid reveal-stagger">
         <div class="why-item">
           <div class="why-emoji">⚡</div>
           <h3 data-i18n="hp.why1Title">Faster Design Process</h3>
@@ -358,11 +421,11 @@
   <!-- ================= HOW IT WORKS ================= -->
   <section class="section">
     <div class="wrap">
-      <div class="section-head">
+      <div class="section-head reveal">
         <div class="eyebrow" data-i18n="hp.howEyebrow">How It Works</div>
         <h2 data-i18n="hp.howHeading">From Idea to Presentation-Ready Design</h2>
       </div>
-      <div class="steps">
+      <div class="steps reveal-stagger">
         <div class="step">
           <div class="step-num">👤</div>
           <p data-i18n="hp.step1">Create an Account</p>
@@ -394,11 +457,11 @@
   <!-- ================= AVAILABLE TOOLS ================= -->
   <section class="section section-alt">
     <div class="wrap">
-      <div class="section-head">
+      <div class="section-head reveal">
         <div class="eyebrow" data-i18n="hp.toolsEyebrow">Available AI Tools</div>
         <h2 data-i18n="hp.toolsHeading">Everything You Need in One Platform</h2>
       </div>
-      <div class="tools-grid">
+      <div class="tools-grid reveal-stagger">
         <div class="tool-card">
           <h3 data-i18n="hp.tool1Title">Exhibition Booth Designer</h3>
           <p data-i18n="hp.tool1Desc">Professional 3D booth concepts</p>
@@ -422,7 +485,7 @@
   <!-- ================= TRIAL CTA ================= -->
   <section class="section">
     <div class="wrap">
-      <div class="trial-cta">
+      <div class="trial-cta reveal">
         <div class="eyebrow" data-i18n="hp.trialEyebrow">Trial Version</div>
         <h2 data-i18n="hp.trialHeading">Early Access Program</h2>
         <p data-i18n="hp.trialText">DesignsLab AI is currently available as a trial version. Access is granted after account review to ensure the platform is used by professionals in the events and exhibition industry.</p>
@@ -437,6 +500,13 @@
       <img src="logo-black-transparent.png" alt="DesignsLab AI" class="footer-logo">
       <div class="footer-tag" data-i18n="hp.footerTag">AI Design Studio for Events &amp; Brands</div>
       <div class="footer-sub" data-i18n="hp.footerSub">Events • Exhibition Booths • Display Stands</div>
+      <nav class="footer-nav">
+        <a href="/product.html" data-i18n="nav.product">Product</a>
+        <a href="/pricing.html" data-i18n="nav.pricing">Pricing</a>
+        <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
+        <a href="/news.html" data-i18n="nav.news">News</a>
+        <a href="/login.html" data-i18n="nav.signin">Sign in</a>
+      </nav>
       <div class="footer-copy" data-i18n="hp.footerCopy">© 2026 DMR Arabia. All rights reserved.</div>
     </div>
   </footer>
@@ -459,9 +529,11 @@ const LANGUAGE_OPTIONS = [
 ];
 
 const I18N_EN = {
-  'hp.login': 'Log in',
-  'hp.signup': 'Sign up',
-  'hp.signupTitle': 'Not active in this preview',
+  'nav.product': 'Product',
+  'nav.pricing': 'Pricing',
+  'nav.enterprise': 'Enterprise',
+  'nav.news': 'News',
+  'nav.signin': 'Sign in',
   'hp.heroTitle': 'AI Design Studio for Events & Exhibition Professionals',
   'hp.sub1': 'Create exhibition booths, event concepts, display stands, and presentation-ready visuals in minutes using AI.',
   'hp.sub2': 'DesignsLab AI helps event agencies, designers, and exhibition contractors transform ideas into professional 3D concepts with speed and consistency.',
@@ -518,9 +590,11 @@ const I18N_EN = {
 };
 
 const I18N_AR = {
-  'hp.login': 'تسجيل الدخول',
-  'hp.signup': 'إنشاء حساب',
-  'hp.signupTitle': 'غير مفعّل في هذه النسخة التجريبية',
+  'nav.product': 'المنتج',
+  'nav.pricing': 'الأسعار',
+  'nav.enterprise': 'الشركات',
+  'nav.news': 'الأخبار',
+  'nav.signin': 'تسجيل الدخول',
   'hp.heroTitle': 'استوديو تصميم بالذكاء الاصطناعي لمحترفي الفعاليات والمعارض',
   'hp.sub1': 'أنشئ أجنحة معارض ومفاهيم فعاليات وستاندات عرض ومرئيات جاهزة للعرض التقديمي في دقائق باستخدام الذكاء الاصطناعي.',
   'hp.sub2': 'يساعد DesignsLab AI وكالات الفعاليات والمصممين ومقاولي المعارض على تحويل الأفكار إلى مفاهيم ثلاثية الأبعاد احترافية بسرعة واتساق.',
@@ -577,9 +651,11 @@ const I18N_AR = {
 };
 
 const I18N_FR = {
-  'hp.login': 'Connexion',
-  'hp.signup': "S'inscrire",
-  'hp.signupTitle': "Non actif dans cet aperçu",
+  'nav.product': 'Produit',
+  'nav.pricing': 'Tarifs',
+  'nav.enterprise': 'Entreprise',
+  'nav.news': 'Actualités',
+  'nav.signin': 'Connexion',
   'hp.heroTitle': 'Studio de design IA pour les professionnels des événements et des salons',
   'hp.sub1': "Créez des stands d'exposition, des concepts d'événements, des présentoirs et des visuels prêts pour la présentation en quelques minutes grâce à l'IA.",
   'hp.sub2': "DesignsLab AI aide les agences événementielles, les designers et les constructeurs de stands à transformer leurs idées en concepts 3D professionnels, rapidement et avec cohérence.",
@@ -636,9 +712,11 @@ const I18N_FR = {
 };
 
 const I18N_DE = {
-  'hp.login': 'Anmelden',
-  'hp.signup': 'Registrieren',
-  'hp.signupTitle': 'In dieser Vorschau nicht aktiv',
+  'nav.product': 'Produkt',
+  'nav.pricing': 'Preise',
+  'nav.enterprise': 'Unternehmen',
+  'nav.news': 'News',
+  'nav.signin': 'Anmelden',
   'hp.heroTitle': 'KI-Design-Studio für Veranstaltungs- und Messeprofis',
   'hp.sub1': 'Erstellen Sie Messestände, Veranstaltungskonzepte, Verkaufsständer und präsentationsreife Visualisierungen in Minuten mit KI.',
   'hp.sub2': 'DesignsLab AI hilft Eventagenturen, Designern und Messebauern, Ideen mit Geschwindigkeit und Konsistenz in professionelle 3D-Konzepte zu verwandeln.',
@@ -695,9 +773,11 @@ const I18N_DE = {
 };
 
 const I18N_ES = {
-  'hp.login': 'Iniciar sesión',
-  'hp.signup': 'Registrarse',
-  'hp.signupTitle': 'No activo en esta vista previa',
+  'nav.product': 'Producto',
+  'nav.pricing': 'Precios',
+  'nav.enterprise': 'Empresas',
+  'nav.news': 'Noticias',
+  'nav.signin': 'Iniciar sesión',
   'hp.heroTitle': 'Estudio de diseño con IA para profesionales de eventos y exposiciones',
   'hp.sub1': 'Cree stands de exposición, conceptos de eventos, expositores y visuales listos para presentar en minutos usando IA.',
   'hp.sub2': 'DesignsLab AI ayuda a agencias de eventos, diseñadores y contratistas de exposiciones a transformar ideas en conceptos 3D profesionales con rapidez y consistencia.',
@@ -754,9 +834,11 @@ const I18N_ES = {
 };
 
 const I18N_IT = {
-  'hp.login': 'Accedi',
-  'hp.signup': 'Registrati',
-  'hp.signupTitle': 'Non attivo in questa anteprima',
+  'nav.product': 'Prodotto',
+  'nav.pricing': 'Prezzi',
+  'nav.enterprise': 'Aziende',
+  'nav.news': 'Novità',
+  'nav.signin': 'Accedi',
   'hp.heroTitle': 'Studio di design IA per professionisti di eventi e fiere',
   'hp.sub1': "Crea stand espositivi, concept di eventi, espositori e visual pronti per la presentazione in pochi minuti con l'IA.",
   'hp.sub2': "DesignsLab AI aiuta agenzie eventi, designer e allestitori fieristici a trasformare le idee in concept 3D professionali con rapidità e coerenza.",
@@ -813,9 +895,11 @@ const I18N_IT = {
 };
 
 const I18N_ZH = {
-  'hp.login': '登录',
-  'hp.signup': '注册',
-  'hp.signupTitle': '此预览版中未启用',
+  'nav.product': '产品',
+  'nav.pricing': '价格',
+  'nav.enterprise': '企业版',
+  'nav.news': '新闻',
+  'nav.signin': '登录',
   'hp.heroTitle': '面向活动与展览专业人士的 AI 设计工作室',
   'hp.sub1': '使用 AI 在几分钟内创建展览展位、活动概念、展示架和可用于展示的视觉效果。',
   'hp.sub2': 'DesignsLab AI 帮助活动机构、设计师和展览承包商快速、稳定地将创意转化为专业的三维概念方案。',
@@ -872,9 +956,11 @@ const I18N_ZH = {
 };
 
 const I18N_JA = {
-  'hp.login': 'ログイン',
-  'hp.signup': '新規登録',
-  'hp.signupTitle': 'このプレビューでは無効です',
+  'nav.product': '製品',
+  'nav.pricing': '料金',
+  'nav.enterprise': '法人向け',
+  'nav.news': 'ニュース',
+  'nav.signin': 'ログイン',
   'hp.heroTitle': 'イベント・展示会のプロフェッショナルのためのAIデザインスタジオ',
   'hp.sub1': 'AIを使って、展示ブース、イベントコンセプト、ディスプレイスタンド、プレゼンテーション用ビジュアルを数分で作成できます。',
   'hp.sub2': 'DesignsLab AIは、イベント代理店、デザイナー、展示会施工会社がアイデアを迅速かつ一貫性のあるプロフェッショナルな3Dコンセプトへと変換するのを支援します。',
@@ -982,6 +1068,39 @@ function initLanguage(){
 }
 
 initLanguage();
+
+/* ================= Site header + scroll-reveal (vanilla JS, no dependencies) ================= */
+
+function toggleMobileNav(){
+  const header = document.getElementById('siteHeader');
+  if(header) header.classList.toggle('nav-open');
+}
+
+// Subtle "docked" shadow/border once the page has scrolled even a little — the header starts
+// fully transparent-over-hero at the top, matching the reference site's own floating-then-
+// docking header behavior.
+window.addEventListener('scroll', () => {
+  const header = document.getElementById('siteHeader');
+  if(header) header.classList.toggle('scrolled', window.scrollY > 8);
+}, { passive: true });
+
+// Scroll-reveal: fades/rises each .reveal or .reveal-stagger element in the first time it
+// enters the viewport, then stops watching it (a one-time entrance, never a repeating
+// scroll-jitter effect). Falls back to showing everything immediately if IntersectionObserver
+// isn't available for any reason, so the page is never stuck invisible.
+if('IntersectionObserver' in window){
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        entry.target.classList.add('in');
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => revealObserver.observe(el));
+}else{
+  document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => el.classList.add('in'));
+}
 </script>
 
 </body>

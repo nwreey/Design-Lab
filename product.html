@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product — DesignsLab AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFFFFF; --ink:#111111; --muted:#666666; --line:#EAEAEA; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  @media(min-width:900px){ html{zoom:1.2;} }
+  body{ margin:0; font-family:'Inter',sans-serif; color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
+  h1,h2,h3{font-weight:800;letter-spacing:-0.02em;margin:0;}
+  a{color:inherit;}
+  .eyebrow{font-size:12.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+  .section{padding:88px 0;}
+  .section-head{max-width:640px;margin:0 auto 52px;}
+  .section-head.center{text-align:center;}
+  .section-head h2{font-size:32px;margin-top:10px;}
+  .section-head p{color:var(--muted);font-size:16px;margin-top:12px;line-height:1.6;}
+  .section-alt{background:#FAFAFA;}
+
+  button, .btn{
+    font-family:'Inter',sans-serif; font-weight:700; font-size:15px; padding:15px 30px;
+    border-radius:var(--radius); cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+    text-decoration:none; transition:transform .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+    border:2px solid var(--ink);
+  }
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 24px -8px rgba(17,17,17,0.35);}
+  .btn-secondary{background:#fff;color:var(--ink);}
+  .btn-secondary:hover{background:#F7F7F7;transform:translateY(-2px);}
+
+  /* ---------- site header (shared pattern; no language selector on this page — it silently
+     follows whatever language was chosen on the homepage, same as the login page) ---------- */
+  .site-header{
+    position:sticky; top:0; z-index:50; background:rgba(255,255,255,0.9);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid transparent; transition:border-color .25s ease, box-shadow .25s ease;
+  }
+  .site-header.scrolled{ border-bottom-color:var(--line); box-shadow:0 4px 24px -16px rgba(17,17,17,0.18); }
+  .site-header-inner{ display:flex; align-items:center; gap:30px; padding:14px 0; }
+  .site-logo{ display:flex; align-items:center; gap:9px; text-decoration:none; flex-shrink:0; }
+  .site-logo img{ height:24px; width:auto; display:block; }
+  .site-logo span{ font-weight:800; font-size:14.5px; letter-spacing:-0.01em; color:var(--ink); }
+  .site-nav{ display:flex; align-items:center; gap:28px; margin-right:auto; }
+  .site-nav a{ font-size:14px; font-weight:600; color:var(--muted); text-decoration:none; position:relative; padding:5px 0; transition:color .15s ease; }
+  .site-nav a::after{ content:''; position:absolute; left:0; right:100%; bottom:0; height:2px; background:var(--ink); transition:right .2s ease; }
+  .site-nav a:hover{ color:var(--ink); }
+  .site-nav a:hover::after, .site-nav a.active::after{ right:0; }
+  .site-nav a.active{ color:var(--ink); }
+  .site-header-actions{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
+  .nav-signin{
+    font-family:'Inter',sans-serif; font-size:13.5px; font-weight:700; color:var(--ink);
+    background:#fff; padding:9px 18px; border-radius:10px; border:2px solid var(--ink);
+    text-decoration:none; white-space:nowrap; transition:background .15s ease, transform .15s ease;
+  }
+  .nav-signin:hover{ background:#F7F7F7; transform:translateY(-1px); }
+  .nav-menu-toggle{ display:none; background:none; border:1.5px solid var(--line); border-radius:8px; width:36px; height:36px; font-size:16px; cursor:pointer; color:var(--ink); }
+  .mobile-nav{ display:none; flex-direction:column; gap:2px; padding:6px 32px 16px; border-top:1px solid var(--line); }
+  .mobile-nav a{ padding:11px 4px; font-size:14.5px; font-weight:600; color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line); }
+  .mobile-nav a:last-child{ border-bottom:none; }
+  .site-header.nav-open .mobile-nav{ display:flex; }
+  @media(max-width:860px){ .site-nav{ display:none; } .nav-menu-toggle{ display:inline-flex; align-items:center; justify-content:center; } }
+
+  .reveal{ opacity:0; transform:translateY(22px); transition:opacity .7s cubic-bezier(.16,.8,.3,1), transform .7s cubic-bezier(.16,.8,.3,1); }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+  .reveal-stagger > *{ opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal-stagger.in > *{ opacity:1; transform:translateY(0); }
+  .reveal-stagger.in > *:nth-child(1){ transition-delay:.02s; }
+  .reveal-stagger.in > *:nth-child(2){ transition-delay:.08s; }
+  .reveal-stagger.in > *:nth-child(3){ transition-delay:.14s; }
+  .reveal-stagger.in > *:nth-child(4){ transition-delay:.2s; }
+  .reveal-stagger.in > *:nth-child(5){ transition-delay:.26s; }
+  .reveal-stagger.in > *:nth-child(6){ transition-delay:.32s; }
+
+  /* ---------- hero ---------- */
+  .hero{ padding:76px 0 60px; text-align:center; }
+  .hero .eyebrow{ display:block; margin-bottom:14px; }
+  .hero h1{ font-size:48px; line-height:1.12; max-width:820px; margin:0 auto; }
+  .hero p{ font-size:17px; color:var(--muted); max-width:640px; margin:22px auto 0; line-height:1.65; }
+  .hero-actions{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:34px; }
+
+  /* ---------- abstract "camera grid" hero visual (CSS-only, no real screenshot assets) ----------
+     Stands in for a product screenshot: a soft mock frame with a grid of tiles suggesting the
+     app's own multi-camera output (hero angle + elevations + perspectives), animated with a
+     gentle staggered fade-in on load so the page feels alive immediately, not just on scroll. */
+  .mock-frame{
+    max-width:920px; margin:52px auto 0; border-radius:20px; border:1.5px solid var(--line);
+    background:#0B0C10; padding:14px; box-shadow:0 40px 80px -40px rgba(17,17,17,0.35);
+  }
+  .mock-frame-bar{ display:flex; gap:6px; padding:4px 6px 14px; }
+  .mock-frame-bar span{ width:9px; height:9px; border-radius:50%; background:#3A3D45; }
+  .mock-grid{ display:grid; grid-template-columns:1.6fr 1fr 1fr; grid-template-rows:1fr 1fr; gap:8px; height:340px; }
+  .mock-grid .tile{
+    border-radius:10px; background:linear-gradient(135deg,#20242C,#14161B);
+    position:relative; overflow:hidden; opacity:0; animation:mockIn .6s ease forwards;
+  }
+  .mock-grid .tile:nth-child(1){ grid-row:1 / 3; animation-delay:.05s; }
+  .mock-grid .tile:nth-child(2){ animation-delay:.15s; }
+  .mock-grid .tile:nth-child(3){ animation-delay:.25s; }
+  .mock-grid .tile:nth-child(4){ animation-delay:.35s; }
+  .mock-grid .tile:nth-child(5){ animation-delay:.45s; }
+  .mock-grid .tile::before{
+    content:''; position:absolute; inset:0;
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.045) 0 1px, transparent 1px 26px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.045) 0 1px, transparent 1px 26px);
+  }
+  .mock-grid .tile-label{
+    position:absolute; left:10px; bottom:10px; font-size:10.5px; font-weight:600; color:#9AA0AC;
+    letter-spacing:.03em; text-transform:uppercase; font-family:'Inter',sans-serif;
+  }
+  @keyframes mockIn{ from{ opacity:0; transform:scale(.97); } to{ opacity:1; transform:scale(1); } }
+
+  /* ---------- tool cards ---------- */
+  .tool-detail-grid{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  @media(max-width:760px){ .tool-detail-grid{ grid-template-columns:1fr; } }
+  .tool-detail-card{
+    border:1.5px solid var(--line); border-radius:var(--radius); padding:30px 28px;
+    transition:box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+  }
+  .tool-detail-card:hover{ box-shadow:0 14px 32px -14px rgba(17,17,17,0.18); transform:translateY(-3px); border-color:#DADADA; }
+  .tool-detail-icon{
+    width:46px; height:46px; border-radius:12px; background:#111111; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:20px; margin-bottom:16px;
+  }
+  .tool-detail-card h3{ font-size:18px; margin-bottom:8px; }
+  .tool-detail-card p{ font-size:14.5px; color:var(--muted); line-height:1.65; margin:0 0 14px; }
+  .tool-detail-tags{ display:flex; flex-wrap:wrap; gap:8px; }
+  .tool-detail-tags span{
+    font-size:11.5px; font-weight:600; color:var(--ink); background:#F7F7F7; border:1px solid var(--line);
+    padding:5px 10px; border-radius:999px;
+  }
+
+  /* ---------- engineering / "under the hood" list ---------- */
+  .engine-list{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media(max-width:760px){ .engine-list{ grid-template-columns:1fr; } }
+  .engine-item{ display:flex; gap:16px; padding:22px; border:1.5px solid var(--line); border-radius:var(--radius); background:#fff; }
+  .engine-item-mark{
+    flex-shrink:0; width:34px; height:34px; border-radius:9px; background:#111; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800;
+  }
+  .engine-item h3{ font-size:15.5px; margin-bottom:6px; }
+  .engine-item p{ font-size:13.5px; color:var(--muted); line-height:1.6; margin:0; }
+
+  /* ---------- steps (product-usage flow) ---------- */
+  .steps{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .step{ flex:1; min-width:170px; text-align:center; position:relative; }
+  .step-num{ width:53px; height:53px; border-radius:50%; background:#111111; color:#fff; display:flex; align-items:center; justify-content:center; font-size:22px; margin:0 auto 17px; }
+  .step h4{ font-size:14.5px; font-weight:700; margin:0 0 6px; }
+  .step p{ font-size:13px; color:var(--muted); margin:0; line-height:1.5; }
+  .step-arrow{ position:absolute; top:26px; right:-25px; font-size:22px; color:#C6C6C6; }
+  @media(max-width:900px){ .step-arrow{ display:none; } .steps{ flex-direction:column; align-items:center; gap:30px; } }
+
+  /* ---------- CTA ---------- */
+  .cta-block{ background:#111111; color:#fff; border-radius:20px; padding:56px 40px; text-align:center; }
+  .cta-block h2{ color:#fff; font-size:28px; }
+  .cta-block p{ color:#C9C9C9; font-size:15px; max-width:520px; margin:14px auto 0; line-height:1.65; }
+  .cta-block .hero-actions{ margin-top:26px; }
+  .cta-block .btn-primary{ background:#fff; color:#111; border-color:#fff; }
+  .cta-block .btn-primary:hover{ background:#111; color:#fff; box-shadow:0 10px 24px -8px rgba(255,255,255,0.25); }
+  .cta-block .btn-secondary{ background:transparent; color:#fff; border-color:#444; }
+  .cta-block .btn-secondary:hover{ background:rgba(255,255,255,0.08); }
+
+  footer{ border-top:1px solid var(--line); padding:44px 0 36px; text-align:center; }
+  footer .footer-logo{ height:80px; margin-bottom:14px; opacity:.9; }
+  footer .footer-tag{ font-size:14px; font-weight:600; color:var(--ink); }
+  .footer-nav{ display:flex; justify-content:center; flex-wrap:wrap; gap:22px; margin-top:26px; }
+  .footer-nav a{ font-size:13px; font-weight:600; color:var(--muted); text-decoration:none; transition:color .15s ease; }
+  .footer-nav a:hover{ color:var(--ink); }
+  footer .footer-copy{ font-size:11.5px; color:#9A9A9A; margin-top:22px; }
+
+  html[dir="rtl"] body{ direction:rtl; }
+  html[dir="rtl"] .site-header-inner{ flex-direction:row-reverse; }
+  html[dir="rtl"] .site-nav{ margin-right:0; margin-left:auto; }
+  html[dir="rtl"] .step-arrow{ transform:scaleX(-1); }
+</style>
+</head>
+<body>
+
+  <!-- ================= SITE HEADER ================= -->
+  <header class="site-header" id="siteHeader">
+    <div class="wrap site-header-inner">
+      <a href="/" class="site-logo">
+        <img src="logo-black-transparent.png" alt="DesignsLab AI">
+        <span>DesignsLab AI</span>
+      </a>
+      <nav class="site-nav">
+        <a href="/product.html" class="active" data-i18n="nav.product">Product</a>
+        <a href="/pricing.html" data-i18n="nav.pricing">Pricing</a>
+        <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
+        <a href="/news.html" data-i18n="nav.news">News</a>
+      </nav>
+      <div class="site-header-actions">
+        <a href="/login.html" class="nav-signin" data-i18n="nav.signin">Sign in</a>
+        <button type="button" class="nav-menu-toggle" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
+      </div>
+    </div>
+    <nav class="mobile-nav" id="mobileNav">
+      <a href="/product.html" data-i18n="nav.product">Product</a>
+      <a href="/pricing.html" data-i18n="nav.pricing">Pricing</a>
+      <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
+      <a href="/news.html" data-i18n="nav.news">News</a>
+      <a href="/login.html" data-i18n="nav.signin">Sign in</a>
+    </nav>
+  </header>
+
+  <!-- ================= HERO ================= -->
+  <section class="hero wrap">
+    <span class="eyebrow">The Product</span>
+    <h1>One studio. Every exhibition surface.</h1>
+    <p>Describe the booth, event, or display stand you need in plain words. DesignsLab AI turns it into a fully dimensioned, human-scale concept — then documents it from every camera angle a client presentation actually needs.</p>
+    <div class="hero-actions">
+      <a href="/login.html" class="btn btn-primary">🚀 Try It Now</a>
+      <a href="/pricing.html" class="btn btn-secondary">See Pricing</a>
+    </div>
+
+    <div class="mock-frame reveal">
+      <div class="mock-frame-bar"><span></span><span></span><span></span></div>
+      <div class="mock-grid">
+        <div class="tile"><span class="tile-label">Hero View</span></div>
+        <div class="tile"><span class="tile-label">Front View</span></div>
+        <div class="tile"><span class="tile-label">Upper Deck</span></div>
+        <div class="tile"><span class="tile-label">Staircase</span></div>
+        <div class="tile"><span class="tile-label">Top View</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FOUR STUDIOS ================= -->
+  <section class="section" id="tools">
+    <div class="wrap">
+      <div class="section-head center reveal">
+        <div class="eyebrow">What You Can Build</div>
+        <h2>Four studios in one workspace</h2>
+        <p>Switch tabs, not tools. Every mode shares the same brand colors, architectural style, and language settings.</p>
+      </div>
+      <div class="tool-detail-grid reveal-stagger">
+        <div class="tool-detail-card">
+          <div class="tool-detail-icon">🏛</div>
+          <h3>Exhibition Booth</h3>
+          <p>Single or double-deck booths with a full structural shell: real wall thickness, open/closed side orientation, mandatory staircases and guard rails on upper floors, and a reception counter placed exactly where the standard requires.</p>
+          <div class="tool-detail-tags"><span>Double-deck support</span><span>Human-scale furniture</span><span>Open-side logic</span></div>
+        </div>
+        <div class="tool-detail-card">
+          <div class="tool-detail-icon">🎪</div>
+          <h3>Event Concept</h3>
+          <p>Stages, entrances, registration, and indoor/outdoor hybrid layouts — sized from your actual venue footprint or a stated attendee count when the footprint isn't known yet.</p>
+          <div class="tool-detail-tags"><span>Indoor / outdoor</span><span>Attendee-based scale</span></div>
+        </div>
+        <div class="tool-detail-card">
+          <div class="tool-detail-icon">🛍</div>
+          <h3>Display Stand</h3>
+          <p>Retail displays, kiosks, and promotional stands built around your product and brand identity, sized correctly for a single unit rather than a full booth footprint.</p>
+          <div class="tool-detail-tags"><span>Retail-ready</span><span>POS units</span></div>
+        </div>
+        <div class="tool-detail-card">
+          <div class="tool-detail-icon">✏️</div>
+          <h3>Edit Design</h3>
+          <p>Change one thing without regenerating the whole concept — materials, colors, furniture, branding, a single wall — while every other camera angle stays consistent with the change.</p>
+          <div class="tool-detail-tags"><span>Targeted edits</span><span>Consistent across views</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= UNDER THE HOOD ================= -->
+  <section class="section section-alt" id="engine">
+    <div class="wrap">
+      <div class="section-head center reveal">
+        <div class="eyebrow">Under the Hood</div>
+        <h2>Engineered, not guessed</h2>
+        <p>A rendering model left to its own judgment will happily draw a doorway through a wall that's supposed to be solid. DesignsLab AI doesn't ask it to guess — the geometry is computed first, and the render is checked against it after.</p>
+      </div>
+      <div class="engine-list reveal-stagger">
+        <div class="engine-item">
+          <div class="engine-item-mark">1</div>
+          <div><h3>Spatial Planning Engine</h3><p>Every zone you request is sized and positioned from your booth's real dimensions — never a fixed layout stretched or shrunk to fit.</p></div>
+        </div>
+        <div class="engine-item">
+          <div class="engine-item-mark">2</div>
+          <div><h3>Structural Shell Engine</h3><p>Wall thickness, open vs. closed sides, and storage room boundaries are computed as real coordinates before any image is generated.</p></div>
+        </div>
+        <div class="engine-item">
+          <div class="engine-item-mark">3</div>
+          <div><h3>Double-Deck Architecture Rules</h3><p>A second floor always gets a real, structurally supported staircase and guard rails on every exposed edge — never an afterthought, never optional.</p></div>
+        </div>
+        <div class="engine-item">
+          <div class="engine-item-mark">4</div>
+          <div><h3>Multi-Camera Documentation</h3><p>Every approved design is captured from a full set of elevations and perspectives — up to 13 angles for a double-deck booth, including a dedicated staircase and top-down view.</p></div>
+        </div>
+        <div class="engine-item">
+          <div class="engine-item-mark">5</div>
+          <div><h3>Orientation Lock</h3><p>Every camera angle is checked against the same locked geometry the first render used, so a wall that's supposed to be open never quietly appears closed three views later.</p></div>
+        </div>
+        <div class="engine-item">
+          <div class="engine-item-mark">6</div>
+          <div><h3>Multilingual Workspace</h3><p>Work in English, Arabic, French, German, Spanish, Italian, Chinese, or Japanese — with full right-to-left layout support for Arabic.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HOW IT WORKS ================= -->
+  <section class="section" id="how-it-works">
+    <div class="wrap">
+      <div class="section-head center reveal">
+        <div class="eyebrow">The Workflow</div>
+        <h2>From brief to presentation</h2>
+      </div>
+      <div class="steps reveal-stagger">
+        <div class="step">
+          <div class="step-num">📝</div>
+          <h4>Describe it</h4>
+          <p>Dimensions, brand colors, logo, and a plain-language brief.</p>
+          <span class="step-arrow">→</span>
+        </div>
+        <div class="step">
+          <div class="step-num">⚙️</div>
+          <h4>Generate</h4>
+          <p>The engines plan the space before a single image is drawn.</p>
+          <span class="step-arrow">→</span>
+        </div>
+        <div class="step">
+          <div class="step-num">📷</div>
+          <h4>Review every angle</h4>
+          <p>Hero shot, elevations, perspectives, and interior views.</p>
+          <span class="step-arrow">→</span>
+        </div>
+        <div class="step">
+          <div class="step-num">✏️</div>
+          <h4>Refine</h4>
+          <p>Adjust one detail without losing the rest of the design.</p>
+          <span class="step-arrow">→</span>
+        </div>
+        <div class="step">
+          <div class="step-num">📥</div>
+          <h4>Download</h4>
+          <p>Presentation-ready boards for your next client meeting.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CTA ================= -->
+  <section class="section">
+    <div class="wrap">
+      <div class="cta-block reveal">
+        <div class="eyebrow">Ready When You Are</div>
+        <h2>Design your next booth today</h2>
+        <p>Start with a single project, or see the full pricing breakdown first.</p>
+        <div class="hero-actions">
+          <a href="/login.html" class="btn btn-primary">🚀 Try It Now</a>
+          <a href="/pricing.html" class="btn btn-secondary">See Pricing</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer>
+    <div class="wrap">
+      <img src="logo-black-transparent.png" alt="DesignsLab AI" class="footer-logo">
+      <div class="footer-tag">AI Design Studio for Events &amp; Brands</div>
+      <nav class="footer-nav">
+        <a href="/product.html" data-i18n="nav.product">Product</a>
+        <a href="/pricing.html" data-i18n="nav.pricing">Pricing</a>
+        <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
+        <a href="/news.html" data-i18n="nav.news">News</a>
+        <a href="/login.html" data-i18n="nav.signin">Sign in</a>
+      </nav>
+      <div class="footer-copy">© 2026 DMR Arabia. All rights reserved.</div>
+    </div>
+  </footer>
+
+<script>
+/* ================= I18N (nav-chrome only) =================
+   This page has no language selector of its own — same established pattern as login.html:
+   language is chosen once, on the homepage, and every other page just reads that shared
+   choice from localStorage and translates its own header/footer nav labels. Full body-copy
+   translation for this page is intentionally out of scope for this first pass (content here
+   is still being iterated on) — extend by adding data-i18n attributes + matching dictionary
+   keys once the copy is finalized, same as every other page in this app. */
+const LANGUAGE_OPTIONS = [
+  { code: 'en', dir: 'ltr' }, { code: 'ar', dir: 'rtl' }, { code: 'fr', dir: 'ltr' },
+  { code: 'de', dir: 'ltr' }, { code: 'es', dir: 'ltr' }, { code: 'it', dir: 'ltr' },
+  { code: 'zh', dir: 'ltr' }, { code: 'ja', dir: 'ltr' },
+];
+const I18N_EN = { 'nav.product':'Product','nav.pricing':'Pricing','nav.enterprise':'Enterprise','nav.news':'News','nav.signin':'Sign in' };
+const I18N_AR = { 'nav.product':'المنتج','nav.pricing':'الأسعار','nav.enterprise':'الشركات','nav.news':'الأخبار','nav.signin':'تسجيل الدخول' };
+const I18N_FR = { 'nav.product':'Produit','nav.pricing':'Tarifs','nav.enterprise':'Entreprise','nav.news':'Actualités','nav.signin':'Connexion' };
+const I18N_DE = { 'nav.product':'Produkt','nav.pricing':'Preise','nav.enterprise':'Unternehmen','nav.news':'News','nav.signin':'Anmelden' };
+const I18N_ES = { 'nav.product':'Producto','nav.pricing':'Precios','nav.enterprise':'Empresas','nav.news':'Noticias','nav.signin':'Iniciar sesión' };
+const I18N_IT = { 'nav.product':'Prodotto','nav.pricing':'Prezzi','nav.enterprise':'Aziende','nav.news':'Novità','nav.signin':'Accedi' };
+const I18N_ZH = { 'nav.product':'产品','nav.pricing':'价格','nav.enterprise':'企业版','nav.news':'新闻','nav.signin':'登录' };
+const I18N_JA = { 'nav.product':'製品','nav.pricing':'料金','nav.enterprise':'法人向け','nav.news':'ニュース','nav.signin':'ログイン' };
+const I18N_DICTIONARIES = { en: I18N_EN, ar: I18N_AR, fr: I18N_FR, de: I18N_DE, es: I18N_ES, it: I18N_IT, zh: I18N_ZH, ja: I18N_JA };
+let currentLanguage = 'en';
+function t(key){ const d = I18N_DICTIONARIES[currentLanguage] || I18N_EN; return d[key] != null ? d[key] : (I18N_EN[key] != null ? I18N_EN[key] : key); }
+function applyTranslations(){ document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); }); }
+function setLanguage(lang, skipPersist){
+  currentLanguage = I18N_DICTIONARIES[lang] ? lang : 'en';
+  const opt = LANGUAGE_OPTIONS.find(o => o.code === currentLanguage) || LANGUAGE_OPTIONS[0];
+  document.documentElement.lang = currentLanguage;
+  document.documentElement.dir = opt.dir;
+  applyTranslations();
+  if(!skipPersist){ try{ localStorage.setItem('designLabLanguage', currentLanguage); }catch(e){} }
+}
+function initLanguage(){
+  let saved = null;
+  try{ saved = localStorage.getItem('designLabLanguage'); }catch(e){}
+  setLanguage(saved || 'en', true);
+}
+initLanguage();
+
+function toggleMobileNav(){ document.getElementById('siteHeader').classList.toggle('nav-open'); }
+window.addEventListener('scroll', () => {
+  document.getElementById('siteHeader').classList.toggle('scrolled', window.scrollY > 8);
+}, { passive: true });
+if('IntersectionObserver' in window){
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => { if(entry.isIntersecting){ entry.target.classList.add('in'); revealObserver.unobserve(entry.target); } });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => revealObserver.observe(el));
+}else{
+  document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => el.classList.add('in'));
+}
+</script>
+
+</body>
+</html>
