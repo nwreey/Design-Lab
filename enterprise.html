@@ -124,17 +124,23 @@
   .cta-block .btn-secondary:hover{ background:rgba(255,255,255,0.08); }
   .cta-block .fine-print{ font-size:12px; color:#8A8F99; margin-top:18px; }
 
-  footer{ border-top:1px solid var(--line); padding:44px 0 36px; text-align:center; }
-  footer .footer-logo{ height:80px; margin-bottom:14px; opacity:.9; }
-  footer .footer-tag{ font-size:14px; font-weight:600; color:var(--ink); }
-  .footer-nav{ display:flex; justify-content:center; flex-wrap:wrap; gap:22px; margin-top:26px; }
-  .footer-nav a{ font-size:13px; font-weight:600; color:var(--muted); text-decoration:none; transition:color .15s ease; }
-  .footer-nav a:hover{ color:var(--ink); }
-  footer .footer-copy{ font-size:11.5px; color:#9A9A9A; margin-top:22px; }
+  footer{ border-top:1px solid var(--line); padding:56px 0 30px; }
+  .footer-grid{ display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr; gap:34px; text-align:left; }
+  @media(max-width:760px){ .footer-grid{ grid-template-columns:1fr 1fr; } }
+  @media(max-width:480px){ .footer-grid{ grid-template-columns:1fr; } }
+  .footer-brand .footer-logo{ height:34px; width:auto; margin-bottom:12px; opacity:.9; display:block; }
+  .footer-brand .footer-tag{ font-size:13px; font-weight:600; color:var(--ink); max-width:230px; line-height:1.5; }
+  .footer-col-title{ font-size:11.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink); margin-bottom:14px; }
+  .footer-col{ display:flex; flex-direction:column; gap:11px; }
+  .footer-col a{ font-size:13.5px; color:var(--muted); text-decoration:none; transition:color .15s ease; }
+  .footer-col a:hover{ color:var(--ink); }
+  .footer-bottom{ margin-top:44px; padding-top:22px; border-top:1px solid var(--line); text-align:center; }
+  footer .footer-copy{ font-size:11.5px; color:#9A9A9A; }
 
   html[dir="rtl"] body{ direction:rtl; }
   html[dir="rtl"] .site-header-inner{ flex-direction:row-reverse; }
   html[dir="rtl"] .site-nav{ margin-right:0; margin-left:auto; }
+  html[dir="rtl"] .footer-grid{ text-align:right; }
   html[dir="rtl"] .ent-card,
   html[dir="rtl"] .process-item{ text-align:right; }
 </style>
@@ -277,16 +283,33 @@
 
   <!-- ================= FOOTER ================= -->
   <footer>
-    <div class="wrap">
-      <img src="logo-black-transparent.png" alt="DesignsLab AI" class="footer-logo">
-      <div class="footer-tag">AI Design Studio for Events &amp; Brands</div>
-      <nav class="footer-nav">
-        <a href="/product.html" data-i18n="nav.product">Product</a>
+    <div class="wrap footer-grid">
+      <div class="footer-brand">
+        <img src="logo-black-transparent.png" alt="DesignsLab AI" class="footer-logo">
+        <div class="footer-tag">AI Design Studio for Events &amp; Brands</div>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Product</div>
+        <a href="/product.html#booth-generator">AI Booth Generator</a>
+        <a href="/product.html#events-generator">AI Events Generator</a>
+        <a href="/product.html#display-generator">AI Product Display Generator</a>
         <a href="/pricing.html" data-i18n="nav.pricing">Pricing</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Company</div>
         <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
         <a href="/news.html" data-i18n="nav.news">News</a>
+        <a href="/contact.html" data-i18n="nav.contact">Contact us</a>
         <a href="/login.html" data-i18n="nav.signin">Sign in</a>
-      </nav>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Legal</div>
+        <a href="/terms.html">Terms of Service</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/cookie-policy.html">Cookie Policy</a>
+      </div>
+    </div>
+    <div class="wrap footer-bottom">
       <div class="footer-copy">© 2026 DMR Arabia. All rights reserved.</div>
     </div>
   </footer>
@@ -299,14 +322,14 @@ const LANGUAGE_OPTIONS = [
   { code: 'de', dir: 'ltr' }, { code: 'es', dir: 'ltr' }, { code: 'it', dir: 'ltr' },
   { code: 'zh', dir: 'ltr' }, { code: 'ja', dir: 'ltr' },
 ];
-const I18N_EN = { 'nav.product':'Product','nav.pricing':'Pricing','nav.enterprise':'Enterprise','nav.news':'News','nav.signin':'Sign in' };
-const I18N_AR = { 'nav.product':'المنتج','nav.pricing':'الأسعار','nav.enterprise':'الشركات','nav.news':'الأخبار','nav.signin':'تسجيل الدخول' };
-const I18N_FR = { 'nav.product':'Produit','nav.pricing':'Tarifs','nav.enterprise':'Entreprise','nav.news':'Actualités','nav.signin':'Connexion' };
-const I18N_DE = { 'nav.product':'Produkt','nav.pricing':'Preise','nav.enterprise':'Unternehmen','nav.news':'News','nav.signin':'Anmelden' };
-const I18N_ES = { 'nav.product':'Producto','nav.pricing':'Precios','nav.enterprise':'Empresas','nav.news':'Noticias','nav.signin':'Iniciar sesión' };
-const I18N_IT = { 'nav.product':'Prodotto','nav.pricing':'Prezzi','nav.enterprise':'Aziende','nav.news':'Novità','nav.signin':'Accedi' };
-const I18N_ZH = { 'nav.product':'产品','nav.pricing':'价格','nav.enterprise':'企业版','nav.news':'新闻','nav.signin':'登录' };
-const I18N_JA = { 'nav.product':'製品','nav.pricing':'料金','nav.enterprise':'法人向け','nav.news':'ニュース','nav.signin':'ログイン' };
+const I18N_EN = { 'nav.product':'Product','nav.pricing':'Pricing','nav.enterprise':'Enterprise','nav.news':'News','nav.signin':'Sign in','nav.contact':'Contact us' };
+const I18N_AR = { 'nav.product':'المنتج','nav.pricing':'الأسعار','nav.enterprise':'الشركات','nav.news':'الأخبار','nav.signin':'تسجيل الدخول','nav.contact':'تواصل معنا' };
+const I18N_FR = { 'nav.product':'Produit','nav.pricing':'Tarifs','nav.enterprise':'Entreprise','nav.news':'Actualités','nav.signin':'Connexion','nav.contact':'Nous contacter' };
+const I18N_DE = { 'nav.product':'Produkt','nav.pricing':'Preise','nav.enterprise':'Unternehmen','nav.news':'News','nav.signin':'Anmelden','nav.contact':'Kontakt' };
+const I18N_ES = { 'nav.product':'Producto','nav.pricing':'Precios','nav.enterprise':'Empresas','nav.news':'Noticias','nav.signin':'Iniciar sesión','nav.contact':'Contáctanos' };
+const I18N_IT = { 'nav.product':'Prodotto','nav.pricing':'Prezzi','nav.enterprise':'Aziende','nav.news':'Novità','nav.signin':'Accedi','nav.contact':'Contattaci' };
+const I18N_ZH = { 'nav.product':'产品','nav.pricing':'价格','nav.enterprise':'企业版','nav.news':'新闻','nav.signin':'登录','nav.contact':'联系我们' };
+const I18N_JA = { 'nav.product':'製品','nav.pricing':'料金','nav.enterprise':'法人向け','nav.news':'ニュース','nav.signin':'ログイン','nav.contact':'お問い合わせ' };
 const I18N_DICTIONARIES = { en: I18N_EN, ar: I18N_AR, fr: I18N_FR, de: I18N_DE, es: I18N_ES, it: I18N_IT, zh: I18N_ZH, ja: I18N_JA };
 let currentLanguage = 'en';
 function t(key){ const d = I18N_DICTIONARIES[currentLanguage] || I18N_EN; return d[key] != null ? d[key] : (I18N_EN[key] != null ? I18N_EN[key] : key); }

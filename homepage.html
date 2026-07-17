@@ -273,19 +273,22 @@
   .trial-cta .btn-primary{background:#fff;color:#111;border-color:#fff;margin-top:28px;}
   .trial-cta .btn-primary:hover{background:#111;color:#fff;box-shadow:0 10px 24px -8px rgba(255,255,255,0.25);}
 
-  /* ---------- footer ---------- */
-  footer{
-    border-top:1px solid var(--line);
-    padding:44px 0 36px;
-    text-align:center;
-  }
-  footer .footer-logo{height:102px;margin-bottom:14px;opacity:.9;}
-  footer .footer-tag{font-size:14px;font-weight:600;color:var(--ink);}
-  footer .footer-sub{font-size:12.5px;color:var(--muted);margin-top:6px;}
-  .footer-nav{display:flex;justify-content:center;flex-wrap:wrap;gap:22px;margin-top:26px;}
-  .footer-nav a{font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;transition:color .15s ease;}
-  .footer-nav a:hover{color:var(--ink);}
-  footer .footer-copy{font-size:11.5px;color:#9A9A9A;margin-top:22px;}
+  /* ---------- footer ----------
+     Multi-column layout (brand + Product/Company/Legal link groups) — replaced the earlier
+     single centered row once the link count grew past what a single row could hold cleanly. */
+  footer{ border-top:1px solid var(--line); padding:56px 0 30px; }
+  .footer-grid{ display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr; gap:34px; text-align:left; }
+  @media(max-width:760px){ .footer-grid{ grid-template-columns:1fr 1fr; } }
+  @media(max-width:480px){ .footer-grid{ grid-template-columns:1fr; } }
+  .footer-brand .footer-logo{ height:34px; width:auto; margin-bottom:12px; opacity:.9; display:block; }
+  .footer-brand .footer-tag{ font-size:13px; font-weight:600; color:var(--ink); max-width:230px; line-height:1.5; }
+  .footer-brand .footer-sub{ font-size:12px; color:var(--muted); margin-top:6px; max-width:230px; line-height:1.5; }
+  .footer-col-title{ font-size:11.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink); margin-bottom:14px; }
+  .footer-col{ display:flex; flex-direction:column; gap:11px; }
+  .footer-col a{ font-size:13.5px; color:var(--muted); text-decoration:none; transition:color .15s ease; }
+  .footer-col a:hover{ color:var(--ink); }
+  .footer-bottom{ margin-top:44px; padding-top:22px; border-top:1px solid var(--line); text-align:center; }
+  footer .footer-copy{ font-size:11.5px; color:#9A9A9A; }
 
   /* ---------- RTL (Arabic) — mirrors layout direction and text alignment; numeric/ASCII
      badges and the copyright line stay visually stable since they carry no directional text
@@ -299,6 +302,7 @@
   html[dir="rtl"] .feature-card,
   html[dir="rtl"] .tool-card{text-align:right;}
   html[dir="rtl"] .step-arrow{transform:scaleX(-1);}
+  html[dir="rtl"] .footer-grid{text-align:right;}
 </style>
 </head>
 <body>
@@ -496,17 +500,34 @@
 
   <!-- ================= FOOTER ================= -->
   <footer>
-    <div class="wrap">
-      <img src="logo-black-transparent.png" alt="DesignsLab AI" class="footer-logo">
-      <div class="footer-tag" data-i18n="hp.footerTag">AI Design Studio for Events &amp; Brands</div>
-      <div class="footer-sub" data-i18n="hp.footerSub">Events • Exhibition Booths • Display Stands</div>
-      <nav class="footer-nav">
-        <a href="/product.html" data-i18n="nav.product">Product</a>
+    <div class="wrap footer-grid">
+      <div class="footer-brand">
+        <img src="logo-black-transparent.png" alt="DesignsLab AI" class="footer-logo">
+        <div class="footer-tag" data-i18n="hp.footerTag">AI Design Studio for Events &amp; Brands</div>
+        <div class="footer-sub" data-i18n="hp.footerSub">Events • Exhibition Booths • Display Stands</div>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Product</div>
+        <a href="/product.html#booth-generator">AI Booth Generator</a>
+        <a href="/product.html#events-generator">AI Events Generator</a>
+        <a href="/product.html#display-generator">AI Product Display Generator</a>
         <a href="/pricing.html" data-i18n="nav.pricing">Pricing</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Company</div>
         <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
         <a href="/news.html" data-i18n="nav.news">News</a>
+        <a href="/contact.html" data-i18n="nav.contact">Contact us</a>
         <a href="/login.html" data-i18n="nav.signin">Sign in</a>
-      </nav>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Legal</div>
+        <a href="/terms.html">Terms of Service</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/cookie-policy.html">Cookie Policy</a>
+      </div>
+    </div>
+    <div class="wrap footer-bottom">
       <div class="footer-copy" data-i18n="hp.footerCopy">© 2026 DMR Arabia. All rights reserved.</div>
     </div>
   </footer>
@@ -534,6 +555,7 @@ const I18N_EN = {
   'nav.enterprise': 'Enterprise',
   'nav.news': 'News',
   'nav.signin': 'Sign in',
+  'nav.contact': 'Contact us',
   'hp.heroTitle': 'AI Design Studio for Events & Exhibition Professionals',
   'hp.sub1': 'Create exhibition booths, event concepts, display stands, and presentation-ready visuals in minutes using AI.',
   'hp.sub2': 'DesignsLab AI helps event agencies, designers, and exhibition contractors transform ideas into professional 3D concepts with speed and consistency.',
@@ -595,6 +617,7 @@ const I18N_AR = {
   'nav.enterprise': 'الشركات',
   'nav.news': 'الأخبار',
   'nav.signin': 'تسجيل الدخول',
+  'nav.contact': 'تواصل معنا',
   'hp.heroTitle': 'استوديو تصميم بالذكاء الاصطناعي لمحترفي الفعاليات والمعارض',
   'hp.sub1': 'أنشئ أجنحة معارض ومفاهيم فعاليات وستاندات عرض ومرئيات جاهزة للعرض التقديمي في دقائق باستخدام الذكاء الاصطناعي.',
   'hp.sub2': 'يساعد DesignsLab AI وكالات الفعاليات والمصممين ومقاولي المعارض على تحويل الأفكار إلى مفاهيم ثلاثية الأبعاد احترافية بسرعة واتساق.',
@@ -656,6 +679,7 @@ const I18N_FR = {
   'nav.enterprise': 'Entreprise',
   'nav.news': 'Actualités',
   'nav.signin': 'Connexion',
+  'nav.contact': 'Nous contacter',
   'hp.heroTitle': 'Studio de design IA pour les professionnels des événements et des salons',
   'hp.sub1': "Créez des stands d'exposition, des concepts d'événements, des présentoirs et des visuels prêts pour la présentation en quelques minutes grâce à l'IA.",
   'hp.sub2': "DesignsLab AI aide les agences événementielles, les designers et les constructeurs de stands à transformer leurs idées en concepts 3D professionnels, rapidement et avec cohérence.",
@@ -717,6 +741,7 @@ const I18N_DE = {
   'nav.enterprise': 'Unternehmen',
   'nav.news': 'News',
   'nav.signin': 'Anmelden',
+  'nav.contact': 'Kontakt',
   'hp.heroTitle': 'KI-Design-Studio für Veranstaltungs- und Messeprofis',
   'hp.sub1': 'Erstellen Sie Messestände, Veranstaltungskonzepte, Verkaufsständer und präsentationsreife Visualisierungen in Minuten mit KI.',
   'hp.sub2': 'DesignsLab AI hilft Eventagenturen, Designern und Messebauern, Ideen mit Geschwindigkeit und Konsistenz in professionelle 3D-Konzepte zu verwandeln.',
@@ -778,6 +803,7 @@ const I18N_ES = {
   'nav.enterprise': 'Empresas',
   'nav.news': 'Noticias',
   'nav.signin': 'Iniciar sesión',
+  'nav.contact': 'Contáctanos',
   'hp.heroTitle': 'Estudio de diseño con IA para profesionales de eventos y exposiciones',
   'hp.sub1': 'Cree stands de exposición, conceptos de eventos, expositores y visuales listos para presentar en minutos usando IA.',
   'hp.sub2': 'DesignsLab AI ayuda a agencias de eventos, diseñadores y contratistas de exposiciones a transformar ideas en conceptos 3D profesionales con rapidez y consistencia.',
@@ -839,6 +865,7 @@ const I18N_IT = {
   'nav.enterprise': 'Aziende',
   'nav.news': 'Novità',
   'nav.signin': 'Accedi',
+  'nav.contact': 'Contattaci',
   'hp.heroTitle': 'Studio di design IA per professionisti di eventi e fiere',
   'hp.sub1': "Crea stand espositivi, concept di eventi, espositori e visual pronti per la presentazione in pochi minuti con l'IA.",
   'hp.sub2': "DesignsLab AI aiuta agenzie eventi, designer e allestitori fieristici a trasformare le idee in concept 3D professionali con rapidità e coerenza.",
@@ -900,6 +927,7 @@ const I18N_ZH = {
   'nav.enterprise': '企业版',
   'nav.news': '新闻',
   'nav.signin': '登录',
+  'nav.contact': '联系我们',
   'hp.heroTitle': '面向活动与展览专业人士的 AI 设计工作室',
   'hp.sub1': '使用 AI 在几分钟内创建展览展位、活动概念、展示架和可用于展示的视觉效果。',
   'hp.sub2': 'DesignsLab AI 帮助活动机构、设计师和展览承包商快速、稳定地将创意转化为专业的三维概念方案。',
@@ -961,6 +989,7 @@ const I18N_JA = {
   'nav.enterprise': '法人向け',
   'nav.news': 'ニュース',
   'nav.signin': 'ログイン',
+  'nav.contact': 'お問い合わせ',
   'hp.heroTitle': 'イベント・展示会のプロフェッショナルのためのAIデザインスタジオ',
   'hp.sub1': 'AIを使って、展示ブース、イベントコンセプト、ディスプレイスタンド、プレゼンテーション用ビジュアルを数分で作成できます。',
   'hp.sub2': 'DesignsLab AIは、イベント代理店、デザイナー、展示会施工会社がアイデアを迅速かつ一貫性のあるプロフェッショナルな3Dコンセプトへと変換するのを支援します。',
