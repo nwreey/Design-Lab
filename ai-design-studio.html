@@ -1304,6 +1304,27 @@ Replace only the materials and graphics."></textarea>
       </div>
       <div class="hint" id="indoorOutdoorSizeMandatoryHint" style="display:none;margin-top:-8px;">* Required unless you check "I don't know" for that side — then select at least one Required Area for that side instead.</div>
       <div class="hint" id="indoorOutdoorSizeHint" style="display:none;margin-top:-8px;margin-bottom:16px;">If either size is unknown, check its box — that space is then planned around the areas you select below in "Required Areas" instead of a fixed footprint.</div>
+
+      <div class="field">
+        <label>Venue</label>
+        <input type="text" id="f_venue" placeholder="e.g. King Abdulaziz International Conference Center">
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>City</label>
+          <input type="text" id="f_city" placeholder="e.g. Riyadh">
+        </div>
+        <div class="field">
+          <label>Country</label>
+          <input type="text" id="f_country" placeholder="e.g. Saudi Arabia">
+        </div>
+      </div>
+
+      <div class="field" id="attendeesField">
+        <label>Expected number of attendees</label>
+        <input type="number" id="f_attendees" placeholder="e.g. 150" min="1">
+      </div>
     </div>
 
     <div id="boothSizeFields">
@@ -1540,7 +1561,205 @@ Replace only the materials and graphics."></textarea>
       </div>
     </div>
 
-    <div class="section-headline" id="eventThemeHeadline" style="display:none;" data-i18n="section.eventTheme">Event Theme</div>
+    <div class="section-headline" id="eventThemeHeadline" style="display:none;">Events Concept</div>
+    <div id="eventConceptFields" style="display:none;">
+      <div class="field">
+        <label>Event Objective <span class="required-mark">*</span></label>
+        <div class="hint" style="margin-bottom:10px;">What is the primary purpose of this event? Choose one.</div>
+        <select id="f_eventObjective" onchange="toggleEventObjectiveCustom(this)">
+          <option value="" selected disabled>Select the primary purpose...</option>
+          <option>Product Launch</option>
+          <option>Brand Awareness</option>
+          <option>Lead Generation</option>
+          <option>Networking</option>
+          <option>Conference</option>
+          <option>Exhibition</option>
+          <option>Investor Event</option>
+          <option>Training</option>
+          <option>Celebration</option>
+          <option>Awards Ceremony</option>
+          <option>Government Event</option>
+          <option>Education</option>
+          <option>Sales Event</option>
+          <option>Community Engagement</option>
+          <option value="Other">Other</option>
+        </select>
+        <input type="text" id="f_eventObjectiveCustom" placeholder="Describe the event's primary purpose" style="display:none;margin-top:8px;">
+      </div>
+
+      <div class="field" id="targetAudienceField">
+        <label>Target Audience <span class="required-mark">*</span></label>
+        <div class="hint" style="margin-bottom:10px;">Select all that apply.</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="target-audience-cb" value="Executives"> Executives</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Government Officials"> Government Officials</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Investors"> Investors</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Business Owners"> Business Owners</label>
+          <label><input type="checkbox" class="target-audience-cb" value="General Public"> General Public</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Students"> Students</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Families"> Families</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Media"> Media</label>
+          <label><input type="checkbox" class="target-audience-cb" value="VIP Guests"> VIP Guests</label>
+          <label><input type="checkbox" class="target-audience-cb" value="International Visitors"> International Visitors</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Technical Professionals"> Technical Professionals</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Visitor Experience</label>
+        <div class="hint" style="margin-bottom:10px;">What should visitors experience? Select all that apply.</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="visitor-experience-cb" value="Discover"> Discover</label>
+          <label><input type="checkbox" class="visitor-experience-cb" value="Learn"> Learn</label>
+          <label><input type="checkbox" class="visitor-experience-cb" value="Watch presentations"> Watch presentations</label>
+          <label><input type="checkbox" class="visitor-experience-cb" value="Network"> Network</label>
+          <label><input type="checkbox" class="visitor-experience-cb" value="Test products"> Test products</label>
+          <label><input type="checkbox" class="visitor-experience-cb" value="Hands-on demos"> Hands-on demos</label>
+          <label><input type="checkbox" class="visitor-experience-cb" value="Entertainment"> Entertainment</label>
+          <label><input type="checkbox" class="visitor-experience-cb" value="Workshops"> Workshops</label>
+          <label><input type="checkbox" class="visitor-experience-cb" value="Competitions"> Competitions</label>
+          <label><input type="checkbox" class="visitor-experience-cb" value="Meet experts"> Meet experts</label>
+          <label><input type="checkbox" class="visitor-experience-cb" value="VIP Hospitality"> VIP Hospitality</label>
+          <label><input type="checkbox" class="visitor-experience-cb" value="Shopping"> Shopping</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Visitor Journey <span class="required-mark">*</span></label>
+        <div class="hint" style="margin-bottom:10px;">Choose the flow. This is extremely useful for AI — it directly shapes circulation and layout.</div>
+        <select id="f_visitorJourney" onchange="toggleVisitorJourneyCustom(this)">
+          <option value="" selected disabled>Choose the flow...</option>
+          <option value="Registration → Stage → Exhibition → Networking → Exit">Registration → Stage → Exhibition → Networking → Exit</option>
+          <option value="Reception → Demo Area → Meeting → Coffee → Exit">Reception → Demo Area → Meeting → Coffee → Exit</option>
+          <option value="Free Flow">Free Flow</option>
+          <option value="Guided Experience">Guided Experience</option>
+          <option value="Custom">Custom</option>
+        </select>
+        <input type="text" id="f_visitorJourneyCustom" placeholder="Describe the custom visitor flow" style="display:none;margin-top:8px;">
+      </div>
+
+      <div class="field">
+        <label>Estimated Visitor Duration</label>
+        <div class="hint" style="margin-bottom:10px;">Average stay.</div>
+        <select id="f_visitorDuration">
+          <option value="">Not specified</option>
+          <option value="15 min">15 min</option>
+          <option value="30 min">30 min</option>
+          <option value="1 hour" selected>1 hour</option>
+          <option value="2 hours">2 hours</option>
+          <option value="Half Day">Half Day</option>
+          <option value="Full Day">Full Day</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Event Mood</label>
+        <div class="hint" style="margin-bottom:10px;">Select up to 3.</div>
+        <div class="checkbox-grid" id="eventMoodGrid">
+          <label><input type="checkbox" class="event-mood-cb" value="Elegant"> Elegant</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Luxury"> Luxury</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Premium"> Premium</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Innovative"> Innovative</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Futuristic"> Futuristic</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Inspirational"> Inspirational</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Energetic"> Energetic</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Formal"> Formal</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Relaxed"> Relaxed</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Family-Friendly"> Family-Friendly</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Creative"> Creative</label>
+          <label><input type="checkbox" class="event-mood-cb" value="High-Tech"> High-Tech</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Sustainable"> Sustainable</label>
+          <label><input type="checkbox" class="event-mood-cb" value="Cultural"> Cultural</label>
+        </div>
+        <div class="hint" id="eventMoodCountHint" style="margin-top:6px;"></div>
+      </div>
+
+      <div class="field">
+        <label>Brand Values</label>
+        <div class="hint" style="margin-bottom:10px;">Choose up to five.</div>
+        <div class="checkbox-grid" id="brandValuesGrid">
+          <label><input type="checkbox" class="event-brand-values-cb" value="Trust"> Trust</label>
+          <label><input type="checkbox" class="event-brand-values-cb" value="Innovation"> Innovation</label>
+          <label><input type="checkbox" class="event-brand-values-cb" value="Growth"> Growth</label>
+          <label><input type="checkbox" class="event-brand-values-cb" value="Leadership"> Leadership</label>
+          <label><input type="checkbox" class="event-brand-values-cb" value="Excellence"> Excellence</label>
+          <label><input type="checkbox" class="event-brand-values-cb" value="Sustainability"> Sustainability</label>
+          <label><input type="checkbox" class="event-brand-values-cb" value="Speed"> Speed</label>
+          <label><input type="checkbox" class="event-brand-values-cb" value="Luxury"> Luxury</label>
+          <label><input type="checkbox" class="event-brand-values-cb" value="Security"> Security</label>
+          <label><input type="checkbox" class="event-brand-values-cb" value="Simplicity"> Simplicity</label>
+          <label><input type="checkbox" class="event-brand-values-cb" value="Heritage"> Heritage</label>
+          <label><input type="checkbox" class="event-brand-values-cb" value="Community"> Community</label>
+        </div>
+        <div class="hint" id="brandValuesCountHint" style="margin-top:6px;"></div>
+      </div>
+
+      <div class="field">
+        <label>Key Activities</label>
+        <div class="hint" style="margin-bottom:10px;">Select all that apply.</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="key-activities-cb" value="Opening Ceremony"> Opening Ceremony</label>
+          <label><input type="checkbox" class="key-activities-cb" value="Keynote"> Keynote</label>
+          <label><input type="checkbox" class="key-activities-cb" value="Product Demo"> Product Demo</label>
+          <label><input type="checkbox" class="key-activities-cb" value="Panel Discussion"> Panel Discussion</label>
+          <label><input type="checkbox" class="key-activities-cb" value="Workshops"> Workshops</label>
+          <label><input type="checkbox" class="key-activities-cb" value="Live Entertainment"> Live Entertainment</label>
+          <label><input type="checkbox" class="key-activities-cb" value="Awards"> Awards</label>
+          <label><input type="checkbox" class="key-activities-cb" value="Networking"> Networking</label>
+          <label><input type="checkbox" class="key-activities-cb" value="VIP Reception"> VIP Reception</label>
+          <label><input type="checkbox" class="key-activities-cb" value="Press Conference"> Press Conference</label>
+          <label><input type="checkbox" class="key-activities-cb" value="Exhibition"> Exhibition</label>
+          <label><input type="checkbox" class="key-activities-cb" value="Interactive Experience"> Interactive Experience</label>
+          <label><input type="checkbox" class="key-activities-cb" value="Closing Ceremony"> Closing Ceremony</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Special Requirements</label>
+        <div class="hint" style="margin-bottom:10px;">Select all that apply.</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="event-special-req-cb" value="Live Streaming"> Live Streaming</label>
+          <label><input type="checkbox" class="event-special-req-cb" value="TV Broadcasting"> TV Broadcasting</label>
+          <label><input type="checkbox" class="event-special-req-cb" value="Simultaneous Translation"> Simultaneous Translation</label>
+          <label><input type="checkbox" class="event-special-req-cb" value="High Security"> High Security</label>
+          <label><input type="checkbox" class="event-special-req-cb" value="VIP Access"> VIP Access</label>
+          <label><input type="checkbox" class="event-special-req-cb" value="Media Coverage"> Media Coverage</label>
+          <label><input type="checkbox" class="event-special-req-cb" value="Wheelchair Access"> Wheelchair Access</label>
+          <label><input type="checkbox" class="event-special-req-cb" value="Prayer Area"> Prayer Area</label>
+          <label><input type="checkbox" class="event-special-req-cb" value="Child-Friendly"> Child-Friendly</label>
+          <label><input type="checkbox" class="event-special-req-cb" value="Food & Beverage"> Food &amp; Beverage</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Success Metrics</label>
+        <div class="hint" style="margin-bottom:10px;">How will you measure success?</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="success-metrics-cb" value="Number of visitors"> Number of visitors</label>
+          <label><input type="checkbox" class="success-metrics-cb" value="Leads generated"> Leads generated</label>
+          <label><input type="checkbox" class="success-metrics-cb" value="Sales"> Sales</label>
+          <label><input type="checkbox" class="success-metrics-cb" value="Brand Awareness"> Brand Awareness</label>
+          <label><input type="checkbox" class="success-metrics-cb" value="Media Coverage"> Media Coverage</label>
+          <label><input type="checkbox" class="success-metrics-cb" value="Sponsor Satisfaction"> Sponsor Satisfaction</label>
+          <label><input type="checkbox" class="success-metrics-cb" value="Networking Meetings"> Networking Meetings</label>
+          <label><input type="checkbox" class="success-metrics-cb" value="Social Media Engagement"> Social Media Engagement</label>
+          <label><input type="checkbox" class="success-metrics-cb" value="Visitor Satisfaction"> Visitor Satisfaction</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>AI Creative Freedom</label>
+        <div class="hint" style="margin-bottom:10px;">How much creative freedom should AI have? This directly controls the AI prompt.</div>
+        <select id="f_aiCreativeFreedom">
+          <option value="Follow my instructions exactly">Follow my instructions exactly</option>
+          <option value="Mostly follow my instructions">Mostly follow my instructions</option>
+          <option value="Balanced creativity" selected>Balanced creativity</option>
+          <option value="Surprise me with ideas">Surprise me with ideas</option>
+          <option value="Maximum creativity">Maximum creativity</option>
+        </select>
+      </div>
+    </div>
+
     <div class="section-headline" id="boothThemeHeadline" style="display:none;" data-i18n="section.boothTheme">Booth Theme</div>
     <div id="boothThemeFieldsTop" style="display:none;">
       <div class="field" id="colorsField">
@@ -2586,29 +2805,10 @@ Replace only the materials and graphics."></textarea>
       </div>
     </div>
 
-    <div class="section-headline" id="locationHeadline" style="display:none;">Location</div>
-    <div id="eventLocationFields" style="display:none;">
-      <div class="row2">
-        <div class="field">
-          <label>Country</label>
-          <input type="text" id="f_country" placeholder="e.g. Saudi Arabia">
-        </div>
-        <div class="field">
-          <label>City</label>
-          <input type="text" id="f_city" placeholder="e.g. Riyadh">
-        </div>
-      </div>
+    <!-- Country/City/Venue/Expected Attendees used to live here under their own "Location"
+         headline — moved up into Event Details (see eventDetailsFields) so all of an event's
+         basic facts are gathered in one place. -->
 
-      <div class="field">
-        <label>Venue</label>
-        <input type="text" id="f_venue" placeholder="e.g. King Abdulaziz International Conference Center">
-      </div>
-
-      <div class="field" id="attendeesField">
-        <label>Expected number of attendees</label>
-        <input type="number" id="f_attendees" placeholder="e.g. 150" min="1">
-      </div>
-    </div>
 
     <div class="section-headline" id="requiredAreasHeadline" style="display:none;">Required Areas</div>
     <div id="eventRequiredAreasFields" style="display:none;">
@@ -2709,6 +2909,12 @@ Replace only the materials and graphics."></textarea>
 
     <div class="field">
       <label id="lblDesc">Describe what you want in detail: the goal, products or activities on display, visual identity, any special requirements</label>
+      <!-- Event mode's own guidance — kept as plain English (not yet run through data-i18n
+           like the rest of this field) and toggled by updateModeDependentLabels(), the same
+           function that already swaps lblDesc's wording per mode. -->
+      <div class="hint" id="descEventGuidance" style="display:none;margin-bottom:8px;">
+        Tell us about your event. Describe: what is happening? Why are people attending? What should visitors remember? What emotions should they feel?
+      </div>
       <textarea id="f_desc" placeholder="e.g. Booth for a tech startup. We need an interactive product display area, a private meeting corner, and a large display screen. Brand identity in deep navy and gold." data-i18n-placeholder="ph.desc"></textarea>
       <!-- See translateDescriptionIfNeeded() — shown only when the description was actually
            auto-translated to English for generation; the original text in the textarea above
@@ -3199,7 +3405,7 @@ const I18N_EN = {
   'field.industryStyle': 'Industry style',
   'field.projectName': 'Project Name',
   'field.descBooth': 'Describe what you want in detail: the goal, products on display, visual identity, any special requirements',
-  'field.descEvent': 'Describe what you want in detail: the event goal, overall mood, activities or sessions, visual identity',
+  'field.descEvent': 'Tell us about your event',
   'validation.projectName': 'a project name',
   'validation.width': 'width',
   'validation.depth': 'depth',
@@ -3324,7 +3530,7 @@ const I18N_AR = {
   'field.industryStyle': 'طراز القطاع',
   'field.projectName': 'اسم المشروع',
   'field.descBooth': 'صف بالتفصيل ما تريده: الهدف، المنتجات المعروضة، الهوية البصرية، وأي متطلبات خاصة',
-  'field.descEvent': 'صف بالتفصيل ما تريده: هدف الفعالية، الطابع العام، الأنشطة أو الجلسات، الهوية البصرية',
+  'field.descEvent': 'أخبرنا عن فعاليتك',
   'validation.projectName': 'اسم المشروع',
   'validation.width': 'العرض',
   'validation.depth': 'العمق',
@@ -3449,7 +3655,7 @@ const I18N_FR = {
   'field.industryStyle': 'Style sectoriel',
   'field.projectName': 'Nom du projet',
   'field.descBooth': 'Décrivez en détail ce que vous voulez : l\'objectif, les produits exposés, l\'identité visuelle, toute exigence particulière',
-  'field.descEvent': 'Décrivez en détail ce que vous voulez : l\'objectif de l\'événement, l\'ambiance générale, les activités ou sessions, l\'identité visuelle',
+  'field.descEvent': 'Parlez-nous de votre événement',
   'validation.projectName': 'un nom de projet',
   'validation.width': 'la largeur',
   'validation.depth': 'la profondeur',
@@ -3574,7 +3780,7 @@ const I18N_DE = {
   'field.industryStyle': 'Branchenstil',
   'field.projectName': 'Projektname',
   'field.descBooth': 'Beschreiben Sie im Detail, was Sie möchten: das Ziel, ausgestellte Produkte, visuelle Identität, besondere Anforderungen',
-  'field.descEvent': 'Beschreiben Sie im Detail, was Sie möchten: das Ziel der Veranstaltung, die allgemeine Stimmung, Aktivitäten oder Sessions, visuelle Identität',
+  'field.descEvent': 'Erzählen Sie uns von Ihrer Veranstaltung',
   'validation.projectName': 'einen Projektnamen',
   'validation.width': 'die Breite',
   'validation.depth': 'die Tiefe',
@@ -3699,7 +3905,7 @@ const I18N_ES = {
   'field.industryStyle': 'Estilo de industria',
   'field.projectName': 'Nombre del proyecto',
   'field.descBooth': 'Describa en detalle lo que desea: el objetivo, productos en exhibición, identidad visual, cualquier requisito especial',
-  'field.descEvent': 'Describa en detalle lo que desea: el objetivo del evento, el ambiente general, actividades o sesiones, identidad visual',
+  'field.descEvent': 'Cuéntenos sobre su evento',
   'validation.projectName': 'un nombre de proyecto',
   'validation.width': 'el ancho',
   'validation.depth': 'la profundidad',
@@ -3824,7 +4030,7 @@ const I18N_IT = {
   'field.industryStyle': 'Stile di settore',
   'field.projectName': 'Nome del progetto',
   'field.descBooth': 'Descrivi in dettaglio cosa desideri: l\'obiettivo, i prodotti esposti, l\'identità visiva, eventuali requisiti speciali',
-  'field.descEvent': 'Descrivi in dettaglio cosa desideri: l\'obiettivo dell\'evento, l\'atmosfera generale, attività o sessioni, identità visiva',
+  'field.descEvent': 'Raccontaci del tuo evento',
   'validation.projectName': 'un nome di progetto',
   'validation.width': 'la larghezza',
   'validation.depth': 'la profondità',
@@ -3949,7 +4155,7 @@ const I18N_ZH = {
   'field.industryStyle': '行业风格',
   'field.projectName': '项目名称',
   'field.descBooth': '请详细描述您的需求：目标、展示的产品、视觉形象、任何特殊要求',
-  'field.descEvent': '请详细描述您的需求：活动目标、整体氛围、活动或环节安排、视觉形象',
+  'field.descEvent': '告诉我们您的活动',
   'validation.projectName': '项目名称',
   'validation.width': '宽度',
   'validation.depth': '深度',
@@ -4074,7 +4280,7 @@ const I18N_JA = {
   'field.industryStyle': '業界スタイル',
   'field.projectName': 'プロジェクト名',
   'field.descBooth': 'ご希望の内容を詳しく説明してください：目的、展示する製品、ビジュアルアイデンティティ、特別な要望など',
-  'field.descEvent': 'ご希望の内容を詳しく説明してください：イベントの目的、全体の雰囲気、アクティビティやセッション、ビジュアルアイデンティティ',
+  'field.descEvent': 'あなたのイベントについて教えてください',
   'validation.projectName': 'プロジェクト名',
   'validation.width': '幅',
   'validation.depth': '奥行',
@@ -7762,6 +7968,34 @@ function toggleEventTypeCustom(select){
   document.getElementById('f_eventTypeCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
 }
 
+function toggleEventObjectiveCustom(select){
+  document.getElementById('f_eventObjectiveCustom').style.display = select.value === 'Other' ? 'block' : 'none';
+}
+
+function toggleVisitorJourneyCustom(select){
+  document.getElementById('f_visitorJourneyCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
+}
+
+// Generic "select up to N" enforcement for a checkbox-grid group — used by Event Mood (3) and
+// Brand Values (5). Once N are checked, every still-unchecked box in the group is disabled
+// (rather than silently letting a click past the limit and having to explain why nothing
+// happened) until one is unchecked again; the paired hint element shows a live "x of N
+// selected" count so the limit itself is always visible, not just enforced.
+function enforceCheckboxMax(groupSelector, max, hintId){
+  const boxes = Array.from(document.querySelectorAll(groupSelector));
+  const checkedCount = boxes.filter(cb => cb.checked).length;
+  boxes.forEach(cb => { if(!cb.checked) cb.disabled = checkedCount >= max; });
+  const hint = document.getElementById(hintId);
+  if(hint) hint.textContent = `${checkedCount} of ${max} selected`;
+}
+
+function initCheckboxMaxGroup(groupSelector, max, hintId){
+  document.querySelectorAll(groupSelector).forEach(cb => {
+    cb.addEventListener('change', () => enforceCheckboxMax(groupSelector, max, hintId));
+  });
+  enforceCheckboxMax(groupSelector, max, hintId);
+}
+
 // Maps flooring option values used before the Flooring System expansion to their closest
 // equivalent in the new, larger option lists — used only when reopening an older saved
 // project whose stored value no longer exists as a real <option>, so it lands on a sensible
@@ -7964,6 +8198,16 @@ function updateModeDependentLabels(){
       ? t('field.descBooth')
       : `${t('field.descEvent')} <span class="required-mark">*</span>`;
   }
+  // Event Story guidance + example — English-only for now (not yet run through data-i18n like
+  // the rest of this field), shown/used only in event mode.
+  const descGuidance = document.getElementById('descEventGuidance');
+  if(descGuidance) descGuidance.style.display = mode === 'event' ? 'block' : 'none';
+  const descTextarea = document.getElementById('f_desc');
+  if(descTextarea){
+    descTextarea.placeholder = mode === 'event'
+      ? 'e.g. Emirates NBD is launching its new AI banking platform. Visitors should feel trust, innovation, and exclusivity. The event should encourage networking and demonstrate future banking technologies.'
+      : 'e.g. Booth for a tech startup. We need an interactive product display area, a private meeting corner, and a large display screen. Brand identity in deep navy and gold.';
+  }
 }
 
 function setMode(m){
@@ -8000,8 +8244,8 @@ function setMode(m){
     document.getElementById('eventDetailsHeadline').style.display = m==='event' ? 'block' : 'none';
     document.getElementById('eventDetailsFields').style.display = m==='event' ? 'block' : 'none';
     document.getElementById('eventThemeHeadline').style.display = m==='event' ? 'block' : 'none';
-    document.getElementById('locationHeadline').style.display = m==='event' ? 'block' : 'none';
-    document.getElementById('eventLocationFields').style.display = m==='event' ? 'block' : 'none';
+    const eventConceptEl = document.getElementById('eventConceptFields');
+    if(eventConceptEl) eventConceptEl.style.display = m==='event' ? 'block' : 'none';
     document.getElementById('requiredAreasHeadline').style.display = m==='event' ? 'block' : 'none';
     document.getElementById('eventRequiredAreasFields').style.display = m==='event' ? 'block' : 'none';
     document.getElementById('modularWallLayoutField').style.display = m==='event' ? 'none' : 'block';
@@ -9286,6 +9530,15 @@ function getMissingRequirements(m){
 
   if(m === 'event'){
     if(!desc) missing.push('a detailed description');
+    const eventObjective = document.getElementById('f_eventObjective').value;
+    const eventObjectiveCustom = String(document.getElementById('f_eventObjectiveCustom').value).trim();
+    if(!eventObjective) missing.push('an Event Objective');
+    else if(eventObjective === 'Other' && !eventObjectiveCustom) missing.push('a description for the custom Event Objective');
+    if(document.querySelectorAll('.target-audience-cb:checked').length === 0) missing.push('at least one Target Audience');
+    const visitorJourney = document.getElementById('f_visitorJourney').value;
+    const visitorJourneyCustom = String(document.getElementById('f_visitorJourneyCustom').value).trim();
+    if(!visitorJourney) missing.push('a Visitor Journey');
+    else if(visitorJourney === 'Custom' && !visitorJourneyCustom) missing.push('a description for the custom Visitor Journey');
     if(needsIndoorSize || needsOutdoorSize){
       if(needsIndoorSize && !indoorSizeUnknown && (!indoorWidth || !indoorDepth)) missing.push('the indoor size (or check "I don\'t know the indoor size")');
       if(needsOutdoorSize && !outdoorSizeUnknown && (!outdoorWidth || !outdoorDepth)) missing.push('the outdoor size (or check "I don\'t know the outdoor size")');
@@ -13556,6 +13809,19 @@ function collectFormSnapshot(){
     f_country: document.getElementById('f_country').value,
     f_city: document.getElementById('f_city').value,
     f_venue: document.getElementById('f_venue').value,
+    f_eventObjective: document.getElementById('f_eventObjective').value,
+    f_eventObjectiveCustom: document.getElementById('f_eventObjectiveCustom').value,
+    f_targetAudience: Array.from(document.querySelectorAll('.target-audience-cb:checked')).map(cb => cb.value),
+    f_visitorExperience: Array.from(document.querySelectorAll('.visitor-experience-cb:checked')).map(cb => cb.value),
+    f_visitorJourney: document.getElementById('f_visitorJourney').value,
+    f_visitorJourneyCustom: document.getElementById('f_visitorJourneyCustom').value,
+    f_visitorDuration: document.getElementById('f_visitorDuration').value,
+    f_eventMood: Array.from(document.querySelectorAll('.event-mood-cb:checked')).map(cb => cb.value),
+    f_eventBrandValues: Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value),
+    f_keyActivities: Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value),
+    f_eventSpecialRequirements: Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value),
+    f_successMetrics: Array.from(document.querySelectorAll('.success-metrics-cb:checked')).map(cb => cb.value),
+    f_aiCreativeFreedom: document.getElementById('f_aiCreativeFreedom').value,
     f_environment: document.getElementById('f_environment').value,
     f_eventWidth: document.getElementById('f_eventWidth').value,
     f_eventDepth: document.getElementById('f_eventDepth').value,
@@ -13662,6 +13928,30 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_country').value = snap.f_country || '';
   document.getElementById('f_city').value = snap.f_city || '';
   document.getElementById('f_venue').value = snap.f_venue || '';
+  document.getElementById('f_eventObjective').value = snap.f_eventObjective || '';
+  document.getElementById('f_eventObjectiveCustom').value = snap.f_eventObjectiveCustom || '';
+  toggleEventObjectiveCustom(document.getElementById('f_eventObjective'));
+  const savedTargetAudience = new Set(snap.f_targetAudience || []);
+  document.querySelectorAll('.target-audience-cb').forEach(cb => { cb.checked = savedTargetAudience.has(cb.value); });
+  const savedVisitorExperience = new Set(snap.f_visitorExperience || []);
+  document.querySelectorAll('.visitor-experience-cb').forEach(cb => { cb.checked = savedVisitorExperience.has(cb.value); });
+  document.getElementById('f_visitorJourney').value = snap.f_visitorJourney || '';
+  document.getElementById('f_visitorJourneyCustom').value = snap.f_visitorJourneyCustom || '';
+  toggleVisitorJourneyCustom(document.getElementById('f_visitorJourney'));
+  document.getElementById('f_visitorDuration').value = snap.f_visitorDuration || '1 hour';
+  const savedEventMood = new Set(snap.f_eventMood || []);
+  document.querySelectorAll('.event-mood-cb').forEach(cb => { cb.checked = savedEventMood.has(cb.value); });
+  enforceCheckboxMax('.event-mood-cb', 3, 'eventMoodCountHint');
+  const savedEventBrandValues = new Set(snap.f_eventBrandValues || []);
+  document.querySelectorAll('.event-brand-values-cb').forEach(cb => { cb.checked = savedEventBrandValues.has(cb.value); });
+  enforceCheckboxMax('.event-brand-values-cb', 5, 'brandValuesCountHint');
+  const savedKeyActivities = new Set(snap.f_keyActivities || []);
+  document.querySelectorAll('.key-activities-cb').forEach(cb => { cb.checked = savedKeyActivities.has(cb.value); });
+  const savedEventSpecialReq = new Set(snap.f_eventSpecialRequirements || []);
+  document.querySelectorAll('.event-special-req-cb').forEach(cb => { cb.checked = savedEventSpecialReq.has(cb.value); });
+  const savedSuccessMetrics = new Set(snap.f_successMetrics || []);
+  document.querySelectorAll('.success-metrics-cb').forEach(cb => { cb.checked = savedSuccessMetrics.has(cb.value); });
+  document.getElementById('f_aiCreativeFreedom').value = snap.f_aiCreativeFreedom || 'Balanced creativity';
   document.getElementById('f_environment').value = snap.f_environment || '';
   document.getElementById('f_eventWidth').value = snap.f_eventWidth || '';
   document.getElementById('f_eventDepth').value = snap.f_eventDepth || '';
@@ -14372,6 +14662,8 @@ updateArchStyleHint(document.getElementById('f_archStyle'));
 updateIndustryStyleHint(document.getElementById('f_industryStyle'));
 renderBrandPersonalityGrid();
 initReqCategoryAccordion();
+initCheckboxMaxGroup('.event-mood-cb', 3, 'eventMoodCountHint');
+initCheckboxMaxGroup('.event-brand-values-cb', 5, 'brandValuesCountHint');
 renderProjectSidebar();
 adminCheckPromise = checkAdminAccess();
 initLanguage(); // must run before setMode() below so the very first render already reflects the saved/default language instead of flashing English first
