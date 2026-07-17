@@ -598,7 +598,10 @@
     </div>
     <div class="sidebar-note" data-i18n="sidebar.autoSaveNote">Projects save automatically and sync across devices.</div>
 
-    <div class="sidebar-upload-existing">
+    <!-- Admin-only — regular users no longer see this in the sidebar (see checkAdminAccess(),
+         which reveals it only for data.role === 'admin'), but it's kept fully working, not
+         removed, in case it's needed again later. -->
+    <div class="sidebar-upload-existing" id="sidebarUploadExisting" style="display:none;">
       <div class="sidebar-upload-divider" data-i18n="sidebar.or">or</div>
       <div class="sidebar-upload-dims-label" data-i18n="sidebar.boothSizeRequired">Booth size (required)</div>
       <div class="sidebar-upload-dims-row">
@@ -8364,6 +8367,10 @@ async function checkAdminAccess(){
       });
       const engineField = document.getElementById('imageEngineField');
       if(engineField) engineField.style.display = 'block';
+      // "Upload an existing design" (sidebar) — same admin-only treatment: hidden from regular
+      // users by default in the HTML, revealed here only for admins.
+      const uploadExistingEl = document.getElementById('sidebarUploadExisting');
+      if(uploadExistingEl) uploadExistingEl.style.display = 'block';
     }
     // The AI Auto-fill Helper ("Need help completing this brief?") has now graduated from an
     // admin-only test to a normal feature for every user, in both Booth and Event modes — shown
@@ -8837,16 +8844,23 @@ function updateModeDependentLabels(){
   }
   // AI Autofill Helper — same panel and runAiAutofill() logic power both modes (see
   // collectAutofillFieldDescriptors and buildEventAutofillPrompt/buildBoothAutofillPrompt), but
-  // its wording and the rigging sub-question only make sense in Booth's own vocabulary, so both
-  // swap here alongside every other mode-dependent label.
+  // Event mode asks no questions at all: no Goal field (Event Objective, already required in
+  // Event Details, covers that role) and no Website field (reuses f_eventWebsite, already
+  // entered in the Upload section, instead of asking again — see runAiAutofill). Booth mode is
+  // unchanged. Goal/Website/Rigging fields and their wording all swap here alongside every other
+  // mode-dependent label.
   const autofillGoalLabel = document.getElementById('aiAutofillGoalLabel');
-  if(autofillGoalLabel) autofillGoalLabel.textContent = mode === 'event' ? 'Goal of the event' : 'Goal of the booth';
+  if(autofillGoalLabel) autofillGoalLabel.textContent = 'Goal of the booth';
   const autofillMainHint = document.getElementById('aiAutofillMainHint');
   if(autofillMainHint){
     autofillMainHint.textContent = mode === 'event'
-      ? "Tell DesignsLab AI the Goal of the event and your company website, and it will read everything already entered in Event Details, then suggest the visitor experience, mood, brand values, activities, and creative direction below based on the event you've already described. Everything it fills in stays fully editable before you generate."
+      ? "Click below and DesignsLab AI will read everything already entered in Event Details (including your Website in the Upload section above, if provided), then suggest the visitor experience, mood, brand values, activities, and creative direction below based on the event you've already described — no extra questions needed. Everything it fills in stays fully editable before you generate."
       : "Tell DesignsLab AI the Goal of the booth and your company website, and it will read everything already entered in Booth Details, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.";
   }
+  const autofillGoalField = document.getElementById('aiAutofillGoalField');
+  if(autofillGoalField) autofillGoalField.style.display = mode === 'event' ? 'none' : 'block';
+  const autofillWebsiteField = document.getElementById('aiAutofillWebsiteField');
+  if(autofillWebsiteField) autofillWebsiteField.style.display = mode === 'event' ? 'none' : 'block';
   const autofillRiggingField = document.getElementById('aiAutofillRiggingField');
   if(autofillRiggingField) autofillRiggingField.style.display = mode === 'event' ? 'none' : 'block';
 }
@@ -9633,14 +9647,15 @@ function resetAutofillHelperState(){
 // — collapsed after a successful run (nothing left to re-enter, the button's job is done),
 // reopened on toggleAiAutofillPanel() re-check or a new/loaded project via resetAutofillHelperState().
 function setAiAutofillPromptFieldsOpen(open){
-  ['aiAutofillGoalField', 'aiAutofillWebsiteField', 'aiAutofillBtn'].forEach(id => {
+  const btn = document.getElementById('aiAutofillBtn');
+  if(btn) btn.style.display = open ? '' : 'none';
+  // Goal/Website/Rigging are all booth-only (see updateModeDependentLabels — Event mode asks no
+  // questions at all) — kept out of a generic loop so reopening this panel in Event mode can
+  // never re-reveal any of them.
+  ['aiAutofillGoalField', 'aiAutofillWebsiteField', 'aiAutofillRiggingField'].forEach(id => {
     const el = document.getElementById(id);
-    if(el) el.style.display = open ? '' : 'none';
+    if(el) el.style.display = (open && mode !== 'event') ? '' : 'none';
   });
-  // Rigging preference is booth-only (see updateModeDependentLabels) — kept out of the generic
-  // loop above so reopening this panel in Event mode can never re-reveal it.
-  const riggingField = document.getElementById('aiAutofillRiggingField');
-  if(riggingField) riggingField.style.display = (open && mode !== 'event') ? '' : 'none';
 }
 
 function toggleAiAutofillPanel(cb){
@@ -10155,13 +10170,21 @@ async function runAiAutofill(){
   const status = document.getElementById('aiAutofillStatus');
   const loadingBar = document.getElementById('aiAutofillLoadingBar');
   const reviewNote = document.getElementById('aiAutofillReviewNote');
-  const goal = (document.getElementById('f_autofillGoal').value || '').trim();
-  const website = (document.getElementById('f_autofillWebsite').value || '').trim();
+  // Event mode has no Goal question in this panel at all (Event Objective, already required in
+  // Event Details, covers that role) and reuses whatever Website was already entered in the
+  // Upload section (f_eventWebsite) instead of asking again — see updateModeDependentLabels.
+  const goal = mode === 'event' ? '' : (document.getElementById('f_autofillGoal').value || '').trim();
+  const website = mode === 'event'
+    ? (document.getElementById('f_eventWebsite').value || '').trim()
+    : (document.getElementById('f_autofillWebsite').value || '').trim();
   // Only meaningful in Booth mode — the rigging sub-field is hidden entirely for Event mode
   // (see updateModeDependentLabels), so this just reads its untouched default there.
   const wantsRigging = document.getElementById('f_autofillWantsRigging').value; // 'unspecified' | 'yes' | 'no'
 
-  if(!goal && !website){
+  // Booth mode needs at least a Goal or Website to have anything to work from. Event mode never
+  // asks either question in this panel — it always has Event Details already filled in to work
+  // from, so the button runs immediately with no gate at all.
+  if(mode !== 'event' && !goal && !website){
     status.textContent = 'Add at least a goal or a company website first.';
     return;
   }
