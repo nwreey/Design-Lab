@@ -1434,7 +1434,7 @@ Replace only the materials and graphics."></textarea>
 
       <div class="field" id="openSidesField">
         <label><span data-i18n="field.numberOfOpenSides">Number of open sides</span> <span class="required-mark">*</span></label>
-        <select id="f_openSides" onchange="toggleOpenSidesSubfields(this)">
+        <select id="f_openSides" onchange="toggleOpenSidesSubfields(this); openSidesConfirmedByUser = true;">
           <option value="1" data-i18n="option.inline">1 — Inline (walls on 3 sides)</option>
           <option value="2" selected data-i18n="option.corner">2 — Corner (walls on 2 sides)</option>
           <option value="3" data-i18n="option.peninsula">3 — Peninsula (wall on 1 side)</option>
@@ -1473,6 +1473,31 @@ Replace only the materials and graphics."></textarea>
         </select>
         <div class="hint">The other three sides will all be treated as open.</div>
       </div>
+    </div>
+
+    <div class="field">
+      <label><span data-i18n="field.constructionStyle">Construction style</span> <span class="required-mark">*</span></label>
+      <select id="f_constructionStyle">
+        <option value="Shell Scheme">Shell Scheme</option>
+        <option value="Enhanced Shell Scheme">Enhanced Shell Scheme</option>
+        <option value="Modular System">Modular System</option>
+        <option value="Custom Modular">Custom Modular</option>
+        <option value="Premium Custom Build" selected>Premium Custom Build</option>
+        <option value="Luxury Custom Build">Luxury Custom Build</option>
+        <option value="Double Deck Structure">Double Deck Structure</option>
+        <option value="Sustainable / Eco Build">Sustainable / Eco Build</option>
+      </select>
+      <div class="hint" data-i18n="hint.constructionStyle">Defines material quality and build complexity — important for construction feasibility.</div>
+    </div>
+
+    <div class="field" id="logoField" style="display:none;">
+      <label>Company logo <span class="required-mark">*</span></label>
+      <div class="logo-upload" id="logoUploadBox" onclick="document.getElementById('f_logo').click()">
+        <input type="file" id="f_logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleLogoUpload(this)">
+        <img id="logoPreview" alt="Logo preview" style="display:none;">
+        <div id="logoPlaceholder" data-i18n="field.logoPlaceholder">Click to upload your logo — PNG, JPG, WebP, or SVG</div>
+      </div>
+      <div class="hint" data-i18n="hint.logo">Required. The AI uses the logo's colors and style to keep the concept on-brand.</div>
     </div>
 
     <div class="field" id="aiAutofillHelperField" style="display:none;">
@@ -1525,16 +1550,6 @@ Replace only the materials and graphics."></textarea>
         </div>
         <button type="button" class="ghost small" onclick="addColorRow()" data-i18n="btn.addColor">+ Add color</button>
         <div class="hint" data-i18n="hint.brandColors">Add at least one brand color — the AI will build the full palette around these.</div>
-      </div>
-
-      <div class="field" id="logoField">
-        <label>Company logo <span class="required-mark">*</span></label>
-        <div class="logo-upload" id="logoUploadBox" onclick="document.getElementById('f_logo').click()">
-          <input type="file" id="f_logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleLogoUpload(this)">
-          <img id="logoPreview" alt="Logo preview" style="display:none;">
-          <div id="logoPlaceholder" data-i18n="field.logoPlaceholder">Click to upload your logo — PNG, JPG, WebP, or SVG</div>
-        </div>
-        <div class="hint" data-i18n="hint.logo">Required. The AI uses the logo's colors and style to keep the concept on-brand.</div>
       </div>
     </div>
     <div class="field">
@@ -1608,21 +1623,6 @@ Replace only the materials and graphics."></textarea>
         <option value="Non-Profit / NGO">Non-Profit / NGO</option>
       </select>
       <div class="hint" id="industryStyleHint">Adds industry-specific design language on top of the architectural style — never overrides it or the brand colors.</div>
-    </div>
-
-    <div class="field">
-      <label><span data-i18n="field.constructionStyle">Construction style</span> <span class="required-mark">*</span></label>
-      <select id="f_constructionStyle">
-        <option value="Shell Scheme">Shell Scheme</option>
-        <option value="Enhanced Shell Scheme">Enhanced Shell Scheme</option>
-        <option value="Modular System">Modular System</option>
-        <option value="Custom Modular">Custom Modular</option>
-        <option value="Premium Custom Build" selected>Premium Custom Build</option>
-        <option value="Luxury Custom Build">Luxury Custom Build</option>
-        <option value="Double Deck Structure">Double Deck Structure</option>
-        <option value="Sustainable / Eco Build">Sustainable / Eco Build</option>
-      </select>
-      <div class="hint" data-i18n="hint.constructionStyle">Defines material quality and build complexity — important for construction feasibility.</div>
     </div>
 
     <div class="field">
@@ -4171,6 +4171,16 @@ function initLanguage(){
 /* ================= End I18N ================= */
 
 let mode = 'booth';
+
+// Number of open sides always has a pre-selected default ("2 — Corner"), which is fine for a
+// single-level booth left untouched, but for a double-deck booth the open/closed side layout
+// materially drives where the staircase, guard rails, and upper-deck footprint actually sit —
+// so for Double Deck specifically, this must be a genuine, deliberate choice, not a silently
+// accepted default. Set true whenever the select actually fires its onchange (a real user
+// pick) or when restoring a project that already has a real prior value saved (see
+// restoreFormSnapshot) — left false only for a brand new project, which is exactly the case
+// that should be forced to confirm it once.
+let openSidesConfirmedByUser = false;
 let pendingGenerateAction = null; // holds the deferred generation logic while the "Before you generate" popup is showing
 
 // Every checkbox under the Requirements section, across all six categories — the single
@@ -7999,6 +8009,11 @@ function setMode(m){
     document.getElementById('boothDetailsFields').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('boothThemeHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('boothThemeFieldsTop').style.display = m==='booth' ? 'block' : 'none';
+    // Company logo used to live inside boothThemeFieldsTop and inherited its show/hide for
+    // free; it now sits on its own (moved up next to Number of open sides / Construction
+    // style per the requested field order), so it needs this explicit toggle to keep the
+    // exact same booth-only visibility it always had.
+    document.getElementById('logoField').style.display = m==='booth' ? 'block' : 'none';
     const aiAutofillEl = document.getElementById('aiAutofillHelperField');
     if(aiAutofillEl) aiAutofillEl.style.display = (m==='booth' && isAdminUser) ? 'block' : 'none';
     document.getElementById('flooringHeadline').style.display = m==='booth' ? 'block' : 'none';
@@ -8100,6 +8115,13 @@ function resetEditDesignPanel(){
 
 function toggleUpperFloor(sel){
   document.getElementById('upperFloorField').style.display = sel.value === '2' ? 'block' : 'none';
+
+  // The AI Auto-fill Helper ("Need help completing this brief?") is admin+booth-mode only —
+  // its visibility is otherwise only set once by checkAdminAccess()/setMode(), neither of
+  // which re-runs when Number of Levels changes. Re-asserting it here on every levels switch
+  // guarantees Double Deck can never leave it in a stale hidden state.
+  const autofillField = document.getElementById('aiAutofillHelperField');
+  if(autofillField) autofillField.style.display = (mode === 'booth' && isAdminUser) ? 'block' : 'none';
 
   // Double-deck (ground + upper floor) needs enough vertical clearance for a genuine second
   // story plus its own ceiling above it — a real reported bug was the model collapsing a
@@ -9095,6 +9117,7 @@ function getMissingRequirements(m){
     if(!depth) missing.push(t('validation.depth'));
     if(!totalHeight) missing.push(t('validation.boothHeight'));
     if(levels === '2' && upperDeckPurposeCount === 0) missing.push(t('validation.upperDeckPurpose'));
+    if(levels === '2' && !openSidesConfirmedByUser) missing.push('Number of open sides — please confirm it for this double-deck booth (open the dropdown and choose one, even if keeping the current selection)');
     if(levels === '2'){
       const feasibility = computeDoubleDeckFeasibility(parseFloat(width), parseFloat(depth));
       if(!feasibility.feasible) missing.push(feasibility.reason);
@@ -9494,6 +9517,12 @@ async function generateDesign(){
   }
   if(mode === 'booth' && levels === '2' && upperDeckPurposeCount === 0){
     errBox.textContent = t('validation.upperDeckPurposeFull');
+    errBox.style.display = 'block';
+    errBox.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  if(mode === 'booth' && levels === '2' && !openSidesConfirmedByUser){
+    errBox.textContent = 'Please confirm Number of open sides for this double-deck booth — open the dropdown and choose one, even if keeping the current selection.';
     errBox.style.display = 'block';
     errBox.scrollIntoView({behavior:'smooth', block:'center'});
     return;
@@ -13557,6 +13586,10 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_cornerSide').value = snap.f_cornerSide || 'right';
   document.getElementById('f_peninsulaClosedSide').value = snap.f_peninsulaClosedSide || 'Back';
   toggleOpenSidesSubfields(document.getElementById('f_openSides'));
+  // A real saved project already has a genuine prior open-sides choice — only a brand new
+  // project (snap === {}) should be treated as unconfirmed and force the double-deck check
+  // below to make the user actually pick it once.
+  openSidesConfirmedByUser = snap.f_openSides != null;
   document.getElementById('f_levels').value = snap.f_levels || '1';
   document.getElementById('f_totalHeight').value = snap.f_totalHeight || '';
   // Called AFTER restoring the saved height, not before — for a double-deck snapshot this
