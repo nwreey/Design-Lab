@@ -392,6 +392,71 @@
   .check-item-compact:hover{background:var(--navy-soft);}
   .check-item-compact input{margin:0;}
   .bp-rank{font-weight:600;color:var(--accent, #b8860b);}
+
+  /* Brand Portfolio & Products — brand cards and, nested inside each, product cards. Both use
+     the exact same collapse/summary/drag-handle pattern, styled entirely from the existing CSS
+     variables (--navy/--line/--card/--gold/--teal) so this automatically follows any dark-mode
+     palette added later the same way every other card in this form would. */
+  .brand-card{
+    background:var(--card);border:1.5px solid var(--navy);border-radius:2px;
+    margin-bottom:14px;padding:0;position:relative;
+  }
+  .brand-card.bp-dragging{opacity:.4;}
+  .brand-card-header{
+    display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;user-select:none;
+  }
+  .brand-card-header:hover{background:var(--navy-soft);}
+  .bp-drag-handle{
+    flex-shrink:0;cursor:grab;font-size:16px;color:var(--ink);opacity:.4;line-height:1;
+    padding:2px 4px;
+  }
+  .bp-drag-handle:active{cursor:grabbing;}
+  .bp-card-title{flex:1;min-width:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14.5px;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bp-card-title.bp-untitled{opacity:.5;font-weight:600;}
+  .bp-summary-line{font-size:12px;color:var(--ink);opacity:.65;margin-top:2px;font-family:'IBM Plex Mono',monospace;}
+  .bp-chevron{flex-shrink:0;font-size:12px;color:var(--ink);opacity:.5;transition:transform .15s ease;}
+  .brand-card.bp-collapsed .bp-chevron{transform:rotate(-90deg);}
+  .brand-card.bp-collapsed .brand-card-body{display:none;}
+  .brand-card-body{padding:4px 16px 16px;border-top:1.5px solid var(--line);}
+  .bp-actions{display:flex;gap:6px;flex-shrink:0;}
+  .bp-icon-btn{
+    width:28px;height:28px;flex-shrink:0;border:1.5px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:2px;cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;
+  }
+  .bp-icon-btn:hover{border-color:var(--teal);color:var(--teal);background:var(--navy-soft);}
+  .bp-icon-btn.bp-danger:hover{border-color:#c0432b;color:#c0432b;background:#fff3ec;}
+  .bp-logo-upload{
+    width:80px;height:80px;flex-shrink:0;border:1.5px dashed var(--line);border-radius:2px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;overflow:hidden;
+    font-size:10.5px;color:var(--ink);opacity:.6;text-align:center;padding:4px;
+  }
+  .bp-logo-upload:hover{border-color:var(--navy);background:var(--navy-soft);}
+  .bp-logo-upload.bp-has-image{border-style:solid;border-color:var(--teal);opacity:1;}
+  .bp-logo-upload img{width:100%;height:100%;object-fit:contain;}
+  .bp-row-top{display:flex;gap:14px;align-items:flex-start;margin-bottom:16px;}
+  .bp-row-top .field{flex:1;margin-bottom:0;}
+  .bp-products-wrap{margin-top:6px;padding-top:14px;border-top:1.5px dashed var(--line);}
+  .bp-products-headline{font-weight:700;font-size:13px;color:var(--navy);margin-bottom:10px;text-transform:uppercase;letter-spacing:.02em;}
+  .product-card{background:#fff;border:1.5px solid var(--line);border-radius:2px;margin-bottom:10px;}
+  .product-card.bp-dragging{opacity:.4;}
+  .product-card-header{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;user-select:none;}
+  .product-card-header:hover{background:var(--navy-soft);}
+  .product-card.bp-collapsed .product-card-body{display:none;}
+  .product-card-body{padding:2px 14px 14px;border-top:1.5px solid var(--line);}
+  .bp-image-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
+  .bp-image-thumb{position:relative;width:64px;height:64px;border:1.5px solid var(--line);border-radius:2px;overflow:hidden;flex-shrink:0;}
+  .bp-image-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .bp-image-thumb-remove{
+    position:absolute;top:1px;right:1px;width:18px;height:18px;border:none;border-radius:2px;
+    background:rgba(11,12,16,0.7);color:#fff;font-size:11px;line-height:1;cursor:pointer;padding:0;
+  }
+  .bp-image-thumb-remove:hover{background:#c0432b;}
+  .bp-image-add-btn{
+    width:64px;height:64px;flex-shrink:0;border:1.5px dashed var(--line);border-radius:2px;background:#fff;
+    cursor:pointer;font-size:22px;color:var(--ink);opacity:.5;display:flex;align-items:center;justify-content:center;
+  }
+  .bp-image-add-btn:hover{border-color:var(--navy);background:var(--navy-soft);opacity:1;}
+  .bp-empty-hint{font-size:12.5px;color:var(--ink);opacity:.6;padding:10px 0;line-height:1.5;}
   .viewer3d-camera-row-light{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
   .viewer3d-generated-wrap-light{margin-top:4px;}
   .viewer3d-generated-grid-light{display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;}
@@ -1979,6 +2044,27 @@ Replace only the materials and graphics."></textarea>
         <option value="Brutalist">Brutalist</option>
       </select>
       <div class="hint" id="archStyleHint"></div>
+    </div>
+
+    <!-- Brand Portfolio & Products — booth mode only. Many exhibitors are distributors/dealers
+         representing multiple manufacturers; this lets them describe every represented brand and
+         its products so the AI can give each one its own dedicated display area. The Main Company
+         subsection deliberately does NOT duplicate the Company Logo upload (see logoField further
+         down) — that field is left completely untouched, this just labels what it represents. -->
+    <div class="section-headline" id="brandPortfolioHeadline" style="display:none;">Brand Portfolio &amp; Products</div>
+    <div id="brandPortfolioFields" style="display:none;">
+      <div class="field">
+        <label>Main Company</label>
+        <div class="hint">This is the booth owner — it uses the Company Logo you upload below (see "Company logo" further down this form). No separate upload needed here.</div>
+      </div>
+
+      <div class="field" id="representedBrandsField">
+        <label>Represented Brands <span style="font-weight:400;">(Optional)</span></label>
+        <div class="hint" style="margin-bottom:10px;">Add every brand or manufacturer your company represents. Upload each brand logo and the products belonging to that brand.</div>
+        <div id="brandPortfolioList"></div>
+        <div class="bp-empty-hint" id="brandPortfolioEmptyHint">No represented brands added yet — this is optional.</div>
+        <button type="button" class="ghost small" onclick="addBrand()">+ Add Brand</button>
+      </div>
     </div>
 
     <div class="field">
@@ -6531,6 +6617,489 @@ function renderPosterFileList(){
   `).join('');
 }
 
+/* ================= Brand Portfolio & Products (Booth mode only) ================= */
+/* Many exhibitors are distributors/dealers representing multiple manufacturers — this data model
+   lets them describe every represented brand and its products so the eventual generation prompt
+   can give each one its own dedicated display area (see buildBrandPortfolioData and its use in
+   generateDesign). Deliberately NOT part of collectFormSnapshot/restoreFormSnapshot (that's for
+   simple field values only) — like logoDataUrl/posterFiles/brandGuidelinesDataUrl, this carries
+   real image data and is saved directly on the project object instead (see saveProject/
+   restoreLogoAndPosters and startNewProject for the other three ends of that same pattern).
+
+   Every dynamically-rendered brand/product <input>/<select>/<textarea> below is deliberately built
+   WITHOUT an [id] attribute (identified only by data-brand-id/data-product-id on its containing
+   card, read via inline handlers) — collectAutofillFieldDescriptors' booth-mode scan range
+   (Booth Theme headline -> Image Engine field, which this section physically sits inside) only
+   picks up id'd form elements, exactly the same reason Brand Personality/Floor Features/etc. stay
+   invisible to it. This keeps the AI Auto-fill Helper from ever seeing or overwriting this section. */
+
+let brandPortfolio = [];
+let bpIdSeq = 0;
+function bpNewId(prefix){ return prefix + (++bpIdSeq) + '_' + Date.now().toString(36); }
+
+const BP_PRIORITY_OPTIONS = ['Primary Partner', 'High', 'Medium', 'Low'];
+const BP_DISPLAY_PREFERENCE_OPTIONS = ['Dedicated Display Area', 'Mixed With Other Products', 'Hero Display', 'Feature Wall'];
+const BP_DISPLAY_SIZE_OPTIONS = ['Small', 'Medium', 'Large'];
+const BP_PRODUCT_DISPLAY_TYPE_OPTIONS = ['Shelf', 'Pedestal', 'Floor Standing', 'Glass Showcase', 'Wall Mounted', 'Interactive Demo', 'Table Display', 'Large Machine', 'Hanging Display'];
+
+function bpCreateProduct(){
+  return { id: bpNewId('prod'), name: '', images: [], displayType: 'Shelf', notes: '', collapsed: false };
+}
+function bpCreateBrand(){
+  return {
+    id: bpNewId('brand'), name: '', logoDataUrl: null, logoMediaType: null,
+    priority: 'Medium', displayPreference: 'Dedicated Display Area', displaySize: 'Medium',
+    notes: '', collapsed: false, products: []
+  };
+}
+function bpFindBrand(brandId){ return brandPortfolio.find(b => b.id === brandId); }
+function bpFindProduct(brandId, productId){
+  const brand = bpFindBrand(brandId);
+  return brand ? brand.products.find(p => p.id === productId) : null;
+}
+
+function bpOptionsHtml(options, selected){
+  return options.map(o => `<option value="${escapeHtml(o)}"${o === selected ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('');
+}
+
+function bpBrandSummaryText(brand){
+  return `Priority: ${brand.priority} · Products: ${brand.products.length} · Display: ${brand.displayPreference}`;
+}
+function bpProductSummaryText(product){
+  return `${product.displayType} · ${product.images.length} image${product.images.length === 1 ? '' : 's'}`;
+}
+
+function renderBrandPortfolio(){
+  const list = document.getElementById('brandPortfolioList');
+  const emptyHint = document.getElementById('brandPortfolioEmptyHint');
+  if(!list) return;
+  list.innerHTML = brandPortfolio.map(renderBrandCardHtml).join('');
+  if(emptyHint) emptyHint.style.display = brandPortfolio.length === 0 ? 'block' : 'none';
+}
+
+// Re-renders only one brand's Products list — used for every product-level structural change
+// (add/duplicate/delete/reorder) so editing products never disturbs any other brand card's
+// scroll position or collapsed/expanded state (that state lives on brand.collapsed itself, so
+// even a full renderBrandPortfolio() would stay correct, but this scoped version is both cheaper
+// and keeps the surrounding brand list from visibly flickering on every product edit).
+function renderBrandProducts(brandId){
+  const brand = bpFindBrand(brandId);
+  const container = document.getElementById('bpProductList_' + brandId);
+  if(!brand || !container) return;
+  container.innerHTML = brand.products.map(p => renderProductCardHtml(brandId, p)).join('');
+  const emptyHint = document.getElementById('bpProductsEmptyHint_' + brandId);
+  if(emptyHint) emptyHint.style.display = brand.products.length === 0 ? 'block' : 'none';
+  bpUpdateBrandSummary(brandId); // product count is part of the brand's own summary line
+}
+
+function renderBrandCardHtml(brand){
+  const name = brand.name.trim();
+  const titleText = escapeHtml(name || 'Untitled brand');
+  const logoInner = brand.logoDataUrl ? `<img src="${brand.logoDataUrl}" alt="">` : 'Logo';
+  return `
+    <div class="brand-card${brand.collapsed ? ' bp-collapsed' : ''}" data-brand-id="${brand.id}" draggable="true"
+         ondragstart="bpBrandDragStart(event,'${brand.id}')" ondragover="bpDragOver(event)"
+         ondrop="bpBrandDrop(event,'${brand.id}')" ondragend="bpDragEnd(event)">
+      <div class="brand-card-header" onclick="bpToggleBrandCollapse('${brand.id}')">
+        <span class="bp-drag-handle" title="Drag to reorder" onclick="event.stopPropagation()">⠿</span>
+        <div style="flex:1;min-width:0;">
+          <div class="bp-card-title${name ? '' : ' bp-untitled'}">${titleText}</div>
+          <div class="bp-summary-line">${escapeHtml(bpBrandSummaryText(brand))}</div>
+        </div>
+        <div class="bp-actions" onclick="event.stopPropagation()">
+          <button type="button" class="bp-icon-btn" title="Duplicate brand" onclick="duplicateBrand('${brand.id}')">⧉</button>
+          <button type="button" class="bp-icon-btn bp-danger" title="Delete brand" onclick="deleteBrand('${brand.id}')">🗑</button>
+        </div>
+        <span class="bp-chevron">▾</span>
+      </div>
+      <div class="brand-card-body">
+        <div class="bp-row-top">
+          <div class="bp-logo-upload${brand.logoDataUrl ? ' bp-has-image' : ''}" id="bpLogoBox_${brand.id}" onclick="document.getElementById('bpLogoInput_${brand.id}').click()">${logoInner}</div>
+          <input type="file" id="bpLogoInput_${brand.id}" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleBrandLogoUpload('${brand.id}', this)">
+          <div class="field">
+            <label>Brand Name</label>
+            <input type="text" value="${escapeHtml(brand.name)}" placeholder="e.g. Philips" oninput="updateBrandField('${brand.id}','name',this.value)">
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>Brand Priority</label>
+            <select onchange="updateBrandField('${brand.id}','priority',this.value)">${bpOptionsHtml(BP_PRIORITY_OPTIONS, brand.priority)}</select>
+          </div>
+          <div class="field">
+            <label>Display Preference</label>
+            <select onchange="updateBrandField('${brand.id}','displayPreference',this.value)">${bpOptionsHtml(BP_DISPLAY_PREFERENCE_OPTIONS, brand.displayPreference)}</select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Display Size</label>
+          <select onchange="updateBrandField('${brand.id}','displaySize',this.value)">${bpOptionsHtml(BP_DISPLAY_SIZE_OPTIONS, brand.displaySize)}</select>
+        </div>
+
+        <div class="field">
+          <label>Notes</label>
+          <textarea placeholder="Special instructions for this brand..." oninput="updateBrandField('${brand.id}','notes',this.value)">${escapeHtml(brand.notes)}</textarea>
+        </div>
+
+        <div class="bp-products-wrap">
+          <div class="bp-products-headline">Products</div>
+          <div id="bpProductList_${brand.id}">${brand.products.map(p => renderProductCardHtml(brand.id, p)).join('')}</div>
+          <div class="bp-empty-hint" id="bpProductsEmptyHint_${brand.id}" style="${brand.products.length === 0 ? '' : 'display:none;'}">No products added yet.</div>
+          <button type="button" class="ghost small" onclick="addProduct('${brand.id}')">+ Add Product</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderProductCardHtml(brandId, product){
+  const name = product.name.trim();
+  const titleText = escapeHtml(name || 'Untitled product');
+  return `
+    <div class="product-card${product.collapsed ? ' bp-collapsed' : ''}" data-product-id="${product.id}" draggable="true"
+         ondragstart="bpProductDragStart(event,'${brandId}','${product.id}')" ondragover="bpDragOver(event)"
+         ondrop="bpProductDrop(event,'${brandId}','${product.id}')" ondragend="bpDragEnd(event)">
+      <div class="product-card-header" onclick="bpToggleProductCollapse('${brandId}','${product.id}')">
+        <span class="bp-drag-handle" title="Drag to reorder" onclick="event.stopPropagation()">⠿</span>
+        <div style="flex:1;min-width:0;">
+          <div class="bp-card-title${name ? '' : ' bp-untitled'}" style="font-size:13px;">${titleText}</div>
+          <div class="bp-summary-line">${escapeHtml(bpProductSummaryText(product))}</div>
+        </div>
+        <div class="bp-actions" onclick="event.stopPropagation()">
+          <button type="button" class="bp-icon-btn" title="Duplicate product" onclick="duplicateProduct('${brandId}','${product.id}')">⧉</button>
+          <button type="button" class="bp-icon-btn bp-danger" title="Delete product" onclick="deleteProduct('${brandId}','${product.id}')">🗑</button>
+        </div>
+        <span class="bp-chevron">▾</span>
+      </div>
+      <div class="product-card-body">
+        <div class="field">
+          <label>Product Name</label>
+          <input type="text" value="${escapeHtml(product.name)}" placeholder="e.g. MRI Scanner" oninput="updateProductField('${brandId}','${product.id}','name',this.value)">
+        </div>
+
+        <div class="field">
+          <label>Product Images</label>
+          <div class="bp-image-thumbs" id="bpProductImages_${product.id}">${renderProductImageThumbsHtml(brandId, product)}</div>
+        </div>
+
+        <div class="field">
+          <label>Display Type</label>
+          <select onchange="updateProductField('${brandId}','${product.id}','displayType',this.value)">${bpOptionsHtml(BP_PRODUCT_DISPLAY_TYPE_OPTIONS, product.displayType)}</select>
+        </div>
+
+        <div class="field">
+          <label>Notes</label>
+          <textarea placeholder="e.g. Place beside the logo. Must be illuminated. Requires electricity." oninput="updateProductField('${brandId}','${product.id}','notes',this.value)">${escapeHtml(product.notes)}</textarea>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderProductImageThumbsHtml(brandId, product){
+  const thumbs = product.images.map((img, i) => `
+    <div class="bp-image-thumb">
+      <img src="${img.dataUrl}" alt="">
+      <button type="button" class="bp-image-thumb-remove" onclick="removeProductImage('${brandId}','${product.id}',${i})" aria-label="Remove image">×</button>
+    </div>
+  `).join('');
+  return thumbs + `
+    <div class="bp-image-add-btn" title="Add image" onclick="document.getElementById('bpProductImageInput_${product.id}').click()">+</div>
+    <input type="file" id="bpProductImageInput_${product.id}" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" onchange="handleProductImagesUpload('${brandId}','${product.id}', this)">
+  `;
+}
+
+/* ---- Brand-level actions ---- */
+
+function addBrand(){
+  const brand = bpCreateBrand();
+  brandPortfolio.push(brand);
+  renderBrandPortfolio();
+  const card = document.querySelector(`.brand-card[data-brand-id="${brand.id}"]`);
+  if(card){
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const nameInput = card.querySelector('input[type="text"]');
+    if(nameInput) nameInput.focus();
+  }
+}
+
+function duplicateBrand(brandId){
+  const brand = bpFindBrand(brandId);
+  if(!brand) return;
+  const idx = brandPortfolio.indexOf(brand);
+  const clone = JSON.parse(JSON.stringify(brand));
+  clone.id = bpNewId('brand');
+  clone.name = brand.name ? brand.name + ' (Copy)' : '';
+  clone.products.forEach(p => { p.id = bpNewId('prod'); });
+  brandPortfolio.splice(idx + 1, 0, clone);
+  renderBrandPortfolio();
+}
+
+function deleteBrand(brandId){
+  brandPortfolio = brandPortfolio.filter(b => b.id !== brandId);
+  renderBrandPortfolio();
+}
+
+function updateBrandField(brandId, field, value){
+  const brand = bpFindBrand(brandId);
+  if(!brand) return;
+  brand[field] = value;
+  bpUpdateBrandSummary(brandId);
+}
+
+function bpUpdateBrandSummary(brandId){
+  const brand = bpFindBrand(brandId);
+  const card = document.querySelector(`.brand-card[data-brand-id="${brandId}"]`);
+  if(!brand || !card) return;
+  const titleEl = card.querySelector(':scope > .brand-card-header .bp-card-title');
+  const summaryEl = card.querySelector(':scope > .brand-card-header .bp-summary-line');
+  const name = brand.name.trim();
+  if(titleEl){
+    titleEl.textContent = name || 'Untitled brand';
+    titleEl.classList.toggle('bp-untitled', !name);
+  }
+  if(summaryEl) summaryEl.textContent = bpBrandSummaryText(brand);
+}
+
+function bpToggleBrandCollapse(brandId){
+  const brand = bpFindBrand(brandId);
+  if(!brand) return;
+  brand.collapsed = !brand.collapsed;
+  const card = document.querySelector(`.brand-card[data-brand-id="${brandId}"]`);
+  if(card) card.classList.toggle('bp-collapsed', brand.collapsed);
+}
+
+function handleBrandLogoUpload(brandId, input){
+  const file = input.files[0];
+  if(!file) return;
+  const brand = bpFindBrand(brandId);
+  if(!brand) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    brand.logoDataUrl = e.target.result;
+    brand.logoMediaType = file.type || '';
+    const box = document.getElementById('bpLogoBox_' + brandId);
+    if(box){
+      box.classList.add('bp-has-image');
+      box.innerHTML = `<img src="${brand.logoDataUrl}" alt="">`;
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ---- Product-level actions ---- */
+
+function addProduct(brandId){
+  const brand = bpFindBrand(brandId);
+  if(!brand) return;
+  const product = bpCreateProduct();
+  brand.products.push(product);
+  renderBrandProducts(brandId);
+  const card = document.querySelector(`.product-card[data-product-id="${product.id}"]`);
+  if(card){
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const nameInput = card.querySelector('input[type="text"]');
+    if(nameInput) nameInput.focus();
+  }
+}
+
+function duplicateProduct(brandId, productId){
+  const brand = bpFindBrand(brandId);
+  if(!brand) return;
+  const product = brand.products.find(p => p.id === productId);
+  if(!product) return;
+  const idx = brand.products.indexOf(product);
+  const clone = JSON.parse(JSON.stringify(product));
+  clone.id = bpNewId('prod');
+  clone.name = product.name ? product.name + ' (Copy)' : '';
+  brand.products.splice(idx + 1, 0, clone);
+  renderBrandProducts(brandId);
+}
+
+function deleteProduct(brandId, productId){
+  const brand = bpFindBrand(brandId);
+  if(!brand) return;
+  brand.products = brand.products.filter(p => p.id !== productId);
+  renderBrandProducts(brandId);
+}
+
+function updateProductField(brandId, productId, field, value){
+  const product = bpFindProduct(brandId, productId);
+  if(!product) return;
+  product[field] = value;
+  bpUpdateProductSummary(brandId, productId);
+}
+
+function bpUpdateProductSummary(brandId, productId){
+  const product = bpFindProduct(brandId, productId);
+  const card = document.querySelector(`.product-card[data-product-id="${productId}"]`);
+  if(!product || !card) return;
+  const titleEl = card.querySelector(':scope > .product-card-header .bp-card-title');
+  const summaryEl = card.querySelector(':scope > .product-card-header .bp-summary-line');
+  const name = product.name.trim();
+  if(titleEl){
+    titleEl.textContent = name || 'Untitled product';
+    titleEl.classList.toggle('bp-untitled', !name);
+  }
+  if(summaryEl) summaryEl.textContent = bpProductSummaryText(product);
+}
+
+function bpToggleProductCollapse(brandId, productId){
+  const product = bpFindProduct(brandId, productId);
+  if(!product) return;
+  product.collapsed = !product.collapsed;
+  const card = document.querySelector(`.product-card[data-product-id="${productId}"]`);
+  if(card) card.classList.toggle('bp-collapsed', product.collapsed);
+}
+
+function handleProductImagesUpload(brandId, productId, input){
+  const files = Array.from(input.files || []);
+  if(files.length === 0) return;
+  const product = bpFindProduct(brandId, productId);
+  if(!product) return;
+  let remaining = files.length;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e){
+      product.images.push({ dataUrl: e.target.result, mediaType: file.type || '', name: file.name });
+      remaining--;
+      if(remaining === 0){
+        const container = document.getElementById('bpProductImages_' + productId);
+        if(container) container.innerHTML = renderProductImageThumbsHtml(brandId, product);
+        bpUpdateProductSummary(brandId, productId);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function removeProductImage(brandId, productId, imageIndex){
+  const product = bpFindProduct(brandId, productId);
+  if(!product) return;
+  product.images.splice(imageIndex, 1);
+  const container = document.getElementById('bpProductImages_' + productId);
+  if(container) container.innerHTML = renderProductImageThumbsHtml(brandId, product);
+  bpUpdateProductSummary(brandId, productId);
+}
+
+/* ---- Drag-and-drop reordering (brands, and products scoped within their own brand) ---- */
+
+let bpDragState = null; // { type:'brand', id } | { type:'product', id, brandId }
+
+function bpDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+function bpDragEnd(e){
+  e.currentTarget.classList.remove('bp-dragging');
+  bpDragState = null;
+}
+
+function bpBrandDragStart(e, brandId){
+  bpDragState = { type: 'brand', id: brandId };
+  e.currentTarget.classList.add('bp-dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', brandId);
+}
+
+function bpBrandDrop(e, targetBrandId){
+  e.preventDefault();
+  e.stopPropagation();
+  if(!bpDragState || bpDragState.type !== 'brand') return;
+  const fromId = bpDragState.id;
+  if(fromId === targetBrandId) return;
+  const fromIdx = brandPortfolio.findIndex(b => b.id === fromId);
+  const toIdx = brandPortfolio.findIndex(b => b.id === targetBrandId);
+  if(fromIdx === -1 || toIdx === -1) return;
+  const [moved] = brandPortfolio.splice(fromIdx, 1);
+  brandPortfolio.splice(toIdx, 0, moved);
+  renderBrandPortfolio();
+}
+
+function bpProductDragStart(e, brandId, productId){
+  e.stopPropagation(); // don't also fire the parent brand card's own dragstart
+  bpDragState = { type: 'product', id: productId, brandId };
+  e.currentTarget.classList.add('bp-dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', productId);
+}
+
+function bpProductDrop(e, brandId, targetProductId){
+  e.preventDefault();
+  e.stopPropagation();
+  if(!bpDragState || bpDragState.type !== 'product' || bpDragState.brandId !== brandId) return;
+  const brand = bpFindBrand(brandId);
+  if(!brand) return;
+  const fromId = bpDragState.id;
+  if(fromId === targetProductId) return;
+  const fromIdx = brand.products.findIndex(p => p.id === fromId);
+  const toIdx = brand.products.findIndex(p => p.id === targetProductId);
+  if(fromIdx === -1 || toIdx === -1) return;
+  const [moved] = brand.products.splice(fromIdx, 1);
+  brand.products.splice(toIdx, 0, moved);
+  renderBrandProducts(brandId);
+}
+
+// Builds the AI-facing JSON structure described in the Brand Portfolio spec. Actual image bytes
+// are never inlined into this JSON (that would bloat the prompt text enormously and isn't how the
+// vision API accepts images anyway) — each logo/product image is instead attached as its own
+// separate reference-image content part, the same pattern already used for the main Company Logo
+// (see logoDataUrl's use in generateDesign), and this JSON just marks where each one belongs with
+// a short placeholder string so the model can match "reference image 3" back to "Philips ->
+// MRI Scanner" while reading this structure.
+function buildBrandPortfolioData(){
+  const mainColors = Array.from(document.querySelectorAll('.color-hex'))
+    .map(i => String(i.value).trim())
+    .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
+  return {
+    mainCompany: {
+      logo: logoDataUrl ? '[see attached reference image: Main Company logo]' : null,
+      colors: mainColors
+    },
+    brands: brandPortfolio.map(b => ({
+      name: b.name.trim() || '(unnamed brand)',
+      logo: b.logoDataUrl ? `[see attached reference image: "${b.name.trim() || 'unnamed brand'}" logo]` : null,
+      priority: b.priority,
+      displayPreference: b.displayPreference,
+      displaySize: b.displaySize,
+      notes: b.notes || '',
+      products: b.products.map(p => ({
+        name: p.name.trim() || '(unnamed product)',
+        images: p.images.map((img, i) => `[see attached reference image: "${b.name.trim() || 'unnamed brand'}" -> "${p.name.trim() || 'unnamed product'}" image ${i + 1}]`),
+        displayType: p.displayType,
+        notes: p.notes || ''
+      }))
+    }))
+  };
+}
+
+// The text block folded into generateDesign()'s userBrief (see its own use of this function) —
+// empty string when there are no represented brands, so a project that never touches this
+// section produces byte-for-byte the same brief it always did. Actual logo/product image bytes
+// are attached separately as vision content parts alongside this text (see generateDesign's
+// userContentParts, right after the existing poster-images loop) — this text is what tells the
+// model which of those attached images belongs to which brand/product, plus the same AI Behavior
+// rules the Brand Portfolio spec calls for.
+function buildBrandPortfolioBriefText(){
+  if(!brandPortfolio.length) return '';
+  const data = buildBrandPortfolioData();
+  return `REPRESENTED BRANDS & PRODUCTS — this booth's owner (the Main Company, whose logo and brand colors are given above) is a distributor/dealer representing the brands and products listed below. Read every attached brand logo and product image together with this structure; each attached image is labeled with exactly which brand/product it belongs to, matching the "[see attached reference image: ...]" placeholders below:
+${JSON.stringify(data.brands, null, 2)}
+
+AI BEHAVIOR for Represented Brands & Products (treat every rule below as a hard constraint, not a suggestion):
+- The Main Company owns the booth as a whole — its own branding (logo, brand colors, architectural style) still governs the overall structure, hero element, and materials, exactly as the rest of this brief already specifies.
+- Every brand listed above is a partner or manufacturer the Main Company represents, not the booth owner — give each one its own clearly readable display area within the booth, sized and positioned according to its "priority" and "displayPreference" below, never folded anonymously into generic "product display" space.
+- Each brand's uploaded logo and each product's uploaded images belong ONLY to that specific brand/product — never mix, swap, or relabel imagery between brands, and never apply one brand's logo or product photos to another brand's display area.
+- Priority drives display prominence: "Primary Partner" and "High" priority brands get the largest, most prominent display areas (after the Main Company's own hero structure); "Medium" gets a standard-sized area; "Low" gets a compact, secondary area.
+- displayPreference "Hero Display" means that brand should occupy one of the most visible positions in the booth (near the entrance or primary sightline), second in prominence only to the Main Company's own hero structure. "Dedicated Display Area" means its own clearly bounded zone. "Feature Wall" means a dedicated wall treatment showcasing that brand. "Mixed With Other Products" means it can share space with other represented brands rather than needing its own zone.
+- displaySize ("Small"/"Medium"/"Large") is the relative footprint that brand's display area should occupy within the booth, on top of the priority/displayPreference above.
+- Each product's displayType (Shelf, Pedestal, Floor Standing, Glass Showcase, Wall Mounted, Interactive Demo, Table Display, Large Machine, Hanging Display) must directly drive how that specific product is physically placed and presented — a "Large Machine" needs real floor space and structural clearance very differently from a "Wall Mounted" product on a Shelf.
+- Any brand or product "notes" text above is a specific client instruction for that exact brand/product (e.g. lighting, placement, electrical needs) and must be followed the same way any other explicit client requirement in this brief is.`;
+}
+
 /* ================= Additional Requirements: exact client-specified quantities ================= */
 /* When the client checks and fills these in, they are explicit facts that override the
    computed space allocation (Phase 1 deterministic allocator) and EPS-011's general ranges
@@ -8409,6 +8978,10 @@ function setMode(m){
     document.getElementById('boothDetailsFields').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('boothThemeHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('boothThemeFieldsTop').style.display = m==='booth' ? 'block' : 'none';
+    const brandPortfolioHeadlineEl = document.getElementById('brandPortfolioHeadline');
+    if(brandPortfolioHeadlineEl) brandPortfolioHeadlineEl.style.display = m==='booth' ? 'block' : 'none';
+    const brandPortfolioFieldsEl = document.getElementById('brandPortfolioFields');
+    if(brandPortfolioFieldsEl) brandPortfolioFieldsEl.style.display = m==='booth' ? 'block' : 'none';
     // Company logo used to live inside boothThemeFieldsTop and inherited its show/hide for
     // free; it now sits on its own (moved up next to Number of open sides / Construction
     // style per the requested field order), so it needs this explicit toggle to keep the
@@ -10432,6 +11005,7 @@ ${mode==='booth' ? formatSpaceAllocationForPrompt(computeSpaceAllocation(width, 
 ${mode==='booth' ? collectFlooringSpecification() : ''}
 ${mode==='booth' ? collectCeilingRiggingSpecification() : ''}
 ${mode==='booth' ? collectAdditionalRequirements() : ''}
+${mode==='booth' ? buildBrandPortfolioBriefText() : ''}
 `;
 
   lastGeneratedBrief = userBrief;
@@ -10744,13 +11318,34 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
     }
   }
 
+  // Brand Portfolio & Products — each attached logo/product image is already a data URL from
+  // upload time (see handleBrandLogoUpload/handleProductImagesUpload), so no async file read is
+  // needed the way posterFiles above requires. Order here matches the order buildBrandPortfolioData
+  // walks brandPortfolio in, which is what buildBrandPortfolioBriefText's "[see attached reference
+  // image: ...]" placeholders assume — added before the reference image below so that field's
+  // own "always the LAST attached image" contract (see attachedNote) stays true.
+  if(mode === 'booth' && brandPortfolio.length){
+    brandPortfolio.forEach(brand => {
+      if(brand.logoDataUrl && visionCompatibleTypes.includes(brand.logoMediaType)){
+        userContentParts.push({ type: 'image', source: { type: 'base64', media_type: brand.logoMediaType, data: brand.logoDataUrl.split(',')[1] } });
+      }
+      brand.products.forEach(product => {
+        product.images.forEach(img => {
+          if(img.dataUrl && visionCompatibleTypes.includes(img.mediaType)){
+            userContentParts.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.dataUrl.split(',')[1] } });
+          }
+        });
+      });
+    });
+  }
+
   const hasReferenceImage = mode === 'booth' && referenceImageDataUrl && visionCompatibleTypes.includes(referenceImageMediaType);
   if(hasReferenceImage){
     userContentParts.push({ type: 'image', source: { type: 'base64', media_type: referenceImageMediaType, data: referenceImageDataUrl.split(',')[1] } });
   }
 
   const attachedNote = userContentParts.length
-    ? '\n\nAttached images: the company logo, any existing poster designs, and' + (hasReferenceImage ? ' a client-supplied reference image' : '') + ' — use their colors and style as described in your instructions.' + (hasReferenceImage ? ' The reference image is the LAST attached image; extract only its design influence (color palette, lighting style, flooring color, furniture colors, overall shape/form, materials, ceiling treatment, and general mood) — never copy any logo, text, or branding visible in that reference image.' : '')
+    ? '\n\nAttached images: the company logo, any existing poster designs,' + (brandPortfolio.length ? ' every represented brand\'s logo and product images (see REPRESENTED BRANDS & PRODUCTS above for exactly which image belongs to which brand/product),' : '') + ' and' + (hasReferenceImage ? ' a client-supplied reference image' : '') + ' — use their colors and style as described in your instructions.' + (hasReferenceImage ? ' The reference image is the LAST attached image; extract only its design influence (color palette, lighting style, flooring color, furniture colors, overall shape/form, materials, ceiling treatment, and general mood) — never copy any logo, text, or branding visible in that reference image.' : '')
     : '';
   userContentParts.push({ type: 'text', text: userBrief + attachedNote });
 
@@ -14448,6 +15043,11 @@ function restoreLogoAndPosters(project){
   posterFiles = (project.posterFiles || []).map(pf => ({ name: pf.name, size: pf.size, type: pf.type, file: pf.file }));
   renderPosterFileList();
 
+  // Brand Portfolio & Products (booth-only) — fully JSON-serializable already (data URLs, not
+  // File objects), so no per-field reconstruction is needed the way posterFiles above does.
+  brandPortfolio = project.brandPortfolio || [];
+  renderBrandPortfolio();
+
   brandGuidelinesDataUrl = project.brandGuidelinesDataUrl || null;
   brandGuidelinesMediaType = project.brandGuidelinesMediaType || null;
   brandGuidelinesFileName = project.brandGuidelinesFileName || '';
@@ -14648,6 +15248,7 @@ async function saveCurrentProject(){
     referenceImageDataUrl: referenceImageDataUrl,
     referenceImageMediaType: referenceImageMediaType,
     posterFiles: (posterFiles || []).map(pf => ({ name: pf.name, size: pf.size, type: pf.type, file: pf.file })),
+    brandPortfolio: brandPortfolio || [],
     promptResult: pendingPromptResult || null,
     optionResult: (optionResults && optionResults[0]) ? optionResults[0] : null,
     cameraPanelApproved: document.getElementById('viewer3dGeneratedCard').style.display === 'block',
@@ -14974,6 +15575,8 @@ function startNewProject(){
   document.getElementById('brandGuidelinesUploadBox').classList.remove('has-logo');
   posterFiles = [];
   renderPosterFileList();
+  brandPortfolio = [];
+  renderBrandPortfolio();
   clearReferenceImage();
   resetAdditionalRequirements();
 
