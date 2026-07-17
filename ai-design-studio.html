@@ -1523,6 +1523,15 @@ Replace only the materials and graphics."></textarea>
           <input type="text" id="f_autofillWebsite" placeholder="e.g. www.example.com">
           <div class="hint">DesignsLab AI will read this page's visible content — no login-gated or JS-only pages.</div>
         </div>
+        <div class="field" id="aiAutofillRiggingField">
+          <label>Do you want rigging or not?</label>
+          <select id="f_autofillWantsRigging">
+            <option value="unspecified" selected>Not sure — let AI decide</option>
+            <option value="yes">Yes — include some form of ceiling/rigging structure</option>
+            <option value="no">No — keep it fully self-supporting, no overhead structure</option>
+          </select>
+          <div class="hint">Choosing "No" is applied directly to Ceiling &amp; Rigging below — the AI won't suggest any overhead structure.</div>
+        </div>
 
         <button type="button" class="ghost small" onclick="runAiAutofill()" id="aiAutofillBtn">✦ Auto-fill remaining fields with AI</button>
         <div class="autofill-loading-bar" id="aiAutofillLoadingBar"></div>
@@ -8631,6 +8640,8 @@ function resetAutofillHelperState(){
   if(goalEl) goalEl.value = '';
   const siteEl = document.getElementById('f_autofillWebsite');
   if(siteEl) siteEl.value = '';
+  const riggingPrefEl = document.getElementById('f_autofillWantsRigging');
+  if(riggingPrefEl) riggingPrefEl.value = 'unspecified';
   const status = document.getElementById('aiAutofillStatus');
   if(status) status.textContent = '';
   const loadingBar = document.getElementById('aiAutofillLoadingBar');
@@ -8645,7 +8656,7 @@ function resetAutofillHelperState(){
 // — collapsed after a successful run (nothing left to re-enter, the button's job is done),
 // reopened on toggleAiAutofillPanel() re-check or a new/loaded project via resetAutofillHelperState().
 function setAiAutofillPromptFieldsOpen(open){
-  ['aiAutofillGoalField', 'aiAutofillWebsiteField', 'aiAutofillBtn'].forEach(id => {
+  ['aiAutofillGoalField', 'aiAutofillWebsiteField', 'aiAutofillRiggingField', 'aiAutofillBtn'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = open ? '' : 'none';
   });
@@ -8665,7 +8676,7 @@ function toggleAiAutofillPanel(cb){
 const AUTOFILL_EXCLUDED_IDS = new Set([
   'f_country', 'f_city', 'f_venue', 'f_attendees',
   'f_modularWallLayout', 'f_referenceImage', 'f_posterFiles', 'f_logo',
-  'f_needsAiHelp', 'f_autofillGoal', 'f_autofillWebsite',
+  'f_needsAiHelp', 'f_autofillGoal', 'f_autofillWebsite', 'f_autofillWantsRigging',
   'f_requiredAreaOtherToggle', 'f_indoorAreaOtherToggle', 'f_outdoorAreaOtherToggle',
   // "Do you already have poster designs?" is a client decision, never something the AI should
   // guess or overwrite — it's left exactly as the client set it (default "No"). f_posterCount
@@ -8852,6 +8863,7 @@ async function runAiAutofill(){
   const loadingBar = document.getElementById('aiAutofillLoadingBar');
   const goal = (document.getElementById('f_autofillGoal').value || '').trim();
   const website = (document.getElementById('f_autofillWebsite').value || '').trim();
+  const wantsRigging = document.getElementById('f_autofillWantsRigging').value; // 'unspecified' | 'yes' | 'no'
 
   if(!goal && !website){
     status.textContent = 'Add at least a goal or a company website first.';
@@ -8966,6 +8978,7 @@ Rules:
 - "floorFeatures": choose any number (including none) of Optional Floor Features that suit this brand and space, from this exact list: ${floorFeatureOptions.join(', ')}.
 - "integratedElements": only relevant if "fields" sets f_ceilingRigging to anything other than "No overhead structure" — choose Integrated Elements that suit that overhead structure, from this exact list: ${integratedElementOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
 - "riggingLighting": same condition as "integratedElements" — if there is any overhead structure (real rigging OR a self-supported ceiling feature), choose its lighting from this exact list: ${riggingLightingOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
+- "fields.f_ceilingRigging" (Ceiling & Rigging): the client's STATED RIGGING PREFERENCE given below with the other facts overrides your own judgment — if it says "no", you MUST set f_ceilingRigging to exactly "No overhead structure", and "integratedElements"/"riggingLighting" must both be empty arrays; if it says "yes", set f_ceilingRigging to any value other than "No overhead structure" that genuinely suits this brief; if it says "unspecified", decide freely as you would for any other field.
 - "fields": for every field in the FIELD SCHEMA below, include a value keyed by its exact "id".
   - kind "select": the value MUST be exactly one of that field's "options", copied verbatim.
   - kind "checkbox": true or false only. For the Requirements checkboxes specifically (ids starting "addreq_"), select AT LEAST TWO that genuinely make sense for this brand, goal, and space — never zero, never one — but do not check everything either, and never select more than the available floor area can realistically hold at once (a 9 sqm booth fits very few of these; a 200 sqm booth fits many more). Every requirement you check has a paired quantity/capacity field elsewhere in the FIELD SCHEMA (e.g. "addreq_reception_count" for "addreq_reception") — always give that paired field a sensible number sized to the space too, never leave it at an unconsidered default.
@@ -8978,7 +8991,7 @@ FIELD SCHEMA:
 ${JSON.stringify(fieldSchema, null, 2)}`;
 
     const contentParts = [
-      { type: 'text', text: `BOOTH'S FIXED PHYSICAL FACTS FROM BOOTH DETAILS (never contradict these):\n${JSON.stringify(boothFacts, null, 2)}\n\nSTATED GOAL OF THE BOOTH:\n${goal || '(not provided)'}\n\nCOMPANY WEBSITE TEXT (may be empty if unreadable):\n${websiteText || '(not provided' + (websiteWarning ? ' — ' + websiteWarning : '') + ')'}` }
+      { type: 'text', text: `BOOTH'S FIXED PHYSICAL FACTS FROM BOOTH DETAILS (never contradict these):\n${JSON.stringify(boothFacts, null, 2)}\n\nSTATED GOAL OF THE BOOTH:\n${goal || '(not provided)'}\n\nCLIENT'S STATED RIGGING PREFERENCE (see the f_ceilingRigging rule — this overrides your own judgment):\n${wantsRigging}\n\nCOMPANY WEBSITE TEXT (may be empty if unreadable):\n${websiteText || '(not provided' + (websiteWarning ? ' — ' + websiteWarning : '') + ')'}` }
     ];
     // Attached only as the "brandColors" rule's step-2 fallback (a known-brand lookup always
     // comes first) — not sent at all when there's no usable logo yet, or when it's an SVG,
@@ -8991,6 +9004,22 @@ ${JSON.stringify(fieldSchema, null, 2)}`;
     status.textContent = 'Filling in the brief...';
     const result = await callPromptWriterApi(system, contentParts);
     applyAutofillResult(result);
+
+    // Belt-and-suspenders: the system prompt already instructs the model to set
+    // f_ceilingRigging to "No overhead structure" when the client said No to rigging, but a
+    // stated preference like this shouldn't depend on the model actually following it —
+    // enforce it directly, same "instruct AND defensively enforce" pattern used elsewhere in
+    // this file (see e.g. openSidesConfirmedByUser). Re-checking integratedElements/
+    // riggingLighting isn't needed here: applyCheckboxGroupByValue already only ever checks
+    // boxes that are visible, and forcing "No overhead structure" hides both groups.
+    if(wantsRigging === 'no'){
+      const ceilingSel = document.getElementById('f_ceilingRigging');
+      if(ceilingSel && ceilingSel.value !== 'No overhead structure'){
+        ceilingSel.value = 'No overhead structure';
+        ceilingSel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+
     status.textContent = 'Done — review the fields below and adjust anything before generating.' + (websiteWarning ? ' (' + websiteWarning + ')' : '');
     // Goal / Company website / the run button have done their job — collapse them so the panel
     // just shows the completed status. toggleAiAutofillPanel() brings them back if the checkbox
