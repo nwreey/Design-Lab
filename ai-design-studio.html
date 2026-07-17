@@ -3083,6 +3083,26 @@ Replace only the materials and graphics."></textarea>
     </div>
   </div>
 
+  <!-- Event Concept Board — event mode's own, entirely separate output. Deliberately not a
+       part of #result below (the exhibition booth's multi-camera 3D render gallery/tabs/
+       technical-board system) since event mode's Generate button never touches that pipeline
+       at all anymore (see generateEventConceptBoard() / the mode==='event' branch inside
+       pendingGenerateAction). Just one A3-landscape board image plus the same six pieces of
+       creative copy shown as plain, always-legible text underneath — useful on its own since
+       AI image models can't reliably render six paragraphs of accurate text onto one image. -->
+  <div id="eventConceptResult" style="display:none;">
+    <div class="eyebrow">Event Concept Board</div>
+    <h2 class="concept-title" id="ecbTitle">Your Event Concept</h2>
+    <div class="render-frame" id="ecbFrame">
+      <img id="ecbImg" alt="Event Concept Board" style="display:none;" onclick="openImageLightbox(this.src)">
+    </div>
+    <div class="submit-bar" style="justify-content:flex-start;gap:10px;margin:0 0 20px;">
+      <button class="secondary" onclick="regenerateEventConceptBoard()">↻ Regenerate</button>
+      <button class="secondary" onclick="downloadEventConceptBoardImage()">Download image</button>
+    </div>
+    <div id="ecbSections"></div>
+  </div>
+
   <div id="result">
     <div class="option-tabs" id="optionTabs"></div>
 
@@ -9345,6 +9365,7 @@ function setMode(m){
   if(m !== 'booth' && m !== 'event'){
     document.getElementById('promptReview').style.display = 'none';
     document.getElementById('result').style.display = 'none';
+    document.getElementById('eventConceptResult').style.display = 'none';
   }
 
   if(m==='booth' || m==='event'){
@@ -9365,6 +9386,12 @@ function setMode(m){
     document.getElementById('areaPlanningFields').style.display = m==='event' ? 'block' : 'none';
     document.getElementById('modularWallLayoutField').style.display = m==='event' ? 'none' : 'block';
     document.getElementById('boothSizeFields').style.display = m==='booth' ? 'block' : 'none';
+    // Switching between Booth and Event mode should never leave the OTHER mode's own finished
+    // output on screen — the exhibition booth's #result and event mode's #eventConceptResult
+    // are two entirely separate pipelines/deliverables (see generateEventConceptBoard's header
+    // comment) and must never both be visible at once.
+    if(m === 'booth') document.getElementById('eventConceptResult').style.display = 'none';
+    if(m === 'event') document.getElementById('result').style.display = 'none';
     if(m === 'booth'){
       // Booth mode always requires exact dimensions — always re-enabled, no "unknown size" concept applies here.
       document.getElementById('f_width').disabled = false;
@@ -11113,6 +11140,239 @@ async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
   }
 }
 
+/* ================= Event Concept Board — event mode's own, separate generation pipeline =================
+   Deliberately independent of generateDesign() below (the exhibition booth's architectural
+   EPS/PAE-002 render pipeline), per an explicit product decision that event mode's Generate
+   button must never run booth's 3D architectural rendering logic. Two stages, the same shape
+   as booth's own pipeline (an OpenAI writing pass, then a single image-render call) but
+   producing a completely different kind of deliverable — one A3-landscape presentation board
+   laying out six pieces of creative concept writing, never a 3D rendering of a physical space.
+   Reuses only genuinely generic, mode-agnostic helpers from the booth pipeline (callPromptWriterApi,
+   compressDataUrlToTarget, fetchWithTimeout, lockForm/unlockForm, the imageEngineField toggle) —
+   never any booth-specific EPS text, variables, or functions. */
+
+const EVENT_CONCEPT_BOARD_SECTION_LABELS = {
+  eventConcept: 'Event Concept',
+  creativeTheme: 'Creative Theme',
+  conceptStatement: 'Concept Statement',
+  visitorJourney: 'Visitor Journey',
+  eventPersonality: 'Event Personality',
+  keywords: 'Keywords'
+};
+
+let eventConceptBoard = null; // { image: dataUrl, sections: {...}, engine: 'gemini'|'openai' } | null
+
+const eventConceptBoardWriterSystem = `You are a senior event creative director writing the concept copy for a client-facing Event Concept Board — a single presentation board summarizing the creative direction of an event, before any physical/architectural design work begins. You are NOT designing a physical space, a booth, or any architecture — only writing the creative concept in words.
+
+Read the client's brief below (their Events Concept form answers) and produce ONE JSON object, and nothing else — no markdown fencing, no commentary before or after — with exactly these keys:
+
+{
+  "eventConcept": "the overall big-picture concept/idea for this event, in confident, professional marketing language — what this event IS, at its core, in 35-55 words",
+  "creativeTheme": "a short, evocative theme name or phrase for this event, 2-6 words, title-cased, e.g. \\"Radiant Horizons\\" or \\"Beyond the Frame\\"",
+  "conceptStatement": "a polished single-paragraph concept statement, written the way a creative director would present it to a client, 35-55 words — the emotional and strategic reasoning behind the concept, not a repeat of eventConcept",
+  "visitorJourney": "a narrative describing the visitor's experience arc from arrival to departure — what they encounter, feel, and do, in sequence, in 35-55 words",
+  "eventPersonality": "3-5 short adjectives capturing this event's character and tone, comma-separated, e.g. \\"Bold, Modern, Welcoming\\"",
+  "keywords": ["6 to 10 short keywords or short phrases (1-3 words each) capturing this event's identity, as a JSON array of strings"]
+}
+
+Every field must be genuinely specific to THIS event's brief below — never generic boilerplate that could describe any event. Never mention AI, prompts, or the generation process. Keep every string field free of literal double-quote characters (use single quotes instead if you need to quote a word) since this must remain strictly valid JSON.`;
+
+// Reads the Events Concept + Area Planning form fields directly and independently — no shared
+// variables with generateDesign()'s own booth-oriented reads, by design (see this section's
+// header comment).
+function buildEventConceptBoardBrief(){
+  const name = document.getElementById('f_name').value.trim();
+  const eventTypeRaw = document.getElementById('f_eventType').value;
+  const eventTypeCustom = document.getElementById('f_eventTypeCustom').value.trim();
+  const eventType = eventTypeRaw === 'Custom' ? (eventTypeCustom || 'Custom') : eventTypeRaw;
+  const eventObjectiveRaw = document.getElementById('f_eventObjective').value;
+  const eventObjectiveCustom = document.getElementById('f_eventObjectiveCustom').value.trim();
+  const eventObjective = eventObjectiveRaw === 'Other' ? (eventObjectiveCustom || 'Other') : eventObjectiveRaw;
+  const targetAudience = Array.from(document.querySelectorAll('.target-audience-cb:checked')).map(cb => cb.value);
+  const visitorExperience = Array.from(document.querySelectorAll('.visitor-experience-cb:checked')).map(cb => cb.value);
+  const visitorJourneyRaw = document.getElementById('f_visitorJourney').value;
+  const visitorJourneyCustom = document.getElementById('f_visitorJourneyCustom').value.trim();
+  const visitorJourneyField = visitorJourneyRaw === 'Custom' ? (visitorJourneyCustom || 'Custom') : visitorJourneyRaw;
+  const visitorDuration = document.getElementById('f_visitorDuration').value;
+  const eventMood = Array.from(document.querySelectorAll('.event-mood-cb:checked')).map(cb => cb.value);
+  const eventBrandValues = Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value);
+  const keyActivities = Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value);
+  const specialRequirements = Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value);
+  const successMetrics = Array.from(document.querySelectorAll('.success-metrics-cb:checked')).map(cb => cb.value);
+  const archStyle = document.getElementById('f_archStyle').value;
+  const industryStyle = document.getElementById('f_industryStyle').value;
+  const desc = document.getElementById('f_desc').value.trim();
+  const colorHexes = Array.from(document.querySelectorAll('.color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
+  const brandPersonalityBriefText = buildBrandPersonalityBriefText();
+  const areaPlanningBrief = buildAreaPlanningBriefText();
+
+  return `EVENT NAME: ${name || 'not specified'}
+Event type: ${eventType || 'not specified'}
+Event objective: ${eventObjective || 'not specified'}
+Target audience: ${targetAudience.length ? targetAudience.join(', ') : 'not specified'}
+Visitor experience priorities: ${visitorExperience.length ? visitorExperience.join(', ') : 'not specified'}
+Visitor journey style: ${visitorJourneyField || 'not specified'}
+Visitor duration: ${visitorDuration || 'not specified'}
+Event mood: ${eventMood.length ? eventMood.join(', ') : 'not specified'}
+Brand values to express: ${eventBrandValues.length ? eventBrandValues.join(', ') : 'not specified'}
+Key activities: ${keyActivities.length ? keyActivities.join(', ') : 'not specified'}
+Special requirements: ${specialRequirements.length ? specialRequirements.join(', ') : 'not specified'}
+Success metrics: ${successMetrics.length ? successMetrics.join(', ') : 'not specified'}
+Architectural style reference: ${archStyle}
+${industryStyle ? 'Industry style: ' + industryStyle : ''}
+${colorHexes.length ? 'Brand colors: ' + colorHexes.join(', ') : ''}
+${brandPersonalityBriefText}
+Client's own description: """${desc}"""
+${areaPlanningBrief}`;
+}
+
+// Validates and normalizes Stage 1's JSON response into a fixed, guaranteed-complete shape — a
+// missing/malformed key here surfaces as one clearly-labeled "Not generated." panel rather than
+// a broken layout or a thrown error deep inside rendering.
+function normalizeEventConceptBoardSections(raw){
+  if(!raw || typeof raw !== 'object') return null;
+  const str = v => (typeof v === 'string' && v.trim()) ? v.trim() : '';
+  const keywords = Array.isArray(raw.keywords)
+    ? raw.keywords.map(k => String(k).trim()).filter(Boolean).slice(0, 10)
+    : [];
+  return {
+    eventConcept: str(raw.eventConcept) || 'Not generated.',
+    creativeTheme: str(raw.creativeTheme) || 'Not generated.',
+    conceptStatement: str(raw.conceptStatement) || 'Not generated.',
+    visitorJourney: str(raw.visitorJourney) || 'Not generated.',
+    eventPersonality: str(raw.eventPersonality) || 'Not generated.',
+    keywords
+  };
+}
+
+// The actual image-generation prompt for the A3 board itself — a flat graphic design layout,
+// never a photorealistic rendering and never architecture. That distinction is stated
+// explicitly and repeatedly below because, left unstated, an image model asked for an "event
+// board" tends to default toward rendering a physical booth or stage — exactly what this stage
+// must never produce.
+function buildEventConceptBoardLayoutPrompt(sections){
+  const colorHexes = Array.from(document.querySelectorAll('.color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
+  const archStyle = document.getElementById('f_archStyle').value;
+  const name = document.getElementById('f_name').value.trim();
+  const keywordsLine = sections.keywords.join('  •  ');
+
+  return `Design a single A3-size, HORIZONTAL (landscape) graphic presentation board for a creative agency client deck — a flat, print-ready graphic design layout, NOT a photograph and NOT a 3D architectural rendering of any physical space, booth, or stage. Think mood-board / concept-board for a creative pitch deck: clean modern typography, generous whitespace, a refined color palette${colorHexes.length ? ' built around these exact brand colors: ' + colorHexes.join(', ') : ''}, subtle abstract textures or geometric graphic elements only — no photos of real people, places, or objects.
+
+${name ? `Board title, prominently at the top: "${name}"` : 'No specific event name was given — leave the top area clean with just a small generic "EVENT CONCEPT" eyebrow label.'}
+
+Lay out exactly six clearly labeled panels/sections across the board, each with its own short header in capitals and the exact text given below rendered legibly and accurately — do not paraphrase, shorten, or alter this text:
+
+1. EVENT CONCEPT — "${sections.eventConcept}"
+2. CREATIVE THEME — "${sections.creativeTheme}"
+3. CONCEPT STATEMENT — "${sections.conceptStatement}"
+4. VISITOR JOURNEY — "${sections.visitorJourney}"
+5. EVENT PERSONALITY — "${sections.eventPersonality}"
+6. KEYWORDS — ${keywordsLine}
+
+Visual style reference for the graphic mood only, not literal architecture: ${archStyle}.
+
+Layout rules: arrange the six panels in a clean editorial grid (an asymmetric multi-column layout works well), each panel clearly separated by whitespace or thin rule lines, with a consistent typography hierarchy (bold section headers, readable body text). Professional agency-deck aesthetic. Every word of the six text blocks above must be spelled correctly and rendered exactly as given — legibility is the top priority, so keep text blocks generously sized rather than cramped. Do not include any people, faces, hands, or photorealistic imagery anywhere. Do not include any UI chrome, browser windows, or mockup devices. Full-bleed composition — no letterboxing, no borders, no empty padding on any edge.`;
+}
+
+async function generateEventConceptBoard(){
+  const errBox = document.getElementById('errorBox');
+  try{
+    document.getElementById('loadingText').textContent = 'Writing your event concept...';
+    const briefText = buildEventConceptBoardBrief();
+    const analysis = await callPromptWriterApi(eventConceptBoardWriterSystem, [{ type: 'text', text: briefText }]);
+    const sections = normalizeEventConceptBoardSections(analysis);
+    if(!sections) throw new Error('Could not generate the event concept content — please try again.');
+
+    document.getElementById('loadingText').textContent = 'Designing your concept board...';
+    const layoutPrompt = buildEventConceptBoardLayoutPrompt(sections);
+
+    // Same admin-only engine toggle already used for the exhibition booth's own render (see
+    // imageEngineField / startRenderSession) — reused here rather than duplicated, since it's
+    // a generic "which model renders this exact finished prompt" choice, not booth-specific logic.
+    const engineEl = document.getElementById('f_imageEngine');
+    const useOpenAiEngine = isAdminUser && engineEl && engineEl.value === 'openai';
+    const genEndpoint = useOpenAiEngine ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+
+    const response = await fetchWithTimeout(genEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: layoutPrompt, isUserInitiatedEdit: false, aspectRatio: '4:3' })
+    }, 190000);
+    const rawText = await response.text();
+    let data = {};
+    try{ data = JSON.parse(rawText); }catch(e){ /* leave data as {} */ }
+    if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Could not generate the concept board image.');
+
+    const compressed = await compressDataUrlToTarget(data.image, 900 * 1024);
+    eventConceptBoard = { image: compressed, sections, engine: useOpenAiEngine ? 'openai' : 'gemini' };
+    // Keeps the form locked on success, same as the exhibition booth pipeline — renderEventConceptBoardResult()
+    // itself calls lockForm(), covering both this live-generation path and the restore-from-
+    // saved-project path (restoreLogoAndPosters) in one place.
+    renderEventConceptBoardResult();
+    saveCurrentProject();
+  }catch(err){
+    console.error('Could not generate event concept board:', err);
+    errBox.textContent = err.message || 'Could not generate the event concept board.';
+    errBox.style.display = 'block';
+    errBox.scrollIntoView({behavior:'smooth', block:'center'});
+    // Only unlock on failure, so the user can fix something and retry — a successful board
+    // stays locked exactly like a successful booth render does (see lockForm's own comment).
+    unlockForm();
+  }finally{
+    document.getElementById('loading').style.display = 'none';
+    projectSwitchLocked = false;
+  }
+}
+
+function renderEventConceptBoardResult(){
+  if(!eventConceptBoard) return;
+  const name = document.getElementById('f_name').value.trim();
+  document.getElementById('ecbTitle').textContent = name || 'Your Event Concept';
+  const img = document.getElementById('ecbImg');
+  img.src = eventConceptBoard.image;
+  img.style.display = 'block';
+
+  const sections = eventConceptBoard.sections;
+  const order = ['eventConcept', 'creativeTheme', 'conceptStatement', 'visitorJourney', 'eventPersonality', 'keywords'];
+  document.getElementById('ecbSections').innerHTML = order.map(key => {
+    const value = key === 'keywords' ? sections.keywords.join('  ·  ') : sections[key];
+    return `<div class="concept-description-block">
+      <div class="concept-description-label">${escapeHtml(EVENT_CONCEPT_BOARD_SECTION_LABELS[key])}</div>
+      <p class="concept-description-text" style="margin-bottom:0;">${escapeHtml(value)}</p>
+    </div>`;
+  }).join('');
+
+  document.getElementById('promptReview').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('eventConceptResult').style.display = 'block';
+  document.getElementById('eventConceptResult').scrollIntoView({behavior:'smooth', block:'start'});
+  // A finished concept board locks the form, same as a finished booth render — covers both the
+  // live-generation success path and reopening a saved project that already has one.
+  lockForm();
+}
+
+async function regenerateEventConceptBoard(){
+  if(blockIfGenerating()) return;
+  lockForm();
+  projectSwitchLocked = true;
+  document.getElementById('formCard').scrollIntoView({behavior:'smooth', block:'start'});
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('loadingText').textContent = 'Writing your event concept...';
+  await generateEventConceptBoard();
+}
+
+async function downloadEventConceptBoardImage(){
+  if(!eventConceptBoard || !eventConceptBoard.image) return;
+  const name = document.getElementById('f_name').value.trim() || 'event-concept';
+  const safeTitle = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 40);
+  const a = document.createElement('a');
+  a.href = eventConceptBoard.image;
+  a.download = `${safeTitle}-concept-board.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 async function generateDesign(){
   const name = document.getElementById('f_name').value.trim();
   currentProjectName = name || 'Untitled Project';
@@ -11327,11 +11587,20 @@ async function generateDesign(){
   lockForm();
   projectSwitchLocked = true;
   document.getElementById('loading').style.display = 'flex';
-  document.getElementById('loadingText').textContent = 'Analyzing your brief and generating concept and design...';
+  document.getElementById('loadingText').textContent = mode === 'event' ? 'Writing your event concept...' : 'Analyzing your brief and generating concept and design...';
   document.getElementById('result').style.display = 'none';
+  document.getElementById('eventConceptResult').style.display = 'none';
   saveCurrentProject();
 
-  const kindLabel = mode === 'booth' ? 'exhibition booth' : 'event';
+  // Event mode has its own, entirely separate generation pipeline (see the Event Concept
+  // Board section above generateDesign()) — everything below this point is the exhibition
+  // booth's own architectural EPS/PAE-002 pipeline and must never run for event mode.
+  if(mode === 'event'){
+    await generateEventConceptBoard();
+    return;
+  }
+
+  const kindLabel = 'exhibition booth';
 
   function buildEventSizeText(){
     const noFootprintInstruction = 'Do NOT invent a specific width/depth footprint for this space. Instead, plan and size it based entirely on the relevant Required Areas listed below — let the actual program of spaces determine a realistic, proportionate scale, the way a real event designer would size a space around its actual requirements rather than starting from an arbitrary footprint.';
@@ -15425,6 +15694,15 @@ function restoreLogoAndPosters(project){
   brandPortfolio = project.brandPortfolio || [];
   renderBrandPortfolio();
 
+  // Event Concept Board (event-only) — same image-bearing, fully-JSON-serializable pattern as
+  // Brand Portfolio above, saved directly on the project rather than inside collectFormSnapshot.
+  eventConceptBoard = project.eventConceptBoard || null;
+  if(eventConceptBoard){
+    renderEventConceptBoardResult();
+  }else{
+    document.getElementById('eventConceptResult').style.display = 'none';
+  }
+
   brandGuidelinesDataUrl = project.brandGuidelinesDataUrl || null;
   brandGuidelinesMediaType = project.brandGuidelinesMediaType || null;
   brandGuidelinesFileName = project.brandGuidelinesFileName || '';
@@ -15626,6 +15904,7 @@ async function saveCurrentProject(){
     referenceImageMediaType: referenceImageMediaType,
     posterFiles: (posterFiles || []).map(pf => ({ name: pf.name, size: pf.size, type: pf.type, file: pf.file })),
     brandPortfolio: brandPortfolio || [],
+    eventConceptBoard: eventConceptBoard || null,
     promptResult: pendingPromptResult || null,
     optionResult: (optionResults && optionResults[0]) ? optionResults[0] : null,
     cameraPanelApproved: document.getElementById('viewer3dGeneratedCard').style.display === 'block',
@@ -15954,6 +16233,10 @@ function startNewProject(){
   renderPosterFileList();
   brandPortfolio = [];
   renderBrandPortfolio();
+  eventConceptBoard = null;
+  document.getElementById('eventConceptResult').style.display = 'none';
+  document.getElementById('ecbImg').style.display = 'none';
+  document.getElementById('ecbSections').innerHTML = '';
   clearReferenceImage();
   resetAdditionalRequirements();
 
