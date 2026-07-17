@@ -1535,6 +1535,7 @@ Replace only the materials and graphics."></textarea>
 
         <button type="button" class="ghost small" onclick="runAiAutofill()" id="aiAutofillBtn">✦ Auto-fill remaining fields with AI</button>
         <div class="autofill-loading-bar" id="aiAutofillLoadingBar"></div>
+        <div class="hint" id="aiAutofillReviewNote" style="display:none;margin-top:6px;font-weight:600;">Review and modify the form before creating the design.</div>
         <div class="hint" id="aiAutofillStatus" style="margin-top:8px;"></div>
       </div>
     </div>
@@ -8646,6 +8647,8 @@ function resetAutofillHelperState(){
   if(status) status.textContent = '';
   const loadingBar = document.getElementById('aiAutofillLoadingBar');
   if(loadingBar) loadingBar.classList.remove('active');
+  const reviewNote = document.getElementById('aiAutofillReviewNote');
+  if(reviewNote) reviewNote.style.display = 'none';
   // Goal/Website/the run button close themselves up once a run finishes successfully (see the
   // end of runAiAutofill) — reopen them here so a new or freshly-loaded project always starts
   // with the full, editable prompt rather than the collapsed "already ran" state.
@@ -8691,6 +8694,33 @@ function labelTextFor(el){
   const clone = label.cloneNode(true);
   clone.querySelectorAll('.required-mark, input').forEach(n => n.remove());
   return clone.textContent.trim() || el.id;
+}
+
+// The Requirements section groups its addreq_* checkboxes under named "subarea-label" headers
+// (Visitor Experience, Industrial/Manufacturing, ... Product Display, Digital & Technology,
+// Functional Spaces, Lighting, Decorative Elements, Landscape, Lighting Features, Art & Brand)
+// as a flat sequence of siblings inside #additionalReqField .requirements-grid — there's no
+// per-category wrapper element, just a subarea-label div followed by that category's checkbox
+// labels until the next one. The generic FIELD SCHEMA only carries each checkbox's own label,
+// not which category it's in, so the category membership the mandatory-category rule in
+// runAiAutofill needs is built here instead, straight from that same DOM structure.
+function collectRequirementCategoryIds(categoryNames){
+  const result = {};
+  categoryNames.forEach(name => { result[name] = []; });
+  const grid = document.querySelector('#additionalReqField .requirements-grid');
+  if(!grid) return result;
+  const wanted = new Set(categoryNames);
+  let currentCategory = null;
+  Array.from(grid.children).forEach(child => {
+    if(child.classList.contains('subarea-label')){
+      currentCategory = child.textContent.trim();
+      return;
+    }
+    if(!currentCategory || !wanted.has(currentCategory)) return;
+    const cb = child.querySelector && child.querySelector('input[type="checkbox"][id^="addreq_"]');
+    if(cb) result[currentCategory].push(cb.id);
+  });
+  return result;
 }
 
 // Walks the true DOM sibling range from Booth Theme's headline up to (not including) the
@@ -8861,6 +8891,7 @@ async function runAiAutofill(){
   const btn = document.getElementById('aiAutofillBtn');
   const status = document.getElementById('aiAutofillStatus');
   const loadingBar = document.getElementById('aiAutofillLoadingBar');
+  const reviewNote = document.getElementById('aiAutofillReviewNote');
   const goal = (document.getElementById('f_autofillGoal').value || '').trim();
   const website = (document.getElementById('f_autofillWebsite').value || '').trim();
   const wantsRigging = document.getElementById('f_autofillWantsRigging').value; // 'unspecified' | 'yes' | 'no'
@@ -8877,6 +8908,11 @@ async function runAiAutofill(){
   btn.disabled = true;
   lockForm();
   if(loadingBar) loadingBar.classList.add('active');
+  // Shown from the moment the loading bar starts and left up afterwards too (reset only clears
+  // it, see resetAutofillHelperState) — a standing reminder that the AI's suggestions are a
+  // starting point, not a final answer, so the client always knows to check the form before
+  // generating regardless of exactly when they glance back at this panel.
+  if(reviewNote) reviewNote.style.display = 'block';
   status.textContent = 'Reading the booth details...';
 
   try{
@@ -8952,6 +8988,12 @@ async function runAiAutofill(){
     const integratedElementOptions = Array.from(document.querySelectorAll('.rigging-element-cb')).map(cb => cb.value);
     const riggingLightingOptions = Array.from(document.querySelectorAll('.rigging-lighting-cb')).map(cb => cb.value);
 
+    // Mandatory-category rule below needs to know which addreq_* ids fall under each of these
+    // named Requirements categories — see collectRequirementCategoryIds' own comment.
+    const MANDATORY_REQUIREMENT_CATEGORIES = ['Product Display', 'Digital & Technology', 'Functional Spaces', 'Lighting', 'Decorative Elements', 'Lighting Features'];
+    const OPTIONAL_REQUIREMENT_CATEGORIES = ['Art & Brand'];
+    const requirementCategoryIds = collectRequirementCategoryIds([...MANDATORY_REQUIREMENT_CATEGORIES, ...OPTIONAL_REQUIREMENT_CATEGORIES]);
+
     const system = `SYSTEM
 
 You are helping fill out an exhibition booth design brief on behalf of a client, based on their stated goal, their company website, and every fact already entered about the booth itself (its Booth Details). You are NOT designing the booth yourself — you are choosing sensible values for a fixed list of form fields, the same way a thoughtful account manager would fill in a client intake form for them.
@@ -8979,13 +9021,17 @@ Rules:
 - "integratedElements": only relevant if "fields" sets f_ceilingRigging to anything other than "No overhead structure" — choose Integrated Elements that suit that overhead structure, from this exact list: ${integratedElementOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
 - "riggingLighting": same condition as "integratedElements" — if there is any overhead structure (real rigging OR a self-supported ceiling feature), choose its lighting from this exact list: ${riggingLightingOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
 - "fields.f_ceilingRigging" (Ceiling & Rigging): the client's STATED RIGGING PREFERENCE given below with the other facts overrides your own judgment — if it says "no", you MUST set f_ceilingRigging to exactly "No overhead structure", and "integratedElements"/"riggingLighting" must both be empty arrays; if it says "yes", set f_ceilingRigging to any value other than "No overhead structure" that genuinely suits this brief; if it says "unspecified", decide freely as you would for any other field.
+- Requirements — MANDATORY category rule: REQUIREMENT CATEGORIES below lists the "addreq_*" field ids grouped under their real category names from the form. You MUST check (set to true) at least one item from AT LEAST TWO different categories among these six: Product Display, Digital & Technology, Functional Spaces, Lighting, Decorative Elements, Lighting Features — choose whichever specific items and however many categories genuinely suit this brand, goal, and the available floor area (a 9 sqm booth should stay lean; a 200 sqm booth can support items from more categories). "Art & Brand" is different — it is entirely OPTIONAL, check something from it only if it would genuinely help this specific design (e.g. a heritage brand with real history to tell), never as default filler just to hit a count. Every other Requirements checkbox outside these seven categories (Visitor Experience, industry-specific categories, Landscape, etc.) stays entirely your own judgment call, with no minimum.
 - "fields": for every field in the FIELD SCHEMA below, include a value keyed by its exact "id".
   - kind "select": the value MUST be exactly one of that field's "options", copied verbatim.
-  - kind "checkbox": true or false only. For the Requirements checkboxes specifically (ids starting "addreq_"), select AT LEAST TWO that genuinely make sense for this brand, goal, and space — never zero, never one — but do not check everything either, and never select more than the available floor area can realistically hold at once (a 9 sqm booth fits very few of these; a 200 sqm booth fits many more). Every requirement you check has a paired quantity/capacity field elsewhere in the FIELD SCHEMA (e.g. "addreq_reception_count" for "addreq_reception") — always give that paired field a sensible number sized to the space too, never leave it at an unconsidered default.
+  - kind "checkbox": true or false only, following the MANDATORY category rule above for anything in REQUIREMENT CATEGORIES; for every other checkbox, true only where it genuinely fits this brand, goal, and space. Every requirement you check has a paired quantity/capacity field elsewhere in the FIELD SCHEMA where one exists (e.g. "addreq_reception_count" for "addreq_reception") — always give that paired field a sensible number sized to the space too, never leave it at an unconsidered default.
   - kind "number": a plain integer as a number, sized to the space (e.g. never suggest 6 reception counters in a 9 sqm booth). This also covers "f_posterCount" (how many posters) — note there is no field here for whether the client already has poster designs; that choice is fixed by the client and is never yours to set, only how many posters is.
   - kind "color": a hex string like "#RRGGBB".
   - kind "text"/"textarea": a short, concrete value in the same spirit as the field's label — for the AI Creative Brief field specifically, write a rich, specific paragraph synthesizing the goal, website, and booth facts into a real design brief.
 - Never invent facts about the company that aren't supported by the goal or website — where information is missing, make a reasonable, clearly generic choice appropriate to the stated industry instead of fabricating specifics.
+
+REQUIREMENT CATEGORIES (six mandatory — see the rule above — plus Art & Brand, optional):
+${JSON.stringify(requirementCategoryIds, null, 2)}
 
 FIELD SCHEMA:
 ${JSON.stringify(fieldSchema, null, 2)}`;
