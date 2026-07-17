@@ -10016,6 +10016,10 @@ ARCHITECTURAL RULE: never move, resize, or alter the architecture itself — wal
 
 The final result should look as though a real exhibition contractor installed the client's original, unmodified artwork on the booth — never like a sticker pasted on top, and never like something an AI generated.`;
 
+    // This automatic brand-correction pass runs after EVERY generation (both engines) and
+    // always goes through OpenAI's (now 180s-capable) edit endpoint — same 190s allowance as
+    // the main generation calls, for the same reason: gpt-image-2's slower reasoning pass was
+    // routinely outliving the old 100s client timeout here too.
     const response = await fetchWithTimeout('/api/edit-image-openai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -10027,7 +10031,7 @@ The final result should look as though a real exhibition contractor installed th
         size: '1536x1024',
         isUserInitiatedEdit: false
       })
-    });
+    }, 190000);
     const rawText = await response.text();
     let data = {};
     try{ data = JSON.parse(rawText); }catch(e){ /* leave data as {} */ }
@@ -10098,11 +10102,18 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
     const engineEl = document.getElementById('f_imageEngine');
     const useOpenAiEngine = isAdminUser && engineEl && engineEl.value === 'openai';
     const genEndpoint = useOpenAiEngine ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+    // OpenAI's gpt-image-2 does its own internal reasoning/planning pass before rendering,
+    // which makes it noticeably slower than Gemini — the default 100s client timeout was
+    // cutting these off before the (now 180s) server-side function even finished, producing
+    // a generic "Image generation failed." with no real cause. 190s gives the server's own
+    // timeout room to fire first (with an actual error message) instead of the client
+    // aborting prematurely; harmless to also apply to the Gemini path, which finishes well
+    // under this regardless.
     fetchWithTimeout(genEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)
-    })
+    }, 190000)
       .then(res => res.json().catch(() => ({})).then(data => ({ ok: res.ok, data })))
       .then(async ({ ok, data }) => {
         if(!ok || !data.image){
@@ -10613,11 +10624,13 @@ async function confirmRegenerateOtherOption(){
       ? forcedEngine === 'openai'
       : (opt.gallery.filter(g => g.label === 'Other option').length + 1) % 2 === 1;
     const otherOptionEndpoint = otherOptionUsesOpenAi ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+    // Same 190s allowance as the main Generate Design call above — OpenAI's gpt-image-2 needs
+    // more headroom than the old 100s default gave it (see that comment for the full reasoning).
     const response = await fetchWithTimeout(otherOptionEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(otherOptionBody)
-    });
+    }, 190000);
     const data = await response.json().catch(() => ({}));
     if(!response.ok || !data.image){
       throw new Error((data.error && data.error.message) || 'Image generation failed.');
@@ -10918,11 +10931,14 @@ ${buildApprovedDecisionsText()}
   statusEl.textContent = 'Applying your edit... this can take up to a minute.';
 
   try{
+    // Same 190s allowance as every other call to this OpenAI edit endpoint — see the comment
+    // on the Generate Design call for the full reasoning (gpt-image-2's slower reasoning pass
+    // vs. the old 100s client timeout).
     const response = await fetchWithTimeout('/api/edit-image-openai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)
-    });
+    }, 190000);
     const rawText = await response.text();
     let data = {};
     try{ data = JSON.parse(rawText); }catch(parseErr){ /* leave data as {} */ }
@@ -11328,11 +11344,17 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geo
   const body = useOpenAi
     ? { prompt, referenceImage: base64, referenceMimeType: mime, size: '1536x1024', isUserInitiatedEdit: false }
     : { prompt, referenceImage: base64, referenceMimeType: mime, isUserInitiatedEdit: false, aspectRatio: '3:2' };
+  // Camera views default to OpenAI's edit endpoint (useOpenAi above) unless the hero itself
+  // was rendered on Gemini — that endpoint is now allowed 180s server-side (see vercel.json),
+  // but this call was still cutting off at the old 100s client timeout, which is exactly what
+  // was surfacing as views "sometimes not loading and showing retry": the client gave up
+  // before the server had a real chance to finish gpt-image-2's slower reasoning pass. 190s
+  // gives the server's own timeout room to fire first, with a real error, instead.
   const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
-  }, 100000, cameraViewsAbortController ? cameraViewsAbortController.signal : undefined);
+  }, 190000, cameraViewsAbortController ? cameraViewsAbortController.signal : undefined);
   const rawText = await response.text();
   let data = {};
   try{ data = JSON.parse(rawText); }catch(e){ /* leave as {} */ }
@@ -12082,6 +12104,8 @@ async function generateTechnicalBoard(isAutomaticAfterCameraViews){
     }
 
     const editPrompt = buildTechnicalBoardEditPrompt(presentLabels);
+    // Same 190s allowance as every other call to this OpenAI edit endpoint (see the Generate
+    // Design call's comment) — the Technical Board edit hits the exact same slower endpoint.
     const response = await fetchWithTimeout('/api/edit-image-openai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -12092,7 +12116,7 @@ async function generateTechnicalBoard(isAutomaticAfterCameraViews){
         size: '1536x1024',
         isUserInitiatedEdit: false
       })
-    });
+    }, 190000);
     const rawText = await response.text();
     let data = {};
     try{ data = JSON.parse(rawText); }catch(e){ /* leave data as {} */ }
