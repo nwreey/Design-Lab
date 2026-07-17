@@ -457,6 +457,32 @@
   }
   .bp-image-add-btn:hover{border-color:var(--navy);background:var(--navy-soft);opacity:1;}
   .bp-empty-hint{font-size:12.5px;color:var(--ink);opacity:.6;padding:10px 0;line-height:1.5;}
+
+  /* Area Planning — area cards reuse the exact same card/collapse/drag-handle language as the
+     Brand Portfolio cards above (bp-drag-handle/bp-card-title/bp-summary-line/bp-chevron/bp-actions/
+     bp-icon-btn/bp-empty-hint are all generic already), just under an "area-card" class name. */
+  .area-card{
+    background:var(--card);border:1.5px solid var(--navy);border-radius:2px;
+    margin-bottom:14px;padding:0;position:relative;
+  }
+  .area-card.bp-dragging{opacity:.4;}
+  .area-card-header{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;user-select:none;}
+  .area-card-header:hover{background:var(--navy-soft);}
+  .area-card.bp-collapsed .bp-chevron{transform:rotate(-90deg);}
+  .area-card.bp-collapsed .area-card-body{display:none;}
+  .area-card-body{padding:4px 16px 16px;border-top:1.5px solid var(--line);}
+  .ap-size-mode-row{display:flex;gap:16px;margin-bottom:10px;}
+  .ap-size-mode-row label{font-size:13px;display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:400;}
+  .ap-relationship-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .ap-relationship-row select{flex:1;min-width:0;}
+  .ap-relationships-wrap{margin-top:6px;padding-top:14px;border-top:1.5px dashed var(--line);}
+  .ap-relationships-headline{font-weight:700;font-size:13px;color:var(--navy);margin-bottom:10px;text-transform:uppercase;letter-spacing:.02em;}
+  .ap-summary-box{
+    background:var(--navy-soft);border:1.5px solid var(--line);border-radius:2px;padding:12px 14px;
+    font-size:12.5px;color:var(--navy);line-height:1.7;margin-top:12px;
+  }
+  .ap-summary-box b{font-weight:700;}
+  .ap-summary-warning{color:#c0432b;font-weight:600;}
   .viewer3d-camera-row-light{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
   .viewer3d-generated-wrap-light{margin-top:4px;}
   .viewer3d-generated-grid-light{display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;}
@@ -1429,100 +1455,72 @@ Replace only the materials and graphics."></textarea>
         </div>
       </div>
 
-    <div class="section-headline" id="requiredAreasHeadline" style="display:none;">Required Areas</div>
-    <div id="eventRequiredAreasFields" style="display:none;">
-      <div class="field" id="unifiedRequiredAreasBlock">
-        <div class="hint" style="margin-bottom:10px;">Select all that apply — this drives the design directly, especially important if the size below is unknown.</div>
-        <div class="checkbox-grid">
-          <label><input type="checkbox" class="required-area-cb" value="Main Entrance"> Main Entrance</label>
-          <label><input type="checkbox" class="required-area-cb" value="Registration Area"> Registration Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
-          <label><input type="checkbox" class="required-area-cb" value="Main Stage"> Main Stage</label>
-          <label><input type="checkbox" class="required-area-cb" value="VIP Lounge"> VIP Lounge</label>
-          <label><input type="checkbox" class="required-area-cb" value="Networking Area"> Networking Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Exhibition Area"> Exhibition Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Sponsor Area"> Sponsor Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Media Center"> Media Center</label>
-          <label><input type="checkbox" class="required-area-cb" value="Interview Zone"> Interview Zone</label>
-          <label><input type="checkbox" class="required-area-cb" value="Press Conference Room"> Press Conference Room</label>
-          <label><input type="checkbox" class="required-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
-          <label><input type="checkbox" class="required-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
-          <label><input type="checkbox" class="required-area-cb" value="Prayer Area"> Prayer Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Dining Area"> Dining Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Outdoor Area"> Outdoor Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
-          <label><input type="checkbox" class="required-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
-          <label><input type="checkbox" class="required-area-cb" value="Exit Experience"> Exit Experience</label>
-        </div>
-        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_requiredAreaOtherToggle" onchange="toggleOtherAreaContainer('required', this.checked)"> Other</label>
-        <div id="requiredAreaOtherContainer" style="display:none;margin-top:8px;">
-          <div id="requiredAreaOtherList"></div>
-          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('required')">+ Add another</button>
-        </div>
+    <!-- Area Planning — event mode only. Replaces the old flat checkbox "Required Areas" list with
+         a dynamic per-area repeater (name/purpose/size/priority/capacity/equipment/utilities/
+         accessibility/relationships), since a checklist can't express size, priority or how areas
+         relate to each other. -->
+    <div class="section-headline" id="areaPlanningHeadline" style="display:none;">Area Planning</div>
+    <div id="areaPlanningFields" style="display:none;">
+      <div class="field">
+        <label>Project Type</label>
+        <select id="f_apProjectType">
+          <option value="Exhibition Booth">Exhibition Booth</option>
+          <option value="Event" selected>Event</option>
+          <option value="Conference">Conference</option>
+          <option value="Forum">Forum</option>
+          <option value="Pavilion">Pavilion</option>
+          <option value="Experience Center">Experience Center</option>
+          <option value="Roadshow">Roadshow</option>
+          <option value="Retail Activation">Retail Activation</option>
+          <option value="Other">Other</option>
+        </select>
+        <div class="hint">What kind of project this is — helps the AI apply the right planning conventions to the areas below.</div>
       </div>
 
-      <div id="splitRequiredAreasBlock" style="display:none;">
-        <div class="hint" style="margin-bottom:10px;">You selected Hybrid — specify exactly which areas belong indoors and which belong outdoors, so each part of the design is planned correctly.</div>
+      <div class="field">
+        <div class="row2">
+          <div>
+            <label class="sublabel" for="f_apVenueType">Venue Type</label>
+            <select id="f_apVenueType">
+              <option value="Exhibition Center">Exhibition Center</option>
+              <option value="Hotel Ballroom">Hotel Ballroom</option>
+              <option value="Convention Center">Convention Center</option>
+              <option value="Outdoor Venue">Outdoor Venue</option>
+              <option value="Shopping Mall">Shopping Mall</option>
+              <option value="Airport">Airport</option>
+              <option value="University">University</option>
+              <option value="Museum">Museum</option>
+              <option value="Government Building">Government Building</option>
+              <option value="Stadium">Stadium</option>
+              <option value="Temporary Tent">Temporary Tent</option>
+              <option value="Custom Venue">Custom Venue</option>
+            </select>
+          </div>
+          <div>
+            <label class="sublabel" for="f_apVenueName">Venue Name</label>
+            <input type="text" id="f_apVenueName" placeholder="e.g. Dubai World Trade Centre">
+          </div>
+        </div>
+        <div class="row2" style="margin-top:12px;">
+          <div>
+            <label class="sublabel" for="f_apCity">City</label>
+            <input type="text" id="f_apCity" placeholder="e.g. Dubai">
+          </div>
+          <div>
+            <label class="sublabel" for="f_apCountry">Country</label>
+            <input type="text" id="f_apCountry" placeholder="e.g. UAE">
+          </div>
+        </div>
+        <div class="hint">Where the event takes place — helps the AI account for venue conventions, climate, and regulations.</div>
+      </div>
 
-        <div class="subarea-label">Indoor Required Areas</div>
-        <div class="checkbox-grid">
-          <label><input type="checkbox" class="indoor-area-cb" value="Main Entrance"> Main Entrance</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Registration Area"> Registration Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Main Stage"> Main Stage</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="VIP Lounge"> VIP Lounge</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Networking Area"> Networking Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Exhibition Area"> Exhibition Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Sponsor Area"> Sponsor Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Media Center"> Media Center</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Interview Zone"> Interview Zone</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Press Conference Room"> Press Conference Room</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Prayer Area"> Prayer Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Dining Area"> Dining Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Exit Experience"> Exit Experience</label>
-        </div>
-        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_indoorAreaOtherToggle" onchange="toggleOtherAreaContainer('indoor', this.checked)"> Other</label>
-        <div id="indoorAreaOtherContainer" style="display:none;margin-top:8px;">
-          <div id="indoorAreaOtherList"></div>
-          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('indoor')">+ Add another</button>
-        </div>
-
-        <div class="subarea-label" style="margin-top:20px;">Outdoor Required Areas</div>
-        <div class="checkbox-grid">
-          <label><input type="checkbox" class="outdoor-area-cb" value="Main Entrance"> Main Entrance</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Registration Area"> Registration Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Main Stage"> Main Stage</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="VIP Lounge"> VIP Lounge</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Networking Area"> Networking Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Exhibition Area"> Exhibition Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Sponsor Area"> Sponsor Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Media Center"> Media Center</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Interview Zone"> Interview Zone</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Press Conference Room"> Press Conference Room</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Prayer Area"> Prayer Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Dining Area"> Dining Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Exit Experience"> Exit Experience</label>
-        </div>
-        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_outdoorAreaOtherToggle" onchange="toggleOtherAreaContainer('outdoor', this.checked)"> Other</label>
-        <div id="outdoorAreaOtherContainer" style="display:none;margin-top:8px;">
-          <div id="outdoorAreaOtherList"></div>
-          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('outdoor')">+ Add another</button>
-        </div>
+      <div class="field" id="areaPlanningListField">
+        <label>Areas</label>
+        <div class="hint" style="margin-bottom:10px;">Add every distinct area the event needs — this drives the design directly, especially important if the size below is unknown.</div>
+        <div id="areaPlanningList"></div>
+        <div class="bp-empty-hint" id="areaPlanningEmptyHint">No areas added yet.</div>
+        <button type="button" class="ghost small" onclick="addArea()">+ Add Area</button>
+        <div class="ap-summary-box" id="areaPlanningSummary" style="display:none;"></div>
       </div>
     </div>
 
@@ -7103,6 +7101,413 @@ AI BEHAVIOR for Represented Brands & Products (treat every rule below as a hard 
 - Any brand or product "notes" text above is a specific client instruction for that exact brand/product (e.g. lighting, placement, electrical needs) and must be followed the same way any other explicit client requirement in this brief is.`;
 }
 
+/* ================= Area Planning (event mode) — replaces the old flat checkbox "Required Areas"
+   list with a dynamic per-area repeater, using the exact same card/collapse/drag-handle/summary-
+   line CSS language as the Brand Portfolio cards above (bp-drag-handle/bp-card-title/
+   bp-summary-line/bp-chevron/bp-actions/bp-icon-btn/bp-empty-hint), just under an "area-card"
+   class, plus the shared bpDragState/bpDragOver/bpDragEnd drag helpers (fully generic already). */
+
+let areaPlanningList = [];
+let apIdSeq = 0;
+function apNewId(){ return 'area' + (++apIdSeq) + '_' + Date.now().toString(36); }
+
+const AP_PRIORITY_OPTIONS = ['Critical', 'High', 'Medium', 'Low'];
+const AP_PREFERRED_LOCATION_OPTIONS = ['No Preference', 'Center', 'Near Entrance', 'Near Main Stage', 'Front', 'Back', 'Left Side', 'Right Side', 'Corner', 'Upper Floor', 'Outdoor'];
+const AP_EQUIPMENT_OPTIONS = ['Chairs', 'Tables', 'Stage', 'Screens / AV', 'Sound System', 'Lighting Rig', 'Podium', 'Booths / Kiosks', 'Buffet Stations', 'Bar', 'Lounge Seating', 'Display Stands', 'Charging Stations', 'Signage'];
+const AP_POWER_UTILITIES_OPTIONS = ['Power Outlets', 'High-Voltage Power', 'Water Supply', 'Drainage', 'Internet / WiFi', 'HVAC / Climate Control', 'Compressed Air', 'Gas Line'];
+const AP_ACCESSIBILITY_OPTIONS = ['Wheelchair Accessible', 'Ramp Access', 'Accessible Restrooms Nearby', 'Braille Signage', 'Hearing Loop', 'Wide Pathways'];
+const AP_RELATIONSHIP_TYPES = ['Near', 'Adjacent', 'Separated', 'Hidden Behind', 'Connected To'];
+
+function apCreateArea(){
+  return {
+    id: apNewId(), name: '', purpose: '', sizeMode: 'percentage', percentage: '',
+    width: '', depth: '', height: '', priority: 'Medium', capacity: '',
+    equipment: [], powerUtilities: [], accessibility: [], specialRequirements: '',
+    preferredLocation: 'No Preference', relationships: [], collapsed: false
+  };
+}
+function apFindArea(areaId){ return areaPlanningList.find(a => a.id === areaId); }
+
+function apOptionsHtml(options, selected){
+  return options.map(o => `<option value="${escapeHtml(o)}"${o === selected ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('');
+}
+function apCheckboxGroupHtml(groupName, areaId, options, selectedArr){
+  return options.map(o => `<label><input type="checkbox" value="${escapeHtml(o)}"${selectedArr.includes(o) ? ' checked' : ''} onchange="apToggleMultiValue('${areaId}','${groupName}',this.value,this.checked)"> ${escapeHtml(o)}</label>`).join('');
+}
+
+function apAreaSummaryText(area){
+  const sizeText = area.sizeMode === 'percentage'
+    ? (area.percentage !== '' ? area.percentage + '% of total' : 'size not set')
+    : ((area.width && area.depth) ? `${area.width}×${area.depth}${area.height ? '×' + area.height : ''} m` : 'size not set');
+  return `${area.purpose.trim() || 'purpose not set'} · ${sizeText} · Priority: ${area.priority}`;
+}
+
+function renderAreaPlanningList(){
+  const list = document.getElementById('areaPlanningList');
+  const emptyHint = document.getElementById('areaPlanningEmptyHint');
+  if(!list) return;
+  list.innerHTML = areaPlanningList.map(renderAreaCardHtml).join('');
+  if(emptyHint) emptyHint.style.display = areaPlanningList.length === 0 ? 'block' : 'none';
+  apUpdateSummary();
+}
+
+// Replaces one card's markup in place (used when a structural change only affects that single
+// card, e.g. toggling size mode) — avoids the flicker/scroll-jump of re-rendering the whole list.
+function apRerenderCard(areaId){
+  const area = apFindArea(areaId);
+  const card = document.querySelector(`.area-card[data-area-id="${areaId}"]`);
+  if(!area || !card) return;
+  card.outerHTML = renderAreaCardHtml(area);
+}
+
+function renderAreaCardHtml(area){
+  const name = area.name.trim();
+  const titleText = escapeHtml(name || 'Untitled Area');
+  const isPercentage = area.sizeMode === 'percentage';
+  return `
+    <div class="area-card${area.collapsed ? ' bp-collapsed' : ''}" data-area-id="${area.id}" draggable="true"
+         ondragstart="apAreaDragStart(event,'${area.id}')" ondragover="bpDragOver(event)"
+         ondrop="apAreaDrop(event,'${area.id}')" ondragend="bpDragEnd(event)">
+      <div class="area-card-header" onclick="apToggleAreaCollapse('${area.id}')">
+        <span class="bp-drag-handle" title="Drag to reorder" onclick="event.stopPropagation()">⠿</span>
+        <div style="flex:1;min-width:0;">
+          <div class="bp-card-title${name ? '' : ' bp-untitled'}">${titleText}</div>
+          <div class="bp-summary-line">${escapeHtml(apAreaSummaryText(area))}</div>
+        </div>
+        <div class="bp-actions" onclick="event.stopPropagation()">
+          <button type="button" class="bp-icon-btn" title="Duplicate area" onclick="duplicateArea('${area.id}')">⧉</button>
+          <button type="button" class="bp-icon-btn bp-danger" title="Delete area" onclick="deleteArea('${area.id}')">🗑</button>
+        </div>
+        <span class="bp-chevron">▾</span>
+      </div>
+      <div class="area-card-body">
+        <div class="row2">
+          <div class="field">
+            <label>Area Name</label>
+            <input type="text" value="${escapeHtml(area.name)}" placeholder="e.g. Main Stage" oninput="updateAreaField('${area.id}','name',this.value)">
+          </div>
+          <div class="field">
+            <label>Priority</label>
+            <select onchange="updateAreaField('${area.id}','priority',this.value)">${apOptionsHtml(AP_PRIORITY_OPTIONS, area.priority)}</select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Area Purpose</label>
+          <input type="text" value="${escapeHtml(area.purpose)}" placeholder="e.g. Where keynote speeches and main presentations happen" oninput="updateAreaField('${area.id}','purpose',this.value)">
+        </div>
+
+        <div class="field">
+          <label>Area Size</label>
+          <div class="ap-size-mode-row">
+            <label><input type="radio" name="apSizeMode_${area.id}"${isPercentage ? ' checked' : ''} onchange="updateAreaField('${area.id}','sizeMode','percentage')"> Percentage of total</label>
+            <label><input type="radio" name="apSizeMode_${area.id}"${!isPercentage ? ' checked' : ''} onchange="updateAreaField('${area.id}','sizeMode','custom')"> Custom dimensions</label>
+          </div>
+          ${isPercentage ? `
+          <input type="number" min="0" max="100" step="1" value="${escapeHtml(String(area.percentage))}" placeholder="e.g. 15 (%)" oninput="updateAreaField('${area.id}','percentage',this.value)">
+          ` : `
+          <div class="row2">
+            <input type="number" min="0" step="0.1" value="${escapeHtml(String(area.width))}" placeholder="Width (m)" oninput="updateAreaField('${area.id}','width',this.value)">
+            <input type="number" min="0" step="0.1" value="${escapeHtml(String(area.depth))}" placeholder="Depth (m)" oninput="updateAreaField('${area.id}','depth',this.value)">
+          </div>
+          <input type="number" min="0" step="0.1" value="${escapeHtml(String(area.height))}" placeholder="Height (m, optional)" style="margin-top:8px;" oninput="updateAreaField('${area.id}','height',this.value)">
+          `}
+        </div>
+
+        <div class="field">
+          <label>Capacity (people)</label>
+          <input type="number" min="0" value="${escapeHtml(String(area.capacity))}" placeholder="e.g. 200" oninput="updateAreaField('${area.id}','capacity',this.value)">
+        </div>
+
+        <div class="field">
+          <label>Furniture &amp; Equipment</label>
+          <div class="checkbox-grid">${apCheckboxGroupHtml('equipment', area.id, AP_EQUIPMENT_OPTIONS, area.equipment)}</div>
+        </div>
+
+        <div class="field">
+          <label>Power &amp; Utilities</label>
+          <div class="checkbox-grid">${apCheckboxGroupHtml('powerUtilities', area.id, AP_POWER_UTILITIES_OPTIONS, area.powerUtilities)}</div>
+        </div>
+
+        <div class="field">
+          <label>Accessibility</label>
+          <div class="checkbox-grid">${apCheckboxGroupHtml('accessibility', area.id, AP_ACCESSIBILITY_OPTIONS, area.accessibility)}</div>
+        </div>
+
+        <div class="field">
+          <label>Special Requirements</label>
+          <textarea placeholder="Any other specific needs for this area..." oninput="updateAreaField('${area.id}','specialRequirements',this.value)">${escapeHtml(area.specialRequirements)}</textarea>
+        </div>
+
+        <div class="field">
+          <label>Preferred Location</label>
+          <select onchange="updateAreaField('${area.id}','preferredLocation',this.value)">${apOptionsHtml(AP_PREFERRED_LOCATION_OPTIONS, area.preferredLocation)}</select>
+        </div>
+
+        <div class="ap-relationships-wrap">
+          <div class="ap-relationships-headline">Area Relationships</div>
+          <div id="apRelationshipList_${area.id}">${area.relationships.map(r => renderAreaRelationshipRowHtml(area.id, r)).join('')}</div>
+          <div class="bp-empty-hint" id="apRelationshipsEmptyHint_${area.id}" style="${area.relationships.length === 0 ? '' : 'display:none;'}">No relationships defined yet.</div>
+          <button type="button" class="ghost small" onclick="addAreaRelationship('${area.id}')">+ Add Relationship</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAreaRelationshipRowHtml(areaId, rel){
+  const otherAreas = areaPlanningList.filter(a => a.id !== areaId);
+  const targetOptions = otherAreas.map(a => `<option value="${a.id}"${a.id === rel.targetId ? ' selected' : ''}>${escapeHtml(a.name.trim() || 'Untitled Area')}</option>`).join('');
+  return `
+    <div class="ap-relationship-row" data-rel-id="${rel.id}">
+      <select onchange="updateAreaRelationship('${areaId}','${rel.id}','type',this.value)">${apOptionsHtml(AP_RELATIONSHIP_TYPES, rel.type)}</select>
+      <select class="ap-relationship-target-select" onchange="updateAreaRelationship('${areaId}','${rel.id}','targetId',this.value)">
+        <option value="">Select area...</option>
+        ${targetOptions}
+      </select>
+      <button type="button" class="bp-icon-btn bp-danger" title="Remove relationship" onclick="deleteAreaRelationship('${areaId}','${rel.id}')">🗑</button>
+    </div>
+  `;
+}
+
+/* ---- Area-level actions ---- */
+
+function addArea(){
+  const area = apCreateArea();
+  areaPlanningList.push(area);
+  renderAreaPlanningList();
+  const card = document.querySelector(`.area-card[data-area-id="${area.id}"]`);
+  if(card){
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const nameInput = card.querySelector('input[type="text"]');
+    if(nameInput) nameInput.focus();
+  }
+}
+
+function duplicateArea(areaId){
+  const area = apFindArea(areaId);
+  if(!area) return;
+  const idx = areaPlanningList.indexOf(area);
+  const clone = JSON.parse(JSON.stringify(area));
+  clone.id = apNewId();
+  clone.name = area.name ? area.name + ' (Copy)' : '';
+  clone.relationships.forEach(r => { r.id = apNewId(); });
+  areaPlanningList.splice(idx + 1, 0, clone);
+  renderAreaPlanningList();
+}
+
+function deleteArea(areaId){
+  areaPlanningList = areaPlanningList.filter(a => a.id !== areaId);
+  // Also strip any relationships in other areas that pointed at the now-deleted area, so no
+  // relationship row is ever left silently referencing an area that no longer exists.
+  areaPlanningList.forEach(a => { a.relationships = a.relationships.filter(r => r.targetId !== areaId); });
+  renderAreaPlanningList();
+}
+
+function updateAreaField(areaId, field, value){
+  const area = apFindArea(areaId);
+  if(!area) return;
+  area[field] = value;
+  if(field === 'sizeMode'){
+    apRerenderCard(areaId); // swaps the percentage input for width/depth/height (or back)
+    apUpdateSummary();
+    return;
+  }
+  if(field === 'name'){
+    apUpdateAreaSummary(areaId);
+    // Surgically refresh this area's name everywhere it's shown as a relationship target in
+    // OTHER areas' cards, without a full re-render (which would drop focus while typing).
+    document.querySelectorAll(`.ap-relationship-target-select option[value="${areaId}"]`).forEach(opt => {
+      opt.textContent = area.name.trim() || 'Untitled Area';
+    });
+    return;
+  }
+  apUpdateAreaSummary(areaId);
+  if(field === 'percentage') apUpdateSummary();
+}
+
+function apUpdateAreaSummary(areaId){
+  const area = apFindArea(areaId);
+  const card = document.querySelector(`.area-card[data-area-id="${areaId}"]`);
+  if(!area || !card) return;
+  const titleEl = card.querySelector(':scope > .area-card-header .bp-card-title');
+  const summaryEl = card.querySelector(':scope > .area-card-header .bp-summary-line');
+  const name = area.name.trim();
+  if(titleEl){
+    titleEl.textContent = name || 'Untitled Area';
+    titleEl.classList.toggle('bp-untitled', !name);
+  }
+  if(summaryEl) summaryEl.textContent = apAreaSummaryText(area);
+}
+
+function apToggleAreaCollapse(areaId){
+  const area = apFindArea(areaId);
+  if(!area) return;
+  area.collapsed = !area.collapsed;
+  const card = document.querySelector(`.area-card[data-area-id="${areaId}"]`);
+  if(card) card.classList.toggle('bp-collapsed', area.collapsed);
+}
+
+function apToggleMultiValue(areaId, groupName, value, checked){
+  const area = apFindArea(areaId);
+  if(!area) return;
+  const arr = area[groupName];
+  const idx = arr.indexOf(value);
+  if(checked && idx === -1) arr.push(value);
+  else if(!checked && idx !== -1) arr.splice(idx, 1);
+}
+
+/* ---- Area Relationships ---- */
+
+function addAreaRelationship(areaId){
+  const area = apFindArea(areaId);
+  if(!area) return;
+  area.relationships.push({ id: apNewId(), type: 'Near', targetId: '' });
+  apRenderAreaRelationships(areaId);
+}
+
+function deleteAreaRelationship(areaId, relId){
+  const area = apFindArea(areaId);
+  if(!area) return;
+  area.relationships = area.relationships.filter(r => r.id !== relId);
+  apRenderAreaRelationships(areaId);
+}
+
+function updateAreaRelationship(areaId, relId, field, value){
+  const area = apFindArea(areaId);
+  if(!area) return;
+  const rel = area.relationships.find(r => r.id === relId);
+  if(!rel) return;
+  rel[field] = value;
+}
+
+function apRenderAreaRelationships(areaId){
+  const area = apFindArea(areaId);
+  const container = document.getElementById('apRelationshipList_' + areaId);
+  if(!area || !container) return;
+  container.innerHTML = area.relationships.map(r => renderAreaRelationshipRowHtml(areaId, r)).join('');
+  const emptyHint = document.getElementById('apRelationshipsEmptyHint_' + areaId);
+  if(emptyHint) emptyHint.style.display = area.relationships.length === 0 ? 'block' : 'none';
+}
+
+/* ---- Drag-and-drop reordering (top-level areas only; reuses the shared bpDragState/bpDragOver/
+   bpDragEnd helpers already defined above for Brand Portfolio, which are fully generic) ---- */
+
+function apAreaDragStart(e, areaId){
+  bpDragState = { type: 'area', id: areaId };
+  e.currentTarget.classList.add('bp-dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', areaId);
+}
+
+function apAreaDrop(e, targetAreaId){
+  e.preventDefault();
+  e.stopPropagation();
+  if(!bpDragState || bpDragState.type !== 'area') return;
+  const fromId = bpDragState.id;
+  if(fromId === targetAreaId) return;
+  const fromIdx = areaPlanningList.findIndex(a => a.id === fromId);
+  const toIdx = areaPlanningList.findIndex(a => a.id === targetAreaId);
+  if(fromIdx === -1 || toIdx === -1) return;
+  const [moved] = areaPlanningList.splice(fromIdx, 1);
+  areaPlanningList.splice(toIdx, 0, moved);
+  renderAreaPlanningList();
+}
+
+/* ---- Live summary ---- */
+
+function apUpdateSummary(){
+  const box = document.getElementById('areaPlanningSummary');
+  if(!box) return;
+  if(areaPlanningList.length === 0){
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+  const totalAreas = areaPlanningList.length;
+  const pctAreas = areaPlanningList.filter(a => a.sizeMode === 'percentage' && a.percentage !== '');
+  const totalPct = pctAreas.reduce((sum, a) => sum + (parseFloat(a.percentage) || 0), 0);
+  const priorityCounts = {};
+  areaPlanningList.forEach(a => { priorityCounts[a.priority] = (priorityCounts[a.priority] || 0) + 1; });
+  const priorityText = Object.keys(priorityCounts).map(p => `${p}: ${priorityCounts[p]}`).join(' · ');
+  let html = `<b>${totalAreas}</b> area${totalAreas === 1 ? '' : 's'} planned &nbsp;·&nbsp; ${escapeHtml(priorityText)}`;
+  if(pctAreas.length > 0){
+    html += `<br><b>${totalPct.toFixed(0)}%</b> of total space allocated by percentage`;
+    if(totalPct > 100) html += ` <span class="ap-summary-warning">— exceeds 100%, please adjust</span>`;
+  }
+  box.innerHTML = html;
+}
+
+// Builds the AI-facing JSON structure for Area Planning — mirrors buildBrandPortfolioData()'s
+// role for generateDesign()'s userBrief. Relationships reference the OTHER area by its NAME
+// (not its internal id), since names are what both a human-readable brief and the AI need —
+// any relationship still pointing at an id with no matching area (shouldn't happen, deleteArea
+// already strips these) is silently dropped rather than emitted as broken.
+function buildAreaPlanningData(){
+  return {
+    projectType: document.getElementById('f_apProjectType').value || null,
+    venue: {
+      type: document.getElementById('f_apVenueType').value || null,
+      name: document.getElementById('f_apVenueName').value.trim() || null,
+      city: document.getElementById('f_apCity').value.trim() || null,
+      country: document.getElementById('f_apCountry').value.trim() || null,
+    },
+    areas: areaPlanningList.map(a => ({
+      name: a.name.trim() || '(unnamed area)',
+      purpose: a.purpose.trim() || null,
+      size: a.sizeMode === 'percentage'
+        ? { mode: 'percentage', percentage: a.percentage !== '' ? parseFloat(a.percentage) : null }
+        : { mode: 'custom', width: a.width !== '' ? parseFloat(a.width) : null, depth: a.depth !== '' ? parseFloat(a.depth) : null, height: a.height !== '' ? parseFloat(a.height) : null },
+      priority: a.priority,
+      capacity: a.capacity !== '' ? parseInt(a.capacity, 10) : null,
+      equipment: a.equipment,
+      powerUtilities: a.powerUtilities,
+      accessibility: a.accessibility,
+      specialRequirements: a.specialRequirements.trim() || null,
+      preferredLocation: a.preferredLocation,
+      relationships: a.relationships
+        .filter(r => r.targetId)
+        .map(r => {
+          const target = apFindArea(r.targetId);
+          return { type: r.type, targetArea: target ? (target.name.trim() || '(unnamed area)') : null };
+        })
+        .filter(r => r.targetArea)
+    }))
+  };
+}
+
+// The text block folded into generateDesign()'s userBrief (see its own use of this function) —
+// empty string when there are no areas AND no venue details at all, so a project that never
+// touches this section produces byte-for-byte the same brief it always did (mirrors
+// buildBrandPortfolioBriefText's own empty-guard above).
+function buildAreaPlanningBriefText(){
+  const data = buildAreaPlanningData();
+  const hasVenueInfo = !!(data.venue.type || data.venue.name || data.venue.city || data.venue.country);
+  if(data.areas.length === 0 && !hasVenueInfo) return '';
+  const venueLine = hasVenueInfo
+    ? `Venue: ${data.venue.type || 'not specified'}${data.venue.name ? ', "' + data.venue.name + '"' : ''}${data.venue.city ? ', ' + data.venue.city : ''}${data.venue.country ? ', ' + data.venue.country : ''}`
+    : '';
+  if(data.areas.length === 0){
+    return `AREA PLANNING${data.projectType ? ' — Project Type: ' + data.projectType : ''}
+${venueLine}
+No specific areas have been added yet — use this venue/project context alongside the rest of this brief to plan the space.`;
+  }
+  return `AREA PLANNING${data.projectType ? ' — Project Type: ' + data.projectType : ''}
+${venueLine}
+Areas (must all be included in the design, planned exactly as specified below):
+${JSON.stringify(data.areas, null, 2)}
+
+AI DESIGN RULES for Area Planning (treat every rule below as a hard constraint, not a suggestion):
+- Every area listed above must be represented as its own distinct, clearly bounded zone in the design — never merge two listed areas into one generic space, and never omit an area even if space feels tight (reduce shared/flexible space first).
+- "size.mode":"percentage" means that area's footprint should occupy roughly that percentage of the total available project area, relative to the other areas' percentages — treat it as a proportional allocation, not an exact square-meter figure. "size.mode":"custom" gives exact width/depth/height in meters and must be respected as a hard dimensional constraint for that area.
+- "priority" drives both space allocation and prominence: "Critical" areas must be fully accommodated first and given prominent, easily accessible positions; "High" next; "Medium" standard; "Low" areas are the first to shrink or simplify if the venue is tight on space, but must never be dropped entirely.
+- "capacity" is the number of people that area must comfortably hold at once — furniture, circulation space, and clearances for that area must genuinely support that headcount, not just the raw footprint.
+- "equipment", "powerUtilities", and "accessibility" are hard functional requirements for that specific area — every item listed must be physically present or accounted for within that area's plan.
+- "preferredLocation" is the client's placement preference for that area within the overall venue/plan — follow it unless it directly conflicts with a "relationships" rule below, in which case the relationship rule wins since it is more specific.
+- "relationships" define required spatial relationships between areas and must all be honored: "Near"/"Adjacent" means placed close together with easy circulation between them; "Separated" means kept clearly apart (e.g. for noise, privacy, or flow reasons); "Hidden Behind" means one area should be visually screened from the other's direct sightline; "Connected To" means a direct, unobstructed path or physical connection must exist between them.
+- Any "specialRequirements" text for an area is a specific client instruction for that exact area and must be followed the same way any other explicit client requirement in this brief is.`;
+}
+
 /* ================= Additional Requirements: exact client-specified quantities ================= */
 /* When the client checks and fills these in, they are explicit facts that override the
    computed space allocation (Phase 1 deterministic allocator) and EPS-011's general ranges
@@ -8530,16 +8935,6 @@ const toggleGenericSizeUnknown = makeSizeUnknownToggler('f_eventWidth', 'f_event
 const toggleIndoorSizeUnknown = makeSizeUnknownToggler('f_indoorWidth', 'f_indoorDepth');
 const toggleOutdoorSizeUnknown = makeSizeUnknownToggler('f_outdoorWidth', 'f_outdoorDepth');
 
-function restoreOtherAreaBoxes(prefix, values){
-  const list = document.getElementById(prefix + 'AreaOtherList');
-  list.innerHTML = '';
-  (values || []).forEach(value => {
-    addOtherAreaBox(prefix);
-    const rows = list.children;
-    rows[rows.length - 1].querySelector('input').value = value;
-  });
-}
-
 function toggleOtherAreaContainer(prefix, show){
   const container = document.getElementById(prefix + 'AreaOtherContainer');
   container.style.display = show ? 'block' : 'none';
@@ -8578,7 +8973,6 @@ function updateEnvironmentSizeFields(select){
   const showIndoor = value === 'Indoor' || value === 'Hybrid (Indoor + Outdoor)';
   const showOutdoor = value === 'Outdoor' || value === 'Hybrid (Indoor + Outdoor)';
   const showEitherSpecific = showIndoor || showOutdoor;
-  const isHybrid = value === 'Hybrid (Indoor + Outdoor)';
   const environmentChosen = value !== '';
 
   // No dimension question at all until an Environment is actually chosen — asking for
@@ -8590,12 +8984,6 @@ function updateEnvironmentSizeFields(select){
   document.getElementById('outdoorSizeBlock').style.display = showOutdoor ? 'block' : 'none';
   document.getElementById('indoorOutdoorSizeHint').style.display = showEitherSpecific ? 'block' : 'none';
   document.getElementById('indoorOutdoorSizeMandatoryHint').style.display = showEitherSpecific ? 'block' : 'none';
-
-  // Hybrid gets separate Indoor/Outdoor Required Areas checklists, so the client can specify
-  // exactly which areas belong in each part of the design — a single shared list can't
-  // express that distinction. Indoor-only or Outdoor-only or unspecified all use one list.
-  document.getElementById('unifiedRequiredAreasBlock').style.display = isHybrid ? 'none' : 'block';
-  document.getElementById('splitRequiredAreasBlock').style.display = isHybrid ? 'block' : 'none';
 }
 
 function toggleEventTypeCustom(select){
@@ -8973,8 +9361,8 @@ function setMode(m){
     document.getElementById('eventThemeHeadline').style.display = m==='event' ? 'block' : 'none';
     const eventConceptEl = document.getElementById('eventConceptFields');
     if(eventConceptEl) eventConceptEl.style.display = m==='event' ? 'block' : 'none';
-    document.getElementById('requiredAreasHeadline').style.display = m==='event' ? 'block' : 'none';
-    document.getElementById('eventRequiredAreasFields').style.display = m==='event' ? 'block' : 'none';
+    document.getElementById('areaPlanningHeadline').style.display = m==='event' ? 'block' : 'none';
+    document.getElementById('areaPlanningFields').style.display = m==='event' ? 'block' : 'none';
     document.getElementById('modularWallLayoutField').style.display = m==='event' ? 'none' : 'block';
     document.getElementById('boothSizeFields').style.display = m==='booth' ? 'block' : 'none';
     if(m === 'booth'){
@@ -9673,7 +10061,7 @@ const AUTOFILL_EXCLUDED_IDS = new Set([
   'f_country', 'f_city', 'f_venue', 'f_attendees',
   'f_modularWallLayout', 'f_referenceImage', 'f_posterFiles', 'f_logo',
   'f_needsAiHelp', 'f_autofillGoal', 'f_autofillWebsite', 'f_autofillWantsRigging',
-  'f_requiredAreaOtherToggle', 'f_indoorAreaOtherToggle', 'f_outdoorAreaOtherToggle',
+  'f_apVenueName', 'f_apCity', 'f_apCountry',
   // "Do you already have poster designs?" is a client decision, never something the AI should
   // guess or overwrite — it's left exactly as the client set it (default "No"). f_posterCount
   // (how many posters) stays autofillable since that's a space-driven design choice.
@@ -10068,7 +10456,6 @@ function buildEventAutofillPrompt(goal, website, websiteText, websiteWarning){
   // fixed context the AI must never contradict, never something it's asked to change. Mirrors
   // boothFacts' role in buildBoothAutofillPrompt above.
   const environment = document.getElementById('f_environment').value;
-  const isHybrid = environment === 'Hybrid (Indoor + Outdoor)';
   const eventFacts = {
     eventName: document.getElementById('f_name').value || null,
     eventType: document.getElementById('f_eventType').value || null,
@@ -10077,9 +10464,10 @@ function buildEventAutofillPrompt(goal, website, websiteText, websiteWarning){
     eventObjective: document.getElementById('f_eventObjective').value || null,
     eventObjectiveCustom: document.getElementById('f_eventObjectiveCustom').value || null,
     targetAudience: Array.from(document.querySelectorAll('.target-audience-cb:checked')).map(cb => cb.value),
-    requiredAreas: isHybrid ? null : collectAreas('.required-area-cb:checked', 'f_requiredAreaOtherToggle', 'required'),
-    indoorRequiredAreas: isHybrid ? collectAreas('.indoor-area-cb:checked', 'f_indoorAreaOtherToggle', 'indoor') : null,
-    outdoorRequiredAreas: isHybrid ? collectAreas('.outdoor-area-cb:checked', 'f_outdoorAreaOtherToggle', 'outdoor') : null,
+    // Area Planning is a free-form repeater the client fills in separately (like Brand Portfolio
+    // in booth mode) — not something Autofill writes to, just passed along read-only so the AI
+    // never contradicts an area the client already planned.
+    areasAlreadyPlanned: areaPlanningList.length ? areaPlanningList.map(a => ({ name: a.name.trim() || null, purpose: a.purpose.trim() || null, priority: a.priority })) : null,
     attendees: document.getElementById('f_attendees').value || null,
     size: {
       width: document.getElementById('f_eventWidth').value || null,
@@ -10380,13 +10768,6 @@ function formatSpaceAllocationForPrompt(alloc){
 These exact quantities override EPS-011's general ranges for this specific project — EPS-011 explains the reasoning and tiers, this block gives the resolved numbers to actually build. Only deviate from these specific numbers if the client's brief explicitly requests a different quantity.`;
 }
 
-function collectAreas(selector, otherToggleId, otherPrefix){
-  const areas = Array.from(document.querySelectorAll(selector)).map(cb => cb.value);
-  const otherToggle = document.getElementById(otherToggleId);
-  if(otherToggle.checked) areas.push(...collectOtherAreaValues(otherPrefix));
-  return areas;
-}
-
 // Single source of truth for "what does this mode still need before it can generate" —
 // used both to show the specific error message on click, and to enable/disable the
 // Generate button in real time. Keeping this as one function (rather than two copies)
@@ -10417,10 +10798,6 @@ function getMissingRequirements(m){
   const raisedFloorHeightCustom = String(document.getElementById('f_raisedFloorHeightCustom').value).trim();
 
   const environmentForSize = document.getElementById('f_environment').value;
-  const isHybridForAreas = environmentForSize === 'Hybrid (Indoor + Outdoor)';
-  const requiredAreas = isHybridForAreas ? [] : collectAreas('.required-area-cb:checked', 'f_requiredAreaOtherToggle', 'required');
-  const indoorRequiredAreas = isHybridForAreas ? collectAreas('.indoor-area-cb:checked', 'f_indoorAreaOtherToggle', 'indoor') : [];
-  const outdoorRequiredAreas = isHybridForAreas ? collectAreas('.outdoor-area-cb:checked', 'f_outdoorAreaOtherToggle', 'outdoor') : [];
 
   const eventWidth = String(document.getElementById('f_eventWidth').value).trim();
   const eventDepth = String(document.getElementById('f_eventDepth').value).trim();
@@ -10454,10 +10831,9 @@ function getMissingRequirements(m){
     if(needsIndoorSize || needsOutdoorSize){
       if(needsIndoorSize && !indoorSizeUnknown && (!indoorWidth || !indoorDepth)) missing.push('the indoor size (or check "I don\'t know the indoor size")');
       if(needsOutdoorSize && !outdoorSizeUnknown && (!outdoorWidth || !outdoorDepth)) missing.push('the outdoor size (or check "I don\'t know the outdoor size")');
-      if(needsIndoorSize && indoorSizeUnknown && indoorRequiredAreas.length === 0) missing.push('at least one Indoor Required Area (since the indoor size is unknown)');
-      if(needsOutdoorSize && outdoorSizeUnknown && outdoorRequiredAreas.length === 0) missing.push('at least one Outdoor Required Area (since the outdoor size is unknown)');
+      if((needsIndoorSize && indoorSizeUnknown || needsOutdoorSize && outdoorSizeUnknown) && areaPlanningList.length === 0) missing.push('at least one Area in Area Planning (since the exact size is unknown)');
     } else if(eventSizeUnknown){
-      if(requiredAreas.length === 0) missing.push('at least one Required Area (since the exact size is unknown)');
+      if(areaPlanningList.length === 0) missing.push('at least one Area in Area Planning (since the exact size is unknown)');
     } else if(environmentForSize === ''){
       // No Environment chosen — nothing to require here, the brief tells the AI to infer it.
     } else if(!eventWidth || !eventDepth){
@@ -10742,12 +11118,6 @@ async function generateDesign(){
   currentProjectName = name || 'Untitled Project';
   const width = document.getElementById('f_width').value.trim();
   const depth = document.getElementById('f_depth').value.trim();
-  const environmentValueForAreas = document.getElementById('f_environment').value;
-  const isHybridForAreas = environmentValueForAreas === 'Hybrid (Indoor + Outdoor)';
-
-  const requiredAreas = isHybridForAreas ? [] : collectAreas('.required-area-cb:checked', 'f_requiredAreaOtherToggle', 'required');
-  const indoorRequiredAreas = isHybridForAreas ? collectAreas('.indoor-area-cb:checked', 'f_indoorAreaOtherToggle', 'indoor') : [];
-  const outdoorRequiredAreas = isHybridForAreas ? collectAreas('.outdoor-area-cb:checked', 'f_outdoorAreaOtherToggle', 'outdoor') : [];
 
   // Event mode's size question is environment-aware: a generic W/D question when no
   // Environment is chosen, or dedicated Indoor and/or Outdoor questions once one is —
@@ -10830,18 +11200,15 @@ async function generateDesign(){
         errBox.scrollIntoView({behavior:'smooth', block:'center'});
         return;
       }
-      const missingAreaMessages = [];
-      if(needsIndoorSize && indoorSizeUnknown && indoorRequiredAreas.length === 0) missingAreaMessages.push('at least one Indoor Required Area (since the indoor size is unknown)');
-      if(needsOutdoorSize && outdoorSizeUnknown && outdoorRequiredAreas.length === 0) missingAreaMessages.push('at least one Outdoor Required Area (since the outdoor size is unknown)');
-      if(missingAreaMessages.length > 0){
-        errBox.textContent = 'Please select ' + missingAreaMessages.join(' and ') + ' — this is what that part of the design will be planned around instead of fixed dimensions.';
+      if((needsIndoorSize && indoorSizeUnknown || needsOutdoorSize && outdoorSizeUnknown) && areaPlanningList.length === 0){
+        errBox.textContent = 'Since the exact size is unknown, please add at least one Area in Area Planning — this is what the design will be planned around instead of fixed dimensions.';
         errBox.style.display = 'block';
         errBox.scrollIntoView({behavior:'smooth', block:'center'});
         return;
       }
     } else if(eventSizeUnknown){
-      if(requiredAreas.length === 0){
-        errBox.textContent = 'Since the exact size is unknown, please select at least one Required Area — this is what the design will be planned around instead of fixed dimensions.';
+      if(areaPlanningList.length === 0){
+        errBox.textContent = 'Since the exact size is unknown, please add at least one Area in Area Planning — this is what the design will be planned around instead of fixed dimensions.';
         errBox.style.display = 'block';
         errBox.scrollIntoView({behavior:'smooth', block:'center'});
         return;
@@ -11000,9 +11367,7 @@ async function generateDesign(){
 ${modularWallLayout ? 'PRIORITY REQUIREMENT FOR THIS PROJECT: this booth must use a strict modular wall system — identical repeated panel/divider spacing and mandatory symmetry across every wall. Full detail on this requirement is given later in this brief; treat it as equal in importance to the dimensions and brand colors below, not as an afterthought.\n' : ''}Request type: ${kindLabel} design
 Name/context: ${name || 'not specified'}
 ${mode === 'event' ? buildEventSizeText() : `Dimensions: ${width} m (width) × ${depth} m (depth) — approximate area ${(parseFloat(width) * parseFloat(depth)).toFixed(1)} square meters`}
-${mode==='event' && requiredAreas.length > 0 ? 'Required Areas (must all be included in the design): ' + requiredAreas.join(', ') : ''}
-${mode==='event' && indoorRequiredAreas.length > 0 ? 'Indoor Required Areas (must all be included in the indoor part of the design): ' + indoorRequiredAreas.join(', ') : ''}
-${mode==='event' && outdoorRequiredAreas.length > 0 ? 'Outdoor Required Areas (must all be included in the outdoor part of the design): ' + outdoorRequiredAreas.join(', ') : ''}
+${mode==='event' ? buildAreaPlanningBriefText() : ''}
 ${mode==='booth' ? 'Booth configuration: ' + openSides : ''}
 ${mode==='booth' ? 'BOOTH ORIENTATION MODEL — per EPS-016, this exact OPEN vs. STRUCTURAL WALL state per side is a hard physical constraint, immutable throughout the entire pipeline. Every STRUCTURAL WALL side below already states its own exact wall length — build precisely that. Never mirror, rotate, or flip it — front always means front, left always means left, regardless of what would read more conventionally:\n' + boothOrientationModel : ''}
 ${structuralShellText}
@@ -14767,15 +15132,12 @@ function collectFormSnapshot(){
     f_outdoorWidth: document.getElementById('f_outdoorWidth').value,
     f_outdoorDepth: document.getElementById('f_outdoorDepth').value,
     f_outdoorSizeUnknown: document.getElementById('f_outdoorSizeUnknown').checked,
-    f_requiredAreas: Array.from(document.querySelectorAll('.required-area-cb:checked')).map(cb => cb.value),
-    f_requiredAreaOtherToggle: document.getElementById('f_requiredAreaOtherToggle').checked,
-    f_requiredAreaOtherValues: collectOtherAreaValues('required'),
-    f_indoorRequiredAreas: Array.from(document.querySelectorAll('.indoor-area-cb:checked')).map(cb => cb.value),
-    f_indoorAreaOtherToggle: document.getElementById('f_indoorAreaOtherToggle').checked,
-    f_indoorAreaOtherValues: collectOtherAreaValues('indoor'),
-    f_outdoorRequiredAreas: Array.from(document.querySelectorAll('.outdoor-area-cb:checked')).map(cb => cb.value),
-    f_outdoorAreaOtherToggle: document.getElementById('f_outdoorAreaOtherToggle').checked,
-    f_outdoorAreaOtherValues: collectOtherAreaValues('outdoor'),
+    f_apProjectType: document.getElementById('f_apProjectType').value,
+    f_apVenueType: document.getElementById('f_apVenueType').value,
+    f_apVenueName: document.getElementById('f_apVenueName').value,
+    f_apCity: document.getElementById('f_apCity').value,
+    f_apCountry: document.getElementById('f_apCountry').value,
+    f_areaPlanningList: JSON.parse(JSON.stringify(areaPlanningList)),
     f_desc: document.getElementById('f_desc').value,
     f_floorType: document.getElementById('f_floorType').value,
     f_floorTypeCustom: document.getElementById('f_floorTypeCustom').value,
@@ -14902,21 +15264,13 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_outdoorSizeUnknown').checked = !!snap.f_outdoorSizeUnknown;
   toggleOutdoorSizeUnknown(document.getElementById('f_outdoorSizeUnknown'));
   updateEnvironmentSizeFields(document.getElementById('f_environment'));
-  const savedAreas = new Set(snap.f_requiredAreas || []);
-  document.querySelectorAll('.required-area-cb').forEach(cb => { cb.checked = savedAreas.has(cb.value); });
-  document.getElementById('f_requiredAreaOtherToggle').checked = !!snap.f_requiredAreaOtherToggle;
-  document.getElementById('requiredAreaOtherContainer').style.display = snap.f_requiredAreaOtherToggle ? 'block' : 'none';
-  restoreOtherAreaBoxes('required', snap.f_requiredAreaOtherValues);
-  const savedIndoorAreas = new Set(snap.f_indoorRequiredAreas || []);
-  document.querySelectorAll('.indoor-area-cb').forEach(cb => { cb.checked = savedIndoorAreas.has(cb.value); });
-  document.getElementById('f_indoorAreaOtherToggle').checked = !!snap.f_indoorAreaOtherToggle;
-  document.getElementById('indoorAreaOtherContainer').style.display = snap.f_indoorAreaOtherToggle ? 'block' : 'none';
-  restoreOtherAreaBoxes('indoor', snap.f_indoorAreaOtherValues);
-  const savedOutdoorAreas = new Set(snap.f_outdoorRequiredAreas || []);
-  document.querySelectorAll('.outdoor-area-cb').forEach(cb => { cb.checked = savedOutdoorAreas.has(cb.value); });
-  document.getElementById('f_outdoorAreaOtherToggle').checked = !!snap.f_outdoorAreaOtherToggle;
-  document.getElementById('outdoorAreaOtherContainer').style.display = snap.f_outdoorAreaOtherToggle ? 'block' : 'none';
-  restoreOtherAreaBoxes('outdoor', snap.f_outdoorAreaOtherValues);
+  document.getElementById('f_apProjectType').value = snap.f_apProjectType || 'Event';
+  document.getElementById('f_apVenueType').value = snap.f_apVenueType || 'Exhibition Center';
+  document.getElementById('f_apVenueName').value = snap.f_apVenueName || '';
+  document.getElementById('f_apCity').value = snap.f_apCity || '';
+  document.getElementById('f_apCountry').value = snap.f_apCountry || '';
+  areaPlanningList = snap.f_areaPlanningList || [];
+  renderAreaPlanningList();
   document.getElementById('f_desc').value = snap.f_desc || '';
   document.getElementById('f_floorType').value = snap.f_floorType || 'Venue Floor (No Platform)';
   document.getElementById('f_floorTypeCustom').value = snap.f_floorTypeCustom || '';
