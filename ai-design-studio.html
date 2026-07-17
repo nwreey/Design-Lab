@@ -1551,7 +1551,7 @@ Replace only the materials and graphics."></textarea>
 
     <div class="field">
       <label><span data-i18n="field.constructionStyle">Construction style</span> <span class="required-mark">*</span></label>
-      <select id="f_constructionStyle">
+      <select id="f_constructionStyle" onchange="updateConstructionStyleHint(this)">
         <option value="Shell Scheme">Shell Scheme</option>
         <option value="Enhanced Shell Scheme">Enhanced Shell Scheme</option>
         <option value="Modular System">Modular System</option>
@@ -1561,7 +1561,7 @@ Replace only the materials and graphics."></textarea>
         <option value="Double Deck Structure">Double Deck Structure</option>
         <option value="Sustainable / Eco Build">Sustainable / Eco Build</option>
       </select>
-      <div class="hint" data-i18n="hint.constructionStyle">Defines material quality and build complexity — important for construction feasibility.</div>
+      <div class="hint" id="constructionStyleHint" data-i18n="hint.constructionStyle">Defines material quality and build complexity — important for construction feasibility.</div>
     </div>
 
     <!-- Anchor marking Logo's original (Booth mode) position — setMode() moves logoField back
@@ -8269,7 +8269,71 @@ function updateModeDependentLabels(){
   }
 }
 
+// Construction Style option sets differ by mode: Booth's list (unchanged from before) describes
+// exhibition-booth build tiers; Event's list describes event-production tiers, each with a short
+// "who it's for — what it includes" line shown live under the select as constructionStyleHint
+// takes over from the static translated hint whenever Event mode is active. Both lists share the
+// exact string 'Premium Custom Build' as their default/fallback value on purpose, so switching
+// modes with no prior selection lands on a sensible default either way.
+const BOOTH_CONSTRUCTION_STYLE_OPTIONS = [
+  { value: 'Shell Scheme', label: 'Shell Scheme' },
+  { value: 'Enhanced Shell Scheme', label: 'Enhanced Shell Scheme' },
+  { value: 'Modular System', label: 'Modular System' },
+  { value: 'Custom Modular', label: 'Custom Modular' },
+  { value: 'Premium Custom Build', label: 'Premium Custom Build' },
+  { value: 'Luxury Custom Build', label: 'Luxury Custom Build' },
+  { value: 'Double Deck Structure', label: 'Double Deck Structure' },
+  { value: 'Sustainable / Eco Build', label: 'Sustainable / Eco Build' }
+];
+const EVENT_CONSTRUCTION_STYLE_OPTIONS = [
+  { value: 'Basic Setup', label: 'Basic Setup', hint: 'Small meetings, seminars — Pipe & drape, standard stage, basic furniture, minimal branding.' },
+  { value: 'Standard Event Build', label: 'Standard Event Build', hint: 'Conferences, workshops — Custom backdrop, registration area, standard stage, lighting, printed graphics.' },
+  { value: 'Premium Custom Build', label: 'Premium Custom Build', hint: 'Summits, corporate events — Bespoke structures, feature walls, premium finishes, integrated branding, high-quality materials.' },
+  { value: 'Luxury Production', label: 'Luxury Production', hint: 'Government, VIP, luxury brands — High-end fabrication, architectural features, premium materials, custom furniture, advanced lighting.' },
+  { value: 'Immersive Experience', label: 'Immersive Experience', hint: 'Product launches, technology events — Interactive installations, LED environments, digital experiences, projection mapping, multimedia.' },
+  { value: 'Outdoor Event Production', label: 'Outdoor Event Production', hint: 'Festivals, public events — Weather-resistant structures, tents, trusses, staging, crowd infrastructure.' },
+  { value: 'Temporary Modular Build', label: 'Temporary Modular Build', hint: 'Roadshows, touring events — Modular systems designed for fast installation, transport, and reuse.' }
+];
+
+// Rebuilds #f_constructionStyle's <option> list for the given mode. Keeps the current selection
+// if it happens to exist in the new list (true for 'Premium Custom Build', shared by both lists),
+// otherwise falls back to that same shared default so the field is never left unselected.
+function updateConstructionStyleOptions(m){
+  const select = document.getElementById('f_constructionStyle');
+  if(!select) return;
+  const options = m === 'event' ? EVENT_CONSTRUCTION_STYLE_OPTIONS : BOOTH_CONSTRUCTION_STYLE_OPTIONS;
+  const currentValue = select.value;
+  select.innerHTML = options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+  const stillValid = options.some(o => o.value === currentValue);
+  select.value = stillValid ? currentValue : 'Premium Custom Build';
+  updateConstructionStyleHint(select, m);
+}
+
+// Swaps the hint under Construction Style between Booth's static translated description and
+// Event's per-option "who it's for — what it includes" line for whichever option is selected.
+// forcedMode lets setMode() call this before the global `mode` variable itself has been updated
+// to the incoming mode (see updateConstructionStyleOptions above); the onchange handler on the
+// select itself omits it and just uses whatever mode is currently active.
+function updateConstructionStyleHint(select, forcedMode){
+  const hintEl = document.getElementById('constructionStyleHint');
+  if(!hintEl) return;
+  const activeMode = forcedMode || mode;
+  if(activeMode === 'event'){
+    const match = EVENT_CONSTRUCTION_STYLE_OPTIONS.find(o => o.value === select.value);
+    hintEl.removeAttribute('data-i18n');
+    hintEl.textContent = match ? match.hint : '';
+  }else{
+    hintEl.setAttribute('data-i18n', 'hint.constructionStyle');
+    hintEl.textContent = t('hint.constructionStyle');
+  }
+}
+
 function setMode(m){
+  // Construction Style's <option> list differs by mode (Booth's build tiers vs. Event's
+  // production tiers) even though it's the same shared #f_constructionStyle element — rebuild
+  // it before the snapshot below assigns a value, so that value always matches an option that's
+  // actually present in the list for the mode being switched to.
+  if(m === 'booth' || m === 'event') updateConstructionStyleOptions(m);
   // Save the outgoing mode's own field values, and load the incoming mode's own — only
   // when actually moving between booth and event, since those are the two modes that
   // share these fields. Moving to/from Display Stand or Edit Design doesn't touch this.
