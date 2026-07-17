@@ -1752,11 +1752,11 @@ Replace only the materials and graphics."></textarea>
       <label class="check-item-compact" style="font-weight:600;">
         <input type="checkbox" id="f_needsAiHelp" onchange="toggleAiAutofillPanel(this)"> Need help completing this brief? <span style="font-weight:400;">(AI-assisted)</span>
       </label>
-      <div class="hint">Tell DesignsLab AI the Goal of the booth and your company website, and it will read everything already entered in Booth Details, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.</div>
+      <div class="hint" id="aiAutofillMainHint">Tell DesignsLab AI the Goal of the booth and your company website, and it will read everything already entered in Booth Details, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.</div>
 
       <div id="aiAutofillPanel" style="display:none;margin-top:14px;padding:16px;border:1px solid var(--line, #333);border-radius:10px;">
         <div class="field" id="aiAutofillGoalField">
-          <label>Goal of the booth</label>
+          <label id="aiAutofillGoalLabel">Goal of the booth</label>
           <textarea id="f_autofillGoal" placeholder="e.g. Generate qualified leads and showcase our new product line to enterprise buyers" rows="2"></textarea>
         </div>
         <div class="field" id="aiAutofillWebsiteField">
@@ -7797,10 +7797,10 @@ async function checkAdminAccess(){
       if(engineField) engineField.style.display = 'block';
     }
     // The AI Auto-fill Helper ("Need help completing this brief?") has now graduated from an
-    // admin-only test to a normal booth-mode feature for every user — shown here regardless of
-    // role, unlike imageEngineField above which genuinely is still admin-only.
+    // admin-only test to a normal feature for every user, in both Booth and Event modes — shown
+    // here regardless of role, unlike imageEngineField above which genuinely is still admin-only.
     const autofillField = document.getElementById('aiAutofillHelperField');
-    if(autofillField && mode === 'booth') autofillField.style.display = 'block';
+    if(autofillField && (mode === 'booth' || mode === 'event')) autofillField.style.display = 'block';
     currentUserProjectLimit = data.projectLimit != null ? data.projectLimit : null;
     lastKnownProjectCount = data.projectCount != null ? data.projectCount : lastKnownProjectCount;
     currentUserModifyLimit = data.modifyLimit != null ? data.modifyLimit : null;
@@ -8266,6 +8266,20 @@ function updateModeDependentLabels(){
       ? 'e.g. Emirates NBD is launching its new AI banking platform. Visitors should feel trust, innovation, and exclusivity. The event should encourage networking and demonstrate future banking technologies.'
       : 'e.g. Booth for a tech startup. We need an interactive product display area, a private meeting corner, and a large display screen. Brand identity in deep navy and gold.';
   }
+  // AI Autofill Helper — same panel and runAiAutofill() logic power both modes (see
+  // collectAutofillFieldDescriptors and buildEventAutofillPrompt/buildBoothAutofillPrompt), but
+  // its wording and the rigging sub-question only make sense in Booth's own vocabulary, so both
+  // swap here alongside every other mode-dependent label.
+  const autofillGoalLabel = document.getElementById('aiAutofillGoalLabel');
+  if(autofillGoalLabel) autofillGoalLabel.textContent = mode === 'event' ? 'Goal of the event' : 'Goal of the booth';
+  const autofillMainHint = document.getElementById('aiAutofillMainHint');
+  if(autofillMainHint){
+    autofillMainHint.textContent = mode === 'event'
+      ? "Tell DesignsLab AI the Goal of the event and your company website, and it will read everything already entered in Event Details, then suggest the visitor experience, mood, brand values, activities, and creative direction below based on the event you've already described. Everything it fills in stays fully editable before you generate."
+      : "Tell DesignsLab AI the Goal of the booth and your company website, and it will read everything already entered in Booth Details, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.";
+  }
+  const autofillRiggingField = document.getElementById('aiAutofillRiggingField');
+  if(autofillRiggingField) autofillRiggingField.style.display = mode === 'event' ? 'none' : 'block';
 }
 
 // Construction Style option sets differ by mode: Booth's list (unchanged from before) describes
@@ -8409,7 +8423,7 @@ function setMode(m){
     const eventUploadEl = document.getElementById('eventUploadFields');
     if(eventUploadEl) eventUploadEl.style.display = m==='event' ? 'block' : 'none';
     const aiAutofillEl = document.getElementById('aiAutofillHelperField');
-    if(aiAutofillEl) aiAutofillEl.style.display = m==='booth' ? 'block' : 'none';
+    if(aiAutofillEl) aiAutofillEl.style.display = (m==='booth' || m==='event') ? 'block' : 'none';
     document.getElementById('flooringHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('ceilingRiggingHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('requirementsHeadline').style.display = m==='booth' ? 'block' : 'none';
@@ -8510,12 +8524,14 @@ function resetEditDesignPanel(){
 function toggleUpperFloor(sel){
   document.getElementById('upperFloorField').style.display = sel.value === '2' ? 'block' : 'none';
 
-  // The AI Auto-fill Helper ("Need help completing this brief?") is booth-mode only, for every
-  // user — its visibility is otherwise only set once by checkAdminAccess()/setMode(), neither
-  // of which re-runs when Number of Levels changes. Re-asserting it here on every levels switch
-  // guarantees Double Deck can never leave it in a stale hidden state.
+  // The AI Auto-fill Helper ("Need help completing this brief?") is available in both Booth and
+  // Event modes, for every user — its visibility is otherwise only set once by
+  // checkAdminAccess()/setMode(), neither of which re-runs when Number of Levels changes.
+  // Re-asserting it here on every levels switch guarantees Double Deck can never leave it in a
+  // stale hidden state. (Number of Levels only exists in Booth mode's own fields, so this only
+  // ever actually fires while mode is 'booth' anyway — the (m==='event') check is just defensive.)
   const autofillField = document.getElementById('aiAutofillHelperField');
-  if(autofillField) autofillField.style.display = mode === 'booth' ? 'block' : 'none';
+  if(autofillField) autofillField.style.display = (mode === 'booth' || mode === 'event') ? 'block' : 'none';
 
   // Double-deck (ground + upper floor) needs enough vertical clearance for a genuine second
   // story plus its own ceiling above it — a real reported bug was the model collapsing a
@@ -9044,10 +9060,14 @@ function resetAutofillHelperState(){
 // — collapsed after a successful run (nothing left to re-enter, the button's job is done),
 // reopened on toggleAiAutofillPanel() re-check or a new/loaded project via resetAutofillHelperState().
 function setAiAutofillPromptFieldsOpen(open){
-  ['aiAutofillGoalField', 'aiAutofillWebsiteField', 'aiAutofillRiggingField', 'aiAutofillBtn'].forEach(id => {
+  ['aiAutofillGoalField', 'aiAutofillWebsiteField', 'aiAutofillBtn'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = open ? '' : 'none';
   });
+  // Rigging preference is booth-only (see updateModeDependentLabels) — kept out of the generic
+  // loop above so reopening this panel in Event mode can never re-reveal it.
+  const riggingField = document.getElementById('aiAutofillRiggingField');
+  if(riggingField) riggingField.style.display = (open && mode !== 'event') ? '' : 'none';
 }
 
 function toggleAiAutofillPanel(cb){
@@ -9108,18 +9128,17 @@ function collectRequirementCategoryIds(categoryNames){
   return result;
 }
 
-// Walks the true DOM sibling range from Booth Theme's headline up to (not including) the
-// admin-only Image Engine field, in document order — the same range setMode() itself uses to
-// show/hide the booth-only sections. A single querySelectorAll per top-level sibling preserves
-// real source order across selects/textareas/checkboxes/number-inputs together, which matters:
-// it's what lets one left-to-right apply pass (see applyAutofillResult) correctly handle
-// cascades like "Floor Finish -> reveals Carpet Type" without any special-cased ordering logic.
-function collectAutofillFieldDescriptors(){
-  const start = document.getElementById('boothThemeHeadline');
-  const end = document.getElementById('imageEngineField');
-  if(!start || !end) return [];
-  const descriptors = [];
-  const seen = new Set();
+// Walks one true DOM sibling range [startId, endId) in document order, collecting a descriptor
+// for every autofillable select/textarea/input found — shared body for both modes' ranges below.
+// A single querySelectorAll per top-level sibling preserves real source order across selects/
+// textareas/checkboxes/number-inputs together, which matters: it's what lets one left-to-right
+// apply pass (see applyAutofillResult) correctly handle cascades like "Floor Finish -> reveals
+// Carpet Type" (booth) or "Visitor Journey -> reveals its Custom field" (event) without any
+// special-cased ordering logic.
+function collectAutofillDescriptorsInRange(startId, endId, descriptors, seen){
+  const start = document.getElementById(startId);
+  const end = document.getElementById(endId);
+  if(!start || !end) return;
 
   let node = start;
   while(node && node !== end){
@@ -9129,9 +9148,10 @@ function collectAutofillFieldDescriptors(){
         if(el.type === 'file') return;
 
         if(el.type === 'checkbox'){
-          // Only the top-level Requirements checkboxes (addreq_*) — brand personality and
-          // required-area checkboxes have no [id] at all (class-based) and are either
-          // special-cased separately (brand personality) or out of scope (event-only areas).
+          // Only the top-level Requirements checkboxes (addreq_*) — every other checkbox group
+          // in scope (brand personality, floor features, event mood/brand values/key activities/
+          // etc.) has no [id] at all (class-based) and is special-cased separately instead, via
+          // applyCheckboxGroupByValue.
           if(!el.id.startsWith('addreq_')) return;
           seen.add(el.id);
           const labelHost = el.closest('label');
@@ -9160,7 +9180,29 @@ function collectAutofillFieldDescriptors(){
     }
     node = node.nextElementSibling;
   }
+}
 
+// Booth mode scans one contiguous range: Booth Theme's headline up to (not including) the
+// admin-only Image Engine field — the same range setMode() itself uses to show/hide the
+// booth-only sections (brand colors, architectural style, brand personality, posters, flooring,
+// ceiling & rigging, requirements, reference image).
+//
+// Event mode scans two ranges instead, since Events Concept sits earlier in the document than
+// the shared style fields it also needs: Events Concept's own headline up to (not including)
+// Booth Theme's headline (visitor experience/journey/duration/mood/brand values/key activities/
+// special requirements/success metrics/AI creative freedom), plus the shared style fields
+// (brand colors, architectural style, brand personality) from Booth Theme's headline up to (not
+// including) Booth-only Fields — deliberately stopping there so Booth's own posters/flooring/
+// rigging/requirements never leak into an event brief.
+function collectAutofillFieldDescriptors(){
+  const descriptors = [];
+  const seen = new Set();
+  if(mode === 'event'){
+    collectAutofillDescriptorsInRange('eventThemeHeadline', 'boothThemeHeadline', descriptors, seen);
+    collectAutofillDescriptorsInRange('boothThemeHeadline', 'boothOnlyFields', descriptors, seen);
+  }else{
+    collectAutofillDescriptorsInRange('boothThemeHeadline', 'imageEngineField', descriptors, seen);
+  }
   return descriptors;
 }
 
@@ -9292,9 +9334,23 @@ function applyAutofillResult(result){
   // Optional Floor Features, Integrated Elements, and Rigging (or Ceiling) Lighting — applied
   // last, after the descriptor loop above has already set f_ceilingRigging, so the correct
   // rigging-vs-ceiling checkbox group (they share the same value sets) is the one visible now.
+  // These three are no-ops in Event mode (their groups aren't visible, and buildEventAutofillPrompt
+  // never asks for these keys, so result.floorFeatures etc. are always undefined there).
   applyCheckboxGroupByValue('.floor-feature-cb', result.floorFeatures);
   applyCheckboxGroupByValue('.rigging-element-cb, .ceiling-element-cb', result.integratedElements);
   applyCheckboxGroupByValue('.rigging-lighting-cb, .ceiling-lighting-cb', result.riggingLighting);
+
+  // Events Concept's own class-based checkbox groups (no [id], same reason as the booth groups
+  // above) — no-ops in Booth mode for the same reason the booth groups are no-ops in Event mode.
+  // Event Mood and Brand Values are capped to their max (3 / 5) before reaching here — see
+  // buildEventAutofillPrompt — but sliced again defensively so a model that ignores the prompt's
+  // limit still can't push either group over what enforceCheckboxMax allows.
+  applyCheckboxGroupByValue('.visitor-experience-cb', result.visitorExperience);
+  applyCheckboxGroupByValue('.event-mood-cb', Array.isArray(result.eventMood) ? result.eventMood.slice(0, 3) : undefined);
+  applyCheckboxGroupByValue('.event-brand-values-cb', Array.isArray(result.eventBrandValues) ? result.eventBrandValues.slice(0, 5) : undefined);
+  applyCheckboxGroupByValue('.key-activities-cb', result.keyActivities);
+  applyCheckboxGroupByValue('.event-special-req-cb', result.eventSpecialRequirements);
+  applyCheckboxGroupByValue('.success-metrics-cb', result.successMetrics);
 
   // Refresh each Requirements category's "N selected" badge now that expandReqCategoryFor may
   // have opened some of them and checked several boxes inside — this is the same helper the
@@ -9302,114 +9358,63 @@ function applyAutofillResult(result){
   if(typeof updateReqCategoryCounts === 'function') updateReqCategoryCounts();
 }
 
-async function runAiAutofill(){
-  const btn = document.getElementById('aiAutofillBtn');
-  const status = document.getElementById('aiAutofillStatus');
-  const loadingBar = document.getElementById('aiAutofillLoadingBar');
-  const reviewNote = document.getElementById('aiAutofillReviewNote');
-  const goal = (document.getElementById('f_autofillGoal').value || '').trim();
-  const website = (document.getElementById('f_autofillWebsite').value || '').trim();
-  const wantsRigging = document.getElementById('f_autofillWantsRigging').value; // 'unspecified' | 'yes' | 'no'
-
-  if(!goal && !website){
-    status.textContent = 'Add at least a goal or a company website first.';
-    return;
+// Booth mode's system prompt + content parts — unchanged from before the Event mode branch was
+// added, just lifted out of runAiAutofill() into its own function so that function can dispatch
+// to either this or buildEventAutofillPrompt below based on the active mode.
+function buildBoothAutofillPrompt(goal, website, websiteText, websiteWarning, wantsRigging){
+  // Every fact already provided in the Booth Details section above, filled before this
+  // helper — sent as fixed context the AI must never contradict, never something it's asked
+  // to change. Includes the full upper-deck configuration when this is a double-deck booth.
+  const levels = document.getElementById('f_levels').value;
+  const openSides = document.getElementById('f_openSides').value;
+  const openSideDetail = openSides === '1' ? document.getElementById('f_inlineOpenSide').value
+    : openSides === '2' ? document.getElementById('f_cornerSide').value
+    : openSides === '3' ? document.getElementById('f_peninsulaClosedSide').value
+    : null;
+  const boothFacts = {
+    projectName: document.getElementById('f_name').value || null,
+    width: document.getElementById('f_width').value,
+    depth: document.getElementById('f_depth').value,
+    levels: levels,
+    totalHeight: document.getElementById('f_totalHeight').value,
+    openSides: openSides,
+    openSideDetail: openSideDetail,
+    constructionStyle: document.getElementById('f_constructionStyle').value || null,
+    industryStyleAlreadySet: document.getElementById('f_industryStyle').value || null,
+  };
+  if(levels === '2'){
+    boothFacts.upperDeck = {
+      purpose: Array.from(document.querySelectorAll('.upperdeck-purpose-cb:checked')).map(cb => cb.value),
+      capacity: document.getElementById('f_upperDeckCapacity').value,
+      privacy: document.getElementById('f_upperDeckPrivacy').value,
+      staircasePosition: document.getElementById('f_staircasePosition').value,
+      style: document.getElementById('f_upperDeckStyle').value,
+      features: Array.from(document.querySelectorAll('.upperdeck-feature-cb:checked')).map(cb => cb.value),
+      notes: document.getElementById('f_upperFloor').value.trim(),
+    };
   }
 
-  // Lock the whole form for the duration of the AI call — the fields it's about to fill are
-  // still visible underneath but shouldn't be hand-edited mid-flight, since anything the user
-  // changes right now would just get overwritten a moment later by applyAutofillResult().
-  // Same lockForm()/unlockForm() pair the main Generate Design flow already uses.
-  btn.disabled = true;
-  lockForm();
-  if(loadingBar) loadingBar.classList.add('active');
-  // Shown from the moment the loading bar starts and left up afterwards too (reset only clears
-  // it, see resetAutofillHelperState) — a standing reminder that the AI's suggestions are a
-  // starting point, not a final answer, so the client always knows to check the form before
-  // generating regardless of exactly when they glance back at this panel.
-  if(reviewNote) reviewNote.style.display = 'block';
-  status.textContent = 'Reading the booth details...';
+  const descriptors = collectAutofillFieldDescriptors();
+  const fieldSchema = descriptors.map(d => ({ id: d.id, label: d.label, kind: d.kind, options: d.options || undefined }));
 
-  try{
-    // Every fact already provided in the Booth Details section above, filled before this
-    // helper — sent as fixed context the AI must never contradict, never something it's asked
-    // to change. Includes the full upper-deck configuration when this is a double-deck booth.
-    const levels = document.getElementById('f_levels').value;
-    const openSides = document.getElementById('f_openSides').value;
-    const openSideDetail = openSides === '1' ? document.getElementById('f_inlineOpenSide').value
-      : openSides === '2' ? document.getElementById('f_cornerSide').value
-      : openSides === '3' ? document.getElementById('f_peninsulaClosedSide').value
-      : null;
-    const boothFacts = {
-      projectName: document.getElementById('f_name').value || null,
-      width: document.getElementById('f_width').value,
-      depth: document.getElementById('f_depth').value,
-      levels: levels,
-      totalHeight: document.getElementById('f_totalHeight').value,
-      openSides: openSides,
-      openSideDetail: openSideDetail,
-      constructionStyle: document.getElementById('f_constructionStyle').value || null,
-      industryStyleAlreadySet: document.getElementById('f_industryStyle').value || null,
-    };
-    if(levels === '2'){
-      boothFacts.upperDeck = {
-        purpose: Array.from(document.querySelectorAll('.upperdeck-purpose-cb:checked')).map(cb => cb.value),
-        capacity: document.getElementById('f_upperDeckCapacity').value,
-        privacy: document.getElementById('f_upperDeckPrivacy').value,
-        staircasePosition: document.getElementById('f_staircasePosition').value,
-        style: document.getElementById('f_upperDeckStyle').value,
-        features: Array.from(document.querySelectorAll('.upperdeck-feature-cb:checked')).map(cb => cb.value),
-        notes: document.getElementById('f_upperFloor').value.trim(),
-      };
-    }
+  // These three checkbox groups (Optional Floor Features, Integrated Elements, and Rigging/
+  // Ceiling Lighting) have no [id] at all — see applyCheckboxGroupByValue's own comment —
+  // so they're pulled in here by class instead and handled as their own top-level JSON keys,
+  // the same pattern already used for brandColors/brandPersonality above.
+  const floorFeatureOptions = Array.from(document.querySelectorAll('.floor-feature-cb')).map(cb => cb.value);
+  // Integrated Elements and Rigging/Ceiling Lighting share the exact same value set whether
+  // "Ceiling & Rigging" ends up as real rigging or a self-supported ceiling feature — only
+  // one of the two id-less groups is ever visible at a time, so one option list covers both.
+  const integratedElementOptions = Array.from(document.querySelectorAll('.rigging-element-cb')).map(cb => cb.value);
+  const riggingLightingOptions = Array.from(document.querySelectorAll('.rigging-lighting-cb')).map(cb => cb.value);
 
-    let websiteText = '';
-    let websiteWarning = '';
-    if(website){
-      status.textContent = 'Reading the company website...';
-      try{
-        const siteResp = await fetchWithTimeout('/api/fetch-website-text', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: website })
-        }, 20000);
-        const siteData = await siteResp.json().catch(() => ({}));
-        if(siteResp.ok){
-          websiteText = siteData.text || '';
-          if(siteData.warning) websiteWarning = siteData.warning;
-        }else{
-          websiteWarning = (siteData.error && siteData.error.message) || 'Could not read that website.';
-        }
-      }catch(err){
-        // A website read failure should never block the rest of the auto-fill — proceed
-        // without it, same "fail open, don't block on a secondary failure" philosophy used
-        // throughout this app (see e.g. verifyCameraViewGeometry's own comment).
-        websiteWarning = 'Could not read that website: ' + (err && err.message ? err.message : 'unknown error');
-      }
-    }
+  // Mandatory-category rule below needs to know which addreq_* ids fall under each of these
+  // named Requirements categories — see collectRequirementCategoryIds' own comment.
+  const MANDATORY_REQUIREMENT_CATEGORIES = ['Product Display', 'Digital & Technology', 'Functional Spaces', 'Lighting', 'Decorative Elements', 'Lighting Features'];
+  const OPTIONAL_REQUIREMENT_CATEGORIES = ['Art & Brand'];
+  const requirementCategoryIds = collectRequirementCategoryIds([...MANDATORY_REQUIREMENT_CATEGORIES, ...OPTIONAL_REQUIREMENT_CATEGORIES]);
 
-    status.textContent = 'Thinking through the brief...';
-    const descriptors = collectAutofillFieldDescriptors();
-    const fieldSchema = descriptors.map(d => ({ id: d.id, label: d.label, kind: d.kind, options: d.options || undefined }));
-
-    // These three checkbox groups (Optional Floor Features, Integrated Elements, and Rigging/
-    // Ceiling Lighting) have no [id] at all — see applyCheckboxGroupByValue's own comment —
-    // so they're pulled in here by class instead and handled as their own top-level JSON keys,
-    // the same pattern already used for brandColors/brandPersonality above.
-    const floorFeatureOptions = Array.from(document.querySelectorAll('.floor-feature-cb')).map(cb => cb.value);
-    // Integrated Elements and Rigging/Ceiling Lighting share the exact same value set whether
-    // "Ceiling & Rigging" ends up as real rigging or a self-supported ceiling feature — only
-    // one of the two id-less groups is ever visible at a time, so one option list covers both.
-    const integratedElementOptions = Array.from(document.querySelectorAll('.rigging-element-cb')).map(cb => cb.value);
-    const riggingLightingOptions = Array.from(document.querySelectorAll('.rigging-lighting-cb')).map(cb => cb.value);
-
-    // Mandatory-category rule below needs to know which addreq_* ids fall under each of these
-    // named Requirements categories — see collectRequirementCategoryIds' own comment.
-    const MANDATORY_REQUIREMENT_CATEGORIES = ['Product Display', 'Digital & Technology', 'Functional Spaces', 'Lighting', 'Decorative Elements', 'Lighting Features'];
-    const OPTIONAL_REQUIREMENT_CATEGORIES = ['Art & Brand'];
-    const requirementCategoryIds = collectRequirementCategoryIds([...MANDATORY_REQUIREMENT_CATEGORIES, ...OPTIONAL_REQUIREMENT_CATEGORIES]);
-
-    const system = `SYSTEM
+  const system = `SYSTEM
 
 You are helping fill out an exhibition booth design brief on behalf of a client, based on their stated goal, their company website, and every fact already entered about the booth itself (its Booth Details). You are NOT designing the booth yourself — you are choosing sensible values for a fixed list of form fields, the same way a thoughtful account manager would fill in a client intake form for them.
 
@@ -9451,16 +9456,187 @@ ${JSON.stringify(requirementCategoryIds, null, 2)}
 FIELD SCHEMA:
 ${JSON.stringify(fieldSchema, null, 2)}`;
 
-    const contentParts = [
-      { type: 'text', text: `BOOTH'S FIXED PHYSICAL FACTS FROM BOOTH DETAILS (never contradict these):\n${JSON.stringify(boothFacts, null, 2)}\n\nSTATED GOAL OF THE BOOTH:\n${goal || '(not provided)'}\n\nCLIENT'S STATED RIGGING PREFERENCE (see the f_ceilingRigging rule — this overrides your own judgment):\n${wantsRigging}\n\nCOMPANY WEBSITE TEXT (may be empty if unreadable):\n${websiteText || '(not provided' + (websiteWarning ? ' — ' + websiteWarning : '') + ')'}` }
-    ];
-    // Attached only as the "brandColors" rule's step-2 fallback (a known-brand lookup always
-    // comes first) — not sent at all when there's no usable logo yet, or when it's an SVG,
-    // which the vision endpoint can't read directly.
-    if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
-      contentParts.push({ type: 'text', text: 'The client\'s uploaded logo is attached below — only use it for brandColors, and only as the fallback described in that rule (step 2), never as a fact about anything else in this brief.' });
-      contentParts.push({ type: 'image', source: { type: 'base64', media_type: logoMediaType, data: logoDataUrl.split(',')[1] } });
+  const contentParts = [
+    { type: 'text', text: `BOOTH'S FIXED PHYSICAL FACTS FROM BOOTH DETAILS (never contradict these):\n${JSON.stringify(boothFacts, null, 2)}\n\nSTATED GOAL OF THE BOOTH:\n${goal || '(not provided)'}\n\nCLIENT'S STATED RIGGING PREFERENCE (see the f_ceilingRigging rule — this overrides your own judgment):\n${wantsRigging}\n\nCOMPANY WEBSITE TEXT (may be empty if unreadable):\n${websiteText || '(not provided' + (websiteWarning ? ' — ' + websiteWarning : '') + ')'}` }
+  ];
+  // Attached only as the "brandColors" rule's step-2 fallback (a known-brand lookup always
+  // comes first) — not sent at all when there's no usable logo yet, or when it's an SVG,
+  // which the vision endpoint can't read directly.
+  if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+    contentParts.push({ type: 'text', text: 'The client\'s uploaded logo is attached below — only use it for brandColors, and only as the fallback described in that rule (step 2), never as a fact about anything else in this brief.' });
+    contentParts.push({ type: 'image', source: { type: 'base64', media_type: logoMediaType, data: logoDataUrl.split(',')[1] } });
+  }
+
+  return { system, contentParts };
+}
+
+// Event mode's system prompt + content parts. Mirrors buildBoothAutofillPrompt's structure and
+// philosophy (fixed facts the model must never contradict, a strict-JSON field schema built from
+// collectAutofillFieldDescriptors' event-mode ranges, and each id-less checkbox group pulled in
+// by class as its own top-level JSON key) but scoped to Events Concept instead of Booth Theme/
+// Requirements — there's no floor, rigging, or Requirements accordion in an event brief.
+function buildEventAutofillPrompt(goal, website, websiteText, websiteWarning){
+  // Everything already entered in Event Details above, filled before this helper — sent as
+  // fixed context the AI must never contradict, never something it's asked to change. Mirrors
+  // boothFacts' role in buildBoothAutofillPrompt above.
+  const environment = document.getElementById('f_environment').value;
+  const isHybrid = environment === 'Hybrid (Indoor + Outdoor)';
+  const eventFacts = {
+    eventName: document.getElementById('f_name').value || null,
+    eventType: document.getElementById('f_eventType').value || null,
+    eventTypeCustom: document.getElementById('f_eventTypeCustom').value || null,
+    environment: environment || null,
+    eventObjective: document.getElementById('f_eventObjective').value || null,
+    eventObjectiveCustom: document.getElementById('f_eventObjectiveCustom').value || null,
+    targetAudience: Array.from(document.querySelectorAll('.target-audience-cb:checked')).map(cb => cb.value),
+    requiredAreas: isHybrid ? null : collectAreas('.required-area-cb:checked', 'f_requiredAreaOtherToggle', 'required'),
+    indoorRequiredAreas: isHybrid ? collectAreas('.indoor-area-cb:checked', 'f_indoorAreaOtherToggle', 'indoor') : null,
+    outdoorRequiredAreas: isHybrid ? collectAreas('.outdoor-area-cb:checked', 'f_outdoorAreaOtherToggle', 'outdoor') : null,
+    attendees: document.getElementById('f_attendees').value || null,
+    size: {
+      width: document.getElementById('f_eventWidth').value || null,
+      depth: document.getElementById('f_eventDepth').value || null,
+      sizeUnknown: document.getElementById('f_eventSizeUnknown').checked,
+      indoorWidth: document.getElementById('f_indoorWidth').value || null,
+      indoorDepth: document.getElementById('f_indoorDepth').value || null,
+      indoorSizeUnknown: document.getElementById('f_indoorSizeUnknown').checked,
+      outdoorWidth: document.getElementById('f_outdoorWidth').value || null,
+      outdoorDepth: document.getElementById('f_outdoorDepth').value || null,
+      outdoorSizeUnknown: document.getElementById('f_outdoorSizeUnknown').checked,
+    },
+    venue: document.getElementById('f_venue').value || null,
+    city: document.getElementById('f_city').value || null,
+    country: document.getElementById('f_country').value || null,
+    constructionStyle: document.getElementById('f_constructionStyle').value || null,
+    industryStyleAlreadySet: document.getElementById('f_industryStyle').value || null,
+    eventStory: document.getElementById('f_desc').value || null,
+  };
+
+  const descriptors = collectAutofillFieldDescriptors();
+  const fieldSchema = descriptors.map(d => ({ id: d.id, label: d.label, kind: d.kind, options: d.options || undefined }));
+
+  // Events Concept's six id-less checkbox groups — same reason as booth's floor/rigging groups
+  // in buildBoothAutofillPrompt: no [id] at all, so pulled in by class and handled as their own
+  // top-level JSON keys instead of living inside "fields".
+  const visitorExperienceOptions = Array.from(document.querySelectorAll('.visitor-experience-cb')).map(cb => cb.value);
+  const eventMoodOptions = Array.from(document.querySelectorAll('.event-mood-cb')).map(cb => cb.value);
+  const eventBrandValuesOptions = Array.from(document.querySelectorAll('.event-brand-values-cb')).map(cb => cb.value);
+  const keyActivitiesOptions = Array.from(document.querySelectorAll('.key-activities-cb')).map(cb => cb.value);
+  const eventSpecialReqOptions = Array.from(document.querySelectorAll('.event-special-req-cb')).map(cb => cb.value);
+  const successMetricsOptions = Array.from(document.querySelectorAll('.success-metrics-cb')).map(cb => cb.value);
+
+  const system = `SYSTEM
+
+You are helping fill out an event design brief on behalf of a client, based on their stated goal, their company website, and every fact already entered about the event itself (its Event Details, including the event story they've already written in their own words). You are NOT designing the event yourself — you are choosing sensible values for a fixed list of form fields, the same way a thoughtful account manager would fill in a client intake form for them.
+
+Ground every choice in the ACTUAL EVENT described (given below as fixed facts you must never contradict) — its stated type, objective, target audience, venue, and story. Never suggest an activity, mood, or scale of production that wouldn't realistically suit this specific event (e.g. a formal government summit shouldn't get "Entertainment"/"Family-Friendly" mood tags; a product launch for a consumer brand can).
+
+Return STRICT JSON only, no explanation outside the JSON, in exactly this shape:
+{
+  "brandColors": ["#RRGGBB", "#RRGGBB"],
+  "brandPersonality": ["Name1", "Name2", "Name3"],
+  "visitorExperience": ["Option1", ...],
+  "eventMood": ["Option1", ...],
+  "eventBrandValues": ["Option1", ...],
+  "keyActivities": ["Option1", ...],
+  "eventSpecialRequirements": ["Option1", ...],
+  "successMetrics": ["Option1", ...],
+  "fields": { "<field id>": <value>, ... }
+}
+
+Rules:
+- "brandColors": 2–4 hex colors for this brand/event, chosen in this exact priority order — always include this:
+  1. If this is a real, identifiable company or organization you have reliable, specific knowledge of, use its actual, official published brand color(s) exactly as you know them (as if you had just looked them up), never a generic guess dressed up as the real one.
+  2. Only if you do NOT have reliable, specific knowledge of a real published brand color, and a logo image is attached below, read the actual visible colors in that logo image and use those instead.
+  3. Only if neither of those applies (an unfamiliar or fictional name and no logo attached), fall back to a palette appropriate to the stated industry and event type.
+  Never invent a specific-sounding hex code and present it as this company's real official color when you don't actually know it — use step 2 or 3 instead in that case.
+- "brandPersonality": choose exactly 3 names, in order of Primary/Secondary/Accent, from this exact list: ${BRAND_PERSONALITY_ORDER.join(', ')}.
+- "visitorExperience": choose any number (including none) that suit this event, from this exact list: ${visitorExperienceOptions.join(', ')}.
+- "eventMood": choose UP TO 3 (never more) that suit this event's tone, from this exact list: ${eventMoodOptions.join(', ')}.
+- "eventBrandValues": choose UP TO 5 (never more) that suit this brand/organization, from this exact list: ${eventBrandValuesOptions.join(', ')}.
+- "keyActivities": choose whichever activities genuinely suit this event's objective and journey, from this exact list: ${keyActivitiesOptions.join(', ')}.
+- "eventSpecialRequirements": choose only what's genuinely implied by the event's facts and story (e.g. a government summit likely needs "High Security"; a broadcast-worthy keynote likely needs "Media Coverage") — never as default filler, from this exact list: ${eventSpecialReqOptions.join(', ')}. Return an empty array if nothing is clearly implied.
+- "successMetrics": choose whichever metrics genuinely fit the stated Event Objective, from this exact list: ${successMetricsOptions.join(', ')}.
+- "fields": for every field in the FIELD SCHEMA below, include a value keyed by its exact "id".
+  - kind "select": the value MUST be exactly one of that field's "options", copied verbatim. If FIELD SCHEMA includes "f_visitorJourneyCustom", only give it a real value when "fields.f_visitorJourney" is "Custom" — otherwise leave it as an empty string.
+  - kind "text"/"textarea": a short, concrete value in the same spirit as the field's label.
+- Never invent facts about the company or event that aren't supported by the goal, website, or event story already provided — where information is missing, make a reasonable, clearly generic choice appropriate to the stated event type and industry instead of fabricating specifics.
+
+FIELD SCHEMA:
+${JSON.stringify(fieldSchema, null, 2)}`;
+
+  const contentParts = [
+    { type: 'text', text: `EVENT'S FIXED FACTS FROM EVENT DETAILS (never contradict these):\n${JSON.stringify(eventFacts, null, 2)}\n\nSTATED GOAL OF THE EVENT:\n${goal || '(not provided)'}\n\nCOMPANY WEBSITE TEXT (may be empty if unreadable):\n${websiteText || '(not provided' + (websiteWarning ? ' — ' + websiteWarning : '') + ')'}` }
+  ];
+  // Same brandColors step-2 fallback as booth mode — see buildBoothAutofillPrompt's own comment.
+  if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+    contentParts.push({ type: 'text', text: 'The client\'s uploaded logo is attached below — only use it for brandColors, and only as the fallback described in that rule (step 2), never as a fact about anything else in this brief.' });
+    contentParts.push({ type: 'image', source: { type: 'base64', media_type: logoMediaType, data: logoDataUrl.split(',')[1] } });
+  }
+
+  return { system, contentParts };
+}
+
+async function runAiAutofill(){
+  const btn = document.getElementById('aiAutofillBtn');
+  const status = document.getElementById('aiAutofillStatus');
+  const loadingBar = document.getElementById('aiAutofillLoadingBar');
+  const reviewNote = document.getElementById('aiAutofillReviewNote');
+  const goal = (document.getElementById('f_autofillGoal').value || '').trim();
+  const website = (document.getElementById('f_autofillWebsite').value || '').trim();
+  // Only meaningful in Booth mode — the rigging sub-field is hidden entirely for Event mode
+  // (see updateModeDependentLabels), so this just reads its untouched default there.
+  const wantsRigging = document.getElementById('f_autofillWantsRigging').value; // 'unspecified' | 'yes' | 'no'
+
+  if(!goal && !website){
+    status.textContent = 'Add at least a goal or a company website first.';
+    return;
+  }
+
+  // Lock the whole form for the duration of the AI call — the fields it's about to fill are
+  // still visible underneath but shouldn't be hand-edited mid-flight, since anything the user
+  // changes right now would just get overwritten a moment later by applyAutofillResult().
+  // Same lockForm()/unlockForm() pair the main Generate Design flow already uses.
+  btn.disabled = true;
+  lockForm();
+  if(loadingBar) loadingBar.classList.add('active');
+  // Shown from the moment the loading bar starts and left up afterwards too (reset only clears
+  // it, see resetAutofillHelperState) — a standing reminder that the AI's suggestions are a
+  // starting point, not a final answer, so the client always knows to check the form before
+  // generating regardless of exactly when they glance back at this panel.
+  if(reviewNote) reviewNote.style.display = 'block';
+  status.textContent = mode === 'event' ? 'Reading the event details...' : 'Reading the booth details...';
+
+  try{
+    let websiteText = '';
+    let websiteWarning = '';
+    if(website){
+      status.textContent = 'Reading the company website...';
+      try{
+        const siteResp = await fetchWithTimeout('/api/fetch-website-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: website })
+        }, 20000);
+        const siteData = await siteResp.json().catch(() => ({}));
+        if(siteResp.ok){
+          websiteText = siteData.text || '';
+          if(siteData.warning) websiteWarning = siteData.warning;
+        }else{
+          websiteWarning = (siteData.error && siteData.error.message) || 'Could not read that website.';
+        }
+      }catch(err){
+        // A website read failure should never block the rest of the auto-fill — proceed
+        // without it, same "fail open, don't block on a secondary failure" philosophy used
+        // throughout this app (see e.g. verifyCameraViewGeometry's own comment).
+        websiteWarning = 'Could not read that website: ' + (err && err.message ? err.message : 'unknown error');
+      }
     }
+
+    status.textContent = 'Thinking through the brief...';
+    const { system, contentParts } = mode === 'event'
+      ? buildEventAutofillPrompt(goal, website, websiteText, websiteWarning)
+      : buildBoothAutofillPrompt(goal, website, websiteText, websiteWarning, wantsRigging);
 
     status.textContent = 'Filling in the brief...';
     const result = await callPromptWriterApi(system, contentParts);
@@ -9472,8 +9648,9 @@ ${JSON.stringify(fieldSchema, null, 2)}`;
     // enforce it directly, same "instruct AND defensively enforce" pattern used elsewhere in
     // this file (see e.g. openSidesConfirmedByUser). Re-checking integratedElements/
     // riggingLighting isn't needed here: applyCheckboxGroupByValue already only ever checks
-    // boxes that are visible, and forcing "No overhead structure" hides both groups.
-    if(wantsRigging === 'no'){
+    // boxes that are visible, and forcing "No overhead structure" hides both groups. Booth-mode
+    // only — Event mode has no f_ceilingRigging field at all.
+    if(mode === 'booth' && wantsRigging === 'no'){
       const ceilingSel = document.getElementById('f_ceilingRigging');
       if(ceilingSel && ceilingSel.value !== 'No overhead structure'){
         ceilingSel.value = 'No overhead structure';
