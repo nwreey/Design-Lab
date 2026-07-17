@@ -8957,7 +8957,11 @@ Return STRICT JSON only, no explanation outside the JSON, in exactly this shape:
 }
 
 Rules:
-- "brandColors": 2–4 hex colors that fit the brand (from the website if a real brand palette is evident, otherwise an industry-appropriate palette). Always include this.
+- "brandColors": 2–4 hex colors for this brand, chosen in this exact priority order — always include this:
+  1. If this is a real, identifiable company you have reliable, specific knowledge of, use its actual, official published brand color(s) exactly as you know them (as if you had just looked them up), never a generic guess dressed up as the real one.
+  2. Only if you do NOT have reliable, specific knowledge of a real published brand color for this company, and a logo image is attached below, read the actual visible colors in that logo image and use those instead.
+  3. Only if neither of those applies (an unfamiliar or fictional company name and no logo attached), fall back to an industry-appropriate palette for the stated industry.
+  Never invent a specific-sounding hex code and present it as this company's real official color when you don't actually know it — use step 2 or 3 instead in that case.
 - "brandPersonality": choose exactly 3 names, in order of Primary/Secondary/Accent, from this exact list: ${BRAND_PERSONALITY_ORDER.join(', ')}.
 - "floorFeatures": choose any number (including none) of Optional Floor Features that suit this brand and space, from this exact list: ${floorFeatureOptions.join(', ')}.
 - "integratedElements": only relevant if "fields" sets f_ceilingRigging to anything other than "No overhead structure" — choose Integrated Elements that suit that overhead structure, from this exact list: ${integratedElementOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
@@ -8976,6 +8980,13 @@ ${JSON.stringify(fieldSchema, null, 2)}`;
     const contentParts = [
       { type: 'text', text: `BOOTH'S FIXED PHYSICAL FACTS FROM BOOTH DETAILS (never contradict these):\n${JSON.stringify(boothFacts, null, 2)}\n\nSTATED GOAL OF THE BOOTH:\n${goal || '(not provided)'}\n\nCOMPANY WEBSITE TEXT (may be empty if unreadable):\n${websiteText || '(not provided' + (websiteWarning ? ' — ' + websiteWarning : '') + ')'}` }
     ];
+    // Attached only as the "brandColors" rule's step-2 fallback (a known-brand lookup always
+    // comes first) — not sent at all when there's no usable logo yet, or when it's an SVG,
+    // which the vision endpoint can't read directly.
+    if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+      contentParts.push({ type: 'text', text: 'The client\'s uploaded logo is attached below — only use it for brandColors, and only as the fallback described in that rule (step 2), never as a fact about anything else in this brief.' });
+      contentParts.push({ type: 'image', source: { type: 'base64', media_type: logoMediaType, data: logoDataUrl.split(',')[1] } });
+    }
 
     status.textContent = 'Filling in the brief...';
     const result = await callPromptWriterApi(system, contentParts);
