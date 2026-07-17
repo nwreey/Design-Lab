@@ -109,6 +109,46 @@
   .back-link a{ font-size:13.5px; font-weight:600; color:var(--muted); text-decoration:none; }
   .back-link a:hover{ color:var(--ink); }
 
+  /* ---------- case study showcase ---------- */
+  .case-studies{ padding:100px 0 90px; border-top:1px solid var(--line); }
+  .case-head{ max-width:600px; margin:0 auto 54px; text-align:center; }
+  .case-head h2{ font-size:32px; line-height:1.2; margin-top:12px; }
+  .case-head p{ font-size:15px; color:var(--muted); margin-top:14px; line-height:1.7; }
+
+  .case-grid{ display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+  @media(max-width:820px){ .case-grid{ grid-template-columns:1fr; } }
+
+  .case-card{
+    border:1.5px solid var(--line); border-radius:20px; overflow:hidden; background:#fff;
+    transition:transform .35s cubic-bezier(.16,.8,.3,1), box-shadow .35s ease, border-color .35s ease;
+  }
+  .case-card:hover{ transform:translateY(-6px); box-shadow:0 26px 50px -24px rgba(17,17,17,0.28); border-color:#DEDEDE; }
+
+  .case-img-wrap{ position:relative; aspect-ratio:16/10; overflow:hidden; background:#EDEDED; }
+  .case-img-wrap img{ width:100%; height:100%; object-fit:cover; display:block; transition:transform .6s cubic-bezier(.16,.8,.3,1); }
+  .case-card:hover .case-img-wrap img{ transform:scale(1.06); }
+  .case-brand-badge{
+    position:absolute; top:16px; left:16px; background:rgba(255,255,255,0.92); backdrop-filter:blur(6px);
+    padding:7px 14px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.02em; color:var(--ink);
+  }
+  .case-industry-badge{
+    position:absolute; top:16px; right:16px; background:rgba(17,17,17,0.78); backdrop-filter:blur(6px);
+    padding:6px 12px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.03em; color:#fff; text-transform:uppercase;
+  }
+
+  .case-body{ padding:24px 26px 26px; }
+  .case-body h3{ font-size:17.5px; line-height:1.35; }
+  .case-body p{ font-size:13.5px; color:#4A4A4A; line-height:1.65; margin-top:9px; }
+  .case-tags{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+  .case-tag{
+    font-size:11.5px; font-weight:600; color:var(--muted); background:#F7F7F7; border:1px solid var(--line);
+    padding:5px 11px; border-radius:999px;
+  }
+
+  .case-disclaimer{
+    max-width:680px; margin:38px auto 0; text-align:center; font-size:11.5px; color:#A3A3A3; line-height:1.6;
+  }
+
   footer{ border-top:1px solid var(--line); padding:56px 0 30px; }
   .footer-grid{ display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr; gap:34px; text-align:left; }
   @media(max-width:760px){ .footer-grid{ grid-template-columns:1fr 1fr; } }
@@ -180,6 +220,87 @@
 
       <div class="back-link"><a href="/">← Back to Home</a></div>
     </div>
+  </section>
+
+  <!-- ================= CASE STUDY SHOWCASE ================= -->
+  <section class="wrap case-studies">
+    <div class="case-head reveal">
+      <span class="eyebrow">Concept Showcase</span>
+      <h2>A preview of what the generator can do</h2>
+      <p>Four concept renders built end-to-end from a short brief, spanning automotive, luxury, beverage, and media. A first look at the range while the rest of News comes together.</p>
+    </div>
+
+    <div class="case-grid reveal-stagger">
+      <article class="case-card">
+        <div class="case-img-wrap">
+          <img src="case-bmw.jpg" alt="AI-generated exhibition booth concept for an automotive brand — double-height sculptural canopy over an open vehicle reveal deck" loading="lazy">
+          <span class="case-brand-badge">Automotive</span>
+          <span class="case-industry-badge">Motor Show</span>
+        </div>
+        <div class="case-body">
+          <h3>Fluid architecture for a flagship motor stand</h3>
+          <p>A sweeping double-height canopy ties two open-plan pavilions to a central vehicle reveal deck, built around wide sightlines and a continuous illuminated spine.</p>
+          <div class="case-tags">
+            <span class="case-tag">220 m²</span>
+            <span class="case-tag">Peninsula</span>
+            <span class="case-tag">Vehicle reveal deck</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="case-card">
+        <div class="case-img-wrap">
+          <img src="case-rolex.jpg" alt="AI-generated exhibition booth concept for a luxury watch brand — warm walnut showroom with central display core and private consultation rooms" loading="lazy">
+          <span class="case-brand-badge">Luxury Retail</span>
+          <span class="case-industry-badge">Trade Show</span>
+        </div>
+        <div class="case-body">
+          <h3>An intimate showroom built around craftsmanship</h3>
+          <p>Warm walnut millwork and vitrine lighting frame a central display core, with private consultation rooms on either wing for VIP appointments.</p>
+          <div class="case-tags">
+            <span class="case-tag">90 m²</span>
+            <span class="case-tag">Corner</span>
+            <span class="case-tag">VIP suites</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="case-card">
+        <div class="case-img-wrap">
+          <img src="case-redbull.jpg" alt="AI-generated exhibition booth concept for a beverage brand — sculptural wing-form canopy over a simulator lounge and hospitality bar" loading="lazy">
+          <span class="case-brand-badge">Beverage</span>
+          <span class="case-industry-badge">Experiential</span>
+        </div>
+        <div class="case-body">
+          <h3>A sculptural canopy anchors an experiential zone</h3>
+          <p>A cantilevered wing-form roof shelters a full simulator lounge, sampling bar, and hospitality seating, engineered for high foot traffic and photo moments.</p>
+          <div class="case-tags">
+            <span class="case-tag">160 m²</span>
+            <span class="case-tag">Island</span>
+            <span class="case-tag">Simulator zone</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="case-card">
+        <div class="case-img-wrap">
+          <img src="case-natgeo.jpg" alt="AI-generated exhibition booth concept for a media brand — organic timber lattice canopy over a projection theater and discovery zone" loading="lazy">
+          <span class="case-brand-badge">Media</span>
+          <span class="case-industry-badge">Exhibition</span>
+        </div>
+        <div class="case-body">
+          <h3>An organic canopy for an immersive storytelling pavilion</h3>
+          <p>A radiating timber lattice roof unifies a projection theater, interactive discovery tables, and a curated display zone beneath natural-toned finishes.</p>
+          <div class="case-tags">
+            <span class="case-tag">180 m²</span>
+            <span class="case-tag">Corner</span>
+            <span class="case-tag">Projection theater</span>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="case-disclaimer">These are independent AI-generated concept demonstrations created to showcase design range across industries. They are not commissioned by, sponsored by, or affiliated with the brands depicted.</div>
   </section>
 
   <!-- ================= FOOTER ================= -->
@@ -258,9 +379,9 @@ if('IntersectionObserver' in window){
   const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => { if(entry.isIntersecting){ entry.target.classList.add('in'); revealObserver.unobserve(entry.target); } });
   }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-  document.querySelectorAll('.reveal-stagger').forEach(el => revealObserver.observe(el));
+  document.querySelectorAll('.reveal-stagger, .reveal:not(.in)').forEach(el => revealObserver.observe(el));
 }else{
-  document.querySelectorAll('.reveal-stagger').forEach(el => el.classList.add('in'));
+  document.querySelectorAll('.reveal-stagger, .reveal').forEach(el => el.classList.add('in'));
 }
 
 // No backend endpoint exists yet for this signup — kept as a clean, honest client-side-only
