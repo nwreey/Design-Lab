@@ -7,7 +7,8 @@
     "api/luma-generate.js": { "maxDuration": 60 },
     "api/luma-status.js": { "maxDuration": 30 },
     "api/luma-video-proxy.js": { "maxDuration": 60 },
-    "api/projects.js": { "maxDuration": 60 }
+    "api/projects.js": { "maxDuration": 60 },
+    "api/fetch-website-text.js": { "maxDuration": 30 }
   },
   "rewrites": [
     { "source": "/", "destination": "/homepage.html" }

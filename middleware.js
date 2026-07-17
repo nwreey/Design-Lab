@@ -7,7 +7,7 @@ export const config = {
 const PUBLIC_PATHS = ['/', '/homepage.html', '/login.html', '/api/login', '/api/logout', '/logo-white.png', '/logo-black-transparent.png'];
 
 // Paths that require the admin role specifically, on top of just being logged in.
-const ADMIN_ONLY_PATHS = ['/admin.html', '/api/admin-users', '/api/admin-lockouts'];
+const ADMIN_ONLY_PATHS = ['/admin.html', '/api/admin-users', '/api/admin-lockouts', '/api/fetch-website-text'];
 
 /* Verifies the base64(JSON)+"."+signature token and returns the decoded payload
    ({userId, username, role, expiry}) if valid, or null if not. Edge middleware runs on

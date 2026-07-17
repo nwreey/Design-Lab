@@ -1475,6 +1475,37 @@ Replace only the materials and graphics."></textarea>
       </div>
     </div>
 
+    <div class="field" id="aiAutofillHelperField" style="display:none;">
+      <label class="check-item-compact" style="font-weight:600;">
+        <input type="checkbox" id="f_needsAiHelp" onchange="toggleAiAutofillPanel(this)"> Need help completing this brief? <span style="font-weight:400;">(AI-assisted — admin test)</span>
+      </label>
+      <div class="hint">Answer a few quick questions and DesignsLab AI will read your company website and profile, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.</div>
+
+      <div id="aiAutofillPanel" style="display:none;margin-top:14px;padding:16px;border:1px solid var(--line, #333);border-radius:10px;">
+        <div class="field">
+          <label>Goal of the booth</label>
+          <textarea id="f_autofillGoal" placeholder="e.g. Generate qualified leads and showcase our new product line to enterprise buyers" rows="2"></textarea>
+        </div>
+        <div class="field">
+          <label>Company website</label>
+          <input type="text" id="f_autofillWebsite" placeholder="e.g. www.example.com">
+          <div class="hint">DesignsLab AI will read this page's visible content — no login-gated or JS-only pages.</div>
+        </div>
+        <div class="field">
+          <label>Company profile</label>
+          <div class="logo-upload" id="autofillProfileUploadBox" onclick="document.getElementById('f_autofillProfileFile').click()">
+            <input type="file" id="f_autofillProfileFile" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleAutofillProfileUpload(this)">
+            <img id="autofillProfilePreview" alt="Company profile preview" style="display:none;">
+            <div id="autofillProfilePlaceholder">Click to upload a company profile image (PNG, JPG, or WebP) — a slide, one-pager, or screenshot works well</div>
+          </div>
+          <div class="hint">Used only for this one AI suggestion — never saved with the project or kept in your history.</div>
+        </div>
+
+        <button type="button" class="ghost small" onclick="runAiAutofill()" id="aiAutofillBtn">✦ Auto-fill remaining fields with AI</button>
+        <div class="hint" id="aiAutofillStatus" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
     <div class="section-headline" id="eventThemeHeadline" style="display:none;" data-i18n="section.eventTheme">Event Theme</div>
     <div class="section-headline" id="boothThemeHeadline" style="display:none;" data-i18n="section.boothTheme">Booth Theme</div>
     <div id="boothThemeFieldsTop" style="display:none;">
@@ -7481,6 +7512,8 @@ async function checkAdminAccess(){
       });
       const engineField = document.getElementById('imageEngineField');
       if(engineField) engineField.style.display = 'block';
+      const autofillField = document.getElementById('aiAutofillHelperField');
+      if(autofillField && mode === 'booth') autofillField.style.display = 'block';
     }
     currentUserProjectLimit = data.projectLimit != null ? data.projectLimit : null;
     lastKnownProjectCount = data.projectCount != null ? data.projectCount : lastKnownProjectCount;
@@ -7966,6 +7999,8 @@ function setMode(m){
     document.getElementById('boothDetailsFields').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('boothThemeHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('boothThemeFieldsTop').style.display = m==='booth' ? 'block' : 'none';
+    const aiAutofillEl = document.getElementById('aiAutofillHelperField');
+    if(aiAutofillEl) aiAutofillEl.style.display = (m==='booth' && isAdminUser) ? 'block' : 'none';
     document.getElementById('flooringHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('ceilingRiggingHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('requirementsHeadline').style.display = m==='booth' ? 'block' : 'none';
@@ -8545,6 +8580,329 @@ function removeColorRow(btn){
   const rows = document.getElementById('colorRows');
   if(rows.children.length <= 1) return;
   btn.closest('.color-row').remove();
+}
+
+/* ===================== AI Auto-fill Helper (admin-only) =====================
+   Reads a stated goal + (optionally) a company website + an uploaded company-profile image,
+   plus the booth's own physical facts already entered in Booth Details, and asks OpenAI to
+   suggest values for the rest of the booth-specific form — everything from Booth Theme
+   through the AI Creative Brief description. Deliberately scoped to design/content decisions
+   only: it never touches booth dimensions/levels/height/open-sides (already provided before
+   this point), location/attendee facts (objective event logistics, not design choices), file
+   uploads it can't fill, Modular Wall Layout (pops its own confirmation dialog — better left
+   to an explicit human decision), or the per-unit rows generated inside Requirements
+   sub-sections (e.g. each individual reception counter's own width) — those stay for manual
+   fine-tuning. Every suggested value is applied through the exact same DOM elements + native
+   change/input events the form already listens for, so all of the form's own existing
+   conditional-visibility logic (floor finish sub-fields, ceiling/rigging sub-fields,
+   requirement bodies, etc.) fires exactly as if a person had picked these by hand.
+
+   The company profile image is intentionally kept in memory only (autofillProfileDataUrl
+   below) — it is never added to collectFormSnapshot()/saveCurrentProject(), and
+   resetAutofillHelperState() (called from restoreFormSnapshot(), which runs on every new or
+   opened project) wipes it, so it can never persist into a project's saved history. */
+
+let autofillProfileDataUrl = null;
+let autofillProfileMediaType = null;
+
+function resetAutofillHelperState(){
+  autofillProfileDataUrl = null;
+  autofillProfileMediaType = null;
+  const cb = document.getElementById('f_needsAiHelp');
+  if(cb) cb.checked = false;
+  const panel = document.getElementById('aiAutofillPanel');
+  if(panel) panel.style.display = 'none';
+  const goalEl = document.getElementById('f_autofillGoal');
+  if(goalEl) goalEl.value = '';
+  const siteEl = document.getElementById('f_autofillWebsite');
+  if(siteEl) siteEl.value = '';
+  const fileEl = document.getElementById('f_autofillProfileFile');
+  if(fileEl) fileEl.value = '';
+  const preview = document.getElementById('autofillProfilePreview');
+  if(preview){ preview.style.display = 'none'; preview.src = ''; }
+  const placeholder = document.getElementById('autofillProfilePlaceholder');
+  if(placeholder) placeholder.style.display = 'block';
+  const status = document.getElementById('aiAutofillStatus');
+  if(status) status.textContent = '';
+}
+
+function toggleAiAutofillPanel(cb){
+  const panel = document.getElementById('aiAutofillPanel');
+  if(panel) panel.style.display = cb.checked ? 'block' : 'none';
+}
+
+async function handleAutofillProfileUpload(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  try{
+    const dataUrl = await readFileAsDataURL(file);
+    autofillProfileDataUrl = dataUrl;
+    autofillProfileMediaType = file.type || 'image/png';
+    document.getElementById('autofillProfilePreview').src = dataUrl;
+    document.getElementById('autofillProfilePreview').style.display = 'block';
+    document.getElementById('autofillProfilePlaceholder').style.display = 'none';
+  }catch(err){
+    console.error('Could not read company profile image:', err);
+    const status = document.getElementById('aiAutofillStatus');
+    if(status) status.textContent = 'Could not read that file — try a different image.';
+  }
+}
+
+// Fields the auto-fill engine must never touch, even though they fall inside the DOM range it
+// scans — objective facts (location, attendee count), things it can't meaningfully fill (file
+// uploads), the helper's own inputs, and Modular Wall Layout (see the block comment above).
+const AUTOFILL_EXCLUDED_IDS = new Set([
+  'f_country', 'f_city', 'f_venue', 'f_attendees',
+  'f_modularWallLayout', 'f_referenceImage', 'f_posterFiles', 'f_logo',
+  'f_needsAiHelp', 'f_autofillGoal', 'f_autofillWebsite', 'f_autofillProfileFile',
+  'f_requiredAreaOtherToggle', 'f_indoorAreaOtherToggle', 'f_outdoorAreaOtherToggle',
+]);
+
+function labelTextFor(el){
+  const field = el.closest('.field');
+  const label = field ? field.querySelector('label') : (el.closest('label'));
+  if(!label) return el.id;
+  const clone = label.cloneNode(true);
+  clone.querySelectorAll('.required-mark, input').forEach(n => n.remove());
+  return clone.textContent.trim() || el.id;
+}
+
+// Walks the true DOM sibling range from Booth Theme's headline up to (not including) the
+// admin-only Image Engine field, in document order — the same range setMode() itself uses to
+// show/hide the booth-only sections. A single querySelectorAll per top-level sibling preserves
+// real source order across selects/textareas/checkboxes/number-inputs together, which matters:
+// it's what lets one left-to-right apply pass (see applyAutofillResult) correctly handle
+// cascades like "Floor Finish -> reveals Carpet Type" without any special-cased ordering logic.
+function collectAutofillFieldDescriptors(){
+  const start = document.getElementById('boothThemeHeadline');
+  const end = document.getElementById('imageEngineField');
+  if(!start || !end) return [];
+  const descriptors = [];
+  const seen = new Set();
+
+  let node = start;
+  while(node && node !== end){
+    if(node.nodeType === 1){
+      node.querySelectorAll('select[id], textarea[id], input[id]').forEach(el => {
+        if(seen.has(el.id) || AUTOFILL_EXCLUDED_IDS.has(el.id)) return;
+        if(el.type === 'file') return;
+
+        if(el.type === 'checkbox'){
+          // Only the top-level Requirements checkboxes (addreq_*) — brand personality and
+          // required-area checkboxes have no [id] at all (class-based) and are either
+          // special-cased separately (brand personality) or out of scope (event-only areas).
+          if(!el.id.startsWith('addreq_')) return;
+          seen.add(el.id);
+          const labelHost = el.closest('label');
+          descriptors.push({ id: el.id, kind: 'checkbox', label: labelHost ? labelHost.textContent.trim() : el.id });
+          return;
+        }
+
+        if(el.type === 'color') return; // bare swatch; its .color-hex sibling is the real descriptor
+
+        seen.add(el.id);
+        const tag = el.tagName.toLowerCase();
+        let kind = 'text';
+        let options = null;
+        if(tag === 'select'){
+          kind = 'select';
+          options = Array.from(el.options).map(o => o.value).filter(v => v !== '');
+        }else if(tag === 'textarea'){
+          kind = 'textarea';
+        }else if(el.classList.contains('color-hex')){
+          kind = 'color';
+        }else if(el.type === 'number'){
+          kind = 'number';
+        }
+        descriptors.push({ id: el.id, kind, label: labelTextFor(el), options });
+      });
+    }
+    node = node.nextElementSibling;
+  }
+
+  return descriptors;
+}
+
+function isFieldVisible(el){
+  // offsetParent is null for display:none elements — cheap, reliable "is this actually shown
+  // right now" check, used so a field an earlier value in this same pass just hid never gets
+  // written to (and, symmetrically, one it just revealed correctly does).
+  return el.offsetParent !== null;
+}
+
+function applyAutofillResult(result){
+  if(!result || typeof result !== 'object') return;
+
+  // Brand colors — a dynamic, unbounded list of color rows rather than fixed ids, so it's
+  // applied by resizing #colorRows to match, then setting each row's hex input (which syncs
+  // its own swatch via the existing syncColorPicker wiring already on that input).
+  if(Array.isArray(result.brandColors) && result.brandColors.length){
+    const rows = document.getElementById('colorRows');
+    const hexPattern = /^#?[0-9A-Fa-f]{3}$|^#?[0-9A-Fa-f]{6}$/;
+    const colors = result.brandColors.filter(c => typeof c === 'string' && hexPattern.test(c.trim())).slice(0, 5);
+    if(colors.length && rows){
+      while(rows.children.length < colors.length) addColorRow();
+      while(rows.children.length > Math.max(colors.length, 1)) removeColorRow(rows.lastElementChild.querySelector('.color-remove'));
+      Array.from(rows.children).forEach((row, i) => {
+        if(!colors[i]) return;
+        const hexInput = row.querySelector('.color-hex');
+        hexInput.value = colors[i].startsWith('#') ? colors[i] : '#' + colors[i];
+        hexInput.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    }
+  }
+
+  // Brand personality — ranked array (Primary/Secondary/Accent), applied directly to the
+  // module-level array the checkbox grid already renders from (see updateBrandPersonalityHint).
+  if(Array.isArray(result.brandPersonality) && result.brandPersonality.length){
+    const valid = result.brandPersonality.filter(name => BRAND_PERSONALITY_ORDER.includes(name)).slice(0, 3);
+    if(valid.length){
+      selectedBrandPersonalities = valid;
+      updateBrandPersonalityHint();
+    }
+  }
+
+  // Everything else — walk the same descriptor list the request was built from, applying each
+  // value through its real DOM element only if that element is actually visible right now.
+  const descriptors = collectAutofillFieldDescriptors();
+  descriptors.forEach(desc => {
+    const value = result.fields ? result.fields[desc.id] : undefined;
+    if(value === undefined || value === null) return;
+    const el = document.getElementById(desc.id);
+    if(!el || !isFieldVisible(el)) return;
+
+    if(desc.kind === 'checkbox'){
+      const shouldCheck = !!value;
+      if(el.checked !== shouldCheck){
+        el.checked = shouldCheck;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      return;
+    }
+
+    if(desc.kind === 'select'){
+      const strValue = String(value);
+      if(!desc.options.includes(strValue)) return; // not one of the field's real options — skip rather than corrupt it
+      el.value = strValue;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return;
+    }
+
+    if(desc.kind === 'color'){
+      const strValue = String(value).trim();
+      if(!/^#?[0-9A-Fa-f]{3}$|^#?[0-9A-Fa-f]{6}$/.test(strValue)) return;
+      el.value = strValue.startsWith('#') ? strValue : '#' + strValue;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return;
+    }
+
+    // text / number / textarea
+    el.value = String(value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+async function runAiAutofill(){
+  const btn = document.getElementById('aiAutofillBtn');
+  const status = document.getElementById('aiAutofillStatus');
+  const goal = (document.getElementById('f_autofillGoal').value || '').trim();
+  const website = (document.getElementById('f_autofillWebsite').value || '').trim();
+
+  if(!goal && !website && !autofillProfileDataUrl){
+    status.textContent = 'Add at least a goal, website, or company profile image first.';
+    return;
+  }
+
+  btn.disabled = true;
+  status.textContent = 'Reading the booth details...';
+
+  try{
+    // Booth physical facts already provided in Booth Details, filled before this helper —
+    // sent as fixed context the AI must never contradict, never something it's asked to change.
+    const boothFacts = {
+      width: document.getElementById('f_width').value,
+      depth: document.getElementById('f_depth').value,
+      levels: document.getElementById('f_levels').value,
+      totalHeight: document.getElementById('f_totalHeight').value,
+      openSides: document.getElementById('f_openSides').value,
+      industryStyleAlreadySet: document.getElementById('f_industryStyle').value || null,
+    };
+
+    let websiteText = '';
+    let websiteWarning = '';
+    if(website){
+      status.textContent = 'Reading the company website...';
+      try{
+        const siteResp = await fetchWithTimeout('/api/fetch-website-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: website })
+        }, 20000);
+        const siteData = await siteResp.json().catch(() => ({}));
+        if(siteResp.ok){
+          websiteText = siteData.text || '';
+          if(siteData.warning) websiteWarning = siteData.warning;
+        }else{
+          websiteWarning = (siteData.error && siteData.error.message) || 'Could not read that website.';
+        }
+      }catch(err){
+        // A website read failure should never block the rest of the auto-fill — proceed
+        // without it, same "fail open, don't block on a secondary failure" philosophy used
+        // throughout this app (see e.g. verifyCameraViewGeometry's own comment).
+        websiteWarning = 'Could not read that website: ' + (err && err.message ? err.message : 'unknown error');
+      }
+    }
+
+    status.textContent = 'Thinking through the brief...';
+    const descriptors = collectAutofillFieldDescriptors();
+    const fieldSchema = descriptors.map(d => ({ id: d.id, label: d.label, kind: d.kind, options: d.options || undefined }));
+
+    const system = `SYSTEM
+
+You are helping fill out an exhibition booth design brief on behalf of a client, based on their stated goal, their company website, and their company profile. You are NOT designing the booth yourself — you are choosing sensible values for a fixed list of form fields, the same way a thoughtful account manager would fill in a client intake form for them.
+
+Ground every choice in the ACTUAL SPACE available (given below as fixed facts you must never contradict) — never suggest requirements or a scale of finish that wouldn't realistically fit a booth of this size. A 9 sqm booth should get a lean, focused set of requirements; a 200 sqm booth can support many more.
+
+Return STRICT JSON only, no explanation outside the JSON, in exactly this shape:
+{
+  "brandColors": ["#RRGGBB", "#RRGGBB"],
+  "brandPersonality": ["Name1", "Name2", "Name3"],
+  "fields": { "<field id>": <value>, ... }
+}
+
+Rules:
+- "brandColors": 2–4 hex colors that fit the brand (from the website/profile if a real brand palette is evident, otherwise an industry-appropriate palette). Always include this.
+- "brandPersonality": choose exactly 3 names, in order of Primary/Secondary/Accent, from this exact list: ${BRAND_PERSONALITY_ORDER.join(', ')}.
+- "fields": for every field in the FIELD SCHEMA below, include a value keyed by its exact "id".
+  - kind "select": the value MUST be exactly one of that field's "options", copied verbatim.
+  - kind "checkbox": true or false only — true only for requirements that genuinely make sense for this brand, goal, and space; do not check everything.
+  - kind "number": a plain integer as a number, sized to the space (e.g. never suggest 6 reception counters in a 9 sqm booth).
+  - kind "color": a hex string like "#RRGGBB".
+  - kind "text"/"textarea": a short, concrete value in the same spirit as the field's label — for the AI Creative Brief field specifically, write a rich, specific paragraph synthesizing the goal, website, and profile into a real design brief.
+- Never invent facts about the company that aren't supported by the goal, website, or profile — where information is missing, make a reasonable, clearly generic choice appropriate to the stated industry instead of fabricating specifics.
+
+FIELD SCHEMA:
+${JSON.stringify(fieldSchema, null, 2)}`;
+
+    const contentParts = [
+      { type: 'text', text: `BOOTH'S FIXED PHYSICAL FACTS (never contradict these):\n${JSON.stringify(boothFacts, null, 2)}\n\nSTATED GOAL OF THE BOOTH:\n${goal || '(not provided)'}\n\nCOMPANY WEBSITE TEXT (may be empty if unreadable):\n${websiteText || '(not provided' + (websiteWarning ? ' — ' + websiteWarning : '') + ')'}` }
+    ];
+    if(autofillProfileDataUrl && autofillProfileMediaType){
+      contentParts.push({ type: 'text', text: 'A company profile image is attached below — read any visible text and use it as additional context.' });
+      contentParts.push({ type: 'image', source: { type: 'base64', media_type: autofillProfileMediaType, data: autofillProfileDataUrl.split(',')[1] } });
+    }
+
+    status.textContent = 'Filling in the brief...';
+    const result = await callPromptWriterApi(system, contentParts);
+    applyAutofillResult(result);
+    status.textContent = 'Done — review the fields below and adjust anything before generating.' + (websiteWarning ? ' (' + websiteWarning + ')' : '');
+  }catch(err){
+    console.error('AI auto-fill failed:', err);
+    status.textContent = 'Could not auto-fill: ' + (err && err.message ? err.message : 'unknown error');
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 function readFileAsDataURL(file){
@@ -13064,6 +13422,11 @@ function collectFormSnapshot(){
 
 function restoreFormSnapshot(snap){
   snap = snap || {};
+  // The AI auto-fill helper's goal/website/profile-image inputs are never part of a project
+  // snapshot (see collectFormSnapshot) — reset them explicitly on every load, whether that's a
+  // brand new project or switching to a different saved one, so a company profile image
+  // uploaded for one project can never silently leak into another.
+  resetAutofillHelperState();
   setLanguage(snap.language || currentLanguage, true); // project's own saved language wins; falls back to whatever's already active (set by initLanguage()) rather than forcing English
   setMode(snap.mode || 'booth');
   document.getElementById('f_name').value = snap.f_name || '';
