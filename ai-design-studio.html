@@ -12372,10 +12372,56 @@ async function buildPosterBrandAssetProvider(){
   };
 }
 
+// Represented brands' logos and each product's photos — the exact same "give the model the
+// real pixels, not just a text description" correction BIE-001 already applies to the main
+// Company Logo and Posters above, extended per represented brand. Unlike those two providers
+// (whose describe() covers their whole image group with one shared instruction), every image
+// here belongs to a DIFFERENT brand/product with its own distinct real-world display area to
+// correct, so describe() ignores the generic refLabel and instead builds one individually-
+// numbered instruction per image, using the startIdx now passed alongside refLabel below.
+async function buildBrandPortfolioAssetProvider(){
+  if(!(mode === 'booth' && brandPortfolio.length)) return null;
+  const images = [];
+  const meta = []; // parallel array, one entry per image in `images`
+  brandPortfolio.forEach(brand => {
+    const brandName = brand.name.trim() || 'Unnamed brand';
+    if(brand.logoDataUrl && visionCompatibleTypes.includes(brand.logoMediaType)){
+      images.push({ data: brand.logoDataUrl.split(',')[1], mimeType: brand.logoMediaType });
+      meta.push({ brandName, kind: 'logo' });
+    }
+    brand.products.forEach(product => {
+      const productName = product.name.trim() || 'Unnamed product';
+      const validImages = product.images.filter(img => img.dataUrl && visionCompatibleTypes.includes(img.mediaType));
+      validImages.forEach((img, i) => {
+        images.push({ data: img.dataUrl.split(',')[1], mimeType: img.mediaType });
+        meta.push({ brandName, kind: 'product', productName, photoIndex: i + 1, photoCount: validImages.length });
+      });
+    });
+  });
+  if(!images.length) return null;
+  return {
+    name: 'Brand Portfolio & Products',
+    images,
+    describe: (refLabel, startIdx) => {
+      const lines = meta.map((m, i) => {
+        const refNum = startIdx + i;
+        if(m.kind === 'logo'){
+          return `Reference image ${refNum} is "${m.brandName}"'s exact logo — wherever "${m.brandName}"'s display area shows a logo, replace it with this exact artwork; never redraw it, never regenerate it, never recreate its typography from scratch, and never swap it with any other brand's logo.`;
+        }
+        const photoNote = m.photoCount > 1 ? ` (photo ${m.photoIndex} of ${m.photoCount})` : '';
+        return `Reference image ${refNum} is "${m.brandName}"'s product "${m.productName}"${photoNote} — wherever this exact product is shown in "${m.brandName}"'s display area, match this real product's appearance exactly (shape, color, material, labeling); never invent a generic or different-looking product in its place, and never swap it with another brand's product.`;
+      });
+      return `BRAND PORTFOLIO & PRODUCTS — ${refLabel} ${images.length > 1 ? 'are' : 'is'} the exact uploaded artwork for the brands/products this booth represents (see the brief's REPRESENTED BRANDS & PRODUCTS section for each brand's display area). Detect every place in the image a represented brand's logo or product was rendered and correct it per the mapping below — never redraw, regenerate, or reinterpret any of them, and never mix up which image belongs to which brand or product:
+${lines.join('\n')}
+Inherit the reflections, shadows, highlights, perspective, and ambient lighting already present at each location so every replacement reads as physically installed under the same light, on the same surface, exactly like the Company Logo correction above.`;
+    }
+  };
+}
+
 /* One entry per brand-asset type BIE-001 can correct. Add a new provider function above (same
    shape: return null if nothing is uploaded for it, otherwise { name, images, describe }) and
    list it here to wire it in — no other part of runBrandAssetIntegrityEngine needs to change. */
-const BRAND_ASSET_PROVIDERS = [buildLogoBrandAssetProvider, buildPosterBrandAssetProvider];
+const BRAND_ASSET_PROVIDERS = [buildLogoBrandAssetProvider, buildPosterBrandAssetProvider, buildBrandPortfolioAssetProvider];
 
 async function collectActiveBrandAssetProviders(){
   const results = await Promise.all(BRAND_ASSET_PROVIDERS.map(fn => fn()));
@@ -12398,7 +12444,7 @@ async function runBrandAssetIntegrityEngine(imageDataUrl){
       p.images.forEach(img => additionalReferenceImages.push(img));
       nextRefIndex += p.images.length;
       const refLabel = p.images.length === 1 ? `Reference image ${startIdx}` : `Reference images ${startIdx}-${nextRefIndex - 1}`;
-      providerSections.push(p.describe(refLabel));
+      providerSections.push(p.describe(refLabel, startIdx));
     });
 
     const prompt = `You are BIE-001, the Brand Asset Integrity Engine. Reference image 1 is an already-finished, approved photorealistic exhibition booth render produced by another model whose job was architecture, layout, lighting, and space planning only — any branding or graphic content it drew is just an approximate placeholder, never the client's real uploaded artwork. Your ONLY job is brand accuracy: find every place a brand asset below was rendered and replace it with the client's exact uploaded original, per the reference images and instructions for each asset type.
@@ -12441,7 +12487,56 @@ The final result should look as though a real exhibition contractor installed th
   }
 }
 
-function startRenderSession(promptOptions, isUserInitiatedEdit){
+// Compresses and flattens every represented brand's logo + product photos into the exact
+// { images, note } shape startRenderSession needs to attach them as additionalReferenceImages
+// on the actual Gemini/OpenAI render call. Without this, Gemini/OpenAI only ever saw a TEXT
+// description of each brand/product logo (written by Stage 1's vision pass reading the same
+// images, then paraphrased into image_prompt by Stage 2) and had to invent their real
+// appearance from scratch at render time — the exact problem the Company Logo's own
+// referenceImage attachment below already solves for the main logo, now extended to cover
+// every represented brand too. Compressed (unlike the main logo, which stays uncompressed
+// since it's already small) since uploaded product photos can be full-resolution camera
+// images that would otherwise risk pushing the request past the ~4.5MB serverless body limit
+// once several brands/products are attached at once.
+async function buildBrandPortfolioRenderAssets(){
+  if(!(mode === 'booth' && brandPortfolio.length)) return { images: [], note: '' };
+  const images = [];
+  const labels = [];
+  for(const brand of brandPortfolio){
+    const brandName = brand.name.trim() || 'Unnamed brand';
+    if(brand.logoDataUrl && visionCompatibleTypes.includes(brand.logoMediaType)){
+      try{
+        const compressed = await compressDataUrl(brand.logoDataUrl, 1024, 0.9);
+        const parts = dataUrlParts(compressed);
+        images.push({ data: parts.base64, mimeType: parts.mime });
+        labels.push(`"${brandName}"'s exact logo — reproduce it pixel-for-pixel exactly as shown wherever "${brandName}"'s display area is, with no redesign, restyling, recoloring, or reinterpretation of any kind, and never swapped with another brand's logo.`);
+      }catch(e){ console.error('Could not compress brand logo for render:', brandName, e); }
+    }
+    for(const product of brand.products){
+      const productName = product.name.trim() || 'Unnamed product';
+      const validImages = product.images.filter(img => img.dataUrl && visionCompatibleTypes.includes(img.mediaType));
+      for(let i = 0; i < validImages.length; i++){
+        try{
+          const compressed = await compressDataUrl(validImages[i].dataUrl, 1024, 0.85);
+          const parts = dataUrlParts(compressed);
+          images.push({ data: parts.base64, mimeType: parts.mime });
+          const photoNote = validImages.length > 1 ? ` (photo ${i + 1} of ${validImages.length})` : '';
+          labels.push(`"${brandName}"'s product "${productName}"${photoNote} — match this exact product's real appearance (shape, color, material, labeling) wherever it's displayed in "${brandName}"'s area, never inventing a generic or different-looking product in its place.`);
+        }catch(e){ console.error('Could not compress product image for render:', brandName, productName, e); }
+      }
+    }
+  }
+  if(!images.length) return { images: [], note: '' };
+  // Described in the order these images are actually attached (relative numbering among just
+  // this group), not an absolute "reference image N" count that would also have to account for
+  // whether the main Company Logo happens to be attached before them — the model receives the
+  // attached images in this exact same order, so relative numbering is unambiguous on its own.
+  const note = '\n\nAlso attached, in this exact order, are the represented brands\' real logo and product photos (never confuse these with a client-supplied style reference image, if one is attached elsewhere) — for each one:\n'
+    + labels.map((l, i) => `${i + 1}. ${l}`).join('\n');
+  return { images, note };
+}
+
+async function startRenderSession(promptOptions, isUserInitiatedEdit){
   projectSwitchLocked = true;
   pendingRenderCount += promptOptions.length;
   if(mode === 'booth' || mode === 'event') lastGeneratedMode = mode;
@@ -12477,6 +12572,11 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
     ? computeBoothAspectRatio(parseFloat(document.getElementById('f_width').value), parseFloat(document.getElementById('f_depth').value))
     : '16:9';
 
+  // Computed ONCE per render session (identical for every option/variation being generated,
+  // since they all share the same brandPortfolio state) rather than inside the loop below —
+  // see buildBrandPortfolioRenderAssets' own comment for why this exists at all.
+  const brandAssets = await buildBrandPortfolioRenderAssets();
+
   optionResults.forEach((opt, i) => {
     const requestBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: !!isUserInitiatedEdit, aspectRatio: renderAspectRatio };
     // Attach the actual logo file as a reference image — without this, Gemini only ever
@@ -12489,6 +12589,13 @@ function startRenderSession(promptOptions, isUserInitiatedEdit){
       requestBody.referenceImage = logoDataUrl.split(',')[1];
       requestBody.referenceMimeType = logoMediaType;
       requestBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
+    }
+    // Same reasoning as the Company Logo above, extended to every represented brand's logo and
+    // product photos — real pixels attached directly to this exact render call, not just a
+    // text description filtered through two earlier AI passes.
+    if(brandAssets.images.length){
+      requestBody.additionalReferenceImages = brandAssets.images;
+      requestBody.prompt += brandAssets.note;
     }
     // Admin-only "Image Engine" selector (see imageEngineField) lets an admin route this exact
     // same finished prompt to OpenAI's image models instead of Gemini, purely to compare the
