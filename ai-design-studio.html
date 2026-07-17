@@ -8910,6 +8910,24 @@ async function translateDescriptionIfNeeded(rawDesc){
   }
 }
 
+// Independent, code-based truncation check — a genuinely truncated response always has more
+// opening braces/brackets than closing ones (generation stopped mid-object/mid-array), which
+// is a hard, verifiable fact regardless of whether the API's own finish_reason field happens
+// to be set or forwarded correctly by this specific backend. A real production case (reported
+// on a double-deck booth, whose analysis JSON is now substantially larger — see max_tokens'
+// own comment below) showed the response was genuinely cut off, but finish_reason wasn't
+// 'length' either, so the truncation went unrecognized and produced a vague, unhelpful error
+// instead of the clear "this was cut off, try again" one. Checked alongside finish_reason,
+// never instead of it — either signal is enough to call it a truncation.
+function looksTruncated(text){
+  let depth = 0;
+  for(const ch of text){
+    if(ch === '{' || ch === '[') depth++;
+    else if(ch === '}' || ch === ']') depth--;
+  }
+  return depth > 0;
+}
+
 async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
   const response = await fetch("/api/generate", {
     method: "POST",
@@ -8917,11 +8935,14 @@ async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
     body: JSON.stringify({
       // The analysis JSON schema and the final rendering-prompt document have both grown
       // substantially (multiple deterministic multi-fact blocks per field — see DIR-005,
-      // SCE-001, DIR-012) — for a content-rich brief, even 4096 tokens was observed to run
-      // out mid-response and truncate the JSON outright (confirmed via finish_reason below,
-      // not just guessed from the parse failure). 8192 gives real headroom; gpt-4o supports
-      // up to 16384 output tokens, so this is still well within its actual ceiling.
-      max_tokens: 8192,
+      // SCE-001, DIR-012 — plus, for double-deck booths specifically, a second floor's worth
+      // of zones, hero facts, and EPS-020 compliance on top of the ground floor's own) — for
+      // a content-rich brief, even 4096 tokens was observed to run out mid-response and
+      // truncate the JSON outright, and 8192 was later observed doing the same specifically
+      // on double-deck projects (their analysis is meaningfully larger than a single-level
+      // booth's). 16000 gives real headroom while staying under gpt-4o's actual 16384 output
+      // ceiling.
+      max_tokens: 16000,
       system: system,
       messages: [{ role: "user", content: content }]
     })
@@ -8944,11 +8965,18 @@ async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
   try{
     return JSON.parse(cleaned);
   }catch(parseErr){
-    // finish_reason === 'length' means OpenAI cut the response off itself because it hit
-    // max_tokens mid-generation — a hard confirmation of truncation, not a guess, and a
-    // clear signal (if this recurs) that max_tokens needs raising again rather than
-    // anything about the JSON's formatting being wrong.
-    if(data.finish_reason === 'length'){
+    // finish_reason === 'length' means the API itself reported cutting the response off at
+    // max_tokens — a hard confirmation of truncation. looksTruncated(cleaned) is a second,
+    // independent check of the same fact (unbalanced braces/brackets), since a real
+    // production case showed finish_reason isn't always forwarded reliably even when the
+    // response genuinely was cut off. Either signal alone is enough to call this a
+    // truncation rather than a formatting problem.
+    const wasCutOff = data.finish_reason === 'length' || looksTruncated(cleaned);
+    if(wasCutOff){
+      if(!isRetryAfterParseFailure){
+        console.warn('[callPromptWriterApi] response was cut off before finishing — retrying once with a fresh completion.');
+        return callPromptWriterApi(system, content, true);
+      }
       throw new Error('The response was cut off because it hit the model\'s output length limit before finishing — try Generate again; if this keeps happening, the design record has grown too large for a single response and needs a higher token limit.');
     }
     // Recover Stage 2's fixed title/image_prompt/concept_description shape directly by key
