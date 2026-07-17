@@ -1269,6 +1269,29 @@ Replace only the materials and graphics."></textarea>
         <div class="hint">Affects architecture, materials, lighting, and production planning. If left unspecified, the AI infers this from your event type — e.g. a Conference defaults to Indoor, a Festival defaults to Outdoor.</div>
       </div>
 
+      <div class="field" id="targetAudienceField">
+        <label>Target Audience <span class="required-mark">*</span></label>
+        <div class="hint" style="margin-bottom:10px;">Select all that apply.</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="target-audience-cb" value="Executives"> Executives</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Government Officials"> Government Officials</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Investors"> Investors</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Business Owners"> Business Owners</label>
+          <label><input type="checkbox" class="target-audience-cb" value="General Public"> General Public</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Students"> Students</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Families"> Families</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Media"> Media</label>
+          <label><input type="checkbox" class="target-audience-cb" value="VIP Guests"> VIP Guests</label>
+          <label><input type="checkbox" class="target-audience-cb" value="International Visitors"> International Visitors</label>
+          <label><input type="checkbox" class="target-audience-cb" value="Technical Professionals"> Technical Professionals</label>
+        </div>
+      </div>
+
+      <div class="field" id="attendeesField">
+        <label>Expected number of attendees</label>
+        <input type="number" id="f_attendees" placeholder="e.g. 150" min="1">
+      </div>
+
       <div class="field" id="genericSizeBlock">
         <div class="row2">
           <div class="field">
@@ -1321,10 +1344,10 @@ Replace only the materials and graphics."></textarea>
         </div>
       </div>
 
-      <div class="field" id="attendeesField">
-        <label>Expected number of attendees</label>
-        <input type="number" id="f_attendees" placeholder="e.g. 150" min="1">
-      </div>
+      <!-- "Tell us about your event" (descFieldWrap, shared with Booth mode's own version of
+           this field) is moved to right after this anchor whenever mode is 'event' — see
+           setMode(). -->
+      <div id="descFieldEventAnchor"></div>
     </div>
 
     <div id="boothSizeFields">
@@ -1503,6 +1526,29 @@ Replace only the materials and graphics."></textarea>
       </div>
     </div>
 
+    <!-- Event mode's Upload section — Logo is the same shared field Booth mode uses (see
+         logoFieldBoothAnchor below and setMode()), so it's repositioned here rather than
+         duplicated; Brand Guidelines and Website are new, event-only, both optional. -->
+    <div id="eventUploadFields" style="display:none;">
+      <div class="section-headline">Upload</div>
+      <div id="logoFieldEventAnchor"></div>
+
+      <div class="field" id="brandGuidelinesField">
+        <label>Brand Guidelines</label>
+        <div class="logo-upload" id="brandGuidelinesUploadBox" onclick="document.getElementById('f_brandGuidelines').click()">
+          <input type="file" id="f_brandGuidelines" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" style="display:none;" onchange="handleBrandGuidelinesUpload(this)">
+          <div id="brandGuidelinesPlaceholder">Click to upload brand guidelines — PDF, JPG, or PNG (optional)</div>
+        </div>
+        <div class="hint">Optional. If provided, the AI reads your brand's stated colors, tone, and visual rules alongside the logo itself.</div>
+      </div>
+
+      <div class="field" id="eventWebsiteField">
+        <label>Website</label>
+        <input type="text" id="f_eventWebsite" placeholder="e.g. www.example.com">
+        <div class="hint">Optional. Helps the AI understand your brand and industry context.</div>
+      </div>
+    </div>
+
     <div class="field">
       <label><span data-i18n="field.constructionStyle">Construction style</span> <span class="required-mark">*</span></label>
       <select id="f_constructionStyle">
@@ -1518,6 +1564,9 @@ Replace only the materials and graphics."></textarea>
       <div class="hint" data-i18n="hint.constructionStyle">Defines material quality and build complexity — important for construction feasibility.</div>
     </div>
 
+    <!-- Anchor marking Logo's original (Booth mode) position — setMode() moves logoField back
+         here whenever mode isn't 'event'. See logoFieldEventAnchor above for the other end. -->
+    <div id="logoFieldBoothAnchor" style="display:none;"></div>
     <div class="field" id="logoField" style="display:none;">
       <label>Company logo <span class="required-mark">*</span></label>
       <div class="logo-upload" id="logoUploadBox" onclick="document.getElementById('f_logo').click()">
@@ -1585,24 +1634,6 @@ Replace only the materials and graphics."></textarea>
           <option value="Other">Other</option>
         </select>
         <input type="text" id="f_eventObjectiveCustom" placeholder="Describe the event's primary purpose" style="display:none;margin-top:8px;">
-      </div>
-
-      <div class="field" id="targetAudienceField">
-        <label>Target Audience <span class="required-mark">*</span></label>
-        <div class="hint" style="margin-bottom:10px;">Select all that apply.</div>
-        <div class="checkbox-grid">
-          <label><input type="checkbox" class="target-audience-cb" value="Executives"> Executives</label>
-          <label><input type="checkbox" class="target-audience-cb" value="Government Officials"> Government Officials</label>
-          <label><input type="checkbox" class="target-audience-cb" value="Investors"> Investors</label>
-          <label><input type="checkbox" class="target-audience-cb" value="Business Owners"> Business Owners</label>
-          <label><input type="checkbox" class="target-audience-cb" value="General Public"> General Public</label>
-          <label><input type="checkbox" class="target-audience-cb" value="Students"> Students</label>
-          <label><input type="checkbox" class="target-audience-cb" value="Families"> Families</label>
-          <label><input type="checkbox" class="target-audience-cb" value="Media"> Media</label>
-          <label><input type="checkbox" class="target-audience-cb" value="VIP Guests"> VIP Guests</label>
-          <label><input type="checkbox" class="target-audience-cb" value="International Visitors"> International Visitors</label>
-          <label><input type="checkbox" class="target-audience-cb" value="Technical Professionals"> Technical Professionals</label>
-        </div>
       </div>
 
       <div class="field">
@@ -2907,7 +2938,11 @@ Replace only the materials and graphics."></textarea>
       </div>
     </div>
 
-    <div class="field">
+    <!-- Anchor marking this field's original (Booth mode) position — setMode() moves
+         descFieldWrap back here whenever mode isn't 'event'. See descFieldEventAnchor inside
+         eventDetailsFields for the other end of that move. -->
+    <div id="descFieldBoothAnchor" style="display:none;"></div>
+    <div class="field" id="descFieldWrap">
       <label id="lblDesc">Describe what you want in detail: the goal, products or activities on display, visual identity, any special requirements</label>
       <!-- Event mode's own guidance — kept as plain English (not yet run through data-i18n
            like the rest of this field) and toggled by updateModeDependentLabels(), the same
@@ -6415,7 +6450,31 @@ let logoMediaType = null;
 let referenceImageDataUrl = null;
 let referenceImageMediaType = null;
 let posterFiles = [];
+// Event mode's Upload section — optional brand guidelines document/image, same
+// data-URL-in-memory + persist-with-project pattern as logoDataUrl above.
+let brandGuidelinesDataUrl = null;
+let brandGuidelinesMediaType = null;
+let brandGuidelinesFileName = '';
 const visionCompatibleTypes = ['image/png','image/jpeg','image/webp','image/gif'];
+
+function handleBrandGuidelinesUpload(input){
+  const file = input.files[0];
+  if(!file) return;
+  brandGuidelinesMediaType = file.type || '';
+  brandGuidelinesFileName = file.name;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    // Read as a data URL regardless of file type (same as logoDataUrl does for SVG) so the
+    // actual bytes are always captured and persisted with the project — a PDF just isn't
+    // rendered as an inline image preview, only its filename is shown, same as posterFiles.
+    brandGuidelinesDataUrl = e.target.result;
+    const placeholder = document.getElementById('brandGuidelinesPlaceholder');
+    const box = document.getElementById('brandGuidelinesUploadBox');
+    placeholder.textContent = `Brand guidelines attached: ${file.name}`;
+    box.classList.add('has-logo');
+  };
+  reader.readAsDataURL(file);
+}
 
 function togglePosterUpload(sel){
   const isYes = sel.value.startsWith('yes');
@@ -8243,6 +8302,14 @@ function setMode(m){
   if(m==='booth' || m==='event'){
     document.getElementById('eventDetailsHeadline').style.display = m==='event' ? 'block' : 'none';
     document.getElementById('eventDetailsFields').style.display = m==='event' ? 'block' : 'none';
+    // "Tell us about your event" / "Describe what you want..." (descFieldWrap) is one shared
+    // field element used by both modes (see the comment above captureModeSnapshot), but each
+    // mode wants it in a different physical spot — Event mode at the end of Event Details,
+    // Booth mode in its original position further down. Since it's the same DOM node, it's
+    // physically relocated here rather than duplicated, using the anchor placed at each spot.
+    const descFieldWrap = document.getElementById('descFieldWrap');
+    const descAnchor = document.getElementById(m==='event' ? 'descFieldEventAnchor' : 'descFieldBoothAnchor');
+    if(descFieldWrap && descAnchor) descAnchor.after(descFieldWrap);
     document.getElementById('eventThemeHeadline').style.display = m==='event' ? 'block' : 'none';
     const eventConceptEl = document.getElementById('eventConceptFields');
     if(eventConceptEl) eventConceptEl.style.display = m==='event' ? 'block' : 'none';
@@ -8268,8 +8335,16 @@ function setMode(m){
     // Company logo used to live inside boothThemeFieldsTop and inherited its show/hide for
     // free; it now sits on its own (moved up next to Number of open sides / Construction
     // style per the requested field order), so it needs this explicit toggle to keep the
-    // exact same booth-only visibility it always had.
-    document.getElementById('logoField').style.display = m==='booth' ? 'block' : 'none';
+    // exact same booth-only visibility it always had. Event mode also needs it (it's the
+    // same shared field, required in both modes), but physically positioned inside Event
+    // mode's own "Upload" section instead of Booth's spot — same anchor-repositioning
+    // pattern used above for descFieldWrap.
+    const logoFieldEl = document.getElementById('logoField');
+    const logoAnchor = document.getElementById(m==='event' ? 'logoFieldEventAnchor' : 'logoFieldBoothAnchor');
+    if(logoFieldEl && logoAnchor) logoAnchor.after(logoFieldEl);
+    logoFieldEl.style.display = (m==='booth' || m==='event') ? 'block' : 'none';
+    const eventUploadEl = document.getElementById('eventUploadFields');
+    if(eventUploadEl) eventUploadEl.style.display = m==='event' ? 'block' : 'none';
     const aiAutofillEl = document.getElementById('aiAutofillHelperField');
     if(aiAutofillEl) aiAutofillEl.style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('flooringHeadline').style.display = m==='booth' ? 'block' : 'none';
@@ -9530,6 +9605,7 @@ function getMissingRequirements(m){
 
   if(m === 'event'){
     if(!desc) missing.push('a detailed description');
+    if(!logoDataUrl) missing.push(t('validation.logo'));
     const eventObjective = document.getElementById('f_eventObjective').value;
     const eventObjectiveCustom = String(document.getElementById('f_eventObjectiveCustom').value).trim();
     if(!eventObjective) missing.push('an Event Objective');
@@ -13809,6 +13885,7 @@ function collectFormSnapshot(){
     f_country: document.getElementById('f_country').value,
     f_city: document.getElementById('f_city').value,
     f_venue: document.getElementById('f_venue').value,
+    f_eventWebsite: document.getElementById('f_eventWebsite').value,
     f_eventObjective: document.getElementById('f_eventObjective').value,
     f_eventObjectiveCustom: document.getElementById('f_eventObjectiveCustom').value,
     f_targetAudience: Array.from(document.querySelectorAll('.target-audience-cb:checked')).map(cb => cb.value),
@@ -13928,6 +14005,7 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_country').value = snap.f_country || '';
   document.getElementById('f_city').value = snap.f_city || '';
   document.getElementById('f_venue').value = snap.f_venue || '';
+  document.getElementById('f_eventWebsite').value = snap.f_eventWebsite || '';
   document.getElementById('f_eventObjective').value = snap.f_eventObjective || '';
   document.getElementById('f_eventObjectiveCustom').value = snap.f_eventObjectiveCustom || '';
   toggleEventObjectiveCustom(document.getElementById('f_eventObjective'));
@@ -14130,6 +14208,19 @@ function restoreLogoAndPosters(project){
   posterFiles = (project.posterFiles || []).map(pf => ({ name: pf.name, size: pf.size, type: pf.type, file: pf.file }));
   renderPosterFileList();
 
+  brandGuidelinesDataUrl = project.brandGuidelinesDataUrl || null;
+  brandGuidelinesMediaType = project.brandGuidelinesMediaType || null;
+  brandGuidelinesFileName = project.brandGuidelinesFileName || '';
+  const bgPlaceholder = document.getElementById('brandGuidelinesPlaceholder');
+  const bgBox = document.getElementById('brandGuidelinesUploadBox');
+  if(brandGuidelinesDataUrl && brandGuidelinesFileName){
+    bgPlaceholder.textContent = `Brand guidelines attached: ${brandGuidelinesFileName}`;
+    bgBox.classList.add('has-logo');
+  }else{
+    bgPlaceholder.textContent = 'Click to upload brand guidelines — PDF, JPG, or PNG (optional)';
+    bgBox.classList.remove('has-logo');
+  }
+
   referenceImageDataUrl = project.referenceImageDataUrl || null;
   referenceImageMediaType = project.referenceImageMediaType || null;
   const refPreview = document.getElementById('referenceImagePreview');
@@ -14311,6 +14402,9 @@ async function saveCurrentProject(){
     formSnapshot: collectFormSnapshot(),
     logoDataUrl: logoDataUrl,
     logoMediaType: logoMediaType,
+    brandGuidelinesDataUrl: brandGuidelinesDataUrl,
+    brandGuidelinesMediaType: brandGuidelinesMediaType,
+    brandGuidelinesFileName: brandGuidelinesFileName,
     referenceImageDataUrl: referenceImageDataUrl,
     referenceImageMediaType: referenceImageMediaType,
     posterFiles: (posterFiles || []).map(pf => ({ name: pf.name, size: pf.size, type: pf.type, file: pf.file })),
@@ -14633,6 +14727,11 @@ function startNewProject(){
   document.getElementById('logoPlaceholder').textContent = 'Click to upload your logo — PNG, JPG, WebP, or SVG';
   document.getElementById('logoPlaceholder').style.display = 'block';
   document.getElementById('logoUploadBox').classList.remove('has-logo');
+  brandGuidelinesDataUrl = null;
+  brandGuidelinesMediaType = null;
+  brandGuidelinesFileName = '';
+  document.getElementById('brandGuidelinesPlaceholder').textContent = 'Click to upload brand guidelines — PDF, JPG, or PNG (optional)';
+  document.getElementById('brandGuidelinesUploadBox').classList.remove('has-logo');
   posterFiles = [];
   renderPosterFileList();
   clearReferenceImage();
