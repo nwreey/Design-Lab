@@ -624,9 +624,9 @@
     </div>
     <div class="sidebar-note" data-i18n="sidebar.autoSaveNote">Projects save automatically and sync across devices.</div>
 
-    <!-- Admin-only — regular users no longer see this in the sidebar (see checkAdminAccess(),
-         which reveals it only for data.role === 'admin'), but it's kept fully working, not
-         removed, in case it's needed again later. -->
+    <!-- Hidden from everyone, including admins, per an explicit product decision (see
+         checkAdminAccess(), which used to reveal this for data.role === 'admin' and no longer
+         does) — kept fully working under the hood, not removed, in case it's needed again later. -->
     <div class="sidebar-upload-existing" id="sidebarUploadExisting" style="display:none;">
       <div class="sidebar-upload-divider" data-i18n="sidebar.or">or</div>
       <div class="sidebar-upload-dims-label" data-i18n="sidebar.boothSizeRequired">Booth size (required)</div>
@@ -8836,19 +8836,19 @@ async function checkAdminAccess(){
       isAdminUser = true;
       const link = document.getElementById('adminPanelLink');
       if(link) link.style.display = 'inline-block';
-      // Event Concept, Display Stand, and Modify Design are still in testing — kept visible
-      // to admins only until each is finished and deliberately opened up to all users. Remove
-      // this reveal (and the style="display:none;" on the buttons themselves) when that happens.
-      ['tabEvent', 'tabDisplayStand', 'tabEditDesign'].forEach(id => {
+      // Event Concept and Display Stand are still in testing — kept visible to admins only
+      // until each is finished and deliberately opened up to all users. Remove this reveal
+      // (and the style="display:none;" on the buttons themselves) when that happens.
+      // Modify Design (tabEditDesign) and "Upload an existing design" (sidebar) used to get the
+      // same admin-only reveal, but are now hidden from everyone, including admins, per an
+      // explicit product decision — left fully working under the hood (not removed) in case
+      // they're needed again later; just no longer revealed here for any role.
+      ['tabEvent', 'tabDisplayStand'].forEach(id => {
         const tab = document.getElementById(id);
         if(tab) tab.style.display = '';
       });
       const engineField = document.getElementById('imageEngineField');
       if(engineField) engineField.style.display = 'block';
-      // "Upload an existing design" (sidebar) — same admin-only treatment: hidden from regular
-      // users by default in the HTML, revealed here only for admins.
-      const uploadExistingEl = document.getElementById('sidebarUploadExisting');
-      if(uploadExistingEl) uploadExistingEl.style.display = 'block';
     }
     // The AI Auto-fill Helper ("Need help completing this brief?") has now graduated from an
     // admin-only test to a normal feature for every user, in both Booth and Event modes — shown
