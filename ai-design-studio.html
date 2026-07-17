@@ -1511,14 +1511,14 @@ Replace only the materials and graphics."></textarea>
       <label class="check-item-compact" style="font-weight:600;">
         <input type="checkbox" id="f_needsAiHelp" onchange="toggleAiAutofillPanel(this)"> Need help completing this brief? <span style="font-weight:400;">(AI-assisted — admin test)</span>
       </label>
-      <div class="hint">Answer a couple of quick questions and DesignsLab AI will read your company website and everything already entered in Booth Details, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.</div>
+      <div class="hint">Tell DesignsLab AI the Goal of the booth and your company website, and it will read everything already entered in Booth Details, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.</div>
 
       <div id="aiAutofillPanel" style="display:none;margin-top:14px;padding:16px;border:1px solid var(--line, #333);border-radius:10px;">
-        <div class="field">
+        <div class="field" id="aiAutofillGoalField">
           <label>Goal of the booth</label>
           <textarea id="f_autofillGoal" placeholder="e.g. Generate qualified leads and showcase our new product line to enterprise buyers" rows="2"></textarea>
         </div>
-        <div class="field">
+        <div class="field" id="aiAutofillWebsiteField">
           <label>Company website</label>
           <input type="text" id="f_autofillWebsite" placeholder="e.g. www.example.com">
           <div class="hint">DesignsLab AI will read this page's visible content — no login-gated or JS-only pages.</div>
@@ -8635,11 +8635,28 @@ function resetAutofillHelperState(){
   if(status) status.textContent = '';
   const loadingBar = document.getElementById('aiAutofillLoadingBar');
   if(loadingBar) loadingBar.classList.remove('active');
+  // Goal/Website/the run button close themselves up once a run finishes successfully (see the
+  // end of runAiAutofill) — reopen them here so a new or freshly-loaded project always starts
+  // with the full, editable prompt rather than the collapsed "already ran" state.
+  setAiAutofillPromptFieldsOpen(true);
+}
+
+// Shows or hides the Goal of the booth / Company website fields and the run button themselves
+// — collapsed after a successful run (nothing left to re-enter, the button's job is done),
+// reopened on toggleAiAutofillPanel() re-check or a new/loaded project via resetAutofillHelperState().
+function setAiAutofillPromptFieldsOpen(open){
+  ['aiAutofillGoalField', 'aiAutofillWebsiteField', 'aiAutofillBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = open ? '' : 'none';
+  });
 }
 
 function toggleAiAutofillPanel(cb){
   const panel = document.getElementById('aiAutofillPanel');
   if(panel) panel.style.display = cb.checked ? 'block' : 'none';
+  // Re-opening the checkbox (e.g. to run the helper again) should always bring back the
+  // Goal/Website/run button, even if a previous run had collapsed them.
+  if(cb.checked) setAiAutofillPromptFieldsOpen(true);
 }
 
 // Fields the auto-fill engine must never touch, even though they fall inside the DOM range it
@@ -8650,6 +8667,10 @@ const AUTOFILL_EXCLUDED_IDS = new Set([
   'f_modularWallLayout', 'f_referenceImage', 'f_posterFiles', 'f_logo',
   'f_needsAiHelp', 'f_autofillGoal', 'f_autofillWebsite',
   'f_requiredAreaOtherToggle', 'f_indoorAreaOtherToggle', 'f_outdoorAreaOtherToggle',
+  // "Do you already have poster designs?" is a client decision, never something the AI should
+  // guess or overwrite — it's left exactly as the client set it (default "No"). f_posterCount
+  // (how many posters) stays autofillable since that's a space-driven design choice.
+  'f_hasPosters',
 ]);
 
 function labelTextFor(el){
@@ -8724,6 +8745,27 @@ function isFieldVisible(el){
   return el.offsetParent !== null;
 }
 
+// Checks/unchecks every checkbox matched by selector whose .value is in `values`, skipping any
+// that aren't currently visible — used for the checkbox-grid fields that have no [id] at all
+// (Optional Floor Features, Integrated Elements, Rigging/Ceiling Lighting), the same reason
+// Brand Personality above is special-cased rather than picked up by collectAutofillFieldDescriptors.
+// Passing both a rigging-flavored and ceiling-flavored selector together (e.g.
+// '.rigging-element-cb, .ceiling-element-cb') is deliberate and safe: whichever pair the user's
+// (or the AI's own) Ceiling & Rigging choice actually reveals is the only one isFieldVisible lets
+// through, so the two mutually-exclusive variants never need separate branching logic here.
+function applyCheckboxGroupByValue(selector, values){
+  if(!Array.isArray(values)) return;
+  const wanted = new Set(values.map(v => String(v)));
+  document.querySelectorAll(selector).forEach(cb => {
+    if(!isFieldVisible(cb)) return;
+    const shouldCheck = wanted.has(cb.value);
+    if(cb.checked !== shouldCheck){
+      cb.checked = shouldCheck;
+      cb.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+}
+
 function applyAutofillResult(result){
   if(!result || typeof result !== 'object') return;
 
@@ -8795,6 +8837,13 @@ function applyAutofillResult(result){
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   });
+
+  // Optional Floor Features, Integrated Elements, and Rigging (or Ceiling) Lighting — applied
+  // last, after the descriptor loop above has already set f_ceilingRigging, so the correct
+  // rigging-vs-ceiling checkbox group (they share the same value sets) is the one visible now.
+  applyCheckboxGroupByValue('.floor-feature-cb', result.floorFeatures);
+  applyCheckboxGroupByValue('.rigging-element-cb, .ceiling-element-cb', result.integratedElements);
+  applyCheckboxGroupByValue('.rigging-lighting-cb, .ceiling-lighting-cb', result.riggingLighting);
 }
 
 async function runAiAutofill(){
@@ -8880,6 +8929,17 @@ async function runAiAutofill(){
     const descriptors = collectAutofillFieldDescriptors();
     const fieldSchema = descriptors.map(d => ({ id: d.id, label: d.label, kind: d.kind, options: d.options || undefined }));
 
+    // These three checkbox groups (Optional Floor Features, Integrated Elements, and Rigging/
+    // Ceiling Lighting) have no [id] at all — see applyCheckboxGroupByValue's own comment —
+    // so they're pulled in here by class instead and handled as their own top-level JSON keys,
+    // the same pattern already used for brandColors/brandPersonality above.
+    const floorFeatureOptions = Array.from(document.querySelectorAll('.floor-feature-cb')).map(cb => cb.value);
+    // Integrated Elements and Rigging/Ceiling Lighting share the exact same value set whether
+    // "Ceiling & Rigging" ends up as real rigging or a self-supported ceiling feature — only
+    // one of the two id-less groups is ever visible at a time, so one option list covers both.
+    const integratedElementOptions = Array.from(document.querySelectorAll('.rigging-element-cb')).map(cb => cb.value);
+    const riggingLightingOptions = Array.from(document.querySelectorAll('.rigging-lighting-cb')).map(cb => cb.value);
+
     const system = `SYSTEM
 
 You are helping fill out an exhibition booth design brief on behalf of a client, based on their stated goal, their company website, and every fact already entered about the booth itself (its Booth Details). You are NOT designing the booth yourself — you are choosing sensible values for a fixed list of form fields, the same way a thoughtful account manager would fill in a client intake form for them.
@@ -8890,16 +8950,22 @@ Return STRICT JSON only, no explanation outside the JSON, in exactly this shape:
 {
   "brandColors": ["#RRGGBB", "#RRGGBB"],
   "brandPersonality": ["Name1", "Name2", "Name3"],
+  "floorFeatures": ["OptionalFloorFeature1", ...],
+  "integratedElements": ["IntegratedElement1", ...],
+  "riggingLighting": ["LightingOption1", ...],
   "fields": { "<field id>": <value>, ... }
 }
 
 Rules:
 - "brandColors": 2–4 hex colors that fit the brand (from the website if a real brand palette is evident, otherwise an industry-appropriate palette). Always include this.
 - "brandPersonality": choose exactly 3 names, in order of Primary/Secondary/Accent, from this exact list: ${BRAND_PERSONALITY_ORDER.join(', ')}.
+- "floorFeatures": choose any number (including none) of Optional Floor Features that suit this brand and space, from this exact list: ${floorFeatureOptions.join(', ')}.
+- "integratedElements": only relevant if "fields" sets f_ceilingRigging to anything other than "No overhead structure" — choose Integrated Elements that suit that overhead structure, from this exact list: ${integratedElementOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
+- "riggingLighting": same condition as "integratedElements" — if there is any overhead structure (real rigging OR a self-supported ceiling feature), choose its lighting from this exact list: ${riggingLightingOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
 - "fields": for every field in the FIELD SCHEMA below, include a value keyed by its exact "id".
   - kind "select": the value MUST be exactly one of that field's "options", copied verbatim.
-  - kind "checkbox": true or false only — true only for requirements that genuinely make sense for this brand, goal, and space; do not check everything.
-  - kind "number": a plain integer as a number, sized to the space (e.g. never suggest 6 reception counters in a 9 sqm booth).
+  - kind "checkbox": true or false only. For the Requirements checkboxes specifically (ids starting "addreq_"), select AT LEAST TWO that genuinely make sense for this brand, goal, and space — never zero, never one — but do not check everything either, and never select more than the available floor area can realistically hold at once (a 9 sqm booth fits very few of these; a 200 sqm booth fits many more). Every requirement you check has a paired quantity/capacity field elsewhere in the FIELD SCHEMA (e.g. "addreq_reception_count" for "addreq_reception") — always give that paired field a sensible number sized to the space too, never leave it at an unconsidered default.
+  - kind "number": a plain integer as a number, sized to the space (e.g. never suggest 6 reception counters in a 9 sqm booth). This also covers "f_posterCount" (how many posters) — note there is no field here for whether the client already has poster designs; that choice is fixed by the client and is never yours to set, only how many posters is.
   - kind "color": a hex string like "#RRGGBB".
   - kind "text"/"textarea": a short, concrete value in the same spirit as the field's label — for the AI Creative Brief field specifically, write a rich, specific paragraph synthesizing the goal, website, and booth facts into a real design brief.
 - Never invent facts about the company that aren't supported by the goal or website — where information is missing, make a reasonable, clearly generic choice appropriate to the stated industry instead of fabricating specifics.
@@ -8915,6 +8981,10 @@ ${JSON.stringify(fieldSchema, null, 2)}`;
     const result = await callPromptWriterApi(system, contentParts);
     applyAutofillResult(result);
     status.textContent = 'Done — review the fields below and adjust anything before generating.' + (websiteWarning ? ' (' + websiteWarning + ')' : '');
+    // Goal / Company website / the run button have done their job — collapse them so the panel
+    // just shows the completed status. toggleAiAutofillPanel() brings them back if the checkbox
+    // is unchecked and rechecked to run it again.
+    setAiAutofillPromptFieldsOpen(false);
   }catch(err){
     console.error('AI auto-fill failed:', err);
     status.textContent = 'Could not auto-fill: ' + (err && err.message ? err.message : 'unknown error');
