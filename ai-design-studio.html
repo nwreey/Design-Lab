@@ -8794,6 +8794,24 @@ function isFieldVisible(el){
 // '.rigging-element-cb, .ceiling-element-cb') is deliberate and safe: whichever pair the user's
 // (or the AI's own) Ceiling & Rigging choice actually reveals is the only one isFieldVisible lets
 // through, so the two mutually-exclusive variants never need separate branching logic here.
+// Requirements checkboxes live in accordion categories that are collapsed (display:none) by
+// default (see collapseReqCategory) — that collapse is only a UI convenience, never a real
+// conditional dependency the way e.g. Carpet Type depends on Floor Finish, so a category being
+// collapsed must never stop the AI from actually checking a box inside it. This walks backwards
+// from a checkbox to its category's .subarea-label header (they're flat, unwrapped siblings,
+// same structure collectRequirementCategoryIds relies on) and expands it so the selection the
+// AI just made is immediately visible instead of silently hidden inside a folded category.
+function expandReqCategoryFor(checkboxEl){
+  let node = (checkboxEl.closest && checkboxEl.closest('.check-item-compact')) || checkboxEl;
+  while(node){
+    node = node.previousElementSibling;
+    if(node && node.classList && node.classList.contains('subarea-label')){
+      collapseReqCategory(node, false);
+      return;
+    }
+  }
+}
+
 function applyCheckboxGroupByValue(selector, values){
   if(!Array.isArray(values)) return;
   const wanted = new Set(values.map(v => String(v)));
@@ -8846,7 +8864,13 @@ function applyAutofillResult(result){
     const value = result.fields ? result.fields[desc.id] : undefined;
     if(value === undefined || value === null) return;
     const el = document.getElementById(desc.id);
-    if(!el || !isFieldVisible(el)) return;
+    if(!el) return;
+
+    // See expandReqCategoryFor's comment — a Requirements checkbox being inside a still-
+    // collapsed accordion category isn't a real "doesn't apply" case like every other field
+    // kind's visibility check below assumes, so it gets its own bypass here.
+    const isReqCheckbox = desc.kind === 'checkbox' && desc.id.startsWith('addreq_');
+    if(!isReqCheckbox && !isFieldVisible(el)) return;
 
     if(desc.kind === 'checkbox'){
       const shouldCheck = !!value;
@@ -8854,6 +8878,7 @@ function applyAutofillResult(result){
         el.checked = shouldCheck;
         el.dispatchEvent(new Event('change', { bubbles: true }));
       }
+      if(isReqCheckbox && shouldCheck) expandReqCategoryFor(el);
       return;
     }
 
@@ -8885,6 +8910,11 @@ function applyAutofillResult(result){
   applyCheckboxGroupByValue('.floor-feature-cb', result.floorFeatures);
   applyCheckboxGroupByValue('.rigging-element-cb, .ceiling-element-cb', result.integratedElements);
   applyCheckboxGroupByValue('.rigging-lighting-cb, .ceiling-lighting-cb', result.riggingLighting);
+
+  // Refresh each Requirements category's "N selected" badge now that expandReqCategoryFor may
+  // have opened some of them and checked several boxes inside — this is the same helper the
+  // accordion's own manual expand/collapse buttons already call.
+  if(typeof updateReqCategoryCounts === 'function') updateReqCategoryCounts();
 }
 
 async function runAiAutofill(){
