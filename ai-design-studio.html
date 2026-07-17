@@ -1269,6 +1269,30 @@ Replace only the materials and graphics."></textarea>
         <div class="hint">Affects architecture, materials, lighting, and production planning. If left unspecified, the AI infers this from your event type — e.g. a Conference defaults to Indoor, a Festival defaults to Outdoor.</div>
       </div>
 
+      <div class="field">
+        <label>Event Objective <span class="required-mark">*</span></label>
+        <div class="hint" style="margin-bottom:10px;">What is the primary purpose of this event? Choose one.</div>
+        <select id="f_eventObjective" onchange="toggleEventObjectiveCustom(this)">
+          <option value="" selected disabled>Select the primary purpose...</option>
+          <option>Product Launch</option>
+          <option>Brand Awareness</option>
+          <option>Lead Generation</option>
+          <option>Networking</option>
+          <option>Conference</option>
+          <option>Exhibition</option>
+          <option>Investor Event</option>
+          <option>Training</option>
+          <option>Celebration</option>
+          <option>Awards Ceremony</option>
+          <option>Government Event</option>
+          <option>Education</option>
+          <option>Sales Event</option>
+          <option>Community Engagement</option>
+          <option value="Other">Other</option>
+        </select>
+        <input type="text" id="f_eventObjectiveCustom" placeholder="Describe the event's primary purpose" style="display:none;margin-top:8px;">
+      </div>
+
       <div class="field" id="targetAudienceField">
         <label>Target Audience <span class="required-mark">*</span></label>
         <div class="hint" style="margin-bottom:10px;">Select all that apply.</div>
@@ -1287,6 +1311,103 @@ Replace only the materials and graphics."></textarea>
         </div>
       </div>
 
+    <div class="section-headline" id="requiredAreasHeadline" style="display:none;">Required Areas</div>
+    <div id="eventRequiredAreasFields" style="display:none;">
+      <div class="field" id="unifiedRequiredAreasBlock">
+        <div class="hint" style="margin-bottom:10px;">Select all that apply — this drives the design directly, especially important if the size below is unknown.</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="required-area-cb" value="Main Entrance"> Main Entrance</label>
+          <label><input type="checkbox" class="required-area-cb" value="Registration Area"> Registration Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
+          <label><input type="checkbox" class="required-area-cb" value="Main Stage"> Main Stage</label>
+          <label><input type="checkbox" class="required-area-cb" value="VIP Lounge"> VIP Lounge</label>
+          <label><input type="checkbox" class="required-area-cb" value="Networking Area"> Networking Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Exhibition Area"> Exhibition Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Sponsor Area"> Sponsor Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Media Center"> Media Center</label>
+          <label><input type="checkbox" class="required-area-cb" value="Interview Zone"> Interview Zone</label>
+          <label><input type="checkbox" class="required-area-cb" value="Press Conference Room"> Press Conference Room</label>
+          <label><input type="checkbox" class="required-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
+          <label><input type="checkbox" class="required-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
+          <label><input type="checkbox" class="required-area-cb" value="Prayer Area"> Prayer Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Dining Area"> Dining Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Outdoor Area"> Outdoor Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
+          <label><input type="checkbox" class="required-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
+          <label><input type="checkbox" class="required-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
+          <label><input type="checkbox" class="required-area-cb" value="Exit Experience"> Exit Experience</label>
+        </div>
+        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_requiredAreaOtherToggle" onchange="toggleOtherAreaContainer('required', this.checked)"> Other</label>
+        <div id="requiredAreaOtherContainer" style="display:none;margin-top:8px;">
+          <div id="requiredAreaOtherList"></div>
+          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('required')">+ Add another</button>
+        </div>
+      </div>
+
+      <div id="splitRequiredAreasBlock" style="display:none;">
+        <div class="hint" style="margin-bottom:10px;">You selected Hybrid — specify exactly which areas belong indoors and which belong outdoors, so each part of the design is planned correctly.</div>
+
+        <div class="subarea-label">Indoor Required Areas</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="indoor-area-cb" value="Main Entrance"> Main Entrance</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Registration Area"> Registration Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Main Stage"> Main Stage</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="VIP Lounge"> VIP Lounge</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Networking Area"> Networking Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Exhibition Area"> Exhibition Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Sponsor Area"> Sponsor Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Media Center"> Media Center</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Interview Zone"> Interview Zone</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Press Conference Room"> Press Conference Room</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Prayer Area"> Prayer Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Dining Area"> Dining Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
+          <label><input type="checkbox" class="indoor-area-cb" value="Exit Experience"> Exit Experience</label>
+        </div>
+        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_indoorAreaOtherToggle" onchange="toggleOtherAreaContainer('indoor', this.checked)"> Other</label>
+        <div id="indoorAreaOtherContainer" style="display:none;margin-top:8px;">
+          <div id="indoorAreaOtherList"></div>
+          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('indoor')">+ Add another</button>
+        </div>
+
+        <div class="subarea-label" style="margin-top:20px;">Outdoor Required Areas</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="outdoor-area-cb" value="Main Entrance"> Main Entrance</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Registration Area"> Registration Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Main Stage"> Main Stage</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="VIP Lounge"> VIP Lounge</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Networking Area"> Networking Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Exhibition Area"> Exhibition Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Sponsor Area"> Sponsor Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Media Center"> Media Center</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Interview Zone"> Interview Zone</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Press Conference Room"> Press Conference Room</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Prayer Area"> Prayer Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Dining Area"> Dining Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
+          <label><input type="checkbox" class="outdoor-area-cb" value="Exit Experience"> Exit Experience</label>
+        </div>
+        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_outdoorAreaOtherToggle" onchange="toggleOtherAreaContainer('outdoor', this.checked)"> Other</label>
+        <div id="outdoorAreaOtherContainer" style="display:none;margin-top:8px;">
+          <div id="outdoorAreaOtherList"></div>
+          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('outdoor')">+ Add another</button>
+        </div>
+      </div>
+    </div>
+
       <div class="field" id="attendeesField">
         <label>Expected number of attendees</label>
         <input type="number" id="f_attendees" placeholder="e.g. 150" min="1">
@@ -1304,7 +1425,7 @@ Replace only the materials and graphics."></textarea>
           </div>
         </div>
         <label class="remember"><input type="checkbox" id="f_eventSizeUnknown" onchange="toggleGenericSizeUnknown(this)"> I don't know the exact size of the space</label>
-        <div class="hint">* Required unless you check "I don't know the exact size" above — in that case, select at least one Required Area below instead. Select an Environment above (Indoor / Outdoor / Hybrid) for a more specific size question, or leave it unspecified and answer generally here.</div>
+        <div class="hint">* Required unless you check "I don't know the exact size" above — in that case, select at least one Required Area above instead. Select an Environment above (Indoor / Outdoor / Hybrid) for a more specific size question, or leave it unspecified and answer generally here.</div>
       </div>
 
       <div class="row2" id="indoorOutdoorSizeRow" style="display:none;">
@@ -1326,7 +1447,7 @@ Replace only the materials and graphics."></textarea>
         </div>
       </div>
       <div class="hint" id="indoorOutdoorSizeMandatoryHint" style="display:none;margin-top:-8px;">* Required unless you check "I don't know" for that side — then select at least one Required Area for that side instead.</div>
-      <div class="hint" id="indoorOutdoorSizeHint" style="display:none;margin-top:-8px;margin-bottom:16px;">If either size is unknown, check its box — that space is then planned around the areas you select below in "Required Areas" instead of a fixed footprint.</div>
+      <div class="hint" id="indoorOutdoorSizeHint" style="display:none;margin-top:-8px;margin-bottom:16px;">If either size is unknown, check its box — that space is then planned around the areas you select above in "Required Areas" instead of a fixed footprint.</div>
 
       <div class="field">
         <label>Venue</label>
@@ -1612,30 +1733,6 @@ Replace only the materials and graphics."></textarea>
 
     <div class="section-headline" id="eventThemeHeadline" style="display:none;">Events Concept</div>
     <div id="eventConceptFields" style="display:none;">
-      <div class="field">
-        <label>Event Objective <span class="required-mark">*</span></label>
-        <div class="hint" style="margin-bottom:10px;">What is the primary purpose of this event? Choose one.</div>
-        <select id="f_eventObjective" onchange="toggleEventObjectiveCustom(this)">
-          <option value="" selected disabled>Select the primary purpose...</option>
-          <option>Product Launch</option>
-          <option>Brand Awareness</option>
-          <option>Lead Generation</option>
-          <option>Networking</option>
-          <option>Conference</option>
-          <option>Exhibition</option>
-          <option>Investor Event</option>
-          <option>Training</option>
-          <option>Celebration</option>
-          <option>Awards Ceremony</option>
-          <option>Government Event</option>
-          <option>Education</option>
-          <option>Sales Event</option>
-          <option>Community Engagement</option>
-          <option value="Other">Other</option>
-        </select>
-        <input type="text" id="f_eventObjectiveCustom" placeholder="Describe the event's primary purpose" style="display:none;margin-top:8px;">
-      </div>
-
       <div class="field">
         <label>Visitor Experience</label>
         <div class="hint" style="margin-bottom:10px;">What should visitors experience? Select all that apply.</div>
@@ -2839,104 +2936,6 @@ Replace only the materials and graphics."></textarea>
     <!-- Country/City/Venue/Expected Attendees used to live here under their own "Location"
          headline — moved up into Event Details (see eventDetailsFields) so all of an event's
          basic facts are gathered in one place. -->
-
-
-    <div class="section-headline" id="requiredAreasHeadline" style="display:none;">Required Areas</div>
-    <div id="eventRequiredAreasFields" style="display:none;">
-      <div class="field" id="unifiedRequiredAreasBlock">
-        <div class="hint" style="margin-bottom:10px;">Select all that apply — this drives the design directly, especially important if the size above is unknown.</div>
-        <div class="checkbox-grid">
-          <label><input type="checkbox" class="required-area-cb" value="Main Entrance"> Main Entrance</label>
-          <label><input type="checkbox" class="required-area-cb" value="Registration Area"> Registration Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
-          <label><input type="checkbox" class="required-area-cb" value="Main Stage"> Main Stage</label>
-          <label><input type="checkbox" class="required-area-cb" value="VIP Lounge"> VIP Lounge</label>
-          <label><input type="checkbox" class="required-area-cb" value="Networking Area"> Networking Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Exhibition Area"> Exhibition Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Sponsor Area"> Sponsor Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Media Center"> Media Center</label>
-          <label><input type="checkbox" class="required-area-cb" value="Interview Zone"> Interview Zone</label>
-          <label><input type="checkbox" class="required-area-cb" value="Press Conference Room"> Press Conference Room</label>
-          <label><input type="checkbox" class="required-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
-          <label><input type="checkbox" class="required-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
-          <label><input type="checkbox" class="required-area-cb" value="Prayer Area"> Prayer Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Dining Area"> Dining Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Outdoor Area"> Outdoor Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
-          <label><input type="checkbox" class="required-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
-          <label><input type="checkbox" class="required-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
-          <label><input type="checkbox" class="required-area-cb" value="Exit Experience"> Exit Experience</label>
-        </div>
-        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_requiredAreaOtherToggle" onchange="toggleOtherAreaContainer('required', this.checked)"> Other</label>
-        <div id="requiredAreaOtherContainer" style="display:none;margin-top:8px;">
-          <div id="requiredAreaOtherList"></div>
-          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('required')">+ Add another</button>
-        </div>
-      </div>
-
-      <div id="splitRequiredAreasBlock" style="display:none;">
-        <div class="hint" style="margin-bottom:10px;">You selected Hybrid — specify exactly which areas belong indoors and which belong outdoors, so each part of the design is planned correctly.</div>
-
-        <div class="subarea-label">Indoor Required Areas</div>
-        <div class="checkbox-grid">
-          <label><input type="checkbox" class="indoor-area-cb" value="Main Entrance"> Main Entrance</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Registration Area"> Registration Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Main Stage"> Main Stage</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="VIP Lounge"> VIP Lounge</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Networking Area"> Networking Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Exhibition Area"> Exhibition Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Sponsor Area"> Sponsor Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Media Center"> Media Center</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Interview Zone"> Interview Zone</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Press Conference Room"> Press Conference Room</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Prayer Area"> Prayer Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Dining Area"> Dining Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
-          <label><input type="checkbox" class="indoor-area-cb" value="Exit Experience"> Exit Experience</label>
-        </div>
-        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_indoorAreaOtherToggle" onchange="toggleOtherAreaContainer('indoor', this.checked)"> Other</label>
-        <div id="indoorAreaOtherContainer" style="display:none;margin-top:8px;">
-          <div id="indoorAreaOtherList"></div>
-          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('indoor')">+ Add another</button>
-        </div>
-
-        <div class="subarea-label" style="margin-top:20px;">Outdoor Required Areas</div>
-        <div class="checkbox-grid">
-          <label><input type="checkbox" class="outdoor-area-cb" value="Main Entrance"> Main Entrance</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Registration Area"> Registration Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Welcome Lounge"> Welcome Lounge</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Main Stage"> Main Stage</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="VIP Lounge"> VIP Lounge</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Networking Area"> Networking Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Coffee Break Area"> Coffee Break Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Exhibition Area"> Exhibition Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Sponsor Area"> Sponsor Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Media Center"> Media Center</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Interview Zone"> Interview Zone</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Press Conference Room"> Press Conference Room</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Workshop Rooms"> Workshop Rooms</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Meeting Rooms"> Meeting Rooms</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Prayer Area"> Prayer Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Dining Area"> Dining Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Entertainment Zone"> Entertainment Zone</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Photo Opportunity Area"> Photo Opportunity Area</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Award Ceremony Stage"> Award Ceremony Stage</label>
-          <label><input type="checkbox" class="outdoor-area-cb" value="Exit Experience"> Exit Experience</label>
-        </div>
-        <label class="remember" style="margin-top:10px;"><input type="checkbox" id="f_outdoorAreaOtherToggle" onchange="toggleOtherAreaContainer('outdoor', this.checked)"> Other</label>
-        <div id="outdoorAreaOtherContainer" style="display:none;margin-top:8px;">
-          <div id="outdoorAreaOtherList"></div>
-          <button type="button" class="ghost small add-other-area-btn" onclick="addOtherAreaBox('outdoor')">+ Add another</button>
-        </div>
-      </div>
-    </div>
 
     <!-- Anchor marking this field's original (Booth mode) position — setMode() moves
          descFieldWrap back here whenever mode isn't 'event'. See descFieldEventAnchor inside
@@ -8214,7 +8213,7 @@ function showFormAndTabs(){
 // out and restore them on the way back in, so the two stay genuinely independent from the
 // person's point of view despite sharing the underlying fields.
 let boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
-let eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
+let eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Standard Event Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
 
 function captureModeSnapshot(){
   return {
@@ -8272,9 +8271,9 @@ function updateModeDependentLabels(){
 // Construction Style option sets differ by mode: Booth's list (unchanged from before) describes
 // exhibition-booth build tiers; Event's list describes event-production tiers, each with a short
 // "who it's for — what it includes" line shown live under the select as constructionStyleHint
-// takes over from the static translated hint whenever Event mode is active. Both lists share the
-// exact string 'Premium Custom Build' as their default/fallback value on purpose, so switching
-// modes with no prior selection lands on a sensible default either way.
+// takes over from the static translated hint whenever Event mode is active. Each list has its
+// own default/fallback value (Booth: 'Premium Custom Build', Event: 'Standard Event Build') —
+// see updateConstructionStyleOptions below for where that's applied.
 const BOOTH_CONSTRUCTION_STYLE_OPTIONS = [
   { value: 'Shell Scheme', label: 'Shell Scheme' },
   { value: 'Enhanced Shell Scheme', label: 'Enhanced Shell Scheme' },
@@ -8305,7 +8304,7 @@ function updateConstructionStyleOptions(m){
   const currentValue = select.value;
   select.innerHTML = options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
   const stillValid = options.some(o => o.value === currentValue);
-  select.value = stillValid ? currentValue : 'Premium Custom Build';
+  select.value = stillValid ? currentValue : (m === 'event' ? 'Standard Event Build' : 'Premium Custom Build');
   updateConstructionStyleHint(select, m);
 }
 
@@ -14059,7 +14058,7 @@ function restoreFormSnapshot(snap){
   updateArchStyleHint(document.getElementById('f_archStyle'));
   document.getElementById('f_industryStyle').value = snap.f_industryStyle || '';
   updateIndustryStyleHint(document.getElementById('f_industryStyle'));
-  document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || 'Premium Custom Build';
+  document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || (mode === 'event' ? 'Standard Event Build' : 'Premium Custom Build');
   selectedBrandPersonalities = [...(snap.f_brandPersonalities || ['Elegant', 'Innovative', 'Creative'])];
   updateBrandPersonalityHint();
   document.getElementById('f_attendees').value = snap.f_attendees || '';
@@ -14597,7 +14596,7 @@ function openProject(id){
       // Reset AFTER restoreFormSnapshot, not before — see the identical comment in
       // startNewProject() for why the order matters here.
       boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
-      eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
+      eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Standard Event Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
       restoreLogoAndPosters(project);
       restoreResultsView(project);
       renderProjectSidebar();
@@ -14784,7 +14783,7 @@ function startNewProject(){
   // different-project) field values right back into the snapshot before this reset could
   // actually take effect.
   boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
-  eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
+  eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Standard Event Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
   logoDataUrl = null;
   logoMediaType = null;
   document.getElementById('logoPreview').style.display = 'none';
