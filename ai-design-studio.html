@@ -11570,11 +11570,26 @@ async function generateDesign(){
     }
   }
 
+  // Hard-blocked here, BEFORE the "Before you generate" popup even shows and before any
+  // OpenAI/Gemini call is made — a user already at their project limit used to still burn a
+  // real generation (OpenAI's two-stage analysis, the image render, and for booth mode the
+  // BIE-001 correction pass on top of that) only to have the save fail at the very end with
+  // this exact same limit error, after the cost was already spent for nothing. Awaiting
+  // adminCheckPromise first guarantees currentUserProjectLimit/lastKnownProjectCount are this
+  // page load's real numbers, not stale nulls from a race with an unusually fast click.
+  if(adminCheckPromise) await adminCheckPromise;
+  const isNewProject = !currentProjectId; // re-generating an existing project never counts against the quota, per the backend's own enforcement logic
+  if(!isAdminUser && isNewProject && currentUserProjectLimit != null && lastKnownProjectCount != null && lastKnownProjectCount >= currentUserProjectLimit){
+    errBox.textContent = `You've reached your project limit (${currentUserProjectLimit}). Please contact your administrator to increase this limit, or open an existing project instead of starting a new one.`;
+    errBox.style.display = 'block';
+    errBox.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+
   // Now blocking: nothing below runs until the user actually confirms via the popup's
   // "Generate" button — this is what gates both the project-quota deduction and the
   // actual API calls behind a real, deliberate confirmation, rather than firing instantly.
   const quotaTextEl = document.getElementById('genNoticeQuotaText');
-  const isNewProject = !currentProjectId; // re-generating an existing project never counts against the quota, per the backend's own enforcement logic
   if(!isAdminUser && isNewProject && currentUserProjectLimit != null && lastKnownProjectCount != null){
     const remainingAfterThis = currentUserProjectLimit - lastKnownProjectCount - 1;
     quotaTextEl.textContent = `This will use 1 of your allowed projects — you'll have ${Math.max(0, remainingAfterThis)} remaining after this one.`;
