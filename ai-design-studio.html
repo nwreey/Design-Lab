@@ -1509,7 +1509,7 @@ Replace only the materials and graphics."></textarea>
 
     <div class="field" id="aiAutofillHelperField" style="display:none;">
       <label class="check-item-compact" style="font-weight:600;">
-        <input type="checkbox" id="f_needsAiHelp" onchange="toggleAiAutofillPanel(this)"> Need help completing this brief? <span style="font-weight:400;">(AI-assisted — admin test)</span>
+        <input type="checkbox" id="f_needsAiHelp" onchange="toggleAiAutofillPanel(this)"> Need help completing this brief? <span style="font-weight:400;">(AI-assisted)</span>
       </label>
       <div class="hint">Tell DesignsLab AI the Goal of the booth and your company website, and it will read everything already entered in Booth Details, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.</div>
 
@@ -7531,9 +7531,12 @@ async function checkAdminAccess(){
       });
       const engineField = document.getElementById('imageEngineField');
       if(engineField) engineField.style.display = 'block';
-      const autofillField = document.getElementById('aiAutofillHelperField');
-      if(autofillField && mode === 'booth') autofillField.style.display = 'block';
     }
+    // The AI Auto-fill Helper ("Need help completing this brief?") has now graduated from an
+    // admin-only test to a normal booth-mode feature for every user — shown here regardless of
+    // role, unlike imageEngineField above which genuinely is still admin-only.
+    const autofillField = document.getElementById('aiAutofillHelperField');
+    if(autofillField && mode === 'booth') autofillField.style.display = 'block';
     currentUserProjectLimit = data.projectLimit != null ? data.projectLimit : null;
     lastKnownProjectCount = data.projectCount != null ? data.projectCount : lastKnownProjectCount;
     currentUserModifyLimit = data.modifyLimit != null ? data.modifyLimit : null;
@@ -8024,7 +8027,7 @@ function setMode(m){
     // exact same booth-only visibility it always had.
     document.getElementById('logoField').style.display = m==='booth' ? 'block' : 'none';
     const aiAutofillEl = document.getElementById('aiAutofillHelperField');
-    if(aiAutofillEl) aiAutofillEl.style.display = (m==='booth' && isAdminUser) ? 'block' : 'none';
+    if(aiAutofillEl) aiAutofillEl.style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('flooringHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('ceilingRiggingHeadline').style.display = m==='booth' ? 'block' : 'none';
     document.getElementById('requirementsHeadline').style.display = m==='booth' ? 'block' : 'none';
@@ -8125,12 +8128,12 @@ function resetEditDesignPanel(){
 function toggleUpperFloor(sel){
   document.getElementById('upperFloorField').style.display = sel.value === '2' ? 'block' : 'none';
 
-  // The AI Auto-fill Helper ("Need help completing this brief?") is admin+booth-mode only —
-  // its visibility is otherwise only set once by checkAdminAccess()/setMode(), neither of
-  // which re-runs when Number of Levels changes. Re-asserting it here on every levels switch
+  // The AI Auto-fill Helper ("Need help completing this brief?") is booth-mode only, for every
+  // user — its visibility is otherwise only set once by checkAdminAccess()/setMode(), neither
+  // of which re-runs when Number of Levels changes. Re-asserting it here on every levels switch
   // guarantees Double Deck can never leave it in a stale hidden state.
   const autofillField = document.getElementById('aiAutofillHelperField');
-  if(autofillField) autofillField.style.display = (mode === 'booth' && isAdminUser) ? 'block' : 'none';
+  if(autofillField) autofillField.style.display = mode === 'booth' ? 'block' : 'none';
 
   // Double-deck (ground + upper floor) needs enough vertical clearance for a genuine second
   // story plus its own ceiling above it — a real reported bug was the model collapsing a

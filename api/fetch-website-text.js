@@ -2,10 +2,12 @@ import crypto from 'crypto';
 
 /* Same token verification duplicated across the auth-aware endpoints in this project — see
    api/projects.js for the fuller explanation of why this isn't a shared import. Route-level
-   protection already lives in middleware.js (ADMIN_ONLY_PATHS includes this path), but this
-   endpoint re-derives the caller's role independently too, same "defense in depth" reasoning
+   protection already lives in middleware.js (every non-public path requires a valid session),
+   but this endpoint re-derives the caller independently too, same "defense in depth" reasoning
    as api/admin-users.js — a bug or future change in the middleware's path list can't silently
-   turn this into an open URL-fetching proxy. */
+   turn this into an open URL-fetching proxy. This used to also require caller.role === 'admin',
+   back when the only thing that called it (the AI Auto-fill Helper) was an admin-only test —
+   now that the helper is open to every user, any logged-in caller is enough here. */
 function getCaller(req) {
   const signingSecret = process.env.SITE_PASSWORD || '';
   if (!signingSecret) return null;
@@ -72,8 +74,8 @@ export default async function handler(req, res) {
   }
 
   const caller = getCaller(req);
-  if (!caller || caller.role !== 'admin') {
-    res.status(403).json({ error: { message: 'Admin access required.' } });
+  if (!caller) {
+    res.status(403).json({ error: { message: 'You must be signed in to use this.' } });
     return;
   }
 

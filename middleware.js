@@ -7,7 +7,10 @@ export const config = {
 const PUBLIC_PATHS = ['/', '/homepage.html', '/login.html', '/api/login', '/api/logout', '/logo-white.png', '/logo-black-transparent.png'];
 
 // Paths that require the admin role specifically, on top of just being logged in.
-const ADMIN_ONLY_PATHS = ['/admin.html', '/api/admin-users', '/api/admin-lockouts', '/api/fetch-website-text'];
+// /api/fetch-website-text used to be here too, back when the AI Auto-fill Helper that calls it
+// was an admin-only test — now that the helper is open to every user, this endpoint only needs
+// to require a logged-in caller (still enforced below, just not the admin role specifically).
+const ADMIN_ONLY_PATHS = ['/admin.html', '/api/admin-users', '/api/admin-lockouts'];
 
 /* Verifies the base64(JSON)+"."+signature token and returns the decoded payload
    ({userId, username, role, expiry}) if valid, or null if not. Edge middleware runs on
