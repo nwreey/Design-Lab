@@ -11122,6 +11122,42 @@ function looksTruncated(text){
   return depth > 0;
 }
 
+// A genuine safety-policy refusal ("I'm sorry, I can't assist with that request...") is neither
+// a truncation nor a formatting glitch — it's a deliberate decision the model made about the
+// content it was sent, so retrying with that exact same content almost always produces the same
+// refusal again. A real reported case showed this surfacing as the generic "Could not parse the
+// response as JSON. It may have been cut off" message, which is actively misleading here: the
+// model responded in full, it just declined in plain English instead of returning JSON.
+// Detecting it lets callPromptWriterApi skip the pointless retry and throw an accurate, useful
+// error instead — one that actually tells the person what to check (their description/brief
+// text or an uploaded image) rather than implying a token-limit problem that isn't the real cause.
+const REFUSAL_PATTERNS = [
+  "i'm sorry, i can't assist",
+  "i'm sorry, but i can't assist",
+  "i'm sorry, i cannot assist",
+  "i'm sorry, but i cannot assist",
+  "i cannot assist with that",
+  "i can't assist with that",
+  "i can't help with that",
+  "i cannot help with that",
+  "i'm unable to assist",
+  "i am unable to assist",
+  "i'm not able to help with that",
+  "i am not able to help with that",
+  "i won't be able to help",
+  "i will not be able to help",
+  "as an ai language model",
+  "i must decline",
+  "i can't comply with that request",
+  "i cannot comply with that request",
+  "sorry, i can't help with that",
+  "sorry, but i can't help with that"
+];
+function looksLikeRefusal(text){
+  const lower = text.trim().toLowerCase();
+  return REFUSAL_PATTERNS.some(p => lower.startsWith(p) || lower.includes(p));
+}
+
 async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
   const response = await fetch("/api/generate", {
     method: "POST",
@@ -11159,6 +11195,13 @@ async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
   try{
     return JSON.parse(cleaned);
   }catch(parseErr){
+    // Check for a plain-English refusal before anything else — see looksLikeRefusal's own
+    // comment for why this needs to short-circuit ahead of both the truncation check (a
+    // refusal isn't a truncation, even though it fails JSON.parse the same way) and the
+    // "retry once" fallback below (retrying identical content almost never un-refuses it).
+    if(looksLikeRefusal(cleaned)){
+      throw new Error('The AI declined to generate a response for this request, most likely because something in your brief, description, or an uploaded image (logo, poster, or brand asset) triggered its content safety filters. Please review those for anything sensitive or against usage policies, adjust or remove it, and try Generate again.');
+    }
     // finish_reason === 'length' means the API itself reported cutting the response off at
     // max_tokens — a hard confirmation of truncation. looksTruncated(cleaned) is a second,
     // independent check of the same fact (unbalanced braces/brackets), since a real
