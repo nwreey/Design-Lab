@@ -11099,6 +11099,16 @@ function assembleNewEngineBrief_TE(designIntent, functionalProgram, relationship
     });
     lines.push('');
   });
+  lines.push('GEOMETRY-FIRST RENDERING SEQUENCE (Test Engine only) — before generating the final image,');
+  lines.push('mentally construct this booth as an architectural model in this exact sequence:');
+  lines.push('1. Build the floor based on the meters given for the booth.');
+  lines.push('2. Build the structural walls in their exact locations, per however many sides are closed (1, 2, or 3).');
+  lines.push('3. Confirm the open sides remain completely open.');
+  lines.push('4. Place every architectural zone inside the footprint.');
+  lines.push('5. Place furniture inside its assigned architectural zone.');
+  lines.push('6. Apply materials, branding, lighting, and decoration.');
+  lines.push('7. Render the completed booth without changing the approved geometry.');
+  lines.push('Geometry is immutable. Decoration is flexible. Never sacrifice geometry to improve appearance.');
   return lines.join('\n');
 }
 
