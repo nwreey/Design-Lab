@@ -14700,13 +14700,23 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
     ? computeBoothAspectRatio(parseFloat(document.getElementById('f_width').value), parseFloat(document.getElementById('f_depth').value))
     : '16:9';
 
+  // Tells /api/generate-image-gemini which resolution to render at (2K "good" production quality
+  // for Special Engine, 1K "medium" for Test Engine — see that endpoint's own comment). Read fresh
+  // from the DOM here rather than passed in as a parameter, since this same function also serves
+  // Modify Design later, at which point the selector may have changed since the original Generate
+  // click — using its current value is the expected behavior either way. Non-admins never see or
+  // can move this selector, but the server independently re-checks caller.role too, so this is
+  // purely a preference signal, never trusted for anything security-sensitive.
+  const renderEngineModeEl = document.getElementById('f_engineMode');
+  const renderEngineMode = (isAdminUser && renderEngineModeEl && renderEngineModeEl.value === 'test') ? 'test' : 'special';
+
   // Computed ONCE per render session (identical for every option/variation being generated,
   // since they all share the same brandPortfolio state) rather than inside the loop below —
   // see buildBrandPortfolioRenderAssets' own comment for why this exists at all.
   const brandAssets = await buildBrandPortfolioRenderAssets();
 
   optionResults.forEach((opt, i) => {
-    const requestBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: !!isUserInitiatedEdit, aspectRatio: renderAspectRatio };
+    const requestBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: !!isUserInitiatedEdit, aspectRatio: renderAspectRatio, engineMode: renderEngineMode };
     // Attach the actual logo file as a reference image — without this, Gemini only ever
     // saw a text description of the logo (written by OpenAI's earlier vision pass) and had
     // to invent its actual appearance from scratch each time, which is exactly why it could
