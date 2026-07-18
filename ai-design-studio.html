@@ -3280,6 +3280,30 @@ Replace only the materials and graphics."></textarea>
     </div>
   </div>
 
+  <!-- Admin-only: preview + approval gate for the exact text (client brief + the "attached
+       images" note) that's about to be sent to OpenAI for Stage 1 — the Project Analysis Engine
+       that reads the whole brief and writes the hidden design-decision JSON the final rendering
+       prompt is later built from. This is the same userBrief text collectAdditionalRequirements(),
+       collectFlooringSpecification(), buildBrandPortfolioBriefText(), etc. all feed into — showing
+       it here lets an admin catch a missing or garbled field (e.g. a checked Requirements box that
+       isn't actually making it into the request) before an API call is spent on it, not after.
+       Blocks the actual send until Approve is clicked; Cancel aborts the whole generation with no
+       API call made and no quota touched. Non-admin users never see this — see generateDesign()'s
+       own call site for the isAdminUser gate. -->
+  <div class="gen-notice-overlay" id="adminBriefPreviewOverlay">
+    <div class="gen-notice-card" style="max-width:760px;width:100%;">
+      <div class="gen-notice-eyebrow">Admin Only — Request Preview</div>
+      <h3 style="margin:0 0 6px;">Exact text about to be sent to OpenAI (Stage 1 — Project Analysis)</h3>
+      <p style="margin-bottom:10px;">This is the complete brief text — every form field, requirement, and specification the AI will read to write the design — plus a note of which images are attached. Nothing is sent until you approve.</p>
+      <div id="adminBriefPreviewImageNote" style="font-size:12.5px;color:var(--ink);opacity:.7;margin-bottom:8px;font-family:'IBM Plex Mono',monospace;"></div>
+      <textarea id="adminBriefPreviewText" readonly style="width:100%;height:420px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.55;padding:12px;border:1px solid var(--line);border-radius:2px;resize:vertical;box-sizing:border-box;background:#fff;color:var(--ink);"></textarea>
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="ghost" onclick="__resolveAdminBriefPreview(false)" style="flex:1;">Cancel — don't send</button>
+        <button class="primary" onclick="__resolveAdminBriefPreview(true)" style="flex:1;">Approve & send to OpenAI</button>
+      </div>
+    </div>
+  </div>
+
   <div class="gen-notice-overlay" id="customAlertOverlay">
     <div class="gen-notice-card">
       <div class="gen-notice-eyebrow" id="customAlertEyebrow">Notice</div>
@@ -12550,6 +12574,23 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
 
   const userContent = userContentParts.length > 1 ? userContentParts : userBrief;
 
+  // Admin-only debugging aid: show exactly what's about to be sent to OpenAI for Stage 1 (the
+  // full brief text plus a count of attached images) and block until the admin explicitly
+  // approves it. This is how a missing/garbled field (e.g. a checked Requirements box that
+  // silently wasn't reaching the request) gets caught before an API call, not after. Regular
+  // users never see this and are completely unaffected — the request fires immediately for them,
+  // exactly as before.
+  if(isAdminUser){
+    const imageCount = userContentParts.filter(p => p.type === 'image').length;
+    const approved = await showAdminBriefPreview(userBrief + attachedNote, imageCount);
+    if(!approved){
+      document.getElementById('loading').style.display = 'none';
+      unlockForm();
+      projectSwitchLocked = false;
+      return; // cancelled by the admin — no API call made, no quota touched
+    }
+  }
+
   try{
     // Stage 1 — Project Analysis Engine: a hidden, structured design-decision record, built
     // from the same brief and images the final prompt is later written from. This has to be
@@ -12724,6 +12765,31 @@ function __resolveCustomAlert(result){
   if(__customAlertResolve){
     const resolve = __customAlertResolve;
     __customAlertResolve = null;
+    resolve(result);
+  }
+}
+
+// Admin-only request preview/approval gate — see the #adminBriefPreviewOverlay markup's own
+// comment for why this exists. Promise-based, same pattern as customConfirm above: resolves
+// true if the admin clicked Approve, false if they clicked Cancel (or closed nothing happens
+// until one of those two buttons is pressed — this is a real blocking gate, not just a display).
+let __adminBriefPreviewResolve = null;
+
+function showAdminBriefPreview(fullText, imageCount){
+  return new Promise(resolve => {
+    __adminBriefPreviewResolve = resolve;
+    document.getElementById('adminBriefPreviewText').value = fullText;
+    document.getElementById('adminBriefPreviewImageNote').textContent =
+      imageCount > 0 ? `${imageCount} image(s) attached to this request (logo / posters / brand portfolio / reference image, as applicable).` : 'No images attached to this request — text only.';
+    document.getElementById('adminBriefPreviewOverlay').style.display = 'flex';
+  });
+}
+
+function __resolveAdminBriefPreview(result){
+  document.getElementById('adminBriefPreviewOverlay').style.display = 'none';
+  if(__adminBriefPreviewResolve){
+    const resolve = __adminBriefPreviewResolve;
+    __adminBriefPreviewResolve = null;
     resolve(result);
   }
 }
