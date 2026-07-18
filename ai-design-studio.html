@@ -2582,7 +2582,13 @@ Replace only the materials and graphics."></textarea>
         <label class="check-item-compact"><input type="checkbox" id="addreq_vipmeeting" onchange="toggleAdditionalReqSection('vipmeeting', this.checked)"> VIP Meeting Room</label>
         <div id="addreq_vipmeeting_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_vipmeeting_count">How many VIP meeting rooms?</label>
-          <input type="number" min="1" id="addreq_vipmeeting_count" placeholder="e.g. 1">
+          <input type="number" min="1" id="addreq_vipmeeting_count" placeholder="e.g. 1" oninput="renderAddreqUnitRows('vipmeeting', 'capacity', 'capacity (people)', 'e.g. 6', {min:'1'})">
+          <label class="sublabel" for="addreq_vipmeeting_enclosure" style="margin-top:8px;">Closed or open?</label>
+          <select id="addreq_vipmeeting_enclosure">
+            <option value="closed">Closed — fully enclosed, private walls and door</option>
+            <option value="open">Open — semi-enclosed, no full walls/door</option>
+          </select>
+          <div id="addreq_vipmeeting_list"></div>
         </div>
 
         <label class="check-item-compact"><input type="checkbox" id="addreq_openmeeting" onchange="toggleAdditionalReqSection('openmeeting', this.checked)"> Open Meeting Area</label>
@@ -2650,7 +2656,8 @@ Replace only the materials and graphics."></textarea>
         <label class="check-item-compact"><input type="checkbox" id="addreq_privatemeetingroom" onchange="toggleAdditionalReqSection('privatemeetingroom', this.checked)"> Private Meeting Room</label>
         <div id="addreq_privatemeetingroom_body" style="display:none;margin:0 0 16px 22px;">
           <label class="sublabel" for="addreq_privatemeetingroom_count">How many private meeting rooms?</label>
-          <input type="number" min="1" id="addreq_privatemeetingroom_count" placeholder="e.g. 1">
+          <input type="number" min="1" id="addreq_privatemeetingroom_count" placeholder="e.g. 1" oninput="renderAddreqUnitRows('privatemeetingroom', 'size', 'size (sqm) — leave blank for a standard ~6 sqm room', 'e.g. 6', {min:'2', step:'0.5'})">
+          <div id="addreq_privatemeetingroom_list"></div>
         </div>
 
         <label class="check-item-compact"><input type="checkbox" id="addreq_viplounge" onchange="toggleAdditionalReqSection('viplounge', this.checked)"> VIP Lounge</label>
@@ -4642,6 +4649,7 @@ const ADDREQ_PRECISELY_BUDGETED_IDS = new Set([
   'addreq_reception', 'addreq_meetingtables', 'addreq_touchscreen', 'addreq_displaytables', 'addreq_pedestals', 'addreq_storageroom',
   'addreq_infocounter', 'addreq_led', 'addreq_tv', 'addreq_coffeebar', 'addreq_lounge', 'addreq_tooltestingbench', 'addreq_vehicledisplay', 'addreq_kiosk', 'addreq_seating',
   'addreq_openmeeting', 'addreq_staffarea', 'addreq_viplounge', 'addreq_hospitalitylounge', 'addreq_networkingarea',
+  'addreq_privatemeetingroom', 'addreq_vipmeeting',
 ]);
 
 // Priority tier (per SFE-001's ZONE PRIORITY ORDER) and a generic estimated floor footprint (sqm)
@@ -4652,7 +4660,6 @@ const ADDREQ_PRECISELY_BUDGETED_IDS = new Set([
 // Tier numbers match SFE-001: 1 Hero Architecture, 2 Brand Experience, 3 Primary Products,
 // 4 Reception, 5 Information, 6 Meeting, 7 Hospitality, 8 Decorative Features.
 const ADDREQ_ZONE_META = {
-  addreq_vipmeeting: { tier: 6, areaSqm: 8 },
   addreq_productdisplayarea: { tier: 3, areaSqm: 5 },
   addreq_productdemoarea: { tier: 3, areaSqm: 5 },
   addreq_interactiveexperiencezone: { tier: 2, areaSqm: 4 },
@@ -4661,7 +4668,6 @@ const ADDREQ_ZONE_META = {
   addreq_launchstage: { tier: 2, areaSqm: 6 },
   addreq_presentationarea: { tier: 5, areaSqm: 6 },
   addreq_seminararea: { tier: 5, areaSqm: 8 },
-  addreq_privatemeetingroom: { tier: 6, areaSqm: 6 },
   addreq_livedemoarea: { tier: 3, areaSqm: 5 },
   addreq_machinedemozone: { tier: 3, areaSqm: 6 },
   addreq_technicalconsultation: { tier: 5, areaSqm: 4 },
@@ -5506,7 +5512,14 @@ const EXHIBITION_STANDARDS_LIBRARY = {
   staffAreaSqmPerPerson: 1.2,
   vipLoungeSqmPerPerson: 2.2,
   hospitalityLoungeSqmPerPerson: 2.0,
-  networkingAreaSqmPerPerson: 1.5
+  networkingAreaSqmPerPerson: 1.5,
+
+  // VIP Meeting Room — sizing depends on whether the client wants it fully enclosed (needs
+  // room for walls + a door swing, hence the larger allowance) or just an open, semi-enclosed
+  // seating cluster (closer to a regular meeting-table allowance).
+  vipMeetingSqmPerPersonClosed: 2.2,
+  vipMeetingSqmPerPersonOpen: 1.6,
+  privateMeetingRoomDefaultSqm: 6 // used only if the client leaves a room's size blank
 };
 
 // Rounds a millimeter figure to the nearest step (default 50mm) — every deterministic dimension
@@ -7603,6 +7616,11 @@ function resetAdditionalRequirements(){
     const list = document.getElementById(id + '_list');
     if(list) list.innerHTML = '';
   });
+  // VIP Meeting Room's enclosure choice isn't a "_count"/"_capacity"/"_list" field the generic
+  // loop above already resets — reset it back to its default explicitly so a fresh project never
+  // silently inherits "open" left over from a previous one.
+  const vipEnclosure = document.getElementById('addreq_vipmeeting_enclosure');
+  if(vipEnclosure) vipEnclosure.value = 'closed';
   // Nothing is checked after a reset, so every category collapses back to its default,
   // tidy state and every "N selected" badge clears.
   setAllReqCategoriesCollapsed(true);
@@ -7734,7 +7752,7 @@ function renderLedScreenFields(){
 // Generic version of the reception/seating/tv/led render-per-unit pattern above — used for
 // every newer Requirements item that also needs one sub-field specified per unit, so each
 // new item doesn't need its own hand-written, near-identical render function.
-const ADDREQ_UNIT_ITEM_LABELS = { meetingtables: 'Meeting table', touchscreen: 'Touch screen', storageroom: 'Storage room' };
+const ADDREQ_UNIT_ITEM_LABELS = { meetingtables: 'Meeting table', touchscreen: 'Touch screen', storageroom: 'Storage room', privatemeetingroom: 'Private meeting room', vipmeeting: 'VIP meeting room' };
 function renderAddreqUnitRows(prefix, fieldSuffix, subfieldLabel, placeholder, attrs){
   const count = Math.max(0, parseInt(document.getElementById('addreq_' + prefix + '_count').value) || 0);
   const list = document.getElementById('addreq_' + prefix + '_list');
@@ -7805,6 +7823,7 @@ function collectAdditionalRequirements(){
     ['meetingtables', 'seats', 'MEETING TABLES', 'meeting table(s)', v => v ? v + ' seats' : 'seats not specified'],
     ['touchscreen', 'size', 'TOUCH SCREENS', 'touch screen(s)', v => v ? v + '"' : 'size not specified'],
     ['storageroom', 'size', 'STORAGE ROOM', 'storage room(s)', v => v ? v + ' sqm' : 'size not specified'],
+    ['privatemeetingroom', 'size', 'PRIVATE MEETING ROOM', 'private meeting room(s)', v => v ? v + ' sqm (fully enclosed, private room with a door)' : 'size not specified — build a standard ~6 sqm fully enclosed room with a door'],
   ];
   for(const [prefix, fieldSuffix, title, unitLabel, formatValue] of unitItems){
     if(document.getElementById('addreq_' + prefix).checked){
@@ -7820,10 +7839,26 @@ function collectAdditionalRequirements(){
     }
   }
 
+  // VIP Meeting Room — per-room capacity plus a single shared closed/open enclosure choice
+  // (not a plain quantity-only checkbox any more, so it gets its own block instead of living in
+  // quantityOnlyItems below).
+  if(document.getElementById('addreq_vipmeeting').checked){
+    const vipCount = Math.max(0, parseInt(document.getElementById('addreq_vipmeeting_count').value) || 0);
+    if(vipCount > 0){
+      const enclosureEl = document.getElementById('addreq_vipmeeting_enclosure');
+      const enclosure = (enclosureEl && enclosureEl.value === 'open') ? 'open, semi-enclosed (no full walls or door)' : 'closed, fully enclosed with walls and a door';
+      const units = [];
+      for(let i = 1; i <= vipCount; i++){
+        const capEl = document.getElementById('addreq_vipmeeting_capacity_' + i);
+        units.push(`Unit ${i}: ${capEl && capEl.value ? capEl.value + ' people' : 'capacity not specified'}`);
+      }
+      lines.push(`VIP MEETING ROOM — EXACT CLIENT SPECIFICATION (overrides computed/default quantity): exactly ${vipCount} VIP meeting room(s) required, ${enclosure}. ${units.join('; ')}.`);
+    }
+  }
+
   // Quantity-only items — a single explicit count, no further per-unit breakdown needed.
   const quantityOnlyItems = [
     ['infocounter', 'INFORMATION COUNTER', 'information counter(s)'],
-    ['vipmeeting', 'VIP MEETING ROOM', 'VIP meeting room(s)'],
     ['displayshelves', 'DISPLAY SHELVES', 'display shelving unit(s)'],
     ['displaytables', 'DISPLAY TABLES', 'display table(s)'],
     ['glasscabinets', 'GLASS DISPLAY CABINETS', 'glass display cabinet(s)'],
@@ -7840,7 +7875,6 @@ function collectAdditionalRequirements(){
     ['featureproductzone', 'FEATURE PRODUCT ZONE', 'feature product zone(s)'],
     ['presentationarea', 'PRESENTATION AREA', 'presentation area(s)'],
     ['seminararea', 'SEMINAR AREA', 'seminar area(s)'],
-    ['privatemeetingroom', 'PRIVATE MEETING ROOM', 'private meeting room(s)'],
     ['tooltestingbench', 'TOOL TESTING BENCH', 'tool testing bench(es)'],
     ['livedemoarea', 'LIVE DEMONSTRATION AREA', 'live demonstration area(s)'],
     ['machinedemozone', 'MACHINE DEMONSTRATION ZONE', 'machine demonstration zone(s)'],
@@ -8044,6 +8078,51 @@ function computeKnownAddreqFootprints(){
         name: `Meeting table ${i} (${seats} seats + chairs)`, tier: 6, areaSqm: tableAreaSqm + chairsAreaSqm, areaBasis: 'exact',
         scaleSpecText: `Build meeting table ${i} exactly ${table.diameterMm} mm diameter × ${table.heightMm} mm height, surrounded by ${seats} chairs each exactly ${lib.chair.footprintMm} mm × ${lib.chair.footprintMm} mm × ${lib.chair.heightMm} mm.`,
         dims: { shape: 'round', diameterMm: table.diameterMm, heightMm: table.heightMm }
+      });
+    }
+  }
+
+  // Private Meeting Room — the client sets each room's own size (sqm) directly, per room, via
+  // the size field rendered alongside the count; a room left blank falls back to a standard
+  // ~6 sqm room rather than being silently forced to one fixed size for every project regardless
+  // of how much (or little) footprint the client actually has to give it.
+  const privatemeetingCb = document.getElementById('addreq_privatemeetingroom');
+  if(privatemeetingCb && privatemeetingCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_privatemeetingroom_count').value) || 0);
+    for(let i = 1; i <= count; i++){
+      const sizeEl = document.getElementById('addreq_privatemeetingroom_size_' + i);
+      const clientSpecified = !!(sizeEl && sizeEl.value);
+      const areaSqm = (sizeEl && parseFloat(sizeEl.value)) || lib.privateMeetingRoomDefaultSqm;
+      const footprint = deriveFootprintMmFromAreaSqm(areaSqm);
+      items.push({
+        name: `Private meeting room ${i} (${areaSqm.toFixed(1)} sqm)`, tier: 6, areaSqm, areaBasis: clientSpecified ? 'exact — client-specified' : 'estimated — standard room default',
+        scaleSpecText: `Build private meeting room ${i} as a fully enclosed room with a floor footprint of exactly ${footprint.widthMm} mm × ${footprint.depthMm} mm, at standard room wall height, with a door.`,
+        dims: { shape: 'footprint', widthMm: footprint.widthMm, depthMm: footprint.depthMm }
+      });
+    }
+  }
+
+  // VIP Meeting Room — sized from the client's own stated capacity per room, using a per-person
+  // allowance that depends on whether the client wants it fully enclosed (closed, needs wall +
+  // door clearance) or an open, semi-enclosed cluster (open, needs less).
+  const vipmeetingCb = document.getElementById('addreq_vipmeeting');
+  if(vipmeetingCb && vipmeetingCb.checked){
+    const count = Math.max(0, parseInt(document.getElementById('addreq_vipmeeting_count').value) || 0);
+    const enclosureEl = document.getElementById('addreq_vipmeeting_enclosure');
+    const enclosure = (enclosureEl && enclosureEl.value === 'open') ? 'open' : 'closed';
+    const sqmPerPerson = enclosure === 'open' ? lib.vipMeetingSqmPerPersonOpen : lib.vipMeetingSqmPerPersonClosed;
+    const enclosureText = enclosure === 'open'
+      ? 'an open, semi-enclosed VIP meeting area (no full walls or door)'
+      : 'a fully enclosed, private VIP meeting room with walls and a door';
+    for(let i = 1; i <= count; i++){
+      const capEl = document.getElementById('addreq_vipmeeting_capacity_' + i);
+      const capacity = (capEl && parseInt(capEl.value)) || 6;
+      const areaSqm = capacity * sqmPerPerson;
+      const footprint = deriveFootprintMmFromAreaSqm(areaSqm);
+      items.push({
+        name: `VIP meeting room ${i} (${enclosure}, ${capacity} people)`, tier: 6, areaSqm, areaBasis: 'estimated — per-person allowance',
+        scaleSpecText: `Build VIP meeting room ${i} as ${enclosureText}, with a floor footprint of exactly ${footprint.widthMm} mm × ${footprint.depthMm} mm, furnished for ${capacity} people.`,
+        dims: { shape: 'footprint', widthMm: footprint.widthMm, depthMm: footprint.depthMm }
       });
     }
   }
@@ -10930,6 +11009,22 @@ function getMissingRequirements(m){
       const feasibility = computeDoubleDeckFeasibility(parseFloat(width), parseFloat(depth));
       if(!feasibility.feasible) missing.push(feasibility.reason);
     }
+    // SFE-001 Program Fit, checked here too (not just inside generateDesign()'s own duplicate
+    // validation) so the Generate button itself goes disabled — with this exact reason in its
+    // tooltip — the moment someone selects more Requirements/Areas than this booth size can
+    // hold, even after the engine's own automatic merge/removal of the lowest-priority zones.
+    // A real reported case showed this scenario reaching the AI instead, which then responded
+    // with a plain-English explanation instead of JSON — misread by the refusal detector as a
+    // content-safety refusal, a confusing and wrong message for what is actually just a sizing
+    // problem. See generateDesign()'s own copy of this same check for the harder, visible-error
+    // block (this one only disables the button/tooltip; that one stops an in-flight click before
+    // any project gets saved or any AI call is made).
+    if(width && depth && totalHeight && parseFloat(width) > 0 && parseFloat(depth) > 0 && parseFloat(totalHeight) > 0){
+      const spatialFit = computeSpatialPlan(parseFloat(width), parseFloat(depth), '', parseFloat(totalHeight));
+      if(spatialFit.programFits.startsWith('NO')){
+        missing.push('a bigger booth size or fewer selected Requirements/Areas — the elements you\'ve selected don\'t fit this booth\'s size even after reducing lower-priority items');
+      }
+    }
     if(colorHexes.length === 0) missing.push(t('validation.brandColor'));
     if(!logoDataUrl) missing.push(t('validation.logo'));
     if(hasPosters.startsWith('yes') && posterFiles.length === 0) missing.push(t('validation.posterFile'));
@@ -11186,6 +11281,23 @@ function looksLikeRefusal(text){
 // specific uploaded image rather than the brief text itself — instead of having to pattern-match
 // the thrown error's message string, which is fragile and only meant for display.
 class AiRefusalError extends Error {}
+
+// A refusal that persists even after dropping any attached images (see the images-dropped
+// retry around Stage 1's call site) — or one with no images to drop in the first place — needs
+// an accurate final message. "Content safety filters" is actively wrong when this exact booth's
+// own VALIDATED SPATIAL PROGRAM (spatialPlan, already computed for this brief) shows real
+// evidence the client requested more than this booth's size can hold: SFE-001's own deterministic
+// engine already merged or removed some zones to make the rest fit. A real reported case showed
+// exactly this — a small booth with many selected Requirements produced a non-JSON model
+// response, correctly caught as a refusal, but shown with the wrong, confusing content-safety
+// message for what was actually a sizing problem, not a policy one. Only booth mode ever has a
+// spatialPlan at all (event mode's own pipeline never calls this), so this is a no-op there.
+function selectAnalysisRefusalError(err, spatialPlan){
+  if(err instanceof AiRefusalError && spatialPlan && (spatialPlan.removedCount > 0 || spatialPlan.mergedCount > 0)){
+    return new Error('The elements and requirements you\'ve selected don\'t fully fit in this booth\'s size — some had to be automatically reduced to make the rest fit, and the design step declined to proceed as a result. Please increase the booth size, or select fewer Requirements or Areas, then try Generate again.');
+  }
+  return err;
+}
 
 async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
   const response = await fetch("/api/generate", {
@@ -11869,6 +11981,25 @@ async function generateDesign(){
       return;
     }
   }
+  if(mode === 'booth' && width && depth && totalHeight){
+    // SFE-001 Program Fit — the same deterministic spatial-budget engine that builds the
+    // VALIDATED SPATIAL PROGRAM brief block (computeSpatialPlan) already knows, before any AI
+    // call, whether everything selected genuinely fits this booth's real size even after
+    // automatically merging/removing the lowest-priority zones. A real reported case showed
+    // what happens when this isn't checked here: the AI response for an overflowing program
+    // came back as a plain-English explanation instead of JSON, which the refusal detector
+    // (see looksLikeRefusal) misread as a content-safety refusal — a wrong, confusing message
+    // for what's actually just a sizing problem. Checking it here, BEFORE saveCurrentProject()
+    // and the "Before you generate" popup even run, means this exact case now gets an accurate
+    // message and never burns a project-quota slot on an attempt that was never going to work.
+    const spatialFitCheck = computeSpatialPlan(parseFloat(width), parseFloat(depth), '', parseFloat(totalHeight));
+    if(spatialFitCheck.programFits.startsWith('NO')){
+      errBox.textContent = `The elements and requirements you've selected don't fit in a ${parseFloat(width).toFixed(1)}m × ${parseFloat(depth).toFixed(1)}m booth, even after automatically reducing lower-priority items. Please increase the booth size, or select fewer Requirements or Areas, then try Generate again.`;
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+  }
   if(mode === 'booth' && colorHexes.length === 0){
     errBox.textContent = t('validation.brandColorFull');
     errBox.style.display = 'block';
@@ -11955,7 +12086,17 @@ async function generateDesign(){
   document.getElementById('loadingText').textContent = mode === 'event' ? 'Writing your event concept...' : 'Analyzing your brief and generating concept and design...';
   document.getElementById('result').style.display = 'none';
   document.getElementById('eventConceptResult').style.display = 'none';
-  saveCurrentProject();
+  // Only saved immediately here for an EXISTING project being regenerated (never costs quota
+  // either way, and there's real prior content worth protecting against a mid-generation
+  // refresh). A brand-new project's very first save — the one that permanently burns one of a
+  // non-admin's limited project slots (see saveCurrentProject's own "PERMANENT, increment-only"
+  // comment) — used to happen unconditionally right here, before Stage 1 even ran, so ANY
+  // Stage 1 failure (a refusal, an incomplete analysis even after its own retry, a network
+  // error) still cost the user a slot for nothing. Deferred instead to the moment Stage 1
+  // actually succeeds (booth mode, further below) or the Creative Director's analysis actually
+  // succeeds (event mode, inside generateEventConceptBoard's own success path) — a failure
+  // before that point now costs nothing.
+  if(!isNewProject || isAdminUser) saveCurrentProject();
 
   // Event mode has its own, entirely separate generation pipeline (see the Event Concept
   // Board section above generateDesign()) — everything below this point is the exhibition
@@ -12425,11 +12566,15 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
       if(err instanceof AiRefusalError && userContentParts.length > 1){
         console.warn('[Project Analysis Engine] refused with attached images — retrying text-only (images dropped) once.');
         document.getElementById('loadingText').textContent = 'Retrying without attached images...';
-        analysisImagesDropped = true;
-        analysisRequestContent = userBrief;
-        analysis = await callPromptWriterApi(promptWriterSystem, analysisRequestContent);
+        try{
+          analysisImagesDropped = true;
+          analysisRequestContent = userBrief;
+          analysis = await callPromptWriterApi(promptWriterSystem, analysisRequestContent);
+        }catch(retryErr){
+          throw selectAnalysisRefusalError(retryErr, spatialPlan);
+        }
       }else{
-        throw err;
+        throw selectAnalysisRefusalError(err, spatialPlan);
       }
     }
     if(analysisImagesDropped){
@@ -12455,6 +12600,12 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
       throw new Error('The analysis stage did not return a complete design record (missing: ' + missingAnalysisFields.join(', ') + ').');
     }
     console.log('[Project Analysis Engine] hidden design analysis:', analysis);
+    // The deferred first save for a brand-new (non-admin) project — see proceedWithGeneration's
+    // own comment above for why this no longer happens unconditionally before Stage 1 even
+    // starts. Stage 1 having reached this line means it already produced a complete analysis, so
+    // this generation is genuinely proceeding — from here on a mid-generation refresh losing
+    // in-progress state is the same acceptable tradeoff it always was for an existing project.
+    if(isNewProject && !isAdminUser) saveCurrentProject();
 
     // Stage 2 — write the final structured prompt strictly from the analysis above, plus the
     // original brief text kept around only for literal facts (exact numbers, hex codes,
@@ -14146,11 +14297,17 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
   // switching projects mid-edit should warn/block the same way it does during a fresh render.
   projectSwitchLocked = true;
 
-  // Same booth-shape-matched aspect ratio as the original render (see computeBoothAspectRatio)
-  // — an edited image should keep the same frame shape as the render it's editing.
-  const modifyAspectRatio = mode === 'booth'
-    ? computeBoothAspectRatio(parseFloat(document.getElementById('f_width').value), parseFloat(document.getElementById('f_depth').value))
-    : '16:9';
+  // Modify Design is an EDIT of the exact picture in `composite` (the current design, itself
+  // already sized at composite.width x composite.height) — the requested output frame must
+  // match THAT actual image's own real pixel aspect ratio, not the booth's meter footprint.
+  // Those two normally agree, but any drift between them (Gemini not returning pixel-exact
+  // requested dimensions on the original render, the width/depth fields being changed after
+  // that render, etc.) previously caused this call to ask for a frame shape that didn't match
+  // the picture being edited — forcing Gemini to reflow/stretch the design to fit the new
+  // frame instead of preserving it untouched outside the marked area. Deriving the ratio
+  // directly from composite's own dimensions guarantees the requested frame always matches
+  // the picture being modified, so it can never come back stretched.
+  const modifyAspectRatio = computeBoothAspectRatio(composite.width, composite.height);
 
   try{
     const response = await fetchWithTimeout('/api/generate-image-gemini', {
