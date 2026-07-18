@@ -3057,11 +3057,12 @@ Replace only the materials and graphics."></textarea>
 
     <div class="field" id="imageEngineField" style="display:none;">
       <label>Image Engine (admin test)</label>
-      <select id="f_imageEngine">
+      <select id="f_imageEngine" onchange="updateImageEngineHint()">
         <option value="gemini">Gemini (default)</option>
         <option value="openai">OpenAI gpt-image-2 (test)</option>
+        <option value="directgemini">Direct to Gemini (skip OpenAI prompt-writing)</option>
       </select>
-      <div class="hint">Admin-only experiment: choose which model actually renders the image from the exact same finished prompt, to compare Gemini vs. OpenAI design quality side-by-side. Only this final image-rendering step changes — the two-stage analysis and prompt-writing above are unaffected either way.</div>
+      <div class="hint" id="imageEngineHint">Admin-only experiment: choose which model actually renders the image from the exact same finished prompt, to compare Gemini vs. OpenAI design quality side-by-side. Only this final image-rendering step changes — the two-stage analysis and prompt-writing above are unaffected either way.</div>
     </div>
 
     <div class="submit-bar">
@@ -8976,6 +8977,24 @@ async function checkAdminAccess(){
   }
 }
 
+// Swaps the Image Engine hint to explain what's actually different about each option — in
+// particular "Direct to Gemini", which isn't just a different renderer like the other two
+// options are (see updateImageEngineHint's onchange wiring on #f_imageEngine): it skips the two
+// OpenAI prompt-writing calls (Project Analysis + Prompt Synthesis) entirely and sends the raw
+// client brief straight to Gemini as the image prompt, so the hint needs to say that plainly
+// rather than reuse the "same finished prompt, different renderer" wording that's true for the
+// other two options but not this one.
+function updateImageEngineHint(){
+  const engineEl = document.getElementById('f_imageEngine');
+  const hintEl = document.getElementById('imageEngineHint');
+  if(!engineEl || !hintEl) return;
+  if(engineEl.value === 'directgemini'){
+    hintEl.textContent = "Admin-only experiment: skips both OpenAI prompt-writing calls (the Project Analysis Engine and the Prompt Synthesis stage) entirely — the raw client brief you're about to send is sent straight to Gemini as the image prompt, with no AI rewriting or architectural reasoning applied to it first. You'll still get the review screen to see (and edit) that raw brief before it renders, exactly like the normal flow's finished prompt.";
+  }else{
+    hintEl.textContent = 'Admin-only experiment: choose which model actually renders the image from the exact same finished prompt, to compare Gemini vs. OpenAI design quality side-by-side. Only this final image-rendering step changes — the two-stage analysis and prompt-writing above are unaffected either way.';
+  }
+}
+
 // A lightweight placeholder for the account area — real settings/profile forms don't
 // exist yet, so this only surfaces what's already available (username, role) in a way
 // that leaves obvious room to grow into an actual settings panel later, without needing
@@ -10449,6 +10468,13 @@ function applyAutofillResult(result){
   // value through its real DOM element only if that element is actually visible right now.
   const descriptors = collectAutofillFieldDescriptors();
   descriptors.forEach(desc => {
+    // Defensive backstop: f_desc is excluded from the schema sent to the model for booth mode
+    // (see buildBoothAutofillPrompt's own comment) and is never meant to be written by Auto-fill
+    // at all for booth mode (see runAiAutofill's own comment) — but this generic loop otherwise
+    // applies whatever the model returns, so a model that ignores the schema and returns an
+    // f_desc value anyway must be blocked here too, not just relied on to behave. Event mode's
+    // f_desc ("Event Story") is intentionally unaffected and keeps its AI-authored behavior.
+    if(desc.id === 'f_desc' && mode === 'booth') return;
     const value = result.fields ? result.fields[desc.id] : undefined;
     if(value === undefined || value === null) return;
     const el = document.getElementById(desc.id);
@@ -10816,31 +10842,15 @@ async function runAiAutofill(){
     const result = await callPromptWriterApi(system, contentParts);
     applyAutofillResult(result);
 
-    // The AI Creative Brief field (f_desc) is deliberately NOT written by the model (see
-    // buildBoothAutofillPrompt's own comment) — the client wants it to reflect what they actually
-    // said, not an AI-invented paragraph. Built here instead, after applyAutofillResult has
-    // finished checking Requirements boxes, from two real facts only: the Goal text the client
-    // typed themselves (used verbatim, never reworded) and the list of Requirements that ended
-    // up selected (by the client beforehand, or by the model just now) — never anything
-    // fabricated beyond that. Booth mode only; Event mode's own f_desc ("Event Story") keeps its
-    // existing AI-authored behavior, which the client hasn't asked to change.
-    if(mode === 'booth'){
-      const descEl = document.getElementById('f_desc');
-      if(descEl){
-        const selectedRequirementLabels = ADDREQ_ALL_CHECKBOX_IDS
-          .map(id => document.getElementById(id))
-          .filter(cb => cb && cb.checked)
-          .map(cb => { const labelHost = cb.closest('label'); return labelHost ? labelHost.textContent.trim() : cb.id; });
-        const descParts = [];
-        if(goal) descParts.push(goal);
-        if(selectedRequirementLabels.length) descParts.push(`Selected requirements: ${selectedRequirementLabels.join(', ')}.`);
-        if(descParts.length){
-          descEl.value = descParts.join('\n\n');
-          descEl.dispatchEvent(new Event('input', { bubbles: true }));
-          descEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }
-    }
+    // The "Describe what you want in detail" field (f_desc) is left completely untouched by
+    // Auto-fill for booth mode — not an AI-written paragraph, and (per explicit client feedback
+    // that even the earlier goal+selections summary still counted as the box "writing itself")
+    // not any auto-composed text either. Whatever the client already typed there stays exactly as
+    // they left it; applyAutofillResult's own generic field-apply loop is separately guarded
+    // against ever writing to this id for booth mode (see its own comment) as a defensive
+    // backstop, in case a model response includes an f_desc value despite it being excluded from
+    // the schema sent to it (see buildBoothAutofillPrompt's own comment). Event mode's own f_desc
+    // ("Event Story") is unaffected and keeps its existing AI-authored behavior.
 
     // Belt-and-suspenders: the system prompt already instructs the model to set
     // f_ceilingRigging to "No overhead structure" when the client said No to rigging, but a
@@ -12573,6 +12583,37 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
   userContentParts.push({ type: 'text', text: userBrief + attachedNote });
 
   const userContent = userContentParts.length > 1 ? userContentParts : userBrief;
+
+  // Direct to Gemini (admin-only test engine, see the Image Engine select's own comment) — an
+  // entirely separate, much shorter path than the normal pipeline below: it skips BOTH OpenAI
+  // prompt-writing calls (Stage 1 Project Analysis + Stage 2 Prompt Synthesis) outright and uses
+  // the raw client brief itself as the image_prompt, so there's no "request about to be sent to
+  // OpenAI" to preview at all here — showPromptReview further down is where the admin reviews
+  // (and can edit) that raw brief before it actually renders via Gemini, exactly like the normal
+  // flow's finished prompt gets reviewed there.
+  const imageEngineEl = document.getElementById('f_imageEngine');
+  const isDirectToGeminiEngine = isAdminUser && imageEngineEl && imageEngineEl.value === 'directgemini';
+  if(isDirectToGeminiEngine){
+    try{
+      const directPromptResult = {
+        title: name || (mode === 'event' ? 'Direct to Gemini event design' : 'Direct to Gemini booth design'),
+        image_prompt: userBrief + attachedNote,
+        concept_description: ''
+      };
+      console.log('[Direct to Gemini] skipping both OpenAI prompt-writing calls — using the raw client brief as the image prompt:', directPromptResult);
+      await showPromptReview(directPromptResult);
+      saveCurrentProject();
+      document.getElementById('loading').style.display = 'none';
+    }catch(err){
+      console.error(err);
+      errBox.textContent = 'Generation failed: ' + (err && err.message ? err.message : String(err));
+      errBox.style.display = 'block';
+      unlockForm();
+      projectSwitchLocked = false;
+      document.getElementById('loading').style.display = 'none';
+    }
+    return;
+  }
 
   // Admin-only debugging aid: show exactly what's about to be sent to OpenAI for Stage 1 (the
   // full brief text plus a count of attached images) and block until the admin explicitly
