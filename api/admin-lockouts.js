@@ -85,9 +85,22 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'DELETE') {
-    // Unlocking = clearing that row entirely, same as a successful login would have done —
-    // resets both the lockout and the failure count back to a clean slate.
-    const { attemptKey } = req.query;
+    const { attemptKey, clearResolved } = req.query;
+
+    // Bulk cleanup: wipe every row that isn't currently locked (either it never triggered a
+    // lockout, or the lockout window has already passed) in one request, so the admin doesn't
+    // have to remove stale failed-attempt history one row at a time. Currently-locked rows are
+    // deliberately left alone here — clearing an active lockout is a more consequential action
+    // and stays a deliberate per-row "Unlock now" click instead.
+    if (clearResolved) {
+      await sql`DELETE FROM login_attempts WHERE locked_until IS NULL OR locked_until <= NOW();`;
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    // Single-row removal — used both to unlock an actively-locked row and to remove a resolved
+    // row's history. Either way this clears that row entirely, same as a successful login would
+    // have done: resets both the lockout and the failure count back to a clean slate.
     if (!attemptKey) {
       res.status(400).json({ error: { message: 'attemptKey is required.' } });
       return;

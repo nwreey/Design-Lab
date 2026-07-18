@@ -154,8 +154,11 @@
     </div>
 
     <div class="card">
-      <h2>Login Activity &amp; Lockouts</h2>
-      <div class="hint" style="margin-bottom:14px;">After 5 failed login attempts from the same location, that username is temporarily locked for 15 minutes. If this looks like one of your team simply mistyping their password rather than anything suspicious, unlock them below.</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+        <h2 style="margin:0;">Login Activity &amp; Lockouts</h2>
+        <button class="ghost" style="padding:6px 14px;font-size:12px;" onclick="clearResolvedLockouts()">Clear resolved</button>
+      </div>
+      <div class="hint" style="margin:8px 0 14px;">After 5 failed login attempts from the same location, that username is temporarily locked for 15 minutes. If this looks like one of your team simply mistyping their password rather than anything suspicious, unlock them below. Every row can also be removed individually, or use "Clear resolved" to wipe every row that isn't currently locked in one go.</div>
       <table>
         <thead>
           <tr>
@@ -585,6 +588,17 @@ function renderLockoutsTable(rows){
     const statusHtml = r.isCurrentlyLocked
       ? `<span class="usage over">LOCKED until ${new Date(r.lockedUntil).toLocaleTimeString()}</span>`
       : `<span class="usage">not locked</span>`;
+    const encodedKey = encodeURIComponent(r.attemptKey);
+    const escapedUsername = escapeHtml(r.username).replace(/'/g, "\\'");
+    // Every row gets a removal action now, not just currently-locked ones — a resolved row
+    // (failed attempts recorded but the lockout has since expired or never triggered) used to
+    // have no action at all here, so stale history could only ever be cleared by waiting it
+    // out or going straight to the database. Locked rows keep the more urgent "Unlock now"
+    // label/styling since that's the action an admin actually needs in the moment; both paths
+    // call the same removeLockoutRow, which deletes the row either way.
+    const actionHtml = r.isCurrentlyLocked
+      ? `<button class="primary" style="padding:6px 14px;font-size:12px;" onclick="removeLockoutRow('${encodedKey}', '${escapedUsername}', true)">Unlock now</button>`
+      : `<button class="ghost" style="padding:6px 14px;font-size:12px;" onclick="removeLockoutRow('${encodedKey}', '${escapedUsername}', false)">Remove</button>`;
     return `
       <tr>
         <td>${escapeHtml(r.username)}</td>
@@ -592,24 +606,40 @@ function renderLockoutsTable(rows){
         <td>${r.failedCount}</td>
         <td>${statusHtml}</td>
         <td class="master-note">${lastAttempt}</td>
-        <td class="actions-cell">
-          ${r.isCurrentlyLocked ? `<button class="primary" style="padding:6px 14px;font-size:12px;" onclick="unlockAttempt('${encodeURIComponent(r.attemptKey)}')">Unlock now</button>` : '<span class="hint">—</span>'}
-        </td>
+        <td class="actions-cell">${actionHtml}</td>
       </tr>
     `;
   }).join('');
 }
 
-async function unlockAttempt(encodedAttemptKey){
+async function removeLockoutRow(encodedAttemptKey, username, isLocked){
+  const message = isLocked
+    ? `Unlock ${username}? This also clears their recorded failed attempt count.`
+    : `Remove this login activity record for ${username}?`;
+  if(!await genericConfirm(message, 'Login Activity & Lockouts', isLocked ? 'Unlock' : 'Remove')) return;
   const lockoutsStatus = document.getElementById('lockoutsStatus');
   try{
     const response = await fetch('/api/admin-lockouts?attemptKey=' + encodedAttemptKey, { method: 'DELETE' });
     const data = await response.json().catch(() => ({}));
-    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not unlock that account.');
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not update that record.');
     await loadLockouts();
   }catch(err){
     lockoutsStatus.className = 'status-msg error';
-    lockoutsStatus.textContent = err.message || 'Could not unlock that account.';
+    lockoutsStatus.textContent = err.message || 'Could not update that record.';
+  }
+}
+
+async function clearResolvedLockouts(){
+  if(!await genericConfirm('Remove every login activity row that isn\'t currently locked? Currently-locked rows are left untouched.', 'Login Activity & Lockouts', 'Clear resolved')) return;
+  const lockoutsStatus = document.getElementById('lockoutsStatus');
+  try{
+    const response = await fetch('/api/admin-lockouts?clearResolved=1', { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not clear resolved records.');
+    await loadLockouts();
+  }catch(err){
+    lockoutsStatus.className = 'status-msg error';
+    lockoutsStatus.textContent = err.message || 'Could not clear resolved records.';
   }
 }
 
