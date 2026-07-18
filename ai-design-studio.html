@@ -3103,6 +3103,16 @@ Replace only the materials and graphics."></textarea>
 
     <div id="promptCards"></div>
 
+    <!-- Test Engine only — every attachment (reference images, not just the text prompt above)
+         that will actually be sent to Gemini alongside it, so admin can see the whole request,
+         not just the text half of it. Populated by renderPromptReviewAttachments_TE(), stays
+         hidden and empty for Special Engine / every non-admin, where the text prompt above is
+         still the whole story. -->
+    <div id="promptReviewAttachments" style="display:none;margin-top:22px;">
+      <div class="eyebrow" style="margin-bottom:8px;">Also sent to Gemini with this prompt (Test Engine)</div>
+      <div id="promptReviewAttachmentsList" style="display:flex;flex-wrap:wrap;gap:14px;"></div>
+    </div>
+
     <div class="submit-bar" style="justify-content:space-between;align-items:center;">
       <button class="secondary" onclick="backToBriefFromReview()">← Go back and edit the form</button>
       <button class="primary" onclick="approvePrompts()">Approve & generate images</button>
@@ -9070,6 +9080,13 @@ let lastBubbleDiagramSVG = '';
 // generation.
 let lastWhiteBoxModelImage = '';
 
+// Whether the run that just built spatialPlanText/lastWhiteBoxModelImage actually used the Test
+// Engine — read by renderPromptReviewAttachments_TE() so the review screen's attachment gallery
+// only ever appears for a genuine Test Engine run, never for Special Engine or a reopened project
+// (where this stays at whatever it was last set to in this session, which is the same safe
+// default the other two lastXxx globals above already rely on).
+let lastGenerationUsedTestEngine = false;
+
 let isAdminUser = false;
 let currentUserProjectLimit = null; // null = no limit known yet, or admin (unlimited)
 let lastKnownProjectCount = null;
@@ -13581,6 +13598,7 @@ async function generateDesign(){
   const useTestEngine = isAdminUser && engineModeEl && engineModeEl.value === 'test';
   lastBubbleDiagramSVG = ''; // reset every run — a stale diagram from a previous project must never linger in the admin preview
   lastWhiteBoxModelImage = ''; // reset every run — same reasoning as lastBubbleDiagramSVG above
+  lastGenerationUsedTestEngine = useTestEngine; // reset every run too — read by the promptReview attachment gallery
   if(mode === 'booth' && spatialPlan){
     try{
       // Computed once up front (shared by both engines below), rather than separately after each
@@ -14487,8 +14505,72 @@ async function showPromptReview(promptResult){
     return;
   }
 
+  await renderPromptReviewAttachments_TE();
   document.getElementById('promptReview').style.display = 'block';
   document.getElementById('promptReview').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// Test Engine only — this screen used to show admin only the text prompt, leaving every image
+// that will also actually be sent to Gemini (company logo, brand portfolio logos/product photos,
+// and now the geometry-locking white-box snapshot) completely invisible until after Approve was
+// already clicked. Renders a thumbnail + label for each one so admin reviews the whole request,
+// not just its text half, before anything goes out. Stays hidden/empty for Special Engine and for
+// every non-admin (who never reaches this screen at all — see the isAdminUser check above), where
+// nothing about the request review behavior has changed.
+async function renderPromptReviewAttachments_TE(){
+  const wrap = document.getElementById('promptReviewAttachments');
+  const list = document.getElementById('promptReviewAttachmentsList');
+  if(!wrap || !list) return;
+
+  if(!lastGenerationUsedTestEngine){
+    wrap.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  const items = []; // { dataUrl, label }
+
+  if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+    items.push({ dataUrl: logoDataUrl, label: 'Company logo (exact pixels — reproduced as-is)' });
+  }
+
+  // Same images buildBrandPortfolioRenderAssets() will attach for the real render — walked again
+  // here (rather than changing that function's return shape) purely to build short display
+  // labels; the filtering/order logic is identical, so this lines up with the real attachments.
+  if(mode === 'booth' && brandPortfolio.length){
+    for(const brand of brandPortfolio){
+      const brandName = brand.name.trim() || 'Unnamed brand';
+      if(brand.logoDataUrl && visionCompatibleTypes.includes(brand.logoMediaType)){
+        items.push({ dataUrl: brand.logoDataUrl, label: `${brandName} — brand logo` });
+      }
+      for(const product of brand.products){
+        const productName = product.name.trim() || 'Unnamed product';
+        const validImages = product.images.filter(img => img.dataUrl && visionCompatibleTypes.includes(img.mediaType));
+        validImages.forEach((img, i) => {
+          const photoNote = validImages.length > 1 ? ` (photo ${i + 1}/${validImages.length})` : '';
+          items.push({ dataUrl: img.dataUrl, label: `${brandName} — ${productName}${photoNote}` });
+        });
+      }
+    }
+  }
+
+  if(lastWhiteBoxModelImage){
+    items.push({ dataUrl: lastWhiteBoxModelImage, label: 'Geometry reference — white-box model (ground truth for shape/walls/orientation)' });
+  }
+
+  if(!items.length){
+    wrap.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  wrap.style.display = 'block';
+  list.innerHTML = items.map(item => `
+    <div style="width:120px;">
+      <img src="${item.dataUrl}" style="width:120px;height:120px;object-fit:cover;border:1px solid var(--line);border-radius:4px;background:#fff;display:block;">
+      <div style="font-size:11px;color:var(--ink);opacity:.75;margin-top:5px;line-height:1.35;">${item.label}</div>
+    </div>
+  `).join('');
 }
 
 function backToBriefFromReview(){
