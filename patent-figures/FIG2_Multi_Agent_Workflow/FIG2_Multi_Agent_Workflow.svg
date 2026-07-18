@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1164" viewBox="0 0 1000 1164">
+<rect x="0" y="0" width="1000" height="1164" fill="white"/>
+<defs>
+  <marker id="arrow" markerWidth="11" markerHeight="7" refX="10" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L11,3.5 L0,7 Z" fill="black"/>
+  </marker>
+</defs>
+<text x="500.0" y="32.0" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">FIG. 2</text>
+<text x="500.0" y="60.0" font-family="Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Multi-Agent Workflow of the Exhibition Booth Design System</text>
+<path d="M 460.0,210.0 L 460.0,246.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 460.0,306.0 L 460.0,342.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 460.0,402.0 L 460.0,438.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 460.0,498.0 L 460.0,534.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 460.0,594.0 L 460.0,630.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 460.0,690.0 L 460.0,726.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 460.0,786.0 L 460.0,822.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 460.0,882.0 L 460.0,918.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 460.0,978.0 L 460.0,1014.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 660.0,564.0 L 750.0,564.0 L 750.0,468.0 L 660.0,468.0" fill="none" stroke="black" stroke-width="2.0" stroke-dasharray="8,6" marker-end="url(#arrow)"/>
+<rect x="754.0" y="505.0" width="268.0" height="15" fill="white" opacity="0.92"/>
+<text x="756.0" y="513.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">Refusal detected → retry, images dropped</text>
+<rect x="260.0" y="150.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="460.0" y="180.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Client Brief &amp; Booth Facts Input</text>
+<text x="670.0" y="165.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">200</text>
+<rect x="260.0" y="246.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="460.0" y="266.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">Orchestration Agent</text>
+<text x="460.0" y="285.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">(Task Dispatcher)</text>
+<text x="670.0" y="261.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">210</text>
+<rect x="260.0" y="342.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="460.0" y="362.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Spatial Planning Agent</text>
+<text x="460.0" y="381.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(Zone Budget &amp; Layout)</text>
+<text x="670.0" y="357.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">220</text>
+<rect x="260.0" y="438.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="460.0" y="458.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Project Analysis Agent</text>
+<text x="460.0" y="477.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(Vision-Capable, Stage 1)</text>
+<text x="670.0" y="453.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">230</text>
+<rect x="260.0" y="534.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="460.0" y="564.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Refusal Detection Agent</text>
+<text x="670.0" y="549.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">240</text>
+<rect x="260.0" y="630.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="460.0" y="650.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Prompt Synthesis Agent</text>
+<text x="460.0" y="669.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(Stage 2, Text-Only)</text>
+<text x="670.0" y="645.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">250</text>
+<rect x="260.0" y="726.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="460.0" y="756.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Brand Asset Validation Agent</text>
+<text x="670.0" y="741.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">260</text>
+<rect x="260.0" y="822.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="460.0" y="842.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Image Rendering Agent</text>
+<text x="460.0" y="861.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(Gemini / OpenAI)</text>
+<text x="670.0" y="837.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">270</text>
+<rect x="260.0" y="918.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="460.0" y="948.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Multi-View Consistency Agent</text>
+<text x="670.0" y="933.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">280</text>
+<rect x="260.0" y="1014.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="460.0" y="1044.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Output Assembly Agent</text>
+<text x="670.0" y="1029.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">290</text>
+</svg>

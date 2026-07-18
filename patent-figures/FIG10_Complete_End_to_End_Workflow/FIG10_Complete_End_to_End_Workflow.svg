@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1482" viewBox="0 0 1080 1482">
+<rect x="0" y="0" width="1080" height="1482" fill="white"/>
+<defs>
+  <marker id="arrow" markerWidth="11" markerHeight="7" refX="10" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L11,3.5 L0,7 Z" fill="black"/>
+  </marker>
+</defs>
+<text x="540.0" y="32.0" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">FIG. 10</text>
+<text x="540.0" y="60.0" font-family="Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Complete End-to-End Workflow</text>
+<path d="M 470.0,210.0 L 470.0,246.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,306.0 L 470.0,342.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,402.0 L 470.0,438.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,498.0 L 470.0,534.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,608.0 L 470.0,630.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,690.0 L 470.0,726.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,786.0 L 470.0,822.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,896.0 L 470.0,918.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,978.0 L 470.0,1014.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,1074.0 L 470.0,1110.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,1170.0 L 161.0,1206.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,1170.0 L 367.0,1206.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,1170.0 L 573.0,1206.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 470.0,1170.0 L 779.0,1206.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 270.0,1140.0 L 46.0,1140.0 L 46.0,1369.0 L 270.0,1369.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 670.0,1369.0 L 909.0,1369.0 L 909.0,660.0 L 670.0,660.0" fill="none" stroke="black" stroke-width="2.0" stroke-dasharray="8,6" marker-end="url(#arrow)"/>
+<rect x="913.0" y="1003.5" width="169.0" height="15" fill="white" opacity="0.92"/>
+<text x="915.0" y="1011.5" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">iterative refinement loop</text>
+<rect x="270.0" y="150.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="180.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">User</text>
+<text x="680.0" y="165.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1000</text>
+<rect x="270.0" y="246.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="276.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Electronic User Interface</text>
+<text x="680.0" y="261.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1010</text>
+<rect x="270.0" y="342.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="372.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Data Acquisition Module</text>
+<text x="680.0" y="357.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1020</text>
+<rect x="270.0" y="438.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="468.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Space Planning Module (see FIG. 3)</text>
+<text x="680.0" y="453.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1030</text>
+<rect x="270.0" y="534.0" width="400.0" height="74.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="561.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Multi-Agent Prompt Generation</text>
+<text x="470.0" y="580.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(see FIGS. 2 &amp; 8)</text>
+<text x="680.0" y="549.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1040</text>
+<rect x="270.0" y="630.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="660.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Design Validation Engine (see FIG. 5)</text>
+<text x="680.0" y="645.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1050</text>
+<rect x="270.0" y="726.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="756.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">3D Design Generation Module</text>
+<text x="680.0" y="741.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1060</text>
+<rect x="270.0" y="822.0" width="400.0" height="74.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="849.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Multi-View Consistency Process</text>
+<text x="470.0" y="868.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(see FIG. 9)</text>
+<text x="680.0" y="837.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1070</text>
+<rect x="270.0" y="918.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="948.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Visual Consistency Engine (see FIG. 6)</text>
+<text x="680.0" y="933.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1080</text>
+<rect x="270.0" y="1014.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="1044.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Design Output Generation Module</text>
+<text x="680.0" y="1029.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1090</text>
+<rect x="270.0" y="1110.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="1140.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">Final Deliverables Output</text>
+<text x="680.0" y="1125.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1100</text>
+<rect x="71.0" y="1206.0" width="180.0" height="76.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="161.0" y="1244.0" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">3D Renderings</text>
+<text x="243.0" y="1221.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="end" dominant-baseline="middle" fill="black">1102</text>
+<rect x="277.0" y="1206.0" width="180.0" height="76.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="367.0" y="1244.0" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Space Layout</text>
+<text x="449.0" y="1221.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="end" dominant-baseline="middle" fill="black">1104</text>
+<rect x="483.0" y="1206.0" width="180.0" height="76.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="573.0" y="1244.0" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Mood Board</text>
+<text x="655.0" y="1221.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="end" dominant-baseline="middle" fill="black">1106</text>
+<rect x="689.0" y="1206.0" width="180.0" height="76.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="779.0" y="1235.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Manufacturing</text>
+<text x="779.0" y="1252.8" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Reference Files</text>
+<text x="861.0" y="1221.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="end" dominant-baseline="middle" fill="black">1108</text>
+<rect x="270.0" y="1332.0" width="400.0" height="74.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="470.0" y="1360.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">User Review &amp; Modification Request</text>
+<text x="470.0" y="1377.8" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(Modify Design / Other Option / Edit Image)</text>
+<text x="680.0" y="1347.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">1110</text>
+</svg>

@@ -7765,56 +7765,62 @@ function renderAddreqUnitRows(prefix, fieldSuffix, subfieldLabel, placeholder, a
   list.innerHTML = rows.join('');
 }
 
+// Any Requirements checkbox that pairs with a quantity/capacity number field must never be
+// silently dropped from the brief sent to OpenAI just because the client checked the box but
+// left that number field blank — checking the box is itself an explicit request, independent of
+// whether a precise count was also typed in. When no usable number is present this falls back to
+// a sensible default (never zero) and says so explicitly in the brief, instead of the item
+// vanishing from the request entirely (this was the root cause behind items like "Private
+// Meeting Room" and "Display Shelves" being checked in the form but never reaching OpenAI).
+function getCheckedQuantity(fieldId, fallback){
+  const el = document.getElementById(fieldId);
+  const raw = el ? parseInt(el.value) : NaN;
+  if(Number.isFinite(raw) && raw > 0) return { count: raw, specified: true };
+  return { count: fallback, specified: false };
+}
+
 function collectAdditionalRequirements(){
   const lines = [];
 
   if(document.getElementById('addreq_reception').checked){
-    const count = Math.max(0, parseInt(document.getElementById('addreq_reception_count').value) || 0);
-    if(count > 0){
-      const widths = [];
-      for(let i = 1; i <= count; i++){
-        const w = document.getElementById('addreq_reception_w_' + i);
-        widths.push(`Counter ${i}: width ${w && w.value ? w.value + 'm' : 'not specified'} × height 1m (standard) × depth 0.4m (standard)`);
-      }
-      lines.push(`RECEPTION COUNTERS — EXACT CLIENT SPECIFICATION (overrides computed/default reception count): exactly ${count} reception counter(s) required. ${widths.join('; ')}.`);
+    const { count, specified } = getCheckedQuantity('addreq_reception_count', 1);
+    const widths = [];
+    for(let i = 1; i <= count; i++){
+      const w = document.getElementById('addreq_reception_w_' + i);
+      widths.push(`Counter ${i}: width ${w && w.value ? w.value + 'm' : 'not specified'} × height 1m (standard) × depth 0.4m (standard)`);
     }
+    lines.push(`RECEPTION COUNTERS — ${specified ? `EXACT CLIENT SPECIFICATION (overrides computed/default reception count): exactly ${count} reception counter(s) required.` : `EXPLICITLY REQUESTED BY THE CLIENT (exact quantity not specified — include ${count} as a reasonable default).`} ${widths.join('; ')}.`);
   }
 
   if(document.getElementById('addreq_seating').checked){
-    const count = Math.max(0, parseInt(document.getElementById('addreq_seating_count').value) || 0);
-    if(count > 0){
-      const areas = [];
-      for(let i = 1; i <= count; i++){
-        const cap = document.getElementById('addreq_seating_cap_' + i);
-        areas.push(`Area ${i}: seats ${cap && cap.value ? cap.value : 'not specified'} people`);
-      }
-      lines.push(`SEATING AREAS — EXACT CLIENT SPECIFICATION (overrides computed/default seating): exactly ${count} seating area(s) required. ${areas.join('; ')}.`);
+    const { count, specified } = getCheckedQuantity('addreq_seating_count', 1);
+    const areas = [];
+    for(let i = 1; i <= count; i++){
+      const cap = document.getElementById('addreq_seating_cap_' + i);
+      areas.push(`Area ${i}: seats ${cap && cap.value ? cap.value : 'not specified'} people`);
     }
+    lines.push(`SEATING AREAS — ${specified ? `EXACT CLIENT SPECIFICATION (overrides computed/default seating): exactly ${count} seating area(s) required.` : `EXPLICITLY REQUESTED BY THE CLIENT (exact quantity not specified — include ${count} as a reasonable default).`} ${areas.join('; ')}.`);
   }
 
   if(document.getElementById('addreq_tv').checked){
-    const count = Math.max(0, parseInt(document.getElementById('addreq_tv_count').value) || 0);
-    if(count > 0){
-      const screens = [];
-      for(let i = 1; i <= count; i++){
-        const size = document.getElementById('addreq_tv_size_' + i);
-        screens.push(`TV ${i}: ${size && size.value ? size.value + '"' : 'size not specified'}`);
-      }
-      lines.push(`TV SCREENS — EXPLICITLY REQUESTED BY THE CLIENT (this is the specific exception to the default "no TV screens unless requested" rule): exactly ${count} TV screen(s) required. ${screens.join('; ')}.`);
+    const { count, specified } = getCheckedQuantity('addreq_tv_count', 1);
+    const screens = [];
+    for(let i = 1; i <= count; i++){
+      const size = document.getElementById('addreq_tv_size_' + i);
+      screens.push(`TV ${i}: ${size && size.value ? size.value + '"' : 'size not specified'}`);
     }
+    lines.push(`TV SCREENS — EXPLICITLY REQUESTED BY THE CLIENT (this is the specific exception to the default "no TV screens unless requested" rule)${specified ? `, exact quantity specified (overrides computed/default TV screen count)` : ' — exact quantity not specified, include ' + count + ' as a reasonable default'}: exactly ${count} TV screen(s) required. ${screens.join('; ')}.`);
   }
 
   if(document.getElementById('addreq_led').checked){
-    const count = Math.max(0, parseInt(document.getElementById('addreq_led_count').value) || 0);
-    if(count > 0){
-      const screens = [];
-      for(let i = 1; i <= count; i++){
-        const w = document.getElementById('addreq_led_w_' + i);
-        const h = document.getElementById('addreq_led_h_' + i);
-        screens.push(`LED ${i}: ${w && w.value ? w.value + 'm' : '?'} W × ${h && h.value ? h.value + 'm' : '?'} H`);
-      }
-      lines.push(`LED SCREENS — EXACT CLIENT SPECIFICATION (overrides computed/default LED screen count): exactly ${count} LED screen(s) required. ${screens.join('; ')}.`);
+    const { count, specified } = getCheckedQuantity('addreq_led_count', 1);
+    const screens = [];
+    for(let i = 1; i <= count; i++){
+      const w = document.getElementById('addreq_led_w_' + i);
+      const h = document.getElementById('addreq_led_h_' + i);
+      screens.push(`LED ${i}: ${w && w.value ? w.value + 'm' : '?'} W × ${h && h.value ? h.value + 'm' : '?'} H`);
     }
+    lines.push(`LED SCREENS — ${specified ? `EXACT CLIENT SPECIFICATION (overrides computed/default LED screen count): exactly ${count} LED screen(s) required.` : `EXPLICITLY REQUESTED BY THE CLIENT (exact quantity not specified — include ${count} as a reasonable default).`} ${screens.join('; ')}.`);
   }
 
   // Newer items that also carry one sub-field per unit (seats, size, sqm) — same
@@ -7827,15 +7833,13 @@ function collectAdditionalRequirements(){
   ];
   for(const [prefix, fieldSuffix, title, unitLabel, formatValue] of unitItems){
     if(document.getElementById('addreq_' + prefix).checked){
-      const count = Math.max(0, parseInt(document.getElementById('addreq_' + prefix + '_count').value) || 0);
-      if(count > 0){
-        const units = [];
-        for(let i = 1; i <= count; i++){
-          const el = document.getElementById(`addreq_${prefix}_${fieldSuffix}_${i}`);
-          units.push(`Unit ${i}: ${formatValue(el && el.value)}`);
-        }
-        lines.push(`${title} — EXACT CLIENT SPECIFICATION (overrides computed/default quantity): exactly ${count} ${unitLabel} required. ${units.join('; ')}.`);
+      const { count, specified } = getCheckedQuantity('addreq_' + prefix + '_count', 1);
+      const units = [];
+      for(let i = 1; i <= count; i++){
+        const el = document.getElementById(`addreq_${prefix}_${fieldSuffix}_${i}`);
+        units.push(`Unit ${i}: ${formatValue(el && el.value)}`);
       }
+      lines.push(`${title} — ${specified ? `EXACT CLIENT SPECIFICATION (overrides computed/default quantity): exactly ${count} ${unitLabel} required.` : `EXPLICITLY REQUESTED BY THE CLIENT (exact quantity not specified — include ${count} as a reasonable default): ${count} ${unitLabel} required.`} ${units.join('; ')}.`);
     }
   }
 
@@ -7843,17 +7847,15 @@ function collectAdditionalRequirements(){
   // (not a plain quantity-only checkbox any more, so it gets its own block instead of living in
   // quantityOnlyItems below).
   if(document.getElementById('addreq_vipmeeting').checked){
-    const vipCount = Math.max(0, parseInt(document.getElementById('addreq_vipmeeting_count').value) || 0);
-    if(vipCount > 0){
-      const enclosureEl = document.getElementById('addreq_vipmeeting_enclosure');
-      const enclosure = (enclosureEl && enclosureEl.value === 'open') ? 'open, semi-enclosed (no full walls or door)' : 'closed, fully enclosed with walls and a door';
-      const units = [];
-      for(let i = 1; i <= vipCount; i++){
-        const capEl = document.getElementById('addreq_vipmeeting_capacity_' + i);
-        units.push(`Unit ${i}: ${capEl && capEl.value ? capEl.value + ' people' : 'capacity not specified'}`);
-      }
-      lines.push(`VIP MEETING ROOM — EXACT CLIENT SPECIFICATION (overrides computed/default quantity): exactly ${vipCount} VIP meeting room(s) required, ${enclosure}. ${units.join('; ')}.`);
+    const { count: vipCount, specified: vipSpecified } = getCheckedQuantity('addreq_vipmeeting_count', 1);
+    const enclosureEl = document.getElementById('addreq_vipmeeting_enclosure');
+    const enclosure = (enclosureEl && enclosureEl.value === 'open') ? 'open, semi-enclosed (no full walls or door)' : 'closed, fully enclosed with walls and a door';
+    const units = [];
+    for(let i = 1; i <= vipCount; i++){
+      const capEl = document.getElementById('addreq_vipmeeting_capacity_' + i);
+      units.push(`Unit ${i}: ${capEl && capEl.value ? capEl.value + ' people' : 'capacity not specified'}`);
     }
+    lines.push(`VIP MEETING ROOM — ${vipSpecified ? `EXACT CLIENT SPECIFICATION (overrides computed/default quantity): exactly ${vipCount} VIP meeting room(s) required` : `EXPLICITLY REQUESTED BY THE CLIENT (exact quantity not specified — include ${vipCount} as a reasonable default)`}, ${enclosure}. ${units.join('; ')}.`);
   }
 
   // Quantity-only items — a single explicit count, no further per-unit breakdown needed.
@@ -7902,10 +7904,10 @@ function collectAdditionalRequirements(){
   ];
   for(const [id, title, unitLabel] of quantityOnlyItems){
     if(document.getElementById('addreq_' + id).checked){
-      const count = Math.max(0, parseInt(document.getElementById('addreq_' + id + '_count').value) || 0);
-      if(count > 0){
-        lines.push(`${title} — EXACT CLIENT SPECIFICATION (overrides computed/default quantity): exactly ${count} ${unitLabel} required.`);
-      }
+      const { count, specified } = getCheckedQuantity('addreq_' + id + '_count', 1);
+      lines.push(specified
+        ? `${title} — EXACT CLIENT SPECIFICATION (overrides computed/default quantity): exactly ${count} ${unitLabel} required.`
+        : `${title} — EXPLICITLY REQUESTED BY THE CLIENT (exact quantity not specified — include ${count} as a reasonable default): ${count} ${unitLabel} required.`);
     }
   }
 
@@ -7923,9 +7925,9 @@ function collectAdditionalRequirements(){
     if(document.getElementById('addreq_' + id).checked){
       const capField = document.getElementById('addreq_' + fieldId);
       const capacity = Math.max(0, parseInt(capField && capField.value) || 0);
-      if(capacity > 0){
-        lines.push(`${title} — EXACT CLIENT SPECIFICATION (overrides computed/default capacity): ${areaLabel} must accommodate exactly ${capacity} people.`);
-      }
+      lines.push(capacity > 0
+        ? `${title} — EXACT CLIENT SPECIFICATION (overrides computed/default capacity): ${areaLabel} must accommodate exactly ${capacity} people.`
+        : `${title} — EXPLICITLY REQUESTED BY THE CLIENT (exact capacity not specified — size ${areaLabel} to a reasonable default appropriate for this zone and the overall booth size).`);
     }
   }
 

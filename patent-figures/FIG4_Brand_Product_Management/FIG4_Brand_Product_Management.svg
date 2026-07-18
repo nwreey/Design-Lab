@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1098" viewBox="0 0 1080 1098">
+<rect x="0" y="0" width="1080" height="1098" fill="white"/>
+<defs>
+  <marker id="arrow" markerWidth="11" markerHeight="7" refX="10" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L11,3.5 L0,7 Z" fill="black"/>
+  </marker>
+</defs>
+<text x="540.0" y="32.0" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">FIG. 4</text>
+<text x="540.0" y="60.0" font-family="Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Brand &amp; Product Management Module</text>
+<path d="M 540.0,190.0 L 540.0,226.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 540.0,286.0 L 240.0,332.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 540.0,286.0 L 540.0,332.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 540.0,286.0 L 840.0,332.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 240.0,406.0 L 540.0,448.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 540.0,406.0 L 540.0,448.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 840.0,406.0 L 540.0,448.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 540.0,508.0 L 540.0,544.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 540.0,604.0 L 540.0,640.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 540.0,700.0 L 540.0,736.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 310.0,882.0 L 340.0,882.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 740.0,574.0 L 830.0,574.0 L 830.0,882.0 L 740.0,882.0" fill="none" stroke="black" stroke-width="1.4"/>
+<rect x="834.0" y="717.0" width="149.2" height="15" fill="white" opacity="0.92"/>
+<text x="836.0" y="725.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">reference brand assets</text>
+<path d="M 540.0,912.0 L 540.0,948.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<rect x="340.0" y="130.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="540.0" y="160.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Brand Portfolio Input Interface</text>
+<text x="750.0" y="145.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">400</text>
+<rect x="340.0" y="226.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="540.0" y="246.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Brand Record</text>
+<text x="540.0" y="265.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(Name, Logo Image)</text>
+<text x="750.0" y="241.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">410</text>
+<rect x="110.0" y="332.0" width="260.0" height="74.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="240.0" y="360.6" font-family="Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Product Record 1</text>
+<text x="240.0" y="377.4" font-family="Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(Name, Image Set)</text>
+<text x="362.0" y="347.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="end" dominant-baseline="middle" fill="black">420a</text>
+<rect x="410.0" y="332.0" width="260.0" height="74.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="540.0" y="360.6" font-family="Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Product Record 2</text>
+<text x="540.0" y="377.4" font-family="Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(Name, Image Set)</text>
+<text x="662.0" y="347.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="end" dominant-baseline="middle" fill="black">420b</text>
+<rect x="710.0" y="332.0" width="260.0" height="74.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="840.0" y="360.6" font-family="Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Product Record N</text>
+<text x="840.0" y="377.4" font-family="Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(Name, Image Set)</text>
+<text x="962.0" y="347.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="end" dominant-baseline="middle" fill="black">420n</text>
+<rect x="340.0" y="448.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="540.0" y="468.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Asset Compression &amp;</text>
+<text x="540.0" y="487.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Encoding Module</text>
+<text x="750.0" y="463.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">430</text>
+<rect x="340.0" y="544.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="540.0" y="574.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Brand Asset Render Provider</text>
+<text x="750.0" y="559.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">440</text>
+<rect x="340.0" y="640.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="540.0" y="660.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Reference Image Assembly</text>
+<text x="540.0" y="679.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(attached to render requests)</text>
+<text x="750.0" y="655.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">450</text>
+<rect x="340.0" y="736.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="540.0" y="757.9" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">To Concept Generation &amp; 3D Design</text>
+<text x="540.0" y="774.1" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Generation Modules (see FIG. 1, 160/170)</text>
+<rect x="30.0" y="852.0" width="280.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="170.0" y="873.9" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Generated Image</text>
+<text x="170.0" y="890.1" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(from FIG. 1, Module 170)</text>
+<rect x="340.0" y="852.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="540.0" y="872.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Brand Asset Integrity Engine</text>
+<text x="540.0" y="891.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(BIE-001) — Correction Pass</text>
+<text x="750.0" y="867.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">460</text>
+<rect x="340.0" y="948.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="540.0" y="978.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">Verified Brand-Consistent Output</text>
+<text x="750.0" y="963.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">470</text>
+</svg>

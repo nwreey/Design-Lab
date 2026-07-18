@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1070" height="992" viewBox="0 0 1070 992">
+<rect x="0" y="0" width="1070" height="992" fill="white"/>
+<defs>
+  <marker id="arrow" markerWidth="11" markerHeight="7" refX="10" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L11,3.5 L0,7 Z" fill="black"/>
+  </marker>
+</defs>
+<text x="535.0" y="32.0" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">FIG. 7</text>
+<text x="535.0" y="60.0" font-family="Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Data Flow Between Modules</text>
+<path d="M 400.0,210.0 L 400.0,246.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<rect x="404.0" y="217.0" width="248.2" height="15" fill="white" opacity="0.92"/>
+<text x="406.0" y="225.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">Form Data — booth facts, requirements</text>
+<path d="M 400.0,306.0 L 400.0,342.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<rect x="404.0" y="313.0" width="155.8" height="15" fill="white" opacity="0.92"/>
+<text x="406.0" y="321.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">Structured Brief (JSON)</text>
+<path d="M 400.0,402.0 L 400.0,438.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<rect x="404.0" y="409.0" width="248.2" height="15" fill="white" opacity="0.92"/>
+<text x="406.0" y="417.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">Spatial Plan — zones, dims, positions</text>
+<path d="M 400.0,498.0 L 400.0,534.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<rect x="404.0" y="505.0" width="149.2" height="15" fill="white" opacity="0.92"/>
+<text x="406.0" y="513.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">Design Analysis (JSON)</text>
+<path d="M 400.0,594.0 L 400.0,630.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<rect x="404.0" y="601.0" width="195.4" height="15" fill="white" opacity="0.92"/>
+<text x="406.0" y="609.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">Final Rendering Prompt (text)</text>
+<path d="M 400.0,690.0 L 400.0,726.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<rect x="404.0" y="697.0" width="142.6" height="15" fill="white" opacity="0.92"/>
+<text x="406.0" y="705.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">Validated Design Data</text>
+<path d="M 400.0,786.0 L 400.0,822.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<rect x="404.0" y="793.0" width="149.2" height="15" fill="white" opacity="0.92"/>
+<text x="406.0" y="801.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">Approved Design Record</text>
+<path d="M 600.0,276.0 L 820.0,516.0" fill="none" stroke="black" stroke-width="2.0" stroke-dasharray="8,6" marker-end="url(#arrow)"/>
+<path d="M 600.0,756.0 L 820.0,516.0" fill="none" stroke="black" stroke-width="2.0" stroke-dasharray="8,6" marker-end="url(#arrow)"/>
+<path d="M 600.0,852.0 L 820.0,516.0" fill="none" stroke="black" stroke-width="2.0" stroke-dasharray="8,6" marker-end="url(#arrow)"/>
+<rect x="200.0" y="150.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="400.0" y="180.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Electronic User Interface</text>
+<text x="610.0" y="165.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">710</text>
+<rect x="200.0" y="246.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="400.0" y="276.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Data Acquisition Module</text>
+<text x="592.0" y="261.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="end" dominant-baseline="middle" fill="black">720</text>
+<rect x="200.0" y="342.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="400.0" y="372.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Project Analysis Module</text>
+<text x="610.0" y="357.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">730</text>
+<rect x="200.0" y="438.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="400.0" y="468.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Space Planning Module</text>
+<text x="610.0" y="453.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">740</text>
+<rect x="200.0" y="534.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="400.0" y="564.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Concept Generation Module</text>
+<text x="610.0" y="549.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">750</text>
+<rect x="200.0" y="630.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="400.0" y="660.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">3D Design Generation Module</text>
+<text x="610.0" y="645.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">760</text>
+<rect x="200.0" y="726.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="400.0" y="756.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Design Validation Module</text>
+<text x="592.0" y="741.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="end" dominant-baseline="middle" fill="black">770</text>
+<rect x="200.0" y="822.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="400.0" y="852.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Design Output Generation Module</text>
+<text x="592.0" y="837.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="end" dominant-baseline="middle" fill="black">780</text>
+<rect x="820.0" y="240.0" width="220.0" height="552.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="930.0" y="506.6" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">Project Database</text>
+<text x="930.0" y="525.4" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">(Persistent Storage)</text>
+<text x="1050.0" y="255.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">790</text>
+</svg>

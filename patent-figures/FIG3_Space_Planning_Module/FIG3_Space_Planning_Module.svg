@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1090" height="780" viewBox="0 0 1090 780">
+<rect x="0" y="0" width="1090" height="780" fill="white"/>
+<defs>
+  <marker id="arrow" markerWidth="11" markerHeight="7" refX="10" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L11,3.5 L0,7 Z" fill="black"/>
+  </marker>
+</defs>
+<text x="545.0" y="32.0" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">FIG. 3</text>
+<text x="545.0" y="60.0" font-family="Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Space Planning Module — Detail of SFE-001 / SSE-001 / LPE-001</text>
+<path d="M 430.0,210.0 L 430.0,246.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 430.0,320.0 L 430.0,342.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 430.0,416.0 L 430.0,438.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 430.0,512.0 L 430.0,534.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 430.0,608.0 L 430.0,630.0" fill="none" stroke="black" stroke-width="2.0" marker-end="url(#arrow)"/>
+<path d="M 630.0,382.7 L 700.0,382.7 L 700.0,408.6 L 630.0,408.6" fill="none" stroke="black" stroke-width="2.0" stroke-dasharray="8,6" marker-end="url(#arrow)"/>
+<rect x="669.0" y="371.7" width="169.0" height="15" fill="white" opacity="0.92"/>
+<text x="671.0" y="379.7" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">repeat until program fits</text>
+<path d="M 630.0,283.0 L 820.0,283.0" fill="none" stroke="black" stroke-width="1.4"/>
+<rect x="230.0" y="150.0" width="400.0" height="60.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="430.0" y="180.0" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Booth Dimensions &amp; Requirements Input</text>
+<text x="640.0" y="165.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">300</text>
+<rect x="230.0" y="246.0" width="400.0" height="74.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="430.0" y="273.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Spatial Feasibility Engine (SFE-001)</text>
+<text x="430.0" y="292.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Hero Footprint + Circulation Reserve</text>
+<text x="640.0" y="261.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">310</text>
+<rect x="230.0" y="342.0" width="400.0" height="74.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="430.0" y="369.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Zone Priority Reduction Loop</text>
+<text x="430.0" y="388.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">(Tier 8 → Tier 2)</text>
+<text x="640.0" y="357.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">315</text>
+<rect x="230.0" y="438.0" width="400.0" height="74.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="430.0" y="465.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Scale Specification Engine (SSE-001)</text>
+<text x="430.0" y="484.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Assigns Width × Depth × Height per Zone</text>
+<text x="640.0" y="453.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">320</text>
+<rect x="230.0" y="534.0" width="400.0" height="74.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="430.0" y="561.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Layout &amp; Position Engine (LPE-001)</text>
+<text x="430.0" y="580.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="black">Assigns Region &amp; Coordinates per Zone</text>
+<text x="640.0" y="549.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">330</text>
+<rect x="230.0" y="630.0" width="400.0" height="74.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="430.0" y="657.6" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">Spatial Plan Output</text>
+<text x="430.0" y="676.4" font-family="Helvetica, Arial, sans-serif" font-size="15.0" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">(Zone List: Position + Dimensions)</text>
+<text x="640.0" y="645.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">340</text>
+<rect x="820.0" y="240.0" width="240.0" height="354.0" fill="white" stroke="black" stroke-width="2.0"/>
+<text x="1052.0" y="255.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="end" dominant-baseline="middle" fill="black">350</text>
+<text x="940.0" y="268.0" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">Zone Priority Tier</text>
+<text x="940.0" y="288.0" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="black">Reference</text>
+<text x="842.0" y="316.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">•  1  Hero Architecture</text>
+<text x="842.0" y="353.4" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">•  2  Brand Experience</text>
+<text x="842.0" y="390.9" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">•  3  Primary Products</text>
+<text x="842.0" y="428.3" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">•  4  Reception</text>
+<text x="842.0" y="465.7" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">•  5  Information</text>
+<text x="842.0" y="503.1" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">•  6  Meeting</text>
+<text x="842.0" y="540.6" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">•  7  Hospitality</text>
+<text x="842.0" y="578.0" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="black">•  8  Decorative Features</text>
+</svg>
