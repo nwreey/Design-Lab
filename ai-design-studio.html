@@ -3055,16 +3055,6 @@ Replace only the materials and graphics."></textarea>
     </div>
 
 
-    <div class="field" id="imageEngineField" style="display:none;">
-      <label>Image Engine (admin test)</label>
-      <select id="f_imageEngine" onchange="updateImageEngineHint()">
-        <option value="gemini">Gemini (default)</option>
-        <option value="openai">OpenAI gpt-image-2 (test, admin-only — never reachable by regular users)</option>
-        <option value="directgemini">Direct to Gemini (skip OpenAI prompt-writing)</option>
-      </select>
-      <div class="hint" id="imageEngineHint">Admin-only comparison tool. Every regular (non-admin) user is now hardcoded to the Direct to Gemini path below (no OpenAI prompt-writing, Gemini renders every image — OpenAI's gpt-image-2 is never reachable for them). This selector only exists so an admin can still run the older OpenAI-mediated pipeline, or OpenAI's own image model, side-by-side for comparison.</div>
-    </div>
-
     <div class="field" id="newSpatialEngineField" style="display:none;">
       <label class="check-item-compact" style="font-weight:600;"><input type="checkbox" id="f_newSpatialEngine"> Use OLD Spatial Engine (Admin Comparison)</label>
       <div class="hint">The New Spatial Engine (Design Intent → Functional Program → Spatial Relationships → Visitor Journey → Zone Allocation → Hero Strategy → Layout Solver → Bubble Diagram → Architectural Composition) is now the DEFAULT for every regular user. This checkbox is admin-only and inverted: check it to fall back to the old engine for side-by-side comparison; leave it unchecked to see exactly what regular users see. See Spatial-Planning-Engine-Redesign.md for the full architecture.</div>
@@ -9147,14 +9137,12 @@ async function checkAdminAccess(){
         const tab = document.getElementById(id);
         if(tab) tab.style.display = '';
       });
-      const engineField = document.getElementById('imageEngineField');
-      if(engineField) engineField.style.display = 'block';
       const newEngineField = document.getElementById('newSpatialEngineField');
       if(newEngineField) newEngineField.style.display = 'block';
     }
     // The AI Auto-fill Helper ("Need help completing this brief?") has now graduated from an
     // admin-only test to a normal feature for every user, in both Booth and Event modes — shown
-    // here regardless of role, unlike imageEngineField above which genuinely is still admin-only.
+    // here regardless of role, unlike newSpatialEngineField above which genuinely is still admin-only.
     const autofillField = document.getElementById('aiAutofillHelperField');
     if(autofillField && (mode === 'booth' || mode === 'event')) autofillField.style.display = 'block';
     currentUserProjectLimit = data.projectLimit != null ? data.projectLimit : null;
@@ -9170,24 +9158,6 @@ async function checkAdminAccess(){
     renderSidebarAccountSection(data);
   }catch(err){
     console.error('Could not check admin access:', err);
-  }
-}
-
-// Swaps the Image Engine hint to explain what's actually different about each option — in
-// particular "Direct to Gemini", which isn't just a different renderer like the other two
-// options are (see updateImageEngineHint's onchange wiring on #f_imageEngine): it skips the two
-// OpenAI prompt-writing calls (Project Analysis + Prompt Synthesis) entirely and sends the raw
-// client brief straight to Gemini as the image prompt, so the hint needs to say that plainly
-// rather than reuse the "same finished prompt, different renderer" wording that's true for the
-// other two options but not this one.
-function updateImageEngineHint(){
-  const engineEl = document.getElementById('f_imageEngine');
-  const hintEl = document.getElementById('imageEngineHint');
-  if(!engineEl || !hintEl) return;
-  if(engineEl.value === 'directgemini'){
-    hintEl.textContent = "Admin-only experiment: skips both OpenAI prompt-writing calls (the Project Analysis Engine and the Prompt Synthesis stage) entirely — the raw client brief you're about to send is sent straight to Gemini as the image prompt, with no AI rewriting or architectural reasoning applied to it first. You'll still get the review screen to see (and edit) that raw brief before it renders, exactly like the normal flow's finished prompt.";
-  }else{
-    hintEl.textContent = 'Admin-only experiment: choose which model actually renders the image from the exact same finished prompt, to compare Gemini vs. OpenAI design quality side-by-side. Only this final image-rendering step changes — the two-stage analysis and prompt-writing above are unaffected either way.';
   }
 }
 
@@ -11112,9 +11082,9 @@ function collectAutofillDescriptorsInRange(startId, endId, descriptors, seen){
 }
 
 // Booth mode scans one contiguous range: Booth Theme's headline up to (not including) the
-// admin-only Image Engine field — the same range setMode() itself uses to show/hide the
-// booth-only sections (brand colors, architectural style, brand personality, posters, flooring,
-// ceiling & rigging, requirements, reference image).
+// admin-only New Spatial Engine toggle (the last field before the submit bar) — the same range
+// setMode() itself uses to show/hide the booth-only sections (brand colors, architectural style,
+// brand personality, posters, flooring, ceiling & rigging, requirements, reference image).
 //
 // Event mode scans two ranges instead, since Events Concept sits earlier in the document than
 // the shared style fields it also needs: Events Concept's own headline up to (not including)
@@ -11130,7 +11100,7 @@ function collectAutofillFieldDescriptors(){
     collectAutofillDescriptorsInRange('eventThemeHeadline', 'boothThemeHeadline', descriptors, seen);
     collectAutofillDescriptorsInRange('boothThemeHeadline', 'boothOnlyFields', descriptors, seen);
   }else{
-    collectAutofillDescriptorsInRange('boothThemeHeadline', 'imageEngineField', descriptors, seen);
+    collectAutofillDescriptorsInRange('boothThemeHeadline', 'newSpatialEngineField', descriptors, seen);
   }
   return descriptors;
 }
@@ -12209,25 +12179,26 @@ async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
    copy and never decides what the mood board looks like. OpenAI is the Creative Director —
    given only that JSON, it produces a full Mood Board Design Specification, including twelve
    explicitly labeled and described image slots; it never touches the image itself. Gemini (or
-   OpenAI's own image models, via the same admin engine toggle) is the Image Creator — it
-   receives one fully-specified prompt built deterministically from the Creative Director's
-   spec and renders exactly that, a twelve-image mood board collage in a 3x4 grid, never a 3D
-   rendering of a physical space and never something Gemini had to improvise on its own.
-   Reuses only genuinely generic, mode-agnostic helpers from the booth pipeline (callPromptWriterApi,
-   compressDataUrlToTarget, fetchWithTimeout, lockForm/unlockForm, the imageEngineField toggle) —
-   never any booth-specific EPS text, variables, or functions. */
+   OpenAI's own image models — no longer applicable; Gemini is the only image engine now) is the
+   Image Creator — it receives one fully-specified prompt built deterministically from the
+   Creative Director's spec and renders exactly that, a twelve-image mood board collage in a 3x4
+   grid, never a 3D rendering of a physical space and never something Gemini had to improvise on
+   its own. Reuses only genuinely generic, mode-agnostic helpers from the booth pipeline
+   (callPromptWriterApi, compressDataUrlToTarget, fetchWithTimeout, lockForm/unlockForm) — never
+   any booth-specific EPS text, variables, or functions. */
 
 /* Event Theme Board / Mood Board pipeline — three distinct roles, never blurred together:
    Claude (this app) is the Workflow Manager: it validates the form and organizes it into a
    clean structured JSON brief, nothing more. OpenAI is the Creative Director: given only that
    JSON, it never touches the image itself — it produces a full Mood Board Design Specification,
-   including twelve explicitly labeled/described image slots. Gemini (or OpenAI's own image
-   models, via the same admin engine toggle) is the Image Creator: it never improvises what the
-   board should contain — it receives one fully-specified prompt, built deterministically here
-   from the Creative Director's own spec, and renders exactly that. This keeps Gemini from ever
-   having to *decide* what the mood board looks like, which is the whole point of this pipeline. */
+   including twelve explicitly labeled/described image slots. Gemini is the Image Creator (the
+   only image engine now — OpenAI's own image models are no longer an option): it never
+   improvises what the board should contain — it receives one fully-specified prompt, built
+   deterministically here from the Creative Director's own spec, and renders exactly that. This
+   keeps Gemini from ever having to *decide* what the mood board looks like, which is the whole
+   point of this pipeline. */
 
-let eventConceptBoard = null; // { image: dataUrl, spec: {...}, engine: 'gemini'|'openai' } | null
+let eventConceptBoard = null; // { image: dataUrl, spec: {...}, engine: 'gemini' } | null
 
 const eventThemeBoardWriterSystem = `You are a senior event creative director acting as the Creative Director for an Event Theme Board — a twelve-image mood board collage used to pitch an event's creative direction to a client, before any physical/architectural design work begins. You are NOT designing a physical space, a booth, or any architecture, and you never generate or describe a single continuous image — you only define the creative direction and mood in words, precise enough that an image-generation model can turn it into a 12-image collage without having to invent anything itself.
 
@@ -12410,12 +12381,8 @@ async function generateEventConceptBoard(){
     document.getElementById('loadingText').textContent = 'Designing your mood board...';
     const layoutPrompt = buildEventMoodBoardImagePrompt(spec);
 
-    // Same admin-only engine toggle already used for the exhibition booth's own render (see
-    // imageEngineField / startRenderSession) — reused here rather than duplicated, since it's
-    // a generic "which model renders this exact finished prompt" choice, not booth-specific logic.
-    const engineEl = document.getElementById('f_imageEngine');
-    const useOpenAiEngine = isAdminUser && engineEl && engineEl.value === 'openai';
-    const genEndpoint = useOpenAiEngine ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+    // Gemini only — no other option (the Image Engine admin-test selector has been removed).
+    const genEndpoint = '/api/generate-image-gemini';
 
     const response = await fetchWithTimeout(genEndpoint, {
       method: 'POST',
@@ -12428,7 +12395,7 @@ async function generateEventConceptBoard(){
     if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Could not generate the mood board image.');
 
     const compressed = await compressDataUrlToTarget(data.image, 900 * 1024);
-    eventConceptBoard = { image: compressed, spec, engine: useOpenAiEngine ? 'openai' : 'gemini' };
+    eventConceptBoard = { image: compressed, spec, engine: 'gemini' };
     // Keeps the form locked on success, same as the exhibition booth pipeline — renderEventConceptBoardResult()
     // itself calls lockForm(), covering both this live-generation path and the restore-from-
     // saved-project path (restoreLogoAndPosters) in one place.
@@ -12627,9 +12594,7 @@ async function submitModifyTheme(){
     const spec = readModifyThemeFields();
     const layoutPrompt = buildEventMoodBoardImagePrompt(spec);
 
-    const engineEl = document.getElementById('f_imageEngine');
-    const useOpenAiEngine = isAdminUser && engineEl && engineEl.value === 'openai';
-    const genEndpoint = useOpenAiEngine ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+    const genEndpoint = '/api/generate-image-gemini';
 
     const response = await fetchWithTimeout(genEndpoint, {
       method: 'POST',
@@ -12644,7 +12609,7 @@ async function submitModifyTheme(){
     const compressed = await compressDataUrlToTarget(data.image, 900 * 1024);
     eventConceptBoard.image = compressed;
     eventConceptBoard.spec = spec;
-    eventConceptBoard.engine = useOpenAiEngine ? 'openai' : 'gemini';
+    eventConceptBoard.engine = 'gemini';
 
     closeModifyThemePanel();
     renderEventConceptBoardResult();
@@ -13396,23 +13361,14 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
 
   const userContent = userContentParts.length > 1 ? userContentParts : userBrief;
 
-  // Direct to Gemini — an entirely separate, much shorter path than the OpenAI-mediated pipeline
-  // below: it skips BOTH OpenAI prompt-writing calls (Stage 1 Project Analysis + Stage 2 Prompt
-  // Synthesis) outright and uses the client brief itself (built above, by the New Spatial
-  // Planning Engine for booth mode) directly as the image_prompt, so there's no "request about to
-  // be sent to OpenAI" to preview at all here — showPromptReview further down is where the design
-  // gets reviewed (and can be edited) before it actually renders via Gemini, exactly like the
-  // OpenAI-mediated flow's finished prompt gets reviewed there.
-  //
-  // This is now the DEFAULT, ONLY path for every regular (non-admin) user — no OpenAI
-  // prompt-writing call ever happens for them, and (per the render call further down, which
-  // already gates the OpenAI image endpoint behind isAdminUser) OpenAI never generates an image
-  // for them either; Gemini renders every image. The Image Engine select is an admin-only
-  // comparison tool: an admin can still explicitly choose 'gemini' or 'openai' to run the older
-  // OpenAI-mediated pipeline side-by-side, or leave it on 'directgemini' to see exactly what
-  // regular users get.
-  const imageEngineEl = document.getElementById('f_imageEngine');
-  const isDirectToGeminiEngine = !isAdminUser || (imageEngineEl && imageEngineEl.value === 'directgemini');
+  // Direct to Gemini — the ONLY path now, for every user, admin included. No other option: the
+  // client brief (built above, by the New Spatial Planning Engine for booth mode) goes straight
+  // to Gemini as the image_prompt. OpenAI's two prompt-writing calls (Stage 1 Project Analysis +
+  // Stage 2 Prompt Synthesis) and OpenAI's own image model are both fully retired from this flow
+  // — the Image Engine (admin test) selector that used to offer a choice here has been removed
+  // entirely, per an explicit product decision. showPromptReview further down is where the design
+  // still gets reviewed (and can be edited, for admin) before it renders.
+  const isDirectToGeminiEngine = true;
   if(isDirectToGeminiEngine){
     try{
       const directPromptResult = {
@@ -13435,12 +13391,12 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
     return;
   }
 
-  // Admin-only debugging aid: show exactly what's about to be sent to OpenAI for Stage 1 (the
-  // full brief text plus a count of attached images) and block until the admin explicitly
-  // approves it. This is how a missing/garbled field (e.g. a checked Requirements box that
-  // silently wasn't reaching the request) gets caught before an API call, not after. Regular
-  // users never see this and are completely unaffected — the request fires immediately for them,
-  // exactly as before.
+  // Everything from here through the end of this function is now DEAD CODE — the Direct to
+  // Gemini block above always returns first, for every user, since isDirectToGeminiEngine is
+  // hardcoded true. Left in place (not deleted) as inert legacy code rather than as a live
+  // fallback, in case the OpenAI-mediated pipeline is ever needed again; nothing below this line
+  // currently runs. (Originally: admin-only debugging aid showing exactly what's about to be
+  // sent to OpenAI for Stage 1, blocking until the admin explicitly approved it.)
   if(isAdminUser){
     const imageCount = userContentParts.filter(p => p.type === 'image').length;
     const approved = await showAdminBriefPreview(userBrief + attachedNote, imageCount);
@@ -14245,20 +14201,12 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
       requestBody.additionalReferenceImages = brandAssets.images;
       requestBody.prompt += brandAssets.note;
     }
-    // Admin-only "Image Engine" selector (see imageEngineField) lets an admin route this exact
-    // same finished prompt to OpenAI's image models instead of Gemini, purely to compare the
-    // two engines' design quality on identical input. Hidden/absent entirely for non-admins,
-    // who always render through Gemini as before.
-    const engineEl = document.getElementById('f_imageEngine');
-    const useOpenAiEngine = isAdminUser && engineEl && engineEl.value === 'openai';
-    const genEndpoint = useOpenAiEngine ? '/api/generate-image-openai' : '/api/generate-image-gemini';
-    // OpenAI's gpt-image-2 does its own internal reasoning/planning pass before rendering,
-    // which makes it noticeably slower than Gemini — the default 100s client timeout was
-    // cutting these off before the (now 180s) server-side function even finished, producing
-    // a generic "Image generation failed." with no real cause. 190s gives the server's own
-    // timeout room to fire first (with an actual error message) instead of the client
-    // aborting prematurely; harmless to also apply to the Gemini path, which finishes well
-    // under this regardless.
+    // Gemini only — no other option (the Image Engine admin-test selector has been removed;
+    // every render, admin or not, goes through this one endpoint now). The 190s timeout (up from
+    // a 100s default) still matters even with only one engine: it gives the server's own 180s
+    // timeout room to fire first, with an actual error message, instead of the client aborting
+    // prematurely on an unusually slow render.
+    const genEndpoint = '/api/generate-image-gemini';
     fetchWithTimeout(genEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -14281,7 +14229,7 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
           // later entry with a different engine (see confirmRegenerateOtherOption's
           // alternation), so whichever entry ends up approved is what downstream camera-view
           // generation needs to match, not necessarily this first one.
-          optionResults[i].gallery = [{ label: 'Original', image: compressed, engine: useOpenAiEngine ? 'openai' : 'gemini' }];
+          optionResults[i].gallery = [{ label: 'Original', image: compressed, engine: 'gemini' }];
           optionResults[i].activeGalleryIndex = 0;
           if(isUserInitiatedEdit && !isAdminUser && currentUserModifyCount != null){
             currentUserModifyCount++;
