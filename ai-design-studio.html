@@ -11216,13 +11216,31 @@ function buildWhiteBoxModelSnapshot_TE(shell, functionalProgram){
       addBox((x0 + x1) / 2, (z0 + z1) / 2, Math.max(0.3, x1 - x0), Math.max(0.3, z1 - z0), (tallestMm > 0 ? tallestMm : 1200) / 1000, HIERARCHY_COLOR[zone.hierarchy] || 0xd7d7d2);
     });
 
-    // Camera — a fixed elevated 3/4 view from the Front-Left, every single render, never
-    // randomized. Per buildStructuralShell's own coordinate system (see
-    // formatStructuralShellForBrief): origin at Front-Left, x runs Left->Right, y(world Z) runs
-    // Front->Rear. Positioned outside the booth on the Front and Left sides so both are visible.
-    const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, maxSpan * 12);
-    camera.position.set(-widthM * 0.35, maxSpan * 0.95, -depthM * 0.6);
-    camera.lookAt(widthM / 2, maxSpan * 0.15, depthM / 2);
+    // Camera — a true straight-down orthographic TOP VIEW (a 2D plan, not a photo-style 3/4
+    // angle), every single render, never randomized — this is what the rendering model needs to
+    // copy exact footprint/wall/zone positions from, and an angled perspective shot made that
+    // hard to read. Orthographic (not perspective) so proportions stay exactly true, with no
+    // vanishing-point distortion.
+    //
+    // Orientation is fixed and always the same, matching buildStructuralShell's own coordinate
+    // system (see formatStructuralShellForBrief): origin at Front-Left, x runs Left->Right,
+    // y(world Z) runs Front->Rear. camera.up is deliberately set to (0,0,-1) rather than the
+    // default (0,1,0) — for a camera looking straight down, Three.js's right-handed axes make
+    // world +X map to screen-right only with this exact up vector (the "natural" (0,0,1) choice
+    // mirrors left/right, which would silently swap Left and Right in the image — verified by the
+    // white_box_geometry_smoke.js camera-log assertions). With this setup: Left is on the LEFT of
+    // the image, Right is on the RIGHT, Front is at the TOP, Rear is at the BOTTOM — a fixed
+    // convention repeated in the text note attached alongside this image so the rendering model
+    // never has to guess which edge is which.
+    const marginM = Math.max(0.4, maxSpan * 0.08);
+    const halfW = widthM / 2 + marginM, halfD = depthM / 2 + marginM;
+    const aspect = W / H;
+    let viewHalfW = halfW, viewHalfD = halfD;
+    if(halfW / halfD > aspect){ viewHalfD = halfW / aspect; } else { viewHalfW = halfD * aspect; }
+    const camera = new THREE.OrthographicCamera(-viewHalfW, viewHalfW, viewHalfD, -viewHalfD, 0.1, maxSpan * 20);
+    camera.up.set(0, 0, -1);
+    camera.position.set(widthM / 2, maxSpan * 6, depthM / 2);
+    camera.lookAt(widthM / 2, 0, depthM / 2);
 
     renderer.render(scene, camera);
     const dataUrl = canvas.toDataURL('image/png');
@@ -13628,7 +13646,7 @@ async function generateDesign(){
         // exact reference image is attached and takes priority over the text description.
         lastWhiteBoxModelImage = buildWhiteBoxModelSnapshot_TE(structuralShellRaw, functionalProgram);
         if(lastWhiteBoxModelImage){
-          spatialPlanText += '\n\nGEOMETRY REFERENCE IMAGE ATTACHED (Test Engine only) — one attached image is a plain white 3D massing model built directly from this exact booth\'s own computed numbers (floor footprint, structural wall positions, open sides, and zone volumes) — zero AI involved in producing it. It is the ground truth for shape, wall position, orientation, and zone layout, overriding this text description if the two ever disagree on geometry. Match its floor size, wall positions, open sides, and zone locations exactly. Never redesign, rotate, mirror, or reinterpret the layout it shows. Use this text only for what the reference image cannot show: each zone\'s purpose/identity, materials, branding, lighting, and decoration.';
+          spatialPlanText += '\n\nGEOMETRY REFERENCE IMAGE ATTACHED (Test Engine only) — one attached image is a plain white 3D massing model built directly from this exact booth\'s own computed numbers (floor footprint, structural wall positions, open sides, and zone volumes) — zero AI involved in producing it, rendered as a true straight-down TOP VIEW (an orthographic plan, not a photo-style angled shot). Orientation in this image is fixed: Front is at the TOP edge, Rear is at the BOTTOM edge, Left is on the LEFT, Right is on the RIGHT — matching this brief\'s own coordinate system exactly (never mirrored or rotated). It is the ground truth for shape, wall position, orientation, and zone layout, overriding this text description if the two ever disagree on geometry. Match its floor size, wall positions, open sides, and zone locations exactly. Never redesign, rotate, mirror, or reinterpret the layout it shows. Use this text only for what the reference image cannot show: each zone\'s purpose/identity, materials, branding, lighting, and decoration.';
         }
       }else{
         const designIntent = buildDesignIntent(parseFloat(width), parseFloat(depth), parseFloat(totalHeight));
@@ -14555,7 +14573,7 @@ async function renderPromptReviewAttachments_TE(){
   }
 
   if(lastWhiteBoxModelImage){
-    items.push({ dataUrl: lastWhiteBoxModelImage, label: 'Geometry reference — white-box model (ground truth for shape/walls/orientation)' });
+    items.push({ dataUrl: lastWhiteBoxModelImage, label: 'Geometry reference — white-box top view (ground truth for shape/walls/orientation: Front=top, Rear=bottom, Left=left, Right=right)' });
   }
 
   if(!items.length){
