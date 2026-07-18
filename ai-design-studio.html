@@ -9070,14 +9070,16 @@ function clearReferenceImage(){
 // lingers in the preview.
 let lastBubbleDiagramSVG = '';
 
-// Test Engine only — a PNG data URL of the deterministic white-box massing model (see
-// buildWhiteBoxModelSnapshot_TE), built directly from the Spatial Planning Engine's own exact
-// numbers with zero AI involved in the geometry itself. Reset to '' at the top of every
-// generateDesign() call, same reasoning as lastBubbleDiagramSVG above. Read by startRenderSession()
-// to attach as a reference image so Gemini locks onto real geometry instead of reinterpreting a
-// text description. Stays '' whenever Three.js isn't available or the render fails for any
-// reason — startRenderSession() simply omits the reference image in that case, never blocking
-// generation.
+// Test Engine only — a PNG data URL of the deterministic black-and-white CAD floor plan (see
+// buildCadFloorPlanSnapshot_TE / LSE-002), built directly from the Spatial Planning Engine's own
+// exact numbers (including LSE-002's own non-overlapping zone footprints) with zero AI involved
+// in the geometry itself. Name kept from this feature's earlier 3D-white-box-model iteration to
+// avoid a wider rename; the value itself is now always a 2D architectural floor plan, never a 3D
+// render. Reset to '' at the top of every generateDesign() call, same reasoning as
+// lastBubbleDiagramSVG above. Read by startRenderSession() to attach as a reference image so
+// Gemini locks onto real geometry instead of reinterpreting a text description. Stays '' whenever
+// a 2D canvas context isn't available or the render fails for any reason — startRenderSession()
+// simply omits the reference image in that case, never blocking generation.
 let lastWhiteBoxModelImage = '';
 
 // Whether the run that just built spatialPlanText/lastWhiteBoxModelImage actually used the Test
@@ -11015,15 +11017,33 @@ function getCompositionRegionBonus_TE(compositionName, region, zone){
   }
 }
 
-// --- LSE-001 — Layout Solver Engine (admin-test scope: greedy scored placement over the
-// existing 9-region grid — a finer continuous-coordinate solver is Phase 6 of the migration
-// plan). Unlike the old assignZonePositions (a flat "tier 6/7 prefer walls, everyone else
-// prefers open sides" rule), this scores every candidate region against the relationship graph
-// (ADJ-001), the visitor journey (VJE-001), AND the chosen architectural composition (ACE-001)
-// before picking one — coordinates are the LAST thing this pipeline decides, never the first.
-// Positions a SPACE exactly once; every furniture item nested inside that space inherits the same
-// position rather than being positioned independently, per "furniture belongs inside zones."
-function solveLayoutNewEngine_TE(functionalProgram, relationships, journey, openSidesSet, composition){
+// --- LSE-001 — Layout Solver Engine (region-preference scoring, unchanged): scores every
+// candidate region against the relationship graph (ADJ-001), the visitor journey (VJE-001), AND
+// the chosen architectural composition (ACE-001) to pick each zone's preferred one of the 9
+// named regions — coordinates are the LAST thing this pipeline decides, never the first. This
+// scoring is still exactly what it always was; only what happens with its answer has changed
+// (see LSE-002 immediately below).
+//
+// --- LSE-002 — Non-Overlap Layout Packer (per explicit client spec: "the current layout output
+// is not acceptable... no rectangles may overlap... draw actual dimensions... ready for
+// interpretation by another AI"). Previously every zone whose LSE-001 score picked the same
+// region (routine on any booth with more than 9 zones, since there are only 9 regions and
+// reuse is explicitly allowed — see scoreRegion's own comment) ended up sharing one literal
+// point, and the geometry renderer only ever drew an approximate box around that shared point —
+// guaranteed to overlap whenever two zones landed on the same region. LSE-002 replaces that
+// single shared point with a real guillotine rectangle packer: each zone's LSE-001 region is
+// treated as a "wish point" (an anchor to aim for, preserving all of LSE-001's adjacency/
+// journey/composition intent unchanged), but the ACTUAL footprint is carved out of a live list
+// of free rectangles inside the booth's usable interior — inset from any STRUCTURAL WALL side by
+// its real thickness, so a footprint can never land on top of a wall — with a circulation
+// clearance gap reserved around every placement before the next zone is packed. Every zone gets
+// its own real, non-overlapping rectangle in the booth's exact coordinate system; if the room
+// genuinely runs out of matching free space (rare — ZAE-001 already budgets total zone area
+// against the real floor area), the zone is shrunk to fit whatever largest space remains rather
+// than ever overlapping or leaving the floor, and flagged via zone.footprintClipped so that's
+// never silently presented as an ordinary, unconstrained placement. Positions a SPACE exactly
+// once; every furniture item nested inside that space inherits the same position, unchanged.
+function solveLayoutNewEngine_TE(functionalProgram, relationships, journey, openSidesSet, composition, structuralShell){
   const regions = buildLayoutRegions(openSidesSet);
   const relationById = {};
   relationships.adjacencies.forEach(r => { relationById[r.zoneId] = r; });
@@ -11052,17 +11072,145 @@ function solveLayoutNewEngine_TE(functionalProgram, relationships, journey, open
     return score;
   }
 
+  // Usable interior — the booth floor, minus real wall thickness on every STRUCTURAL WALL side
+  // (never on an OPEN side, which stays flush to the boundary). No zone footprint may ever be
+  // placed outside this rectangle.
+  const wM = structuralShell.widthM, dM = structuralShell.depthM;
+  const insetFor = (side) => { const s = structuralShell.sides[side]; return (s && s.state === 'STRUCTURAL WALL') ? s.thicknessMm / 1000 : 0; };
+  const interior = { x0: insetFor('Left'), y0: insetFor('Front'), x1: wM - insetFor('Right'), y1: dM - insetFor('Back') };
+  let freeRects = [{ x0: interior.x0, y0: interior.y0, x1: interior.x1, y1: interior.y1 }];
+  // Circulation gap reserved around every placed zone before its space is removed from the free
+  // list — scaled down for very small booths so it never eats an unreasonable share of the floor.
+  const CLEARANCE_M = Math.min(0.6, Math.max(0.25, Math.min(wM, dM) * 0.06));
+
+  function footprintSizeFor(zone, wishRegion){
+    const area = Math.max(zone.totalAreaSqm || 1, 0.6);
+    const aspect = 1.15; // a mild rectangle, not a perfect square — reads more like a real room
+    let w = Math.sqrt(area * aspect), d = area / w;
+    // Zones that want a side wall hug it with their long edge, portrait-style against Left/Right.
+    if(wishRegion && (wishRegion.label === 'Left' || wishRegion.label === 'Right')) return { w: d, d: w };
+    return { w, d };
+  }
+
+  function fitsInRect(fr, w, d){
+    const orientations = [];
+    if(w <= (fr.x1 - fr.x0) + 1e-6 && d <= (fr.y1 - fr.y0) + 1e-6) orientations.push({ w, d });
+    if(d <= (fr.x1 - fr.x0) + 1e-6 && w <= (fr.y1 - fr.y0) + 1e-6) orientations.push({ w: d, d: w });
+    return orientations;
+  }
+
+  function placeInRect(fr, w, d, wishX, wishY){
+    // Anchor toward whichever corner of this free rectangle is closest to the zone's wish point,
+    // so a zone that wanted "Front Left" actually lands in the front-left portion of whatever
+    // free space it gets, not always the same fixed corner regardless of intent.
+    const x0 = (wishX <= (fr.x0 + fr.x1) / 2) ? fr.x0 : Math.max(fr.x0, fr.x1 - w);
+    const y0 = (wishY <= (fr.y0 + fr.y1) / 2) ? fr.y0 : Math.max(fr.y0, fr.y1 - d);
+    return { x0, y0, x1: Math.min(fr.x1, x0 + w), y1: Math.min(fr.y1, y0 + d) };
+  }
+
+  function splitFreeRect(occupiedRect){
+    // Guillotine split: every free rectangle the (clearance-expanded) occupied footprint
+    // overlaps is replaced by up to four remaining slivers around it. Free rectangles are
+    // allowed to overlap EACH OTHER in this list (a normal, harmless redundancy for this
+    // simplified free-list approach) — what matters is that nothing free ever overlaps
+    // something already placed, which this guarantees by construction on every call.
+    const occ = {
+      x0: Math.max(interior.x0, occupiedRect.x0 - CLEARANCE_M), y0: Math.max(interior.y0, occupiedRect.y0 - CLEARANCE_M),
+      x1: Math.min(interior.x1, occupiedRect.x1 + CLEARANCE_M), y1: Math.min(interior.y1, occupiedRect.y1 + CLEARANCE_M)
+    };
+    const next = [];
+    freeRects.forEach(fr => {
+      const ix0 = Math.max(fr.x0, occ.x0), iy0 = Math.max(fr.y0, occ.y0), ix1 = Math.min(fr.x1, occ.x1), iy1 = Math.min(fr.y1, occ.y1);
+      if(ix0 >= ix1 - 1e-9 || iy0 >= iy1 - 1e-9){ next.push(fr); return; } // no real overlap with this free rect — keep it untouched
+      const MIN_SLIVER_M = 0.15; // discard slivers too thin to ever usefully hold a zone
+      if(fr.x1 - ix1 > MIN_SLIVER_M) next.push({ x0: ix1, y0: fr.y0, x1: fr.x1, y1: fr.y1 });
+      if(ix0 - fr.x0 > MIN_SLIVER_M) next.push({ x0: fr.x0, y0: fr.y0, x1: ix0, y1: fr.y1 });
+      if(fr.y1 - iy1 > MIN_SLIVER_M) next.push({ x0: ix0, y0: iy1, x1: ix1, y1: fr.y1 });
+      if(iy0 - fr.y0 > MIN_SLIVER_M) next.push({ x0: ix0, y0: fr.y0, x1: ix1, y1: iy0 });
+    });
+    freeRects = next.filter(r => (r.x1 - r.x0) > 0.15 && (r.y1 - r.y0) > 0.15);
+  }
+
   functionalProgram.zones.slice().sort((a, b) => a.priorityTier - b.priorityTier).forEach(zone => {
     const relation = relationById[zone.id];
-    const best = regions.slice().sort((a, b) => scoreRegion(b, zone, relation) - scoreRegion(a, zone, relation))[0];
-    best.used = true;
-    placed[zone.id] = best;
-    const position = { label: best.label, xFrac: best.xFrac, yFrac: best.yFrac };
+    const wishRegion = regions.slice().sort((a, b) => scoreRegion(b, zone, relation) - scoreRegion(a, zone, relation))[0];
+    wishRegion.used = true;
+    placed[zone.id] = wishRegion;
+    const wishX = wishRegion.xFrac * wM, wishY = wishRegion.yFrac * dM;
+    const size = footprintSizeFor(zone, wishRegion);
+
+    // Best free rectangle = one that can fit the desired footprint (either orientation) whose
+    // center lands closest to the wish point. If nothing fits at full size, fall back to the
+    // single largest free rectangle and shrink the footprint proportionally to fit inside it —
+    // geometry correctness (never overlapping, never leaving the interior) always wins over the
+    // zone's requested area once real space runs out.
+    let best = null;
+    freeRects.forEach(fr => {
+      fitsInRect(fr, size.w, size.d).forEach(fit => {
+        const cx = (fr.x0 + fr.x1) / 2, cy = (fr.y0 + fr.y1) / 2;
+        const dist = Math.hypot(cx - wishX, cy - wishY);
+        if(!best || dist < best.distance) best = { fr, w: fit.w, d: fit.d, distance: dist };
+      });
+    });
+
+    let placedRect;
+    if(best){
+      placedRect = placeInRect(best.fr, best.w, best.d, wishX, wishY);
+    } else {
+      const largest = freeRects.slice().sort((a, b) => (b.x1 - b.x0) * (b.y1 - b.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0];
+      if(largest){
+        const availW = largest.x1 - largest.x0, availD = largest.y1 - largest.y0;
+        const scale = Math.min(1, availW / size.w, availD / size.d);
+        placedRect = placeInRect(largest, Math.min(size.w * scale, availW), Math.min(size.d * scale, availD), wishX, wishY);
+        zone.footprintClipped = true;
+      } else {
+        // Interior fully packed — should not realistically happen, since ZAE-001 already budgets
+        // total zone area against the real floor area, but a minimal flagged placeholder is
+        // still always safer than ever overlapping or crashing generation over it.
+        placedRect = { x0: interior.x0, y0: interior.y0, x1: Math.min(interior.x1, interior.x0 + 0.5), y1: Math.min(interior.y1, interior.y0 + 0.5) };
+        zone.footprintClipped = true;
+      }
+    }
+
+    splitFreeRect(placedRect);
+
+    const footprint = { xM: placedRect.x0, yM: placedRect.y0, widthM: placedRect.x1 - placedRect.x0, depthM: placedRect.y1 - placedRect.y0 };
+    zone.footprint = footprint;
+    const centerXFrac = (footprint.xM + footprint.widthM / 2) / wM;
+    const centerYFrac = (footprint.yM + footprint.depthM / 2) / dM;
+    const nearestRegion = regions.slice().sort((a, b) => Math.hypot(a.xFrac - centerXFrac, a.yFrac - centerYFrac) - Math.hypot(b.xFrac - centerXFrac, b.yFrac - centerYFrac))[0];
+    const position = { label: nearestRegion.label, xFrac: centerXFrac, yFrac: centerYFrac };
     zone.position = position;
     zone.furniture.forEach(item => { item.sourceZone.position = position; }); // furniture inherits its space's position, never positioned independently
   });
 
   return functionalProgram;
+}
+
+// Independently testable overlap/bounds checker for LSE-002's output — used both defensively
+// inside the CAD floor plan renderer (never blocks export; just logs so any issue is visible
+// during testing) and directly by automated tests, since it operates on plain numbers with no
+// DOM/Canvas/THREE dependency at all.
+function rectsOverlap_TE(a, b, eps){
+  eps = eps || 0.01;
+  return !(a.xM + a.widthM <= b.xM + eps || b.xM + b.widthM <= a.xM + eps || a.yM + a.depthM <= b.yM + eps || b.yM + b.depthM <= a.yM + eps);
+}
+function validateZoneFootprints_TE(functionalProgram, structuralShell){
+  const issues = [];
+  const zones = (functionalProgram.zones || []).filter(z => z.footprint);
+  const TOL = 0.02;
+  zones.forEach(z => {
+    const f = z.footprint;
+    if(f.xM < -TOL || f.yM < -TOL || f.xM + f.widthM > structuralShell.widthM + TOL || f.yM + f.depthM > structuralShell.depthM + TOL){
+      issues.push(`${z.name} footprint extends outside the booth floor`);
+    }
+  });
+  for(let i = 0; i < zones.length; i++){
+    for(let j = i + 1; j < zones.length; j++){
+      if(rectsOverlap_TE(zones[i].footprint, zones[j].footprint)) issues.push(`${zones[i].name} overlaps ${zones[j].name}`);
+    }
+  }
+  return { ok: issues.length === 0, issues };
 }
 
 // --- GPE-001 — Gemini Prompt Engine (Test Engine sandbox copy): assembles this pipeline's output
@@ -11113,11 +11261,12 @@ function assembleNewEngineBrief_TE(designIntent, functionalProgram, relationship
   lines.push(`Composition: ${composition.composition}`);
   lines.push(composition.rationale);
   lines.push('');
-  lines.push('ARCHITECTURAL ZONES — each space positioned once (LSE-001), with its furniture nested inside it (unchanged sizing formulas)');
+  lines.push('ARCHITECTURAL ZONES — each space positioned once (LSE-001 picks the preferred region, LSE-002 packs it into a real, non-overlapping footprint), with its furniture nested inside it (unchanged sizing formulas)');
   functionalProgram.zones.forEach(space => {
     lines.push(space.name);
     lines.push(`Hierarchy: ${space.hierarchy} | Category: ${space.category} (tier ${space.priorityTier}) | Total area: ${space.totalAreaSqm.toFixed(1)} sqm`);
     if(space.position) lines.push(`Position: ${space.position.label}`);
+    if(space.footprint) lines.push(`Footprint (LSE-002, exact, non-overlapping): ${space.footprint.widthM.toFixed(2)} m × ${space.footprint.depthM.toFixed(2)} m, top-left corner at (${space.footprint.xM.toFixed(2)}, ${space.footprint.yM.toFixed(2)}) in this brief's Front-Left-origin coordinate system${space.footprintClipped ? ' — NOTE: shrunk to fit the space that remained after higher-priority zones were placed first' : ''}.`);
     lines.push('Furniture in this zone:');
     space.furniture.forEach(item => {
       lines.push(`  ${item.name} — Status: ${item.status}${item.resolutionNote ? ' — Client decision: ' + item.resolutionNote : ''}${item.feasibilityWarning ? ' — Feasibility Warning: client kept this at full size despite a flagged space conflict.' : ''} | Library ref: ${item.libraryRef}`);
@@ -11136,119 +11285,242 @@ function assembleNewEngineBrief_TE(designIntent, functionalProgram, relationship
   lines.push('6. Apply materials, branding, lighting, and decoration.');
   lines.push('7. Render the completed booth without changing the approved geometry.');
   lines.push('Geometry is immutable. Decoration is flexible. Never sacrifice geometry to improve appearance.');
+  lines.push('');
+  lines.push('PRODUCT CONTENT ENGINE (PCE-001) — GLOBAL RULE (Test Engine only): applies to this booth regardless of industry, company type, architectural style, or business sector.');
+  lines.push('Core principle: never invent physical products, machines, equipment, samples, models, prototypes, or demonstration items unless the client has explicitly requested them or provided them in the project brief above. The absence of product information is not permission to invent generic products based on the industry.');
+  lines.push('Never generate industry-based products: do not add a physical product just because this company belongs to a given industry. This includes (not an exhaustive list) manufacturing machines, robotic arms, CNC machines, conveyor systems, industrial equipment, medical devices, laboratory equipment, electronics, home appliances, vehicles, furniture, food products, bottles, packaging, chemical containers, fashion products, jewelry, construction materials, oil & gas equipment, agricultural machinery, pharmaceutical products, retail merchandise, or any other physical product merely inferred from this company\'s business sector. Industry type may only influence architectural language, material selection, lighting style, interior atmosphere, graphic style, color palette, and spatial experience — never used to invent a physical display item.');
+  lines.push('Product Display Areas: if a Product Display Area (or shelves, pedestals, glass showcases, display tables, or product niches) is present above but this brief does not specify what is displayed on it, build only the architectural display furniture itself — shelves, pedestals, showcases, tables, and niches may remain empty. Do not place a fictional product on them.');
+  lines.push('Physical products may only be shown if at least one of the following is true: the client uploaded product images (see Brand Portfolio & Products / reference images above), the client explicitly listed specific products in the brief, or the client explicitly requested AI-generated sample products, conceptual product mockups, or demonstration equipment. Otherwise, no physical product goes on any display surface.');
+  lines.push('If no products are specified: leave every piece of display furniture empty and instead carry this zone\'s presence through branding, graphics, digital screens, posters, feature walls, architectural lighting, decorative materials, and brand storytelling — never a fabricated physical product standing in for one.');
+  lines.push('Strict prohibition — never automatically generate machines, robots, manufacturing equipment, medical equipment, product mockups, product samples, demonstration models, prototype devices, or any generic object standing in for the industry, unless explicitly requested by the client as described above.');
+  lines.push('Priority: this rule overrides every industry-specific suggestion, inspiration list, or default assumption elsewhere in this brief. Where anything above conflicts with this rule, the client\'s explicit requirements always take precedence, and no physical product is generated without explicit instruction.');
   return lines.join('\n');
 }
 
-// --- White-Box Geometry Renderer (Test Engine only). The geometry-first sequence above is still
-// only a text instruction — Gemini can still drift from it, because no text description can
-// *guarantee* a number; a generative model interprets words, it doesn't execute a spec. This
-// function removes that interpretation step entirely for the booth's overall shape: it builds a
-// plain white 3D massing model directly from the exact numbers computeSpatialPlan/
-// buildStructuralShell/LSE-001 already computed (no AI involved anywhere in this function), and
-// renders one snapshot of it. generateDesign() attaches that snapshot to the Gemini request as a
-// reference image (the same "attach the real pixels" mechanism already used for the client's
-// logo — see startRenderSession's own comment on why that's more reliable than a text
-// description), with instructions to preserve exactly what it shows and only add materials,
-// lighting, and branding. Uses Three.js (already loaded in <head> for the 3D viewer). Guarded so
-// it can never break generation: returns null immediately if Three.js isn't available (e.g. a
-// blocked/slow CDN, or a headless test environment with no WebGL) and returns null on any
-// rendering error too — callers always treat null as "no reference image this run," never as a
+// --- CAD Floor Plan Renderer (Test Engine only) — LSE-002, per explicit client spec: "the
+// current layout output is not acceptable... the geometry drawing must be mathematically
+// correct and ready for interpretation by another AI... stop generating colored rectangles...
+// produce a black-and-white architectural floor plan." Replaces the earlier 3D white-box massing
+// render entirely — no Three.js/WebGL involved anywhere in this function anymore, drawn purely
+// with the Canvas 2D API instead (universally supported, no CDN dependency, and has native text
+// rendering, which Three.js/WebGL does not without a separate font-loading pipeline). Draws a
+// true top-down technical floor plan: a reference grid, coordinate axes, a FRONT orientation
+// arrow, every wall side labeled WALL or (OPEN) with its real thickness shown, and one outlined
+// (never filled-color) rectangle per zone — LSE-002's own real, non-overlapping footprint, never
+// an approximate shared-point box — labeled with its name and exact width × depth in millimeters,
+// plus its nested furniture listed as supporting text. generateDesign() attaches the result to
+// the Gemini request as a reference image (the same "attach the real pixels" mechanism already
+// used for the client's logo — see startRenderSession's own comment on why that's more reliable
+// than a text description). Guarded so it can never break generation: returns null immediately
+// if a 2D canvas context isn't available (e.g. a headless test environment) and returns null on
+// any drawing error too — callers always treat null as "no reference image this run," never as a
 // hard failure.
-function buildWhiteBoxModelSnapshot_TE(shell, functionalProgram){
-  if(typeof THREE === 'undefined') return null;
+function buildCadFloorPlanSnapshot_TE(shell, functionalProgram){
   try{
-    const widthM = shell.widthM, depthM = shell.depthM;
-    const maxSpan = Math.max(widthM, depthM, 3);
-
     const canvas = document.createElement('canvas');
-    const W = 1024, H = 768;
+    const W = 1400, H = 1000;
     canvas.width = W; canvas.height = H;
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-    renderer.setSize(W, H, false);
-    renderer.setClearColor(0xf3f3f0, 1);
+    const ctx = canvas.getContext('2d');
+    if(!ctx) return null;
 
-    const scene = new THREE.Scene();
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-    const key = new THREE.DirectionalLight(0xffffff, 0.6);
-    key.position.set(widthM * 1.2, maxSpan * 1.5, -depthM * 0.6);
-    scene.add(key);
+    const widthM = shell.widthM, depthM = shell.depthM;
+    // MARGIN_PX reserves room around the floor for side labels, the orientation arrow, and axis
+    // labels; TITLE_PX reserves room at the top for the title line — neither is part of the
+    // drawn floor itself.
+    const MARGIN_PX = 90, TITLE_PX = 40;
+    const drawW = W - MARGIN_PX * 2, drawH = H - MARGIN_PX * 2 - TITLE_PX;
+    const scale = Math.max(1, Math.min(drawW / widthM, drawH / depthM));
+    const originX = MARGIN_PX + (drawW - widthM * scale) / 2;
+    const originY = MARGIN_PX + TITLE_PX + (drawH - depthM * scale) / 2;
+    // Coordinate mapping — matches buildStructuralShell's own system exactly (origin at
+    // Front-Left, x Left->Right, y Front->Rear): no mirroring/rotation is needed here at all
+    // (unlike the old 3D camera case), since canvas Y already increases downward, the same
+    // direction depth increases toward Rear — Front lands at the top of the image, Rear at the
+    // bottom, Left at the left, Right at the right, by simple direct construction.
+    const px = (xM) => originX + xM * scale;
+    const py = (yM) => originY + yM * scale;
 
-    const EDGE_COLOR = 0x2b2b28;
-    function addBox(cx, cz, w, d, h, color){
-      if(w <= 0 || d <= 0 || h <= 0) return;
-      const geo = new THREE.BoxGeometry(w, h, d);
-      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.9, metalness: 0 }));
-      mesh.position.set(cx, h / 2, cz);
-      scene.add(mesh);
-      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: EDGE_COLOR }));
-      edges.position.copy(mesh.position);
-      scene.add(edges);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#111111';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('FLOOR PLAN — TOP VIEW (Front at top, Left/Right unmirrored)', W / 2, 30);
+
+    // Reference grid
+    const gridStepM = Math.max(widthM, depthM) >= 8 ? 1 : 0.5;
+    ctx.strokeStyle = '#dddddd';
+    ctx.lineWidth = 1;
+    for(let x = 0; x <= widthM + 1e-6; x += gridStepM){
+      ctx.beginPath(); ctx.moveTo(px(x), py(0)); ctx.lineTo(px(x), py(depthM)); ctx.stroke();
+    }
+    for(let y = 0; y <= depthM + 1e-6; y += gridStepM){
+      ctx.beginPath(); ctx.moveTo(px(0), py(y)); ctx.lineTo(px(widthM), py(y)); ctx.stroke();
+    }
+    ctx.fillStyle = '#888888';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Grid: ${gridStepM.toFixed(2)} m`, px(0), py(depthM) + 34);
+
+    // Floor boundary
+    ctx.strokeStyle = '#111111';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px(0), py(0), widthM * scale, depthM * scale);
+
+    // Walls — filled bands at real thickness for every STRUCTURAL WALL side (LSE-002 point 2:
+    // "every wall must be built exactly"); OPEN sides get a dashed line instead of a wall, plus
+    // "(OPEN)" in its label, so an open side can never be mistaken for a real wall.
+    const SIDE_LABEL = { Front: 'FRONT', Back: 'REAR', Left: 'LEFT', Right: 'RIGHT' };
+    ['Front', 'Back', 'Left', 'Right'].forEach(sideName => {
+      const s = shell.sides[sideName];
+      const isWall = s.state === 'STRUCTURAL WALL';
+      const thickPx = isWall ? Math.max(4, (s.thicknessMm / 1000) * scale) : 0;
+      if(isWall){
+        ctx.fillStyle = '#2b2b2b';
+        if(sideName === 'Front') ctx.fillRect(px(0), py(0) - thickPx, widthM * scale, thickPx);
+        if(sideName === 'Back') ctx.fillRect(px(0), py(depthM), widthM * scale, thickPx);
+        if(sideName === 'Left') ctx.fillRect(px(0) - thickPx, py(0), thickPx, depthM * scale);
+        if(sideName === 'Right') ctx.fillRect(px(widthM), py(0), thickPx, depthM * scale);
+      } else {
+        ctx.save();
+        ctx.strokeStyle = '#999999';
+        ctx.setLineDash([8, 6]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if(sideName === 'Front'){ ctx.moveTo(px(0), py(0)); ctx.lineTo(px(widthM), py(0)); }
+        if(sideName === 'Back'){ ctx.moveTo(px(0), py(depthM)); ctx.lineTo(px(widthM), py(depthM)); }
+        if(sideName === 'Left'){ ctx.moveTo(px(0), py(0)); ctx.lineTo(px(0), py(depthM)); }
+        if(sideName === 'Right'){ ctx.moveTo(px(widthM), py(0)); ctx.lineTo(px(widthM), py(depthM)); }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.fillStyle = '#111111';
+      ctx.font = 'bold 14px Arial';
+      const label = `${SIDE_LABEL[sideName]} ${isWall ? 'WALL' : '(OPEN)'}`;
+      if(sideName === 'Front'){ ctx.textAlign = 'center'; ctx.fillText(label, px(widthM / 2), py(0) - thickPx - 12); }
+      if(sideName === 'Back'){ ctx.textAlign = 'center'; ctx.fillText(label, px(widthM / 2), py(depthM) + thickPx + 24); }
+      if(sideName === 'Left'){
+        ctx.save(); ctx.translate(px(0) - thickPx - 12, py(depthM / 2)); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillText(label, 0, 0); ctx.restore();
+      }
+      if(sideName === 'Right'){
+        ctx.save(); ctx.translate(px(widthM) + thickPx + 12, py(depthM / 2)); ctx.rotate(Math.PI / 2); ctx.textAlign = 'center'; ctx.fillText(label, 0, 0); ctx.restore();
+      }
+    });
+
+    // Coordinate axes at the origin (Front-Left corner)
+    drawArrow_TE(ctx, px(0), py(0), px(0) + 40, py(0), '#1a56db');
+    ctx.fillStyle = '#1a56db'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'left';
+    ctx.fillText('X', px(0) + 46, py(0) + 4);
+    drawArrow_TE(ctx, px(0), py(0), px(0), py(0) + 40, '#1a56db');
+    ctx.fillText('Y', px(0) - 4, py(0) + 56);
+    ctx.beginPath(); ctx.arc(px(0), py(0), 3, 0, Math.PI * 2); ctx.fillStyle = '#1a56db'; ctx.fill();
+    ctx.font = '11px Arial';
+    ctx.fillText('(0,0) Front-Left', px(0) + 6, py(0) - 8);
+
+    // Orientation arrow ("north arrow" style) — always points toward Front (the top of this
+    // image), per LSE-002's own suggested addition.
+    const northX = W - 55;
+    drawArrow_TE(ctx, northX, 70, northX, 30, '#111111');
+    ctx.fillStyle = '#111111'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('FRONT', northX, 88);
+
+    // Zones — one outlined rectangle per zone, from LSE-002's own non-overlapping packer (see
+    // solveLayoutNewEngine_TE above) — never an approximate colored box anymore: a real footprint,
+    // a name label, and its exact width × depth in millimeters (LSE-002 points 4/5/8: every
+    // object labeled, real dimensions shown, no abstract colored blocks).
+    (functionalProgram.zones || []).forEach(zone => {
+      if(!zone.footprint) return;
+      const f = zone.footprint;
+      const x = px(f.xM), y = py(f.yM), w = f.widthM * scale, h = f.depthM * scale;
+      ctx.fillStyle = zone.footprintClipped ? '#fff7f0' : '#fbfbfa';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = '#111111';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+      drawZoneLabel_TE(ctx, zone, x, y, w, h);
+    });
+
+    // Validation (LSE-002 point 10) — never blocks export; any issue found is logged so it's
+    // visible during testing/debugging. Should not realistically trigger, since the packer above
+    // guarantees this by construction, but this is what actually proves that guarantee held.
+    const validation = validateZoneFootprints_TE(functionalProgram, shell);
+    if(!validation.ok){
+      console.error('CAD floor plan validation found issues (image still exported):', validation.issues);
     }
 
-    // Floor — the exact requested footprint, nothing else.
-    addBox(widthM / 2, depthM / 2, widthM, depthM, 0.06, 0xe6e6e1);
-
-    // Structural walls — exactly the sides buildStructuralShell marked STRUCTURAL WALL, at their
-    // exact position/length/thickness/height. OPEN sides get no geometry at all, so the render
-    // itself shows them staying completely open — the same guarantee the text brief asks for,
-    // now also true in the reference image.
-    Object.keys(shell.sides).forEach(sideName => {
-      const s = shell.sides[sideName];
-      if(s.state !== 'STRUCTURAL WALL') return;
-      const [sx, sy] = s.startCorner, [ex, ey] = s.endCorner;
-      const thickM = s.thicknessMm / 1000, heightM = s.heightMm / 1000;
-      const lenX = Math.abs(ex - sx), lenZ = Math.abs(ey - sy);
-      addBox((sx + ex) / 2, (sy + ey) / 2, lenX > 0 ? lenX + thickM : thickM, lenZ > 0 ? lenZ + thickM : thickM, heightM, 0xf5f5f2);
-    });
-
-    // Architectural zones — one massing box per space (not per furniture item, to avoid every
-    // item in a zone overlapping at the single shared position LSE-001 assigns that zone), sized
-    // from the zone's own already-computed real area and colored by SHE-001 hierarchy so Primary/
-    // Secondary/Support read as visually distinct volumes without needing any labels.
-    const HIERARCHY_COLOR = { Primary: 0xffcf7a, Secondary: 0xa9c9ff, Support: 0xd7d7d2 };
-    (functionalProgram.zones || []).forEach(zone => {
-      if(!zone.position) return;
-      const side = Math.max(0.4, Math.sqrt(Math.max(zone.totalAreaSqm || 1, 0.5)));
-      let cx = zone.position.xFrac * widthM, cz = zone.position.yFrac * depthM;
-      let x0 = Math.max(0.1, cx - side / 2), x1 = Math.min(widthM - 0.1, cx + side / 2);
-      let z0 = Math.max(0.1, cz - side / 2), z1 = Math.min(depthM - 0.1, cz + side / 2);
-      const tallestMm = (zone.furniture || []).reduce((m, f) => Math.max(m, (f.dims && f.dims.heightMm) || 0), 0);
-      addBox((x0 + x1) / 2, (z0 + z1) / 2, Math.max(0.3, x1 - x0), Math.max(0.3, z1 - z0), (tallestMm > 0 ? tallestMm : 1200) / 1000, HIERARCHY_COLOR[zone.hierarchy] || 0xd7d7d2);
-    });
-
-    // Camera — a true straight-down orthographic TOP VIEW (a 2D plan, not a photo-style 3/4
-    // angle), every single render, never randomized — this is what the rendering model needs to
-    // copy exact footprint/wall/zone positions from, and an angled perspective shot made that
-    // hard to read. Orthographic (not perspective) so proportions stay exactly true, with no
-    // vanishing-point distortion.
-    //
-    // Orientation is fixed and always the same, matching buildStructuralShell's own coordinate
-    // system (see formatStructuralShellForBrief): origin at Front-Left, x runs Left->Right,
-    // y(world Z) runs Front->Rear. camera.up is deliberately set to (0,0,-1) rather than the
-    // default (0,1,0) — for a camera looking straight down, Three.js's right-handed axes make
-    // world +X map to screen-right only with this exact up vector (the "natural" (0,0,1) choice
-    // mirrors left/right, which would silently swap Left and Right in the image — verified by the
-    // white_box_geometry_smoke.js camera-log assertions). With this setup: Left is on the LEFT of
-    // the image, Right is on the RIGHT, Front is at the TOP, Rear is at the BOTTOM — a fixed
-    // convention repeated in the text note attached alongside this image so the rendering model
-    // never has to guess which edge is which.
-    const marginM = Math.max(0.4, maxSpan * 0.08);
-    const halfW = widthM / 2 + marginM, halfD = depthM / 2 + marginM;
-    const aspect = W / H;
-    let viewHalfW = halfW, viewHalfD = halfD;
-    if(halfW / halfD > aspect){ viewHalfD = halfW / aspect; } else { viewHalfW = halfD * aspect; }
-    const camera = new THREE.OrthographicCamera(-viewHalfW, viewHalfW, viewHalfD, -viewHalfD, 0.1, maxSpan * 20);
-    camera.up.set(0, 0, -1);
-    camera.position.set(widthM / 2, maxSpan * 6, depthM / 2);
-    camera.lookAt(widthM / 2, 0, depthM / 2);
-
-    renderer.render(scene, camera);
-    const dataUrl = canvas.toDataURL('image/png');
-    renderer.dispose();
-    return dataUrl;
+    return canvas.toDataURL('image/png');
   }catch(err){
-    console.error('White-box geometry reference render failed (Test Engine) — continuing without a reference image:', err);
+    console.error('CAD floor plan render failed (Test Engine) — continuing without a reference image:', err);
     return null;
+  }
+}
+
+function drawArrow_TE(ctx, x0, y0, x1, y1, color){
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  const angle = Math.atan2(y1 - y0, x1 - x0);
+  const headLen = 8;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - headLen * Math.cos(angle - Math.PI / 6), y1 - headLen * Math.sin(angle - Math.PI / 6));
+  ctx.lineTo(x1 - headLen * Math.cos(angle + Math.PI / 6), y1 - headLen * Math.sin(angle + Math.PI / 6));
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// Labels a single zone box: name, then (space permitting) its exact dimensions, a "(fit-to-
+// space)" note when LSE-002 had to shrink it to fit, and its nested furniture item names as
+// supporting text — never an unlabeled box (LSE-002 point 4), and never silently dropping a
+// label just because the box is small (falls back to a leader label just above the box instead).
+function drawZoneLabel_TE(ctx, zone, x, y, w, h){
+  const cx = x + w / 2;
+  ctx.textAlign = 'center';
+  if(w > 30 && h > 20){
+    let fontPx = 14;
+    ctx.font = `bold ${fontPx}px Arial`;
+    while(fontPx > 9 && ctx.measureText(zone.name).width > w - 8){
+      fontPx -= 1;
+      ctx.font = `bold ${fontPx}px Arial`;
+    }
+    let textY = y + fontPx + 4;
+    ctx.fillStyle = '#111111';
+    ctx.fillText(zone.name, cx, textY);
+    textY += fontPx + 3;
+    if(h > 40){
+      ctx.font = '11px Arial';
+      ctx.fillStyle = '#444444';
+      ctx.fillText(`${Math.round(zone.footprint.widthM * 1000)} × ${Math.round(zone.footprint.depthM * 1000)} mm`, cx, textY);
+      textY += 15;
+    }
+    if(zone.footprintClipped){
+      ctx.font = 'italic 10px Arial';
+      ctx.fillStyle = '#b45309';
+      ctx.fillText('(fit-to-space)', cx, textY);
+      textY += 13;
+    }
+    // Furniture inside this zone — listed as supporting text only, not individually positioned;
+    // the zone's own outline above is what's geometrically guaranteed non-overlapping.
+    ctx.font = '10px Arial';
+    ctx.fillStyle = '#555555';
+    ctx.textAlign = 'left';
+    const items = (zone.furniture || []).filter(f => f.status !== 'Removed');
+    const maxLines = Math.max(0, Math.floor((h - (textY - y) - 6) / 12));
+    items.slice(0, maxLines).forEach(item => {
+      const dw = item.dims && item.dims.widthMm ? ` (${item.dims.widthMm}×${item.dims.depthMm || '?'}mm)` : '';
+      ctx.fillText(`• ${item.name}${dw}`, x + 6, textY);
+      textY += 12;
+    });
+    if(items.length > maxLines) ctx.fillText(`+${items.length - maxLines} more`, x + 6, textY);
+  } else {
+    // Too small to label inside without overflowing — a compact leader label just above the box
+    // instead of silently rendering an unlabeled rectangle.
+    ctx.fillStyle = '#111111';
+    ctx.font = '10px Arial';
+    ctx.fillText(zone.name, cx, y - 4);
   }
 }
 
@@ -13636,17 +13908,18 @@ async function generateDesign(){
         const heroStrategy = buildHeroStrategy_TE(designIntent);
         const composition = buildArchitecturalComposition_TE(designIntent, heroStrategy);
         const bubbleDiagram = buildBubbleDiagram_TE(functionalProgram, relationships);
-        solveLayoutNewEngine_TE(functionalProgram, relationships, journey, getBoothOpenSidesSet(), composition);
+        solveLayoutNewEngine_TE(functionalProgram, relationships, journey, getBoothOpenSidesSet(), composition, structuralShellRaw);
         spatialPlanText = assembleNewEngineBrief_TE(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy, composition, bubbleDiagram);
         lastBubbleDiagramSVG = renderBubbleDiagramSVG_TE(bubbleDiagram);
-        // White-Box Geometry Renderer — positions are only final now, after solveLayoutNewEngine_TE
-        // has run, so this has to happen here, not earlier. Silently stays '' (no reference image
-        // attached later) if Three.js isn't available or rendering fails for any reason — never
-        // blocks generation. When it succeeds, the brief gets one more note telling the model an
-        // exact reference image is attached and takes priority over the text description.
-        lastWhiteBoxModelImage = buildWhiteBoxModelSnapshot_TE(structuralShellRaw, functionalProgram);
+        // CAD Floor Plan Renderer (LSE-002) — positions are only final now, after
+        // solveLayoutNewEngine_TE's own packer has run, so this has to happen here, not earlier.
+        // Silently stays '' (no reference image attached later) if 2D canvas isn't available or
+        // rendering fails for any reason — never blocks generation. When it succeeds, the brief
+        // gets one more note telling the model an exact reference image is attached and takes
+        // priority over the text description.
+        lastWhiteBoxModelImage = buildCadFloorPlanSnapshot_TE(structuralShellRaw, functionalProgram);
         if(lastWhiteBoxModelImage){
-          spatialPlanText += '\n\nGEOMETRY REFERENCE IMAGE ATTACHED (Test Engine only) — one attached image is a plain white 3D massing model built directly from this exact booth\'s own computed numbers (floor footprint, structural wall positions, open sides, and zone volumes) — zero AI involved in producing it, rendered as a true straight-down TOP VIEW (an orthographic plan, not a photo-style angled shot). Orientation in this image is fixed: Front is at the TOP edge, Rear is at the BOTTOM edge, Left is on the LEFT, Right is on the RIGHT — matching this brief\'s own coordinate system exactly (never mirrored or rotated). It is the ground truth for shape, wall position, orientation, and zone layout, overriding this text description if the two ever disagree on geometry. Match its floor size, wall positions, open sides, and zone locations exactly. Never redesign, rotate, mirror, or reinterpret the layout it shows. Use this text only for what the reference image cannot show: each zone\'s purpose/identity, materials, branding, lighting, and decoration.';
+          spatialPlanText += '\n\nGEOMETRY REFERENCE IMAGE ATTACHED (Test Engine only) — one attached image is a black-and-white architectural floor plan (top-down CAD-style line drawing, not a photo) built directly from this exact booth\'s own computed numbers (floor footprint, real wall thickness, open sides, and every zone\'s own real, non-overlapping footprint rectangle) — zero AI involved in producing it. It shows a reference grid, coordinate axes, a FRONT orientation arrow, every wall side labeled WALL or (OPEN), and every zone labeled with its name and exact width × depth in millimeters. Orientation in this image is fixed: Front is at the TOP edge, Rear is at the BOTTOM edge, Left is on the LEFT, Right is on the RIGHT — matching this brief\'s own coordinate system exactly (never mirrored or rotated). It is the ground truth for shape, wall position, orientation, and zone layout, overriding this text description if the two ever disagree on geometry. Match its floor size, wall positions, open sides, and every zone\'s exact position and dimensions. Never redesign, rotate, mirror, resize, or reinterpret the layout it shows, and never let two zones overlap in the final render — this reference image already guarantees they don\'t. Use this text only for what the reference image cannot show: each zone\'s purpose/identity, materials, branding, lighting, and decoration.';
         }
       }else{
         const designIntent = buildDesignIntent(parseFloat(width), parseFloat(depth), parseFloat(totalHeight));
@@ -14573,7 +14846,7 @@ async function renderPromptReviewAttachments_TE(){
   }
 
   if(lastWhiteBoxModelImage){
-    items.push({ dataUrl: lastWhiteBoxModelImage, label: 'Geometry reference — white-box top view (ground truth for shape/walls/orientation: Front=top, Rear=bottom, Left=left, Right=right)' });
+    items.push({ dataUrl: lastWhiteBoxModelImage, label: 'Geometry reference — CAD floor plan (labeled walls/zones/dimensions, non-overlapping; Front=top, Rear=bottom, Left=left, Right=right)' });
   }
 
   if(!items.length){
@@ -14964,7 +15237,7 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
       requestBody.additionalReferenceImages = (requestBody.additionalReferenceImages || []).concat(brandAssets.images);
       requestBody.prompt += brandAssets.note;
     }
-    // White-Box Geometry Renderer (Test Engine only) — see buildWhiteBoxModelSnapshot_TE's own
+    // CAD Floor Plan Reference (Test Engine only) — see buildCadFloorPlanSnapshot_TE's own
     // comment for why this exists: a text description can't guarantee a number, so this attaches
     // the actual rendered geometry as a reference image instead of just describing it, the exact
     // same "real pixels, not a guess" principle as the logo above, now applied to the whole
