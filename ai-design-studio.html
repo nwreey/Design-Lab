@@ -3059,15 +3059,15 @@ Replace only the materials and graphics."></textarea>
       <label>Image Engine (admin test)</label>
       <select id="f_imageEngine" onchange="updateImageEngineHint()">
         <option value="gemini">Gemini (default)</option>
-        <option value="openai">OpenAI gpt-image-2 (test)</option>
+        <option value="openai">OpenAI gpt-image-2 (test, admin-only — never reachable by regular users)</option>
         <option value="directgemini">Direct to Gemini (skip OpenAI prompt-writing)</option>
       </select>
-      <div class="hint" id="imageEngineHint">Admin-only experiment: choose which model actually renders the image from the exact same finished prompt, to compare Gemini vs. OpenAI design quality side-by-side. Only this final image-rendering step changes — the two-stage analysis and prompt-writing above are unaffected either way.</div>
+      <div class="hint" id="imageEngineHint">Admin-only comparison tool. Every regular (non-admin) user is now hardcoded to the Direct to Gemini path below (no OpenAI prompt-writing, Gemini renders every image — OpenAI's gpt-image-2 is never reachable for them). This selector only exists so an admin can still run the older OpenAI-mediated pipeline, or OpenAI's own image model, side-by-side for comparison.</div>
     </div>
 
     <div class="field" id="newSpatialEngineField" style="display:none;">
-      <label class="check-item-compact" style="font-weight:600;"><input type="checkbox" id="f_newSpatialEngine"> Use New Spatial Engine (Admin Test)</label>
-      <div class="hint">Admin-only experiment: runs the architect-first redesign (Design Intent → Functional Program → Spatial Relationships → Visitor Journey → Zone Allocation → Hero Strategy → Layout Solver) on top of the same underlying sizing formulas, and replaces the Validated Spatial Program section of the brief with its richer output. Off by default; every non-admin request is unaffected either way. See Spatial-Planning-Engine-Redesign.md for the full architecture.</div>
+      <label class="check-item-compact" style="font-weight:600;"><input type="checkbox" id="f_newSpatialEngine"> Use OLD Spatial Engine (Admin Comparison)</label>
+      <div class="hint">The New Spatial Engine (Design Intent → Functional Program → Spatial Relationships → Visitor Journey → Zone Allocation → Hero Strategy → Layout Solver → Bubble Diagram → Architectural Composition) is now the DEFAULT for every regular user. This checkbox is admin-only and inverted: check it to fall back to the old engine for side-by-side comparison; leave it unchecked to see exactly what regular users see. See Spatial-Planning-Engine-Redesign.md for the full architecture.</div>
     </div>
 
     <div class="submit-bar">
@@ -10200,6 +10200,12 @@ function classifySpaceHierarchy(priorityTier){
 // areas, carried through unchanged.
 function buildFunctionalProgram(zonePlan){
   const kept = zonePlan.filter(z => z.status !== 'Removed');
+  // Rule 1 (never silently hide a client-approved removal) — a zone the client accepted removing
+  // during conflict approval must still be documented somewhere in the brief, even though it no
+  // longer becomes a space of its own. Captured separately here rather than silently dropped.
+  const removed = zonePlan.filter(z => z.status === 'Removed').map(z => ({
+    name: z.name, resolutionNote: z.resolutionNote || null,
+  }));
   const byTier = {};
   kept.forEach(z => {
     if(!byTier[z.priorityTier]) byTier[z.priorityTier] = { tier: z.priorityTier, category: z.priorityName, items: [] };
@@ -10224,7 +10230,7 @@ function buildFunctionalProgram(zonePlan){
       })),
     };
   });
-  return { zones };
+  return { zones, removed };
 }
 
 // --- ADJ-001 — Adjacency & Spatial Relationship Engine. A fixed, deterministic rule table by
@@ -10567,7 +10573,7 @@ function solveLayoutNewEngine(functionalProgram, relationships, journey, openSid
 // block still applies to it unchanged.
 function assembleNewEngineBrief(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy, composition, bubbleDiagram){
   const lines = [];
-  lines.push('=== NEW SPATIAL PLANNING ENGINE (Admin Test) — architect-driven pipeline ===');
+  lines.push('=== NEW SPATIAL PLANNING ENGINE — architect-driven pipeline ===');
   lines.push('');
   lines.push('DESIGN INTENT (DIE-001)');
   lines.push(`Industry: ${designIntent.industry || 'not specified'} | Size class: ${designIntent.sizeClass} | Budget signal: ${designIntent.budgetTier} | Brand importance: ${designIntent.brandImportance}`);
@@ -10575,6 +10581,10 @@ function assembleNewEngineBrief(designIntent, functionalProgram, relationships, 
   lines.push('');
   lines.push('FUNCTIONAL PROGRAM (FPE-001) — spaces defined before any furniture; furniture lives inside its space, never listed as the program itself');
   functionalProgram.zones.forEach(z => lines.push(`- ${z.name} [${z.category}, tier ${z.priorityTier}]${z.required ? ' (required)' : ''}`));
+  if(functionalProgram.removed && functionalProgram.removed.length){
+    lines.push('REMOVED / NOT INCLUDED (documented, never silently hidden, per Rule 1)');
+    functionalProgram.removed.forEach(r => lines.push(`- ${r.name}${r.resolutionNote ? ' — Client decision: ' + r.resolutionNote : ''}`));
+  }
   lines.push('');
   lines.push('SPACE HIERARCHY (SHE-001) — what gets protected first if space is limited');
   ['Primary', 'Secondary', 'Support'].forEach(level => {
@@ -10611,7 +10621,7 @@ function assembleNewEngineBrief(designIntent, functionalProgram, relationships, 
     if(space.position) lines.push(`Position: ${space.position.label}`);
     lines.push('Furniture in this zone:');
     space.furniture.forEach(item => {
-      lines.push(`  ${item.name} — Status: ${item.status}${item.resolutionNote ? ' — ' + item.resolutionNote : ''}${item.feasibilityWarning ? ' — Feasibility Warning: client kept this at full size despite a flagged space conflict.' : ''} | Library ref: ${item.libraryRef}`);
+      lines.push(`  ${item.name} — Status: ${item.status}${item.resolutionNote ? ' — Client decision: ' + item.resolutionNote : ''}${item.feasibilityWarning ? ' — Feasibility Warning: client kept this at full size despite a flagged space conflict.' : ''} | Library ref: ${item.libraryRef}`);
       formatDimsBlock(item.dims).forEach(l => lines.push('  ' + l));
       if(item.scaleSpecText) lines.push('  ' + item.scaleSpecText);
     });
@@ -10619,7 +10629,7 @@ function assembleNewEngineBrief(designIntent, functionalProgram, relationships, 
   });
   return lines.join('\n');
 }
-/* ================= END NEW SPATIAL PLANNING ENGINE (admin test) ================= */
+/* ================= END NEW SPATIAL PLANNING ENGINE (default pipeline; admin can fall back to the old engine via #f_newSpatialEngine) ================= */
 
 function buildStructuralShell(widthM, depthM, boothHeightM, openSidesSet, storageZones){
   // Default max structural height per EPS-008's BOOTH HEIGHT RULES (4.0m) when the client hasn't
@@ -12968,16 +12978,20 @@ async function generateDesign(){
       : `Dimensions: ${eventWidth} m (width) × ${eventDepth} m (depth) — approximate area ${(parseFloat(eventWidth) * parseFloat(eventDepth)).toFixed(1)} square meters`;
   }
 
-  // New Spatial Planning Engine (admin test) — see Spatial-Planning-Engine-Redesign.md. Runs on
-  // top of the already-finalized spatialPlan above (same conflict-resolved zones, same unchanged
-  // sizing formulas) and, when enabled, replaces spatialPlanText/structuralShellText with its own
-  // architect-first framing (Design Intent -> Functional Program -> Spatial Relationships ->
-  // Visitor Journey -> Zone Allocation -> Hero Strategy -> Layout Solver). Default OFF and
-  // admin-only; wrapped in try/catch so a bug here can never break generation for admin either —
-  // it silently falls back to the already-computed standard output.
+  // New Spatial Planning Engine — see Spatial-Planning-Engine-Redesign.md. Runs on top of the
+  // already-finalized spatialPlan above (same conflict-resolved zones, same unchanged sizing
+  // formulas) and replaces spatialPlanText/structuralShellText with its own architect-first
+  // framing (Design Intent -> Functional Program -> Space Hierarchy -> Spatial Relationships /
+  // Bubble Diagram -> Visitor Journey -> Zone Allocation -> Hero Strategy -> Architectural
+  // Composition -> Layout Solver). This is now the DEFAULT for every regular user — the
+  // #f_newSpatialEngine checkbox is admin-only and INVERTED (checking it falls back to the OLD
+  // engine for side-by-side comparison; every non-admin, and an admin who leaves it unchecked,
+  // gets the new engine). Wrapped in try/catch so a bug here can never break generation — it
+  // silently falls back to the already-computed standard (old engine) output.
   const newEngineToggleEl = document.getElementById('f_newSpatialEngine');
+  const useOldSpatialEngine = isAdminUser && newEngineToggleEl && newEngineToggleEl.checked;
   lastBubbleDiagramSVG = ''; // reset every run — a stale diagram from a previous project must never linger in the admin preview
-  if(isAdminUser && newEngineToggleEl && newEngineToggleEl.checked && mode === 'booth' && spatialPlan){
+  if(!useOldSpatialEngine && mode === 'booth' && spatialPlan){
     try{
       const designIntent = buildDesignIntent(parseFloat(width), parseFloat(depth), parseFloat(totalHeight));
       const functionalProgram = tagFurnitureSelection(buildFunctionalProgram(spatialPlan.zonePlan));
@@ -13382,15 +13396,23 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
 
   const userContent = userContentParts.length > 1 ? userContentParts : userBrief;
 
-  // Direct to Gemini (admin-only test engine, see the Image Engine select's own comment) — an
-  // entirely separate, much shorter path than the normal pipeline below: it skips BOTH OpenAI
-  // prompt-writing calls (Stage 1 Project Analysis + Stage 2 Prompt Synthesis) outright and uses
-  // the raw client brief itself as the image_prompt, so there's no "request about to be sent to
-  // OpenAI" to preview at all here — showPromptReview further down is where the admin reviews
-  // (and can edit) that raw brief before it actually renders via Gemini, exactly like the normal
-  // flow's finished prompt gets reviewed there.
+  // Direct to Gemini — an entirely separate, much shorter path than the OpenAI-mediated pipeline
+  // below: it skips BOTH OpenAI prompt-writing calls (Stage 1 Project Analysis + Stage 2 Prompt
+  // Synthesis) outright and uses the client brief itself (built above, by the New Spatial
+  // Planning Engine for booth mode) directly as the image_prompt, so there's no "request about to
+  // be sent to OpenAI" to preview at all here — showPromptReview further down is where the design
+  // gets reviewed (and can be edited) before it actually renders via Gemini, exactly like the
+  // OpenAI-mediated flow's finished prompt gets reviewed there.
+  //
+  // This is now the DEFAULT, ONLY path for every regular (non-admin) user — no OpenAI
+  // prompt-writing call ever happens for them, and (per the render call further down, which
+  // already gates the OpenAI image endpoint behind isAdminUser) OpenAI never generates an image
+  // for them either; Gemini renders every image. The Image Engine select is an admin-only
+  // comparison tool: an admin can still explicitly choose 'gemini' or 'openai' to run the older
+  // OpenAI-mediated pipeline side-by-side, or leave it on 'directgemini' to see exactly what
+  // regular users get.
   const imageEngineEl = document.getElementById('f_imageEngine');
-  const isDirectToGeminiEngine = isAdminUser && imageEngineEl && imageEngineEl.value === 'directgemini';
+  const isDirectToGeminiEngine = !isAdminUser || (imageEngineEl && imageEngineEl.value === 'directgemini');
   if(isDirectToGeminiEngine){
     try{
       const directPromptResult = {
