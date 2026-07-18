@@ -3323,6 +3323,9 @@ Replace only the materials and graphics."></textarea>
       <h3 style="margin:0 0 6px;">Exact text about to be sent to OpenAI (Stage 1 — Project Analysis)</h3>
       <p style="margin-bottom:10px;">This is the complete brief text — every form field, requirement, and specification the AI will read to write the design — plus a note of which images are attached. Nothing is sent until you approve.</p>
       <div id="adminBriefPreviewImageNote" style="font-size:12.5px;color:var(--ink);opacity:.7;margin-bottom:8px;font-family:'IBM Plex Mono',monospace;"></div>
+      <!-- BDE-001's rendered bubble diagram — only populated (and shown) when the New Spatial
+           Engine (Admin Test) toggle produced one for this run; see showAdminBriefPreview(). -->
+      <div id="adminBriefPreviewBubbleDiagram" style="display:none;margin-bottom:12px;"></div>
       <textarea id="adminBriefPreviewText" readonly style="width:100%;height:420px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.55;padding:12px;border:1px solid var(--line);border-radius:2px;resize:vertical;box-sizing:border-box;background:#fff;color:var(--ink);"></textarea>
       <div style="display:flex;gap:10px;margin-top:14px;">
         <button class="ghost" onclick="__resolveAdminBriefPreview(false)" style="flex:1;">Cancel — don't send</button>
@@ -9108,6 +9111,12 @@ function clearReferenceImage(){
   document.getElementById('referenceImageClearRow').style.display = 'none';
 }
 
+// BDE-001's rendered SVG for whatever the last generateDesign() run produced — read by
+// showAdminBriefPreview() below. Reset to '' at the top of every generateDesign() call so a
+// stale diagram from a previous project (or from a run where the new engine was off) never
+// lingers in the preview.
+let lastBubbleDiagramSVG = '';
+
 let isAdminUser = false;
 let currentUserProjectLimit = null; // null = no limit known yet, or admin (unlimited)
 let lastKnownProjectCount = null;
@@ -10170,23 +10179,51 @@ function buildDesignIntent(widthM, depthM, boothHeightM){
   };
 }
 
-// --- FPE-001 — Functional Program Engine. Takes the already-computed, conflict-resolved
-// zonePlan (from computeSpatialPlan — unchanged formulas) and reframes it as a functional
-// program: what exists, by category/priority, independent of its own dimensions. Each entry
-// still carries a reference to the already-computed zone (area/dims/status/position, all decided
-// upstream) so downstream stages never need to recompute anything already decided — but this
-// stage's own concern is only "what exists," per Stage 1 of the redesign (no dimensions here).
+// --- SHE-001 — Space Hierarchy Engine. Classifies every space into Primary / Secondary / Support
+// based on its priority tier — this is what determines which spaces are protected first if space
+// is limited. It's a direct relabeling of the same tier ordering simulateZoneReduction already
+// walks (tier 8 down to tier 2, Hero/tier 1 never touched) — SHE-001 doesn't change that
+// mechanism, it names it, so the brief states the protection order explicitly instead of leaving
+// it implicit in a reduction loop's own comments.
+function classifySpaceHierarchy(priorityTier){
+  if(priorityTier <= 3) return 'Primary';   // Hero Architecture, Brand Experience, Primary Products
+  if(priorityTier <= 6) return 'Secondary'; // Reception, Information, Meeting
+  return 'Support';                          // Hospitality (incl. Storage), Decorative Features
+}
+
+// --- FPE-001 — Functional Program Engine. Groups the already-computed, conflict-resolved
+// zonePlan (from computeSpatialPlan — unchanged formulas) into named SPACES, one per
+// category/tier — never one entry per furniture item. "Reception counter 1", "Meeting table 1",
+// "TV screens (2)" no longer appear as top-level program entries; they become furniture living
+// inside "Reception Zone" / "Meeting Zone" / "Brand Experience Zone". No dimensions are decided
+// at this stage — each space's totalAreaSqm is simply the sum of its furniture's already-computed
+// areas, carried through unchanged.
 function buildFunctionalProgram(zonePlan){
-  const zones = zonePlan
-    .filter(z => z.status !== 'Removed')
-    .map(z => ({
-      id: zoneConflictId(z.name),
-      name: z.name,
-      category: z.priorityName,
-      priorityTier: z.priorityTier,
-      required: !!z.required,
-      sourceZone: z,
-    }));
+  const kept = zonePlan.filter(z => z.status !== 'Removed');
+  const byTier = {};
+  kept.forEach(z => {
+    if(!byTier[z.priorityTier]) byTier[z.priorityTier] = { tier: z.priorityTier, category: z.priorityName, items: [] };
+    byTier[z.priorityTier].items.push(z);
+  });
+
+  const zones = Object.keys(byTier).map(Number).sort((a, b) => a - b).map(tier => {
+    const group = byTier[tier];
+    const name = tier === 1 ? 'Hero Zone' : `${group.category} Zone`;
+    const totalAreaSqm = group.items.reduce((s, z) => s + z.areaAllocationSqm, 0);
+    return {
+      id: zoneConflictId(name),
+      name, category: group.category, priorityTier: tier,
+      hierarchy: classifySpaceHierarchy(tier),
+      required: group.items.some(z => z.required),
+      totalAreaSqm,
+      position: null, // LSE-001 assigns this once, per space — furniture inherits it, never positioned independently
+      furniture: group.items.map(z => ({
+        name: z.name, areaSqm: z.areaAllocationSqm, areaBasis: z.areaBasis, status: z.status,
+        dims: z.dims, scaleSpecText: z.scaleSpecText, resolutionNote: z.resolutionNote || null,
+        feasibilityWarning: !!z.feasibilityWarning, sourceZone: z,
+      })),
+    };
+  });
   return { zones };
 }
 
@@ -10197,21 +10234,90 @@ function buildFunctionalProgram(zonePlan){
 // the only thing that turns these into an actual position.
 const ADJ_RELATION_RULES_BY_TIER = {
   1: 'primary-sightline', 2: 'near-entrance', 3: 'facing-open-side', 4: 'near-entrance',
-  5: 'near-entrance', 6: 'near-rear-wall', 7: 'behind-meeting', 8: 'near-rear-wall',
+  5: 'near-entrance', 6: 'near-rear-wall', 7: 'behind', 8: 'near-rear-wall',
 };
 function buildSpatialRelationships(functionalProgram){
   const meetingZone = functionalProgram.zones.find(z => z.priorityTier === 6);
   return {
     adjacencies: functionalProgram.zones.map(z => {
       let relation = ADJ_RELATION_RULES_BY_TIER[z.priorityTier] || 'near-rear-wall';
-      let targetZoneId = null;
-      if(/^Storage room/.test(z.name) || relation === 'behind-meeting'){
-        relation = meetingZone ? 'behind' : 'near-rear-wall';
-        targetZoneId = meetingZone ? meetingZone.id : null;
-      }
+      const targetZoneId = (relation === 'behind' && meetingZone) ? meetingZone.id : null;
+      if(relation === 'behind' && !meetingZone) relation = 'near-rear-wall'; // nothing to sit behind — fall back to the plain wall preference
       return { zoneId: z.id, name: z.name, relation, targetZoneId, weight: z.priorityTier <= 2 ? 2 : 1 };
     })
   };
+}
+
+// --- BDE-001 — Bubble Diagram Engine. Consumes FPE-001's spaces, SHE-001's hierarchy, and
+// ADJ-001's relationship rules, and produces exactly what an architect sketches before any
+// dimension exists: circles and lines, no numbers. Support-tier back-of-house spaces (tier 8, and
+// any tier-7 space whose only relation is "behind" the Meeting zone) are marked hidden — present
+// in the program, deliberately absent from the visible/public diagram, per the client's own
+// "Storage: hidden" example.
+function buildBubbleDiagram(functionalProgram, relationships){
+  const relationById = {};
+  relationships.adjacencies.forEach(r => { relationById[r.zoneId] = r; });
+  const nodes = functionalProgram.zones.map(z => {
+    const rel = relationById[z.id];
+    const hidden = z.priorityTier === 8 || (z.priorityTier === 7 && rel && rel.relation === 'behind');
+    let adjacentLabel;
+    if(rel && rel.relation === 'behind' && rel.targetZoneId){
+      const target = functionalProgram.zones.find(zz => zz.id === rel.targetZoneId);
+      adjacentLabel = hidden ? 'hidden' : `adjacent ${target ? target.name.replace(' Zone', '') : 'Meeting'}`;
+    }else if(rel && (rel.relation === 'near-entrance' || rel.relation === 'primary-sightline')){
+      adjacentLabel = 'adjacent Entrance';
+    }else if(rel && rel.relation === 'facing-open-side'){
+      adjacentLabel = 'adjacent Hero'; // Primary Products face the open side, reading next to the Hero's own open-side presence
+    }else{
+      adjacentLabel = hidden ? 'hidden' : 'adjacent Meeting';
+    }
+    return { id: z.id, name: z.name.replace(' Zone', ''), hierarchy: z.hierarchy, tier: z.priorityTier, hidden, adjacentLabel };
+  });
+  return { nodes };
+}
+
+// Renders BDE-001's output as an actual SVG bubble diagram — circles sized by hierarchy (Primary
+// largest, Support smallest), placed in one deterministic ring ordered by priority tier (Hero at
+// center), connected by a line to whatever each bubble is adjacent to, dashed for hidden spaces.
+// Shown in the admin brief preview (see showAdminBriefPreview) when the new engine runs — no
+// dimensions anywhere on this diagram, only relationships, per the client's own spec.
+function renderBubbleDiagramSVG(bubbleDiagram){
+  const W = 640, H = 420, cx = W / 2, cy = H / 2;
+  const radiusByHierarchy = { Primary: 46, Secondary: 34, Support: 24 };
+  const fillByHierarchy = { Primary: '#2b6cb0', Secondary: '#38a169', Support: '#a0aec0' };
+  const hero = bubbleDiagram.nodes.find(n => n.tier === 1);
+  const others = bubbleDiagram.nodes.filter(n => n.tier !== 1);
+  const positions = {};
+  if(hero) positions[hero.id] = { x: cx, y: cy };
+  const ringR = Math.min(W, H) / 2 - 70;
+  others.forEach((n, i) => {
+    const angle = (i / Math.max(1, others.length)) * Math.PI * 2 - Math.PI / 2;
+    positions[n.id] = { x: cx + ringR * Math.cos(angle), y: cy + ringR * Math.sin(angle) };
+  });
+
+  const idByName = {};
+  bubbleDiagram.nodes.forEach(n => { idByName[n.name] = n.id; });
+
+  const lines = [];
+  bubbleDiagram.nodes.forEach(n => {
+    if(n.hidden || n.adjacentLabel === 'hidden') return;
+    const targetName = n.adjacentLabel.replace('adjacent ', '');
+    const targetId = idByName[targetName];
+    if(!targetId || targetId === n.id || !positions[targetId] || !positions[n.id]) return;
+    const a = positions[n.id], b = positions[targetId];
+    lines.push(`<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#cbd5e0" stroke-width="1.5" />`);
+  });
+
+  const circles = bubbleDiagram.nodes.map(n => {
+    const p = positions[n.id];
+    if(!p) return '';
+    const r = radiusByHierarchy[n.hierarchy] || 30;
+    const fill = fillByHierarchy[n.hierarchy] || '#a0aec0';
+    const dash = n.hidden ? ' stroke-dasharray="4,3"' : '';
+    return `<g><circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${fill}" fill-opacity="${n.hidden ? 0.35 : 0.85}" stroke="#2d3748" stroke-width="1.5"${dash} /><text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="IBM Plex Mono, monospace" fill="#1a202c">${n.name}</text><text x="${p.x.toFixed(1)}" y="${(p.y + r + 13).toFixed(1)}" text-anchor="middle" font-size="9.5" font-family="IBM Plex Mono, monospace" fill="#4a5568">${n.hidden ? 'hidden' : n.adjacentLabel}</text></g>`;
+  }).join('\n');
+
+  return `<div style="font-size:12.5px;color:var(--ink);opacity:.75;margin-bottom:6px;font-family:'IBM Plex Mono',monospace;">BDE-001 — Bubble Diagram (no dimensions, relationships only)</div><svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:640px;border:1px solid var(--line);border-radius:2px;background:#fff;">${lines.join('\n')}${circles}</svg>`;
 }
 
 // --- VJE-001 — Visitor Journey Engine. Orders the functional program into the narrative
@@ -10290,12 +10396,54 @@ function buildHeroStrategy(designIntent){
   };
 }
 
+// --- ACE-001 — Architectural Composition Engine. Deterministic scoring over nine composition
+// strategies (Symmetry / Asymmetry / Central Axis / Corner Focus / Linear Flow / Circular Flow /
+// Framed Entry / Open Plaza / Gallery Style) — this is what gives LSE-001 below an actual design
+// philosophy instead of just a per-zone relationship score. Runs after HSE-001 so the chosen hero
+// archetype can inform the composition (a Portal reads naturally as Framed Entry/Central Axis; a
+// Feature Wall reads as Linear Flow/Gallery Style).
+const ARCHITECTURAL_COMPOSITION_STRATEGIES = {
+  'Symmetry':      { description: 'a mirrored, balanced arrangement either side of a central line' },
+  'Asymmetry':     { description: 'a deliberately unbalanced, dynamic arrangement with no mirrored axis' },
+  'Central Axis':  { description: 'every major space organized along one dominant spine running through the booth' },
+  'Corner Focus':  { description: 'the hero and primary sightline concentrated in one corner rather than centered' },
+  'Linear Flow':   { description: 'spaces arranged in a single sequential line the visitor walks along, start to end' },
+  'Circular Flow': { description: 'spaces arranged in a loop around the perimeter, returning visitors to the entrance' },
+  'Framed Entry':  { description: 'reception and hero flank the entrance, literally framing the approach' },
+  'Open Plaza':    { description: 'one large open central void with spaces pushed to the perimeter around it' },
+  'Gallery Style': { description: 'product/display spaces arranged linearly along one wall, like a gallery walk' },
+};
+function buildArchitecturalComposition(designIntent, heroStrategy){
+  const personalities = designIntent.brandPersonalities || [];
+  const SYMMETRY_TRAITS = new Set(['Timeless', 'Elegant', 'Reliable', 'Professional', 'Precision']);
+  const ASYMMETRY_TRAITS = new Set(['Bold', 'Dynamic', 'Creative', 'Energetic', 'Explorative']);
+  const scores = {
+    'Symmetry': 1 + (personalities.some(p => SYMMETRY_TRAITS.has(p)) ? 2 : 0) + (heroStrategy.archetype === 'Portal' ? 1 : 0),
+    'Asymmetry': 1 + (personalities.some(p => ASYMMETRY_TRAITS.has(p)) ? 2 : 0) + (heroStrategy.archetype === 'Sculptural Element' ? 1 : 0),
+    'Central Axis': 1 + (heroStrategy.archetype === 'Tower' || heroStrategy.archetype === 'Portal' ? 2 : 0) + (designIntent.openSides.length >= 2 ? 1 : 0),
+    'Corner Focus': 1 + (heroStrategy.archetype === 'Tower' || heroStrategy.archetype === 'Sculptural Element' ? 1.5 : 0) + (designIntent.openSides.length === 1 ? 1 : 0),
+    'Linear Flow': 1 + (heroStrategy.archetype === 'Feature Wall' ? 2 : 0) + (['Small Booth', 'Compact Booth', 'Tiny Booth'].includes(designIntent.sizeClass) ? 1 : 0),
+    'Circular Flow': 1 + (['Large Booth', 'Flagship Pavilion'].includes(designIntent.sizeClass) ? 2 : 0) + (designIntent.openSides.length >= 3 ? 1 : 0),
+    'Framed Entry': 1 + (heroStrategy.archetype === 'Portal' || heroStrategy.archetype === 'LED Gateway' ? 2 : 0) + (designIntent.openSides.length >= 1 ? 0.5 : 0),
+    'Open Plaza': 1 + (['Large Booth', 'Flagship Pavilion'].includes(designIntent.sizeClass) ? 2 : 0) + (designIntent.budgetTier === 'flagship' ? 1 : 0),
+    'Gallery Style': 1 + (['Luxury', 'Fashion', 'Automotive'].includes(designIntent.industry) ? 2 : 0) + (heroStrategy.archetype === 'Feature Wall' ? 1 : 0),
+  };
+  const ranked = Object.keys(scores).map(name => ({ name, score: scores[name], description: ARCHITECTURAL_COMPOSITION_STRATEGIES[name].description })).sort((a, b) => b.score - a.score);
+  const chosen = ranked[0];
+  return {
+    composition: chosen.name,
+    rationale: `Chosen alongside the ${heroStrategy.archetype} hero strategy for this ${designIntent.sizeClass.toLowerCase()}: ${chosen.description}.`,
+    source: 'ACE-001 rule-based (deterministic)',
+    candidateScores: ranked.map(s => ({ name: s.name, score: Math.round(s.score * 10) / 10 })),
+  };
+}
+
 // --- FUR-001 — Furniture Selection Engine (admin-test scope). The actual dimensions for every
-// zone were already computed upstream by computeKnownAddreqFootprints/computeOtherRequestedZoneNames
-// (unchanged formulas) inside computeSpatialPlan. This stage's job here is traceability only:
-// tag each zone with which library entry it maps to, so the brief can cite a named library
-// source rather than a bare number — a real step toward Stage 6/7's named-variant library,
-// without changing what any zone actually measures yet.
+// piece of furniture were already computed upstream by computeKnownAddreqFootprints/
+// computeOtherRequestedZoneNames (unchanged formulas) inside computeSpatialPlan. This stage's job
+// here is traceability only: tag each furniture item — now nested inside its FPE-001 space,
+// never a top-level program entry itself — with which library entry it maps to, so the brief can
+// cite a named library source rather than a bare number.
 function tagFurnitureSelection(functionalProgram){
   const nameToLibraryKey = [
     [/^Reception counter/, 'FURNITURE_LIBRARY.receptionCounter'],
@@ -10316,9 +10464,11 @@ function tagFurnitureSelection(functionalProgram){
     [/^Vehicle display/, 'PRODUCT_DISPLAY_LIBRARY.vehicleDisplayArea'],
     [/^Interactive kiosk/, 'FURNITURE_LIBRARY.interactiveKiosk'],
   ];
-  functionalProgram.zones.forEach(z => {
-    const match = nameToLibraryKey.find(([re]) => re.test(z.name));
-    z.libraryRef = match ? match[1] : 'PRODUCT_DISPLAY_LIBRARY.genericZoneMeta (generic estimated zone)';
+  functionalProgram.zones.forEach(space => {
+    space.furniture.forEach(item => {
+      const match = nameToLibraryKey.find(([re]) => re.test(item.name));
+      item.libraryRef = match ? match[1] : 'PRODUCT_DISPLAY_LIBRARY.genericZoneMeta (generic estimated zone)';
+    });
   });
   return functionalProgram;
 }
@@ -10329,7 +10479,46 @@ function tagFurnitureSelection(functionalProgram){
 // prefers open sides" rule), this scores every candidate region against the actual relationship
 // graph (ADJ-001) and visitor journey (VJE-001) before picking one — coordinates are the LAST
 // thing this pipeline decides, never the first.
-function solveLayoutNewEngine(functionalProgram, relationships, journey, openSidesSet){
+// ACE-001's composition bonus, expressed against buildLayoutRegions()'s exact 9 labels: the four
+// corners ('Front Left'/'Front Right'/'Rear Left'/'Rear Right'), the vertical Center-column spine
+// ('Front'/'Center'/'Rear'), and the horizontal Mid-row spine ('Left'/'Center'/'Right'). Symmetry
+// and Asymmetry deliberately get no positional bonus here — on a coarse 9-region grid there's no
+// meaningful way to score "mirrored" beyond what the relationship/journey scoring already does,
+// so those two are expressed in the rendering prompt's own composition language instead.
+const REGION_CORNERS = new Set(['Front Left', 'Front Right', 'Rear Left', 'Rear Right']);
+const REGION_CENTER_AXIS = new Set(['Front', 'Center', 'Rear']);
+const REGION_MID_ROW = new Set(['Left', 'Center', 'Right']);
+const REGION_PERIMETER = new Set(['Front Left', 'Front', 'Front Right', 'Left', 'Right', 'Rear Left', 'Rear', 'Rear Right']);
+function getCompositionRegionBonus(compositionName, region, zone){
+  switch(compositionName){
+    case 'Central Axis':
+      return (REGION_CENTER_AXIS.has(region.label) && zone.priorityTier <= 4) ? 1.5 : 0;
+    case 'Corner Focus':
+      return (REGION_CORNERS.has(region.label) && zone.priorityTier === 1) ? 2 : 0;
+    case 'Linear Flow':
+      return REGION_MID_ROW.has(region.label) ? 1 : 0; // keeps the whole sequence readable along one row
+    case 'Circular Flow':
+      return region.label === 'Center' ? -1.5 : (REGION_PERIMETER.has(region.label) ? 1 : 0);
+    case 'Framed Entry':
+      return ((zone.priorityTier === 1 || zone.priorityTier === 4) && region.touchesOpenSide) ? 1.5 : 0;
+    case 'Open Plaza':
+      return region.label === 'Center' ? -2 : 0; // keep the center void
+    case 'Gallery Style':
+      return (zone.priorityTier === 3 && region.label !== 'Center') ? 1.5 : 0;
+    default: // Symmetry / Asymmetry — neutral, no positional bonus (see comment above)
+      return 0;
+  }
+}
+
+// --- LSE-001 — Layout Solver Engine (admin-test scope: greedy scored placement over the
+// existing 9-region grid — a finer continuous-coordinate solver is Phase 6 of the migration
+// plan). Unlike the old assignZonePositions (a flat "tier 6/7 prefer walls, everyone else
+// prefers open sides" rule), this scores every candidate region against the relationship graph
+// (ADJ-001), the visitor journey (VJE-001), AND the chosen architectural composition (ACE-001)
+// before picking one — coordinates are the LAST thing this pipeline decides, never the first.
+// Positions a SPACE exactly once; every furniture item nested inside that space inherits the same
+// position rather than being positioned independently, per "furniture belongs inside zones."
+function solveLayoutNewEngine(functionalProgram, relationships, journey, openSidesSet, composition){
   const regions = buildLayoutRegions(openSidesSet);
   const relationById = {};
   relationships.adjacencies.forEach(r => { relationById[r.zoneId] = r; });
@@ -10353,6 +10542,7 @@ function solveLayoutNewEngine(functionalProgram, relationships, journey, openSid
     }
     const journeyPos = journeyIndex[zone.id];
     if(journeyPos != null && journeyPos <= 1 && region.touchesOpenSide) score += 0.5;
+    if(composition) score += getCompositionRegionBonus(composition.composition, region, zone);
     score -= region.used ? 1 : 0; // still allow reuse (every real booth reuses regions) but prefer spreading zones out first
     return score;
   }
@@ -10362,7 +10552,9 @@ function solveLayoutNewEngine(functionalProgram, relationships, journey, openSid
     const best = regions.slice().sort((a, b) => scoreRegion(b, zone, relation) - scoreRegion(a, zone, relation))[0];
     best.used = true;
     placed[zone.id] = best;
-    zone.sourceZone.position = { label: best.label, xFrac: best.xFrac, yFrac: best.yFrac };
+    const position = { label: best.label, xFrac: best.xFrac, yFrac: best.yFrac };
+    zone.position = position;
+    zone.furniture.forEach(item => { item.sourceZone.position = position; }); // furniture inherits its space's position, never positioned independently
   });
 
   return functionalProgram;
@@ -10373,7 +10565,7 @@ function solveLayoutNewEngine(functionalProgram, relationships, journey, openSid
 // only. Ends with the exact same per-zone Width/Depth/Height lines and Kept/Merged/Removed
 // status/notes as before (via formatDimsBlock), so the existing EPS-021 data-governance rule
 // block still applies to it unchanged.
-function assembleNewEngineBrief(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy){
+function assembleNewEngineBrief(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy, composition, bubbleDiagram){
   const lines = [];
   lines.push('=== NEW SPATIAL PLANNING ENGINE (Admin Test) — architect-driven pipeline ===');
   lines.push('');
@@ -10381,11 +10573,18 @@ function assembleNewEngineBrief(designIntent, functionalProgram, relationships, 
   lines.push(`Industry: ${designIntent.industry || 'not specified'} | Size class: ${designIntent.sizeClass} | Budget signal: ${designIntent.budgetTier} | Brand importance: ${designIntent.brandImportance}`);
   lines.push(`Open sides: ${designIntent.openSides.join(', ') || 'none'} | Style preference: ${designIntent.architecturalStylePreference || 'not specified'}`);
   lines.push('');
-  lines.push('FUNCTIONAL PROGRAM (FPE-001) — spaces defined before any furniture');
+  lines.push('FUNCTIONAL PROGRAM (FPE-001) — spaces defined before any furniture; furniture lives inside its space, never listed as the program itself');
   functionalProgram.zones.forEach(z => lines.push(`- ${z.name} [${z.category}, tier ${z.priorityTier}]${z.required ? ' (required)' : ''}`));
   lines.push('');
-  lines.push('SPATIAL RELATIONSHIPS (ADJ-001)');
-  relationships.adjacencies.forEach(r => lines.push(`- ${r.name}: ${r.relation}${r.targetZoneId ? ' ' + r.targetZoneId : ''}`));
+  lines.push('SPACE HIERARCHY (SHE-001) — what gets protected first if space is limited');
+  ['Primary', 'Secondary', 'Support'].forEach(level => {
+    const names = functionalProgram.zones.filter(z => z.hierarchy === level).map(z => z.name.replace(' Zone', ''));
+    if(names.length) lines.push(`${level}: ${names.join(', ')}`);
+  });
+  lines.push('');
+  lines.push('SPATIAL RELATIONSHIPS (ADJ-001) / BUBBLE DIAGRAM (BDE-001) — no dimensions, relationships only, exactly how architects sketch');
+  bubbleDiagram.nodes.forEach(n => lines.push(`- ${n.name} (${n.hierarchy}): ${n.hidden ? 'hidden' : n.adjacentLabel}`));
+  lines.push('(a rendered bubble diagram is shown above this text in the request preview)');
   lines.push('');
   lines.push('VISITOR JOURNEY (VJE-001)');
   lines.push(`Enter (${journey.entryPoints.join('/')}) -> ` + journey.sequence.map(id => {
@@ -10401,15 +10600,21 @@ function assembleNewEngineBrief(designIntent, functionalProgram, relationships, 
   lines.push(`Archetype: ${heroStrategy.archetype} (${heroStrategy.aspect} form)`);
   lines.push(heroStrategy.rationale);
   lines.push('');
-  lines.push('ARCHITECTURAL ZONES / FURNITURE SELECTION / LAYOUT (position + exact dims, unchanged sizing formulas)');
-  functionalProgram.zones.forEach(z => {
-    const zone = z.sourceZone;
-    lines.push(zone.name);
-    lines.push(`Status: ${zone.status}${zone.resolutionNote ? ' — ' + zone.resolutionNote : ''}${zone.feasibilityWarning ? ' — Feasibility Warning: client kept this at full size despite a flagged space conflict.' : ''}`);
-    lines.push(`Category: ${zone.priorityName} (tier ${zone.priorityTier}) | Furniture Library ref: ${z.libraryRef}`);
-    if(zone.position) lines.push(`Position: ${zone.position.label}`);
-    formatDimsBlock(zone.dims).forEach(l => lines.push(l));
-    if(zone.scaleSpecText) lines.push(zone.scaleSpecText);
+  lines.push('ARCHITECTURAL COMPOSITION (ACE-001) — the Layout Solver\'s design philosophy');
+  lines.push(`Composition: ${composition.composition}`);
+  lines.push(composition.rationale);
+  lines.push('');
+  lines.push('ARCHITECTURAL ZONES — each space positioned once (LSE-001), with its furniture nested inside it (unchanged sizing formulas)');
+  functionalProgram.zones.forEach(space => {
+    lines.push(space.name);
+    lines.push(`Hierarchy: ${space.hierarchy} | Category: ${space.category} (tier ${space.priorityTier}) | Total area: ${space.totalAreaSqm.toFixed(1)} sqm`);
+    if(space.position) lines.push(`Position: ${space.position.label}`);
+    lines.push('Furniture in this zone:');
+    space.furniture.forEach(item => {
+      lines.push(`  ${item.name} — Status: ${item.status}${item.resolutionNote ? ' — ' + item.resolutionNote : ''}${item.feasibilityWarning ? ' — Feasibility Warning: client kept this at full size despite a flagged space conflict.' : ''} | Library ref: ${item.libraryRef}`);
+      formatDimsBlock(item.dims).forEach(l => lines.push('  ' + l));
+      if(item.scaleSpecText) lines.push('  ' + item.scaleSpecText);
+    });
     lines.push('');
   });
   return lines.join('\n');
@@ -12771,6 +12976,7 @@ async function generateDesign(){
   // admin-only; wrapped in try/catch so a bug here can never break generation for admin either —
   // it silently falls back to the already-computed standard output.
   const newEngineToggleEl = document.getElementById('f_newSpatialEngine');
+  lastBubbleDiagramSVG = ''; // reset every run — a stale diagram from a previous project must never linger in the admin preview
   if(isAdminUser && newEngineToggleEl && newEngineToggleEl.checked && mode === 'booth' && spatialPlan){
     try{
       const designIntent = buildDesignIntent(parseFloat(width), parseFloat(depth), parseFloat(totalHeight));
@@ -12779,13 +12985,16 @@ async function generateDesign(){
       const journey = buildVisitorJourney(functionalProgram, getBoothOpenSidesSet());
       const zoneAllocation = computeZoneAllocation(designIntent, spatialPlan);
       const heroStrategy = buildHeroStrategy(designIntent);
-      solveLayoutNewEngine(functionalProgram, relationships, journey, getBoothOpenSidesSet());
-      spatialPlanText = assembleNewEngineBrief(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy);
+      const composition = buildArchitecturalComposition(designIntent, heroStrategy);
+      const bubbleDiagram = buildBubbleDiagram(functionalProgram, relationships);
+      solveLayoutNewEngine(functionalProgram, relationships, journey, getBoothOpenSidesSet(), composition);
+      spatialPlanText = assembleNewEngineBrief(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy, composition, bubbleDiagram);
       structuralShellText = formatStructuralShellForBrief(buildStructuralShell(
         parseFloat(width), parseFloat(depth), parseFloat(totalHeight),
         getBoothOpenSidesSet(),
         spatialPlan.zonePlan.filter(z => (z.status === 'Kept' || z.status === 'Merged') && /^Storage room/.test(z.name))
       ));
+      lastBubbleDiagramSVG = renderBubbleDiagramSVG(bubbleDiagram);
     }catch(newEngineErr){
       console.error('New Spatial Engine (admin test) failed, falling back to the standard pipeline output:', newEngineErr);
     }
@@ -13411,6 +13620,16 @@ function showAdminBriefPreview(fullText, imageCount){
     document.getElementById('adminBriefPreviewText').value = fullText;
     document.getElementById('adminBriefPreviewImageNote').textContent =
       imageCount > 0 ? `${imageCount} image(s) attached to this request (logo / posters / brand portfolio / reference image, as applicable).` : 'No images attached to this request — text only.';
+    // BDE-001's rendered bubble diagram, if the New Spatial Engine (Admin Test) toggle produced
+    // one for this run (see generateDesign()) — hidden entirely otherwise.
+    const bubbleContainer = document.getElementById('adminBriefPreviewBubbleDiagram');
+    if(lastBubbleDiagramSVG){
+      bubbleContainer.innerHTML = lastBubbleDiagramSVG;
+      bubbleContainer.style.display = 'block';
+    }else{
+      bubbleContainer.innerHTML = '';
+      bubbleContainer.style.display = 'none';
+    }
     document.getElementById('adminBriefPreviewOverlay').style.display = 'flex';
   });
 }
