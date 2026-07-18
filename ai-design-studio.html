@@ -9060,6 +9060,16 @@ function clearReferenceImage(){
 // lingers in the preview.
 let lastBubbleDiagramSVG = '';
 
+// Test Engine only — a PNG data URL of the deterministic white-box massing model (see
+// buildWhiteBoxModelSnapshot_TE), built directly from the Spatial Planning Engine's own exact
+// numbers with zero AI involved in the geometry itself. Reset to '' at the top of every
+// generateDesign() call, same reasoning as lastBubbleDiagramSVG above. Read by startRenderSession()
+// to attach as a reference image so Gemini locks onto real geometry instead of reinterpreting a
+// text description. Stays '' whenever Three.js isn't available or the render fails for any
+// reason — startRenderSession() simply omits the reference image in that case, never blocking
+// generation.
+let lastWhiteBoxModelImage = '';
+
 let isAdminUser = false;
 let currentUserProjectLimit = null; // null = no limit known yet, or admin (unlimited)
 let lastKnownProjectCount = null;
@@ -11110,6 +11120,101 @@ function assembleNewEngineBrief_TE(designIntent, functionalProgram, relationship
   lines.push('7. Render the completed booth without changing the approved geometry.');
   lines.push('Geometry is immutable. Decoration is flexible. Never sacrifice geometry to improve appearance.');
   return lines.join('\n');
+}
+
+// --- White-Box Geometry Renderer (Test Engine only). The geometry-first sequence above is still
+// only a text instruction — Gemini can still drift from it, because no text description can
+// *guarantee* a number; a generative model interprets words, it doesn't execute a spec. This
+// function removes that interpretation step entirely for the booth's overall shape: it builds a
+// plain white 3D massing model directly from the exact numbers computeSpatialPlan/
+// buildStructuralShell/LSE-001 already computed (no AI involved anywhere in this function), and
+// renders one snapshot of it. generateDesign() attaches that snapshot to the Gemini request as a
+// reference image (the same "attach the real pixels" mechanism already used for the client's
+// logo — see startRenderSession's own comment on why that's more reliable than a text
+// description), with instructions to preserve exactly what it shows and only add materials,
+// lighting, and branding. Uses Three.js (already loaded in <head> for the 3D viewer). Guarded so
+// it can never break generation: returns null immediately if Three.js isn't available (e.g. a
+// blocked/slow CDN, or a headless test environment with no WebGL) and returns null on any
+// rendering error too — callers always treat null as "no reference image this run," never as a
+// hard failure.
+function buildWhiteBoxModelSnapshot_TE(shell, functionalProgram){
+  if(typeof THREE === 'undefined') return null;
+  try{
+    const widthM = shell.widthM, depthM = shell.depthM;
+    const maxSpan = Math.max(widthM, depthM, 3);
+
+    const canvas = document.createElement('canvas');
+    const W = 1024, H = 768;
+    canvas.width = W; canvas.height = H;
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(W, H, false);
+    renderer.setClearColor(0xf3f3f0, 1);
+
+    const scene = new THREE.Scene();
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const key = new THREE.DirectionalLight(0xffffff, 0.6);
+    key.position.set(widthM * 1.2, maxSpan * 1.5, -depthM * 0.6);
+    scene.add(key);
+
+    const EDGE_COLOR = 0x2b2b28;
+    function addBox(cx, cz, w, d, h, color){
+      if(w <= 0 || d <= 0 || h <= 0) return;
+      const geo = new THREE.BoxGeometry(w, h, d);
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.9, metalness: 0 }));
+      mesh.position.set(cx, h / 2, cz);
+      scene.add(mesh);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: EDGE_COLOR }));
+      edges.position.copy(mesh.position);
+      scene.add(edges);
+    }
+
+    // Floor — the exact requested footprint, nothing else.
+    addBox(widthM / 2, depthM / 2, widthM, depthM, 0.06, 0xe6e6e1);
+
+    // Structural walls — exactly the sides buildStructuralShell marked STRUCTURAL WALL, at their
+    // exact position/length/thickness/height. OPEN sides get no geometry at all, so the render
+    // itself shows them staying completely open — the same guarantee the text brief asks for,
+    // now also true in the reference image.
+    Object.keys(shell.sides).forEach(sideName => {
+      const s = shell.sides[sideName];
+      if(s.state !== 'STRUCTURAL WALL') return;
+      const [sx, sy] = s.startCorner, [ex, ey] = s.endCorner;
+      const thickM = s.thicknessMm / 1000, heightM = s.heightMm / 1000;
+      const lenX = Math.abs(ex - sx), lenZ = Math.abs(ey - sy);
+      addBox((sx + ex) / 2, (sy + ey) / 2, lenX > 0 ? lenX + thickM : thickM, lenZ > 0 ? lenZ + thickM : thickM, heightM, 0xf5f5f2);
+    });
+
+    // Architectural zones — one massing box per space (not per furniture item, to avoid every
+    // item in a zone overlapping at the single shared position LSE-001 assigns that zone), sized
+    // from the zone's own already-computed real area and colored by SHE-001 hierarchy so Primary/
+    // Secondary/Support read as visually distinct volumes without needing any labels.
+    const HIERARCHY_COLOR = { Primary: 0xffcf7a, Secondary: 0xa9c9ff, Support: 0xd7d7d2 };
+    (functionalProgram.zones || []).forEach(zone => {
+      if(!zone.position) return;
+      const side = Math.max(0.4, Math.sqrt(Math.max(zone.totalAreaSqm || 1, 0.5)));
+      let cx = zone.position.xFrac * widthM, cz = zone.position.yFrac * depthM;
+      let x0 = Math.max(0.1, cx - side / 2), x1 = Math.min(widthM - 0.1, cx + side / 2);
+      let z0 = Math.max(0.1, cz - side / 2), z1 = Math.min(depthM - 0.1, cz + side / 2);
+      const tallestMm = (zone.furniture || []).reduce((m, f) => Math.max(m, (f.dims && f.dims.heightMm) || 0), 0);
+      addBox((x0 + x1) / 2, (z0 + z1) / 2, Math.max(0.3, x1 - x0), Math.max(0.3, z1 - z0), (tallestMm > 0 ? tallestMm : 1200) / 1000, HIERARCHY_COLOR[zone.hierarchy] || 0xd7d7d2);
+    });
+
+    // Camera — a fixed elevated 3/4 view from the Front-Left, every single render, never
+    // randomized. Per buildStructuralShell's own coordinate system (see
+    // formatStructuralShellForBrief): origin at Front-Left, x runs Left->Right, y(world Z) runs
+    // Front->Rear. Positioned outside the booth on the Front and Left sides so both are visible.
+    const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, maxSpan * 12);
+    camera.position.set(-widthM * 0.35, maxSpan * 0.95, -depthM * 0.6);
+    camera.lookAt(widthM / 2, maxSpan * 0.15, depthM / 2);
+
+    renderer.render(scene, camera);
+    const dataUrl = canvas.toDataURL('image/png');
+    renderer.dispose();
+    return dataUrl;
+  }catch(err){
+    console.error('White-box geometry reference render failed (Test Engine) — continuing without a reference image:', err);
+    return null;
+  }
 }
 
 /* ================= END TEST SPATIAL PLANNING ENGINE (admin sandbox copy) ================= */
@@ -13475,8 +13580,17 @@ async function generateDesign(){
   const engineModeEl = document.getElementById('f_engineMode');
   const useTestEngine = isAdminUser && engineModeEl && engineModeEl.value === 'test';
   lastBubbleDiagramSVG = ''; // reset every run — a stale diagram from a previous project must never linger in the admin preview
+  lastWhiteBoxModelImage = ''; // reset every run — same reasoning as lastBubbleDiagramSVG above
   if(mode === 'booth' && spatialPlan){
     try{
+      // Computed once up front (shared by both engines below), rather than separately after each
+      // branch as before — Test Engine's white-box renderer needs the raw shell object itself
+      // (wall corners/thickness/height per side), not just its formatted text.
+      const structuralShellRaw = buildStructuralShell(
+        parseFloat(width), parseFloat(depth), parseFloat(totalHeight),
+        getBoothOpenSidesSet(),
+        spatialPlan.zonePlan.filter(z => (z.status === 'Kept' || z.status === 'Merged') && /^Storage room/.test(z.name))
+      );
       if(useTestEngine){
         const designIntent = buildDesignIntent_TE(parseFloat(width), parseFloat(depth), parseFloat(totalHeight));
         const functionalProgram = tagFurnitureSelection_TE(buildFunctionalProgram_TE(spatialPlan.zonePlan));
@@ -13489,6 +13603,15 @@ async function generateDesign(){
         solveLayoutNewEngine_TE(functionalProgram, relationships, journey, getBoothOpenSidesSet(), composition);
         spatialPlanText = assembleNewEngineBrief_TE(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy, composition, bubbleDiagram);
         lastBubbleDiagramSVG = renderBubbleDiagramSVG_TE(bubbleDiagram);
+        // White-Box Geometry Renderer — positions are only final now, after solveLayoutNewEngine_TE
+        // has run, so this has to happen here, not earlier. Silently stays '' (no reference image
+        // attached later) if Three.js isn't available or rendering fails for any reason — never
+        // blocks generation. When it succeeds, the brief gets one more note telling the model an
+        // exact reference image is attached and takes priority over the text description.
+        lastWhiteBoxModelImage = buildWhiteBoxModelSnapshot_TE(structuralShellRaw, functionalProgram);
+        if(lastWhiteBoxModelImage){
+          spatialPlanText += '\n\nGEOMETRY REFERENCE IMAGE ATTACHED (Test Engine only) — one attached image is a plain white 3D massing model built directly from this exact booth\'s own computed numbers (floor footprint, structural wall positions, open sides, and zone volumes) — zero AI involved in producing it. It is the ground truth for shape, wall position, orientation, and zone layout, overriding this text description if the two ever disagree on geometry. Match its floor size, wall positions, open sides, and zone locations exactly. Never redesign, rotate, mirror, or reinterpret the layout it shows. Use this text only for what the reference image cannot show: each zone\'s purpose/identity, materials, branding, lighting, and decoration.';
+        }
       }else{
         const designIntent = buildDesignIntent(parseFloat(width), parseFloat(depth), parseFloat(totalHeight));
         const functionalProgram = tagFurnitureSelection(buildFunctionalProgram(spatialPlan.zonePlan));
@@ -13502,11 +13625,7 @@ async function generateDesign(){
         spatialPlanText = assembleNewEngineBrief(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy, composition, bubbleDiagram);
         lastBubbleDiagramSVG = renderBubbleDiagramSVG(bubbleDiagram);
       }
-      structuralShellText = formatStructuralShellForBrief(buildStructuralShell(
-        parseFloat(width), parseFloat(depth), parseFloat(totalHeight),
-        getBoothOpenSidesSet(),
-        spatialPlan.zonePlan.filter(z => (z.status === 'Kept' || z.status === 'Merged') && /^Storage room/.test(z.name))
-      ));
+      structuralShellText = formatStructuralShellForBrief(structuralShellRaw);
     }catch(engineErr){
       console.error('Spatial Planning Engine (' + (useTestEngine ? 'Test' : 'Special') + ') failed — falling back to a minimal safe brief:', engineErr);
       spatialPlanText = buildMinimalFallbackSpatialPlanText(spatialPlan);
@@ -14742,8 +14861,19 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
     // product photos — real pixels attached directly to this exact render call, not just a
     // text description filtered through two earlier AI passes.
     if(brandAssets.images.length){
-      requestBody.additionalReferenceImages = brandAssets.images;
+      requestBody.additionalReferenceImages = (requestBody.additionalReferenceImages || []).concat(brandAssets.images);
       requestBody.prompt += brandAssets.note;
+    }
+    // White-Box Geometry Renderer (Test Engine only) — see buildWhiteBoxModelSnapshot_TE's own
+    // comment for why this exists: a text description can't guarantee a number, so this attaches
+    // the actual rendered geometry as a reference image instead of just describing it, the exact
+    // same "real pixels, not a guess" principle as the logo above, now applied to the whole
+    // booth's shape. lastWhiteBoxModelImage was set (or left '') back in generateDesign(), before
+    // this render session ever started — nothing here re-checks the engine selector, since that
+    // could have changed since Generate was actually clicked.
+    if(lastWhiteBoxModelImage){
+      const geomParts = dataUrlParts(lastWhiteBoxModelImage);
+      requestBody.additionalReferenceImages = (requestBody.additionalReferenceImages || []).concat([{ data: geomParts.base64, mimeType: geomParts.mime }]);
     }
     // Gemini only — no other option (the Image Engine admin-test selector has been removed;
     // every render, admin or not, goes through this one endpoint now). The 190s timeout (up from
