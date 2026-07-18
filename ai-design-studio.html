@@ -3076,6 +3076,27 @@ Replace only the materials and graphics."></textarea>
     <div id="errorBox"></div>
   </div>
 
+  <!-- Rule 1 — the Validation Engine never silently removes, resizes, or merges a client
+       requirement to make the program fit. When detectSpatialConflicts() finds any zone that
+       would need to change, generation pauses here instead, before Space Planning ever runs with
+       resolved data — every conflict must get an explicit client decision (Apply Recommendation /
+       Modify / Keep Original) before the pipeline continues. See showConflictApprovalScreen(). -->
+  <div id="conflictApprovalScreen" style="display:none;">
+    <div class="eyebrow">Validation Report — approval needed</div>
+    <h2 class="concept-title" style="margin-bottom:6px;">Some of your requirements don't fit this booth's size as specified</h2>
+    <p style="font-size:13.5px;color:var(--ink);opacity:.75;margin:0 0 20px;max-width:680px;">Nothing has been changed yet. Review each conflict below and choose what happens to it — nothing is removed, resized, or merged without your explicit decision.</p>
+
+    <div id="conflictCardsList"></div>
+
+    <div class="submit-bar" style="justify-content:space-between;align-items:center;">
+      <button class="secondary" onclick="cancelConflictApproval()">← Cancel — I'll edit the form myself</button>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <span id="conflictProgressText" style="font-size:12.5px;color:var(--ink);opacity:.7;"></span>
+        <button class="primary" id="conflictContinueBtn" onclick="confirmConflictContinue()" disabled>Continue with these decisions</button>
+      </div>
+    </div>
+  </div>
+
   <div id="promptReview" style="display:none;">
     <div class="eyebrow">Review before rendering</div>
     <h2 class="concept-title" style="margin-bottom:6px;">1 rendering prompt, written from your brief</h2>
@@ -4769,7 +4790,16 @@ Always generate prompts suitable for photorealistic 3D rendering — ultra-reali
 
 Never place random objects. Every element in the final design must trace back to one of the eleven reasoning steps above. Think like an architect designing for real construction — never like an illustrator filling a scene.`;
 
-const OUTPUT_REQUIREMENTS = `PAE-002 — TWO-LAYER PROMPT ARCHITECTURE (core rule)
+const OUTPUT_REQUIREMENTS = `EPS-021 — DATA GOVERNANCE (source of truth, never contradict or re-derive)
+
+The VALIDATED SPATIAL PROGRAM block elsewhere in this brief (zone status, dimensions, and position for every zone) is computed by a deterministic engine before you ever see this brief, from the client's own requirements and, where a conflict existed, the client's own explicit decision on it — never your own judgment. Treat it as the single source of truth for that data:
+- Never state, imply, or restate a zone's status (kept, merged, removed) differently anywhere else in your output than what the VALIDATED SPATIAL PROGRAM already says for it. The same document must never say a zone is both required and removed, or both present and absent — if you find yourself about to write a status for a zone, use the one already given instead of deciding your own.
+- Never invent or assign a position (front-left, center, etc.) for a zone that already has one in the VALIDATED SPATIAL PROGRAM — use that exact position. If a zone's position is not given there, never invent one yourself; describe that zone only by its purpose and contents, not by a spatial claim you made up.
+- A zone the VALIDATED SPATIAL PROGRAM marks with a "Client decision" or "Feasibility Warning" note (meaning the client explicitly modified it or chose to keep it despite a flagged space conflict) must be described exactly as specified there, including at the size the client chose — never quietly resized or omitted because it seems tight or unusual.
+- Any measurement, quantity, or material choice that is not an exact client-specified fact or a figure already computed by a deterministic engine block in this brief is your own generated recommendation, not an approved fact — write it as a design decision you are making, never with the false certainty of a client requirement.
+- Your job in the final rendering prompt is to describe already-decided architecture and content, not to re-plan it: never introduce a zone that isn't in the VALIDATED SPATIAL PROGRAM, never remove or resize one that is, and never alter the circulation or orientation facts given elsewhere in this brief.
+
+PAE-002 — TWO-LAYER PROMPT ARCHITECTURE (core rule)
 
 Every generated prompt must be organized into two distinct, clearly labeled layers, always in this order — architecture always established first, exhibition content always applied after:
 
@@ -8459,7 +8489,12 @@ function assignZonePositions(zonePlan, openSidesSet){
   return zonePlan;
 }
 
-function computeSpatialPlan(widthM, depthM, boothOrientationModelText, boothHeightM){
+// Shared zone-collection step used by both detectSpatialConflicts (read-only simulation) and
+// computeSpatialPlan (real application) — factored out so the two can never drift apart on what
+// "the requested program" actually consists of. Returns fresh zone objects every call (built from
+// the DOM's current checkbox/field state), all starting at status 'Kept' with their full,
+// unreduced requested size — nothing in this step ever merges, removes, or resizes anything.
+function buildRawSpatialZones(widthM, depthM, boothHeightM){
   const totalAreaSqm = widthM * depthM;
   const heroTier = getHeroStructureScaleTier(widthM, depthM);
   const sizeClass = getBoothSizeClass(totalAreaSqm);
@@ -8495,6 +8530,16 @@ function computeSpatialPlan(widthM, depthM, boothOrientationModelText, boothHeig
 
   const reducibleZones = [...knownZones, ...otherZones];
   const availableForZonesSqm = totalAreaSqm - circulationReserveSqm - heroFootprintSqmForBudget;
+
+  return { totalAreaSqm, heroTier, sizeClass, circulationPercent, circulationReserveSqm, heroFootprintSqmForBudget, heroZone, reducibleZones, availableForZonesSqm };
+}
+
+// Simulates the SAME priority-tier merge/remove pass either scenario needs, mutating the
+// `reducibleZones` array passed in directly — callers control whether that's the real zone list
+// (an actual, final application) or a disposable deep clone (detection only, nothing real
+// touched). Kept as one shared implementation so detection and application can never compute two
+// different answers for the same request.
+function simulateZoneReduction(reducibleZones, availableForZonesSqm){
   let overflowSqm = reducibleZones.reduce((s, z) => s + z.areaAllocationSqm, 0) - availableForZonesSqm;
 
   // Program Adaptation (SPE responsibility 3): never shrink furniture or compress circulation —
@@ -8514,8 +8559,8 @@ function computeSpatialPlan(widthM, depthM, boothOrientationModelText, boothHeig
       const combinedSqm = a.areaAllocationSqm + b.areaAllocationSqm;
       const mergedSqm = combinedSqm * 0.65;
       const saved = combinedSqm - mergedSqm;
-      a.status = 'Removed'; a.areaAllocationSqm = 0;
-      b.status = 'Merged'; b.name = `${b.name} + ${a.name} (merged into one shared zone)`; b.areaAllocationSqm = mergedSqm;
+      a.status = 'Removed'; a.areaAllocationSqm = 0; a.mergedInto = b;
+      b.status = 'Merged'; b.mergedFrom = a.name; b.name = `${b.name} + ${a.name} (merged into one shared zone)`; b.areaAllocationSqm = mergedSqm;
       // Recompute this merged zone's own scale spec (and dims) from its new combined footprint,
       // rather than keeping either original zone's now-inaccurate build dimensions.
       {
@@ -8538,6 +8583,129 @@ function computeSpatialPlan(widthM, depthM, boothOrientationModelText, boothHeig
       }
     }
   }
+  return overflowSqm;
+}
+
+// Stable identifier for a zone conflict, used to key the resolutions map the approval screen
+// hands back to applySpatialResolutions — derived from the zone's own name so it survives the
+// round trip between detectSpatialConflicts (before the screen) and applySpatialResolutions
+// (after it) without needing to carry array indices around.
+function zoneConflictId(name){
+  return name.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase();
+}
+
+// Rule 1 (never silently remove or modify a client requirement) — this is the detection-only
+// half of what used to be one inline auto-reducing loop inside computeSpatialPlan. It runs the
+// exact same reduction math as before, but on a disposable deep clone of the real zone list, and
+// reports what WOULD change as a structured conflict per affected zone instead of ever applying
+// it. Called before Space Planning; computeSpatialPlan itself now refuses to auto-resolve
+// anything unless it's handed the client's own resolutions for each conflict (see its own
+// comment below).
+function detectSpatialConflicts(widthM, depthM, boothHeightM){
+  const raw = buildRawSpatialZones(widthM, depthM, boothHeightM);
+  // Deep clone (JSON round-trip is safe here — every field is a plain string/number/null) so the
+  // simulation can freely mutate status/area/name without touching the real zone objects.
+  const clone = raw.reducibleZones.map(z => JSON.parse(JSON.stringify(z)));
+  simulateZoneReduction(clone, raw.availableForZonesSqm);
+
+  const totalRequestedSqm = raw.reducibleZones.reduce((s, z) => s + z.areaAllocationSqm, 0);
+  const conflicts = [];
+  raw.reducibleZones.forEach((original, i) => {
+    const simulated = clone[i];
+    if(simulated.status === original.status) return; // untouched by the simulation — no conflict
+    const conflict = {
+      id: zoneConflictId(original.name),
+      requirement: original.name,
+      requestedAreaSqm: original.areaAllocationSqm,
+      priorityTier: original.priorityTier,
+      priorityName: original.priorityName,
+      conflictReason: `Insufficient space — after the Hero Structure (${raw.heroFootprintSqmForBudget.toFixed(1)} sqm) and the circulation reserve (${raw.circulationReserveSqm.toFixed(1)} sqm) are allocated, only ${raw.availableForZonesSqm.toFixed(1)} sqm remains for ${totalRequestedSqm.toFixed(1)} sqm of requested zones. "${original.name}" is a ${original.priorityName} (tier ${original.priorityTier}) item, so it's among the first affected once the program doesn't fit.`,
+      recommendedAction: simulated.status, // 'Merged' or 'Removed'
+      recommendedAreaSqm: simulated.areaAllocationSqm,
+      recommendedMergedWithName: simulated.status === 'Merged' ? simulated.mergedFrom : null,
+      estimatedImpact: simulated.status === 'Removed'
+        ? 'This zone would not appear anywhere in the design at all.'
+        : `Reduced to a shared ${simulated.areaAllocationSqm.toFixed(1)} sqm zone, combined with "${simulated.mergedFrom}."`
+    };
+    conflicts.push(conflict);
+  });
+
+  // Genuine (Level 3) impossibility check — distinct from "has resolvable conflicts" above. This
+  // is the clone's own overflow AFTER simulating every possible merge/removal across every tier;
+  // a positive value here means no combination of client decisions on these conflicts can make
+  // the program fit at all (the booth itself needs to be bigger, or genuinely fewer things
+  // requested) — the one case that still deserves a hard block rather than an approval screen.
+  const overflowAfterMaxReductionSqm = clone.reduce((s, z) => s + z.areaAllocationSqm, 0) - raw.availableForZonesSqm;
+
+  return {
+    hasConflicts: conflicts.length > 0, conflicts,
+    totalAreaSqm: raw.totalAreaSqm, availableForZonesSqm: raw.availableForZonesSqm,
+    heroFootprintSqmForBudget: raw.heroFootprintSqmForBudget, circulationReserveSqm: raw.circulationReserveSqm,
+    totalRequestedSqm, overflowAfterMaxReductionSqm,
+    isImpossible: overflowAfterMaxReductionSqm > 0.001
+  };
+}
+
+// Applies the client's own per-conflict decisions (from the interactive approval screen) to a
+// fresh zone list — the only place any zone's status/size is actually allowed to change from what
+// the client requested, and only ever exactly what THEY chose for it, never a silent default.
+//   'accept' — apply the same treatment detectSpatialConflicts already recommended for this zone.
+//   'modify' — keep the zone (never removed), but at the client's own replacement size.
+//   'keep'   — keep the zone at its full original requested size; flagged with a feasibility
+//              warning that carries through to the brief, rather than silently pretending it's a
+//              clean fit.
+function applySpatialResolutions(reducibleZones, resolutions){
+  reducibleZones.forEach(z => {
+    const id = zoneConflictId(z.name);
+    const resolution = resolutions[id];
+    if(!resolution) return; // zone was never part of a conflict — stays Kept at its original size
+    if(resolution.decision === 'accept' && resolution.conflict){
+      const c = resolution.conflict;
+      z.status = c.recommendedAction;
+      z.areaAllocationSqm = c.recommendedAreaSqm;
+      z.resolutionNote = `Client accepted the recommendation: ${c.recommendedAction === 'Removed' ? 'removed to fit the available space.' : `reduced to ${c.recommendedAreaSqm.toFixed(1)} sqm to fit the available space.`}`;
+      if(z.status === 'Removed') z.areaAllocationSqm = 0;
+      if(z.status === 'Merged'){
+        const footprint = deriveFootprintMmFromAreaSqm(z.areaAllocationSqm);
+        z.scaleSpecText = `Build this merged zone with a floor footprint of exactly ${footprint.widthMm} mm × ${footprint.depthMm} mm.`;
+        z.dims = { shape: 'footprint', widthMm: footprint.widthMm, depthMm: footprint.depthMm };
+      }
+    }else if(resolution.decision === 'modify' && resolution.customAreaSqm > 0){
+      z.status = 'Kept';
+      z.areaAllocationSqm = resolution.customAreaSqm;
+      const footprint = deriveFootprintMmFromAreaSqm(resolution.customAreaSqm);
+      z.scaleSpecText = `Build the ${z.name} zone with a floor footprint of exactly ${footprint.widthMm} mm × ${footprint.depthMm} mm (client-specified replacement size, given the available space).`;
+      z.dims = { shape: 'footprint', widthMm: footprint.widthMm, depthMm: footprint.depthMm };
+      z.resolutionNote = `Client modified the requested size from ${resolution.conflict ? resolution.conflict.requestedAreaSqm.toFixed(1) : '?'} sqm to ${resolution.customAreaSqm.toFixed(1)} sqm.`;
+    }else{ // 'keep' — or any resolution missing enough data to act on safely defaults to the
+           // safest option, which is preserving the client's original requirement, never removing it.
+      z.status = 'Kept';
+      z.feasibilityWarning = true;
+      z.resolutionNote = 'Client chose to keep this requirement at its original size despite the Validation Engine flagging insufficient space — the final design may be tight or not fully feasible for this element.';
+    }
+  });
+}
+
+function computeSpatialPlan(widthM, depthM, boothOrientationModelText, boothHeightM, resolutions){
+  const raw = buildRawSpatialZones(widthM, depthM, boothHeightM);
+  const { totalAreaSqm, heroTier, sizeClass, circulationPercent, circulationReserveSqm, heroFootprintSqmForBudget, heroZone, reducibleZones, availableForZonesSqm } = raw;
+
+  let hasUnresolvedConflicts = false;
+  let conflicts = [];
+  if(resolutions){
+    // Rule 1 — the ONLY path that's ever allowed to change a zone's status or size: applying
+    // exactly what the client decided for each conflict, nothing automatic or inferred.
+    applySpatialResolutions(reducibleZones, resolutions);
+  }else{
+    // No resolutions given — detect whether anything would need to change, but never apply it
+    // automatically. If conflicts exist, every zone here stays at its full original 'Kept' status
+    // and size; the caller (generateDesign) must show the approval screen and call this function
+    // again with resolutions before this plan is ever used for a real generation.
+    const detection = detectSpatialConflicts(widthM, depthM, boothHeightM);
+    hasUnresolvedConflicts = detection.hasConflicts;
+    conflicts = detection.conflicts;
+  }
+  let overflowSqm = reducibleZones.reduce((s, z) => s + z.areaAllocationSqm, 0) - availableForZonesSqm;
 
   // Scale Ratio Engine — a second, independent safety net on top of the aggregate area-budget
   // reduction above. That loop only guarantees the TOTAL kept/merged area fits; on its own it
@@ -8606,7 +8774,13 @@ function computeSpatialPlan(widthM, depthM, boothOrientationModelText, boothHeig
     widthM, depthM, totalAreaSqm, sizeClass,
     heroTier, circulationPercent, circulationReserveSqm,
     zonePlan, requiredAreaSqm, remainingFlexibleAreaSqm,
-    removedCount, mergedCount, programFits, validation, scaleRatios
+    removedCount, mergedCount, programFits, validation, scaleRatios,
+    availableForZonesSqm,
+    // Rule 1 support — see computeSpatialPlan's own comment above. When hasUnresolvedConflicts is
+    // true, every other field on this object reflects the UNRESOLVED, full-size request (nothing
+    // was reduced) and must NOT be used for a real generation — the caller has to show the
+    // conflicts to the client and call this function again with resolutions first.
+    hasUnresolvedConflicts, conflicts
   };
 }
 
@@ -8649,11 +8823,17 @@ function formatSpatialPlanForBrief(plan){
     lines.push(`Priority: ${z.priorityName} (tier ${z.priorityTier})`);
     if(z.status === 'Removed'){
       lines.push('Status: Removed — this zone was requested but does not survive at this booth\'s real size; it must not appear anywhere in this design.');
+      if(z.resolutionNote) lines.push(`Client decision: ${z.resolutionNote}`);
     }else{
       formatDimsBlock(z.dims).forEach(l => lines.push(l));
       if(z.position) lines.push(`Position: ${z.position.label} (x=${z.position.xFrac.toFixed(2)}, y=${z.position.yFrac.toFixed(2)})`);
       lines.push(`Status: ${z.status}${z.status === 'Merged' ? ' — rendered as one combined shared zone' : ''}`);
       if(z.scaleSpecText) lines.push(`Build detail: ${z.scaleSpecText}`);
+      // Rule 1/Rule 3 — a zone the client explicitly modified or insisted on keeping despite a
+      // flagged space conflict must say so plainly here, as a separate client-decision fact, never
+      // silently presented as if it were a clean, uncontested fit.
+      if(z.resolutionNote) lines.push(`Client decision: ${z.resolutionNote}`);
+      if(z.feasibilityWarning) lines.push('Feasibility Warning: the client chose to keep this requirement at its original size despite insufficient space per the Validation Engine — build it at the stated size regardless, even if it results in a tighter or less comfortable layout than usual.');
     }
     lines.push('');
   });
@@ -11090,9 +11270,13 @@ function getMissingRequirements(m){
     // block (this one only disables the button/tooltip; that one stops an in-flight click before
     // any project gets saved or any AI call is made).
     if(width && depth && totalHeight && parseFloat(width) > 0 && parseFloat(depth) > 0 && parseFloat(totalHeight) > 0){
-      const spatialFit = computeSpatialPlan(parseFloat(width), parseFloat(depth), '', parseFloat(totalHeight));
-      if(spatialFit.programFits.startsWith('NO')){
-        missing.push('a bigger booth size or fewer selected Requirements/Areas — the elements you\'ve selected don\'t fit this booth\'s size even after reducing lower-priority items');
+      // Rule 1 — a resolvable conflict (something COULD be merged/reduced to fit) is no longer a
+      // reason to disable the button; that now routes to the interactive approval screen instead.
+      // Only a genuine Level 3 impossibility (doesn't fit even after every possible reduction)
+      // still disables Generate here, via detectSpatialConflicts' own isImpossible flag.
+      const conflictCheck = detectSpatialConflicts(parseFloat(width), parseFloat(depth), parseFloat(totalHeight));
+      if(conflictCheck.isImpossible){
+        missing.push('a bigger booth size or fewer selected Requirements/Areas — the elements you\'ve selected don\'t fit this booth\'s size even after reducing every possible lower-priority item');
       }
     }
     if(colorHexes.length === 0) missing.push(t('validation.brandColor'));
@@ -11943,14 +12127,19 @@ async function generateDesign(){
   const openSides = mode === 'booth' ? buildOpenSidesDescription() : '';
   const boothOrientationModel = mode === 'booth' ? buildBoothOrientationModel(parseFloat(width), parseFloat(depth)) : '';
   const boothHasValidFootprint = mode === 'booth' && parseFloat(width) > 0 && parseFloat(depth) > 0;
-  const spatialPlan = boothHasValidFootprint
+  // Rule 1 — these three start out built WITHOUT resolutions (computeSpatialPlan's default,
+  // detect-only behavior: nothing merged/reduced/removed yet). If that detection finds conflicts,
+  // the pre-check block further below shows the approval screen and REASSIGNS all three of these
+  // (hence `let`, not `const`) from a second computeSpatialPlan call that applies the client's own
+  // resolutions — so nothing downstream ever sees an auto-reduced plan the client didn't approve.
+  let spatialPlan = boothHasValidFootprint
     ? computeSpatialPlan(parseFloat(width), parseFloat(depth), boothOrientationModel, parseFloat(document.getElementById('f_totalHeight').value))
     : null;
-  const spatialPlanText = spatialPlan ? formatSpatialPlanForBrief(spatialPlan) : '';
+  let spatialPlanText = spatialPlan ? formatSpatialPlanForBrief(spatialPlan) : '';
   // BSE-001 — Structural Shell Engine: computed AFTER the spatial plan (so it knows which
   // storage room zones actually survived and where LPE-001 positioned them), independently of
   // the plan's own prose — this is the immutable wall geometry block, never natural-language.
-  const structuralShellText = boothHasValidFootprint
+  let structuralShellText = boothHasValidFootprint
     ? formatStructuralShellForBrief(buildStructuralShell(
         parseFloat(width), parseFloat(depth), parseFloat(document.getElementById('f_totalHeight').value),
         getBoothOpenSidesSet(),
@@ -12052,19 +12241,37 @@ async function generateDesign(){
     }
   }
   if(mode === 'booth' && width && depth && totalHeight){
-    // SFE-001 Program Fit — the same deterministic spatial-budget engine that builds the
-    // VALIDATED SPATIAL PROGRAM brief block (computeSpatialPlan) already knows, before any AI
-    // call, whether everything selected genuinely fits this booth's real size even after
-    // automatically merging/removing the lowest-priority zones. A real reported case showed
-    // what happens when this isn't checked here: the AI response for an overflowing program
-    // came back as a plain-English explanation instead of JSON, which the refusal detector
-    // (see looksLikeRefusal) misread as a content-safety refusal — a wrong, confusing message
-    // for what's actually just a sizing problem. Checking it here, BEFORE saveCurrentProject()
-    // and the "Before you generate" popup even run, means this exact case now gets an accurate
-    // message and never burns a project-quota slot on an attempt that was never going to work.
-    const spatialFitCheck = computeSpatialPlan(parseFloat(width), parseFloat(depth), '', parseFloat(totalHeight));
-    if(spatialFitCheck.programFits.startsWith('NO')){
-      errBox.textContent = `The elements and requirements you've selected don't fit in a ${parseFloat(width).toFixed(1)}m × ${parseFloat(depth).toFixed(1)}m booth, even after automatically reducing lower-priority items. Please increase the booth size, or select fewer Requirements or Areas, then try Generate again.`;
+    // Rule 1 (Validation Engine) — computeSpatialPlan above was built WITHOUT resolutions, so if
+    // anything requested doesn't fit this booth's real size, it's sitting here unresolved (every
+    // zone still at its full original size, nothing auto-merged/reduced/removed) with the
+    // conflicts listed on spatialPlan.conflicts. Pause here, before Space Planning proceeds with
+    // any of this data, and let the client decide — this replaces the old behavior of silently
+    // auto-reducing and never telling them.
+    if(spatialPlan && spatialPlan.hasUnresolvedConflicts){
+      const resolutions = await showConflictApprovalScreen(spatialPlan.conflicts, spatialPlan);
+      if(!resolutions){
+        return; // client chose to go back and adjust the form themselves — no quota touched, no API call made
+      }
+      // The only computeSpatialPlan call in this entire flow allowed to change any zone's status
+      // or size — and only ever exactly what the client just decided for each one.
+      spatialPlan = computeSpatialPlan(parseFloat(width), parseFloat(depth), boothOrientationModel, parseFloat(totalHeight), resolutions);
+      spatialPlanText = formatSpatialPlanForBrief(spatialPlan);
+      structuralShellText = formatStructuralShellForBrief(buildStructuralShell(
+        parseFloat(width), parseFloat(depth), parseFloat(totalHeight),
+        getBoothOpenSidesSet(),
+        spatialPlan.zonePlan.filter(z => (z.status === 'Kept' || z.status === 'Merged') && /^Storage room/.test(z.name))
+      ));
+    }
+    // Level 3 (genuinely impossible) — the one case that still hard-blocks Generate outright: the
+    // resolved plan still doesn't fit, and that's NOT explained by the client deliberately
+    // choosing "Keep Original" on something oversized (that's an accepted, flagged tradeoff per
+    // Rule 1, not a failure) — e.g. a booth too small even after every conflict was resolved as
+    // recommended. A real reported case showed what happens when this isn't checked at all: the
+    // AI response for an overflowing program came back as a plain-English explanation instead of
+    // JSON, misread by the refusal detector as a content-safety refusal — a wrong, confusing
+    // message for what's actually just a sizing problem.
+    if(spatialPlan && spatialPlan.programFits.startsWith('NO') && !spatialPlan.zonePlan.some(z => z.feasibilityWarning)){
+      errBox.textContent = `Even with your approved changes, the selected elements don't fit in a ${parseFloat(width).toFixed(1)}m × ${parseFloat(depth).toFixed(1)}m booth. Please increase the booth size, or select fewer Requirements or Areas, then try Generate again.`;
       errBox.style.display = 'block';
       errBox.scrollIntoView({behavior:'smooth', block:'center'});
       return;
@@ -12892,6 +13099,136 @@ function __resolveEngineChoice(engine){
 
 let pendingPromptResult = null;
 let lastGeneratedMode = null;
+
+/* ---------- Rule 1 — interactive Requirement Conflict approval screen ----------
+   Shown by generateDesign() whenever detectSpatialConflicts() finds a zone that would need to be
+   merged, reduced, or removed to fit this booth. Promise-based, same pattern as customConfirm:
+   resolves to a resolutions map (keyed by zoneConflictId) once every conflict has an explicit
+   client decision, or null if the client cancels instead — generateDesign() aborts cleanly on
+   null, exactly like the admin brief-preview cancel path. Nothing here ever picks a default on
+   the client's behalf; the Continue button stays disabled until every single conflict card has a
+   recorded decision. */
+let __conflictApprovalResolve = null;
+let __conflictRecords = [];
+let __conflictDecisions = {};
+
+function showConflictApprovalScreen(conflicts, planContext){
+  return new Promise(resolve => {
+    __conflictApprovalResolve = resolve;
+    __conflictRecords = conflicts;
+    __conflictDecisions = {};
+
+    const list = document.getElementById('conflictCardsList');
+    list.innerHTML = conflicts.map(c => {
+      const recommendedLabel = c.recommendedAction === 'Removed'
+        ? 'Remove this zone entirely'
+        : `Reduce to ${c.recommendedAreaSqm.toFixed(1)} sqm${c.recommendedMergedWithName ? ` (combined with "${c.recommendedMergedWithName}")` : ''}`;
+      return `
+      <div class="conflict-card" id="conflictCard_${c.id}" style="border:1.5px solid var(--line);border-radius:4px;padding:20px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+          <div style="font-weight:700;font-size:15px;color:var(--navy);">⚠ Space Conflict — ${c.requirement}</div>
+          <div class="conflict-status-badge" id="conflictBadge_${c.id}" style="font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:20px;background:#fff3cd;color:#7a5c00;white-space:nowrap;">Waiting for your decision</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0;">
+          <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.6;margin-bottom:2px;">Requested</div><div style="font-size:13.5px;">${c.requirement} — ${c.requestedAreaSqm.toFixed(1)} sqm</div></div>
+          <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.6;margin-bottom:2px;">Available Booth</div><div style="font-size:13.5px;">${planContext.totalAreaSqm.toFixed(1)} sqm total (${planContext.availableForZonesSqm.toFixed(1)} sqm left for this priority tier)</div></div>
+        </div>
+        <div style="margin-bottom:10px;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.6;margin-bottom:2px;">Issue</div><div style="font-size:13.5px;">${c.conflictReason}</div></div>
+        <div style="margin-bottom:14px;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.6;margin-bottom:4px;">Recommended Options</div>
+          <div style="font-size:13.5px;margin-bottom:3px;">① ${recommendedLabel} <strong>(Recommended)</strong></div>
+          <div style="font-size:13.5px;">② Keep ${c.requestedAreaSqm.toFixed(1)} sqm anyway — design quality may decrease (tighter circulation, less open space)</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="conflictActions_${c.id}">
+          <button class="primary small" onclick="resolveConflict('${c.id}','accept')">✅ Apply Recommendation</button>
+          <button class="ghost small" onclick="showConflictModifyInput('${c.id}')">✏️ Modify</button>
+          <button class="ghost small" onclick="resolveConflict('${c.id}','keep')">❌ Keep Original</button>
+        </div>
+        <div class="conflict-modify-row" id="conflictModify_${c.id}" style="display:none;margin-top:10px;gap:8px;align-items:center;">
+          <input type="number" min="0.5" step="0.5" id="conflictModifyInput_${c.id}" placeholder="Custom size (sqm)" style="max-width:160px;">
+          <button class="primary small" onclick="resolveConflict('${c.id}','modify')">Confirm size</button>
+        </div>
+        <div id="conflictDecisionNote_${c.id}" style="display:none;margin-top:10px;font-size:12.5px;color:var(--ink);opacity:.8;"></div>
+      </div>`;
+    }).join('');
+
+    updateConflictProgress();
+    document.getElementById('conflictApprovalScreen').style.display = 'block';
+    document.getElementById('conflictApprovalScreen').scrollIntoView({behavior:'smooth', block:'start'});
+  });
+}
+
+function showConflictModifyInput(id){
+  document.getElementById('conflictModify_' + id).style.display = 'flex';
+}
+
+function resolveConflict(id, decision){
+  const conflict = __conflictRecords.find(c => c.id === id);
+  if(!conflict) return;
+
+  let customAreaSqm = null;
+  if(decision === 'modify'){
+    const input = document.getElementById('conflictModifyInput_' + id);
+    customAreaSqm = parseFloat(input && input.value);
+    if(!(customAreaSqm > 0)){
+      input.focus();
+      return; // must enter a real size before this counts as a decision
+    }
+  }
+
+  __conflictDecisions[id] = { decision, conflict, customAreaSqm };
+
+  const badge = document.getElementById('conflictBadge_' + id);
+  const note = document.getElementById('conflictDecisionNote_' + id);
+  const actions = document.getElementById('conflictActions_' + id);
+  const modifyRow = document.getElementById('conflictModify_' + id);
+  const card = document.getElementById('conflictCard_' + id);
+
+  // Built as functions, not eagerly-evaluated object properties — customAreaSqm is null for
+  // every decision except 'modify', so a plain object literal here would call .toFixed() on null
+  // for the other two branches even though only one label is ever actually used.
+  const labels = {
+    accept: () => `✅ Recommendation applied — ${conflict.recommendedAction === 'Removed' ? 'this zone will be removed' : `reduced to ${conflict.recommendedAreaSqm.toFixed(1)} sqm`}.`,
+    modify: () => `✏️ Modified — kept at your custom size of ${customAreaSqm.toFixed(1)} sqm.`,
+    keep: () => `❌ Kept at the original ${conflict.requestedAreaSqm.toFixed(1)} sqm — final design may be tight or not fully feasible for this element.`
+  };
+  badge.textContent = 'Decided';
+  badge.style.background = '#e6f4ea';
+  badge.style.color = '#1e6b34';
+  note.textContent = labels[decision]();
+  note.style.display = 'block';
+  actions.style.display = 'none';
+  modifyRow.style.display = 'none';
+  card.style.borderColor = 'var(--navy)';
+
+  updateConflictProgress();
+}
+
+function updateConflictProgress(){
+  const total = __conflictRecords.length;
+  const done = Object.keys(__conflictDecisions).length;
+  document.getElementById('conflictProgressText').textContent = `${done} of ${total} resolved`;
+  document.getElementById('conflictContinueBtn').disabled = done < total;
+}
+
+function confirmConflictContinue(){
+  if(Object.keys(__conflictDecisions).length < __conflictRecords.length) return;
+  document.getElementById('conflictApprovalScreen').style.display = 'none';
+  const resolutions = __conflictDecisions;
+  const resolve = __conflictApprovalResolve;
+  __conflictApprovalResolve = null;
+  __conflictRecords = [];
+  __conflictDecisions = {};
+  if(resolve) resolve(resolutions);
+}
+
+function cancelConflictApproval(){
+  document.getElementById('conflictApprovalScreen').style.display = 'none';
+  const resolve = __conflictApprovalResolve;
+  __conflictApprovalResolve = null;
+  __conflictRecords = [];
+  __conflictDecisions = {};
+  if(resolve) resolve(null);
+}
 
 async function showPromptReview(promptResult){
   pendingPromptResult = promptResult;
