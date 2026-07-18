@@ -13450,6 +13450,17 @@ async function confirmRegenerateOtherOption(){
       otherOptionBody.referenceMimeType = logoMediaType;
       otherOptionBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
     }
+    // Same fix as startRenderSession's own brandAssets wiring (see buildBrandPortfolioRenderAssets'
+    // comment) — "Other option" used to build its request body entirely on its own, skipping this
+    // attachment step, so it never actually saw the represented brands' real logo/product pixels
+    // and only ever had BIE-001's after-the-fact correction pass to fall back on. Real reported
+    // case: a user's Brand Portfolio & Products were correctly used on the initial Generate, but
+    // ignored on every "Other option" click afterward. Attached the same way here, per option.
+    const otherOptionBrandAssets = await buildBrandPortfolioRenderAssets();
+    if(otherOptionBrandAssets.images.length){
+      otherOptionBody.additionalReferenceImages = otherOptionBrandAssets.images;
+      otherOptionBody.prompt += otherOptionBrandAssets.note;
+    }
     // The very first render (Generate Design) always stays on Gemini. Admins picked an exact
     // engine for this click via the dialog at the top of this function (forcedEngine); every
     // other user instead gets automatic alternation — 1st Other option -> OpenAI, 2nd ->
@@ -13755,6 +13766,16 @@ ${buildApprovedDecisionsText()}
       requestBody.additionalReferenceImages = [{ data: refParts.base64, mimeType: refParts.mime }];
       requestBody.prompt += ` A second reference image is also attached, showing an additional material, color, or style the client wants reflected in this change — incorporate its relevant qualities into the edit without copying it exactly unless the change explicitly calls for that.`;
     }
+    // Same fix as startRenderSession/confirmRegenerateOtherOption/submitModifyDesign's own
+    // brandAssets wiring — a targeted Edit Image can land on or near a brand/product display
+    // area just as easily as any other generation step, so this path needs the same real
+    // logo/product pixels attached rather than relying on BIE-001 alone (which this specific
+    // edit flow never runs afterward).
+    const editBrandAssets = await buildBrandPortfolioRenderAssets();
+    if(editBrandAssets.images.length){
+      requestBody.additionalReferenceImages = [...(requestBody.additionalReferenceImages || []), ...editBrandAssets.images];
+      requestBody.prompt += editBrandAssets.note;
+    }
     requestBody.prompt += HARD_CONSTRAINTS_SUFFIX;
   }catch(err){
     console.error('Image compression failed:', err);
@@ -14045,6 +14066,14 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
   if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
     additionalReferenceImages.push({ data: logoDataUrl.split(',')[1], mimeType: logoMediaType });
     modifyPrompt += '\n\nThe last attached image is the exact, authoritative company logo — wherever the logo appears in the design, it must match this exactly, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
+  }
+  // Same fix as startRenderSession/confirmRegenerateOtherOption's own brandAssets wiring — this
+  // path also built its reference-image list entirely on its own and never attached the
+  // represented brands' real logo/product pixels, so Modify Design had the identical gap.
+  const modifyDesignBrandAssets = await buildBrandPortfolioRenderAssets();
+  if(modifyDesignBrandAssets.images.length){
+    additionalReferenceImages.push(...modifyDesignBrandAssets.images);
+    modifyPrompt += modifyDesignBrandAssets.note;
   }
 
   // Captured before the request, since opt.usedFreeModification changes as a result of it.
