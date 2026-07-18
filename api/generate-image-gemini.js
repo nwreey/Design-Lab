@@ -105,6 +105,14 @@ module.exports = async (req, res) => {
     const SUPPORTED_ASPECT_RATIOS = new Set(['1:1', '3:2', '2:3', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
     const resolvedAspectRatio = SUPPORTED_ASPECT_RATIOS.has(aspectRatio) ? aspectRatio : '16:9';
 
+    // Admin-only speed optimization for testing: Gemini's 2K image size (the production default,
+    // below) takes noticeably longer to generate than 1K, which shows up as a long "click
+    // Generate, wait" loop for an admin iterating on prompts/engines. This is a server-side check
+    // on the authenticated caller's own role (never a client-sent flag), so a non-admin can never
+    // trigger it by crafting a request body — every non-admin always gets the full 2K production
+    // quality, unchanged.
+    const resolvedImageSize = caller.role === 'admin' ? '1K' : '2K';
+
     // The very first modification on a freshly generated design doesn't count against the
     // modify quota at all — occasionally the initial render needs a quick correction, and
     // that shouldn't cost the person anything. This bypasses both the limit check and the
@@ -144,7 +152,7 @@ module.exports = async (req, res) => {
         contents: [{ parts: requestParts }],
         generationConfig: {
           responseModalities: ['TEXT', 'IMAGE'],
-          imageConfig: { imageSize: '2K', aspectRatio: resolvedAspectRatio },
+          imageConfig: { imageSize: resolvedImageSize, aspectRatio: resolvedAspectRatio },
         },
       }),
     });
