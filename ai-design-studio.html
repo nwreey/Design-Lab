@@ -3065,6 +3065,11 @@ Replace only the materials and graphics."></textarea>
       <div class="hint" id="imageEngineHint">Admin-only experiment: choose which model actually renders the image from the exact same finished prompt, to compare Gemini vs. OpenAI design quality side-by-side. Only this final image-rendering step changes — the two-stage analysis and prompt-writing above are unaffected either way.</div>
     </div>
 
+    <div class="field" id="newSpatialEngineField" style="display:none;">
+      <label class="check-item-compact" style="font-weight:600;"><input type="checkbox" id="f_newSpatialEngine"> Use New Spatial Engine (Admin Test)</label>
+      <div class="hint">Admin-only experiment: runs the architect-first redesign (Design Intent → Functional Program → Spatial Relationships → Visitor Journey → Zone Allocation → Hero Strategy → Layout Solver) on top of the same underlying sizing formulas, and replaces the Validated Spatial Program section of the brief with its richer output. Off by default; every non-admin request is unaffected either way. See Spatial-Planning-Engine-Redesign.md for the full architecture.</div>
+    </div>
+
     <div class="submit-bar">
       <button class="primary" id="submitBtn" onclick="generateDesign()" data-i18n="btn.generateDesign">Generate Design</button>
     </div>
@@ -9135,6 +9140,8 @@ async function checkAdminAccess(){
       });
       const engineField = document.getElementById('imageEngineField');
       if(engineField) engineField.style.display = 'block';
+      const newEngineField = document.getElementById('newSpatialEngineField');
+      if(newEngineField) newEngineField.style.display = 'block';
     }
     // The AI Auto-fill Helper ("Need help completing this brief?") has now graduated from an
     // admin-only test to a normal feature for every user, in both Booth and Event modes — shown
@@ -10061,6 +10068,353 @@ function sidesTouchedByPositionLabel(label){
   if(/Right/.test(label)) sides.push('Right');
   return sides;
 }
+
+/* ================= NEW SPATIAL PLANNING ENGINE (admin test) =================
+   Architect-driven redesign per Spatial-Planning-Engine-Redesign.md: Client Brief -> Design
+   Intent -> Functional Program -> Spatial Relationships -> Visitor Circulation -> Architectural
+   Zones -> Furniture Selection -> Furniture Dimensions -> Layout Optimization -> Gemini
+   Rendering. Gated entirely behind isAdminUser + the "Use New Spatial Engine (Admin Test)"
+   toggle (#f_newSpatialEngine) — the pipeline above (computeSpatialPlan / assignZonePositions /
+   buildStructuralShell) is completely unaffected and remains what every non-admin request uses,
+   and is also still what runs FIRST for admin requests too (see generateDesign()'s wiring).
+
+   Per explicit instruction, this first pass does NOT modify any existing sizing formula.
+   computeSpatialPlan() still runs first and produces the real, conflict-resolved zonePlan with
+   its exact/estimated areas, dims, and scaleSpecText, using the exact same math as always.
+   Everything below RE-ORGANIZES that already-computed zonePlan through the architect-first
+   pipeline (intent -> relationships -> journey -> hero strategy -> layout) and reformats it into
+   a richer brief — it does not recompute any zone's area or footprint. A real formula-level
+   rewrite (migration plan Phases 2/4/5) is a deliberate follow-up once this framing has been
+   validated against real admin test runs. ================= */
+
+// --- Stage 10 (partial) — the five split libraries. Deliberately thin wrappers around the SAME
+// existing constants (EXHIBITION_STANDARDS_LIBRARY, ADDREQ_ZONE_META, STRUCTURAL_WALL_THICKNESS_MM)
+// rather than new data, so nothing about actual sizing changes here — only how it's organized and
+// labeled. EXHIBITION_STANDARDS_LIBRARY itself is untouched and still powers the existing
+// pipeline exactly as before.
+const HUMAN_FACTORS_LIBRARY = {
+  walkingMinimumMm: EXHIBITION_STANDARDS_LIBRARY.walking.minimumMm,
+  walkingComfortMm: EXHIBITION_STANDARDS_LIBRARY.walking.comfortMm,
+  chairFootprintMm: EXHIBITION_STANDARDS_LIBRARY.chair.footprintMm,
+  chairHeightMm: EXHIBITION_STANDARDS_LIBRARY.chair.heightMm,
+  wheelchairClearanceMm: 900, // no dedicated wheelchair figure existed before — documented here as the same real-world walking.minimumMm
+  doorClearanceMm: 900,
+};
+const FURNITURE_LIBRARY = {
+  receptionCounter: EXHIBITION_STANDARDS_LIBRARY.receptionCounter,
+  meetingTable: EXHIBITION_STANDARDS_LIBRARY.meetingTable,
+  chair: EXHIBITION_STANDARDS_LIBRARY.chair,
+  touchScreen: EXHIBITION_STANDARDS_LIBRARY.touchScreen,
+  displayTable: EXHIBITION_STANDARDS_LIBRARY.displayTable,
+  pedestal: EXHIBITION_STANDARDS_LIBRARY.pedestal,
+  informationCounter: EXHIBITION_STANDARDS_LIBRARY.informationCounter,
+  ledScreen: EXHIBITION_STANDARDS_LIBRARY.ledScreen,
+  tvScreen: EXHIBITION_STANDARDS_LIBRARY.tvScreen,
+  coffeeBar: EXHIBITION_STANDARDS_LIBRARY.coffeeBar,
+  loungeChair: EXHIBITION_STANDARDS_LIBRARY.loungeChair,
+  demoBench: EXHIBITION_STANDARDS_LIBRARY.demoBench,
+  interactiveKiosk: EXHIBITION_STANDARDS_LIBRARY.interactiveKiosk,
+};
+const PRODUCT_DISPLAY_LIBRARY = {
+  vehicleDisplayArea: EXHIBITION_STANDARDS_LIBRARY.vehicleDisplayArea,
+  genericZoneMeta: ADDREQ_ZONE_META, // the ~50 generic "other requested zones" estimates
+};
+const ARCHITECTURAL_LIBRARY = {
+  archetypes: {
+    Portal:               { needsOpenSides: 2, prefersBudget: ['standard', 'premium', 'flagship'], aspect: 'wide-shallow', description: 'a walk-through architectural frame spanning an open approach, inviting visitors directly under/through it' },
+    Tower:                { minSizeClass: ['Medium Booth', 'Large Booth', 'Flagship Pavilion'], prefersBudget: ['premium', 'flagship'], aspect: 'compact-tall', description: 'a vertical architectural mass that reads from across the hall, emphasizing height over footprint' },
+    'Floating Frame':     { maxSizeClass: ['Tiny Booth', 'Compact Booth', 'Small Booth'], aspect: 'wide-shallow', description: 'a lightweight suspended/ceiling-integrated frame that reads as architecture without consuming floor footprint — per EPS-018 for small booths' },
+    'Feature Wall':       { needsOpenSides: 0, aspect: 'wide-shallow', description: 'one dominant branded wall surface anchoring the booth against its own structural wall' },
+    'Sculptural Element': { prefersBudget: ['premium', 'flagship'], prefersIndustry: ['Luxury', 'Fashion', 'Automotive', 'Government'], aspect: 'compact-tall', description: 'one iconic sculptural form expressing the brand concept, freestanding within open floor' },
+    'LED Gateway':        { prefersIndustry: ['Technology', 'Automotive', 'Entertainment'], prefersBudget: ['standard', 'premium', 'flagship'], aspect: 'wide-shallow', description: 'an illuminated digital-first structure combining screen/lighting technology with architectural form' },
+  }
+};
+const EXHIBITION_RULES_LIBRARY = {
+  structuralWallThicknessMm: STRUCTURAL_WALL_THICKNESS_MM,
+  circulationReservePercentBySize: { upTo18Sqm: 0.45, upTo36Sqm: 0.40, upTo72Sqm: 0.35, above72Sqm: 0.30 },
+  ratioCapByTier: { 1: 0.20, 2: 0.20, 3: 0.25, 4: 0.12, 5: 0.12, 6: 0.20, 7: 0.20, 8: 0.10 },
+};
+
+// --- DIE-001 — Design Intent Engine. Deterministic; interprets the brief's own existing fields
+// into a structured intent object every later engine reads. Never decides a zone's size or
+// position itself.
+function buildDesignIntent(widthM, depthM, boothHeightM){
+  const totalAreaSqm = widthM * depthM;
+  const sizeClass = getBoothSizeClass(totalAreaSqm);
+  const openSidesSet = getBoothOpenSidesSet();
+  const industryEl = document.getElementById('f_industryStyle');
+  const industry = industryEl ? industryEl.value : '';
+  const personalities = (typeof selectedBrandPersonalities !== 'undefined' && selectedBrandPersonalities) ? selectedBrandPersonalities : [];
+
+  const HIGH_IMPORTANCE_TRAITS = new Set(['Bold', 'Dynamic', 'Energetic', 'Futuristic', 'Innovative', 'Exclusive', 'Luxury', 'Immersive']);
+  const PREMIUM_TRAITS = new Set(['Premium', 'Luxury', 'Exclusive', 'Elegant', 'Timeless']);
+  const brandImportance = personalities.some(p => HIGH_IMPORTANCE_TRAITS.has(p)) ? 'high' : 'medium';
+
+  // No explicit budget field exists on the form today — inferred from booth size class as a
+  // documented, bounded heuristic (a Flagship Pavilion or Large Booth signals a bigger real
+  // budget than a Tiny/Compact booth), nudged up one tier if the client picked premium-leaning
+  // brand traits. This is a placeholder signal, not a real budget input — flagged as an open
+  // decision in Spatial-Planning-Engine-Redesign.md (a dedicated budget field would replace it).
+  const budgetOrder = ['economy', 'standard', 'premium', 'flagship'];
+  let budgetTier = ({ 'Tiny Booth': 'economy', 'Compact Booth': 'economy', 'Small Booth': 'standard', 'Medium Booth': 'standard', 'Large Booth': 'premium', 'Flagship Pavilion': 'flagship' })[sizeClass.sizeClass] || 'standard';
+  if(personalities.some(p => PREMIUM_TRAITS.has(p))){
+    budgetTier = budgetOrder[Math.min(budgetOrder.length - 1, budgetOrder.indexOf(budgetTier) + 1)];
+  }
+
+  return {
+    industry, sizeClass: sizeClass.sizeClass, brandImportance, budgetTier,
+    architecturalStylePreference: personalities[0] || '',
+    openSides: [...openSidesSet],
+    totalAreaSqm, widthM, depthM, boothHeightM: boothHeightM || 0,
+    brandPersonalities: personalities.slice(),
+  };
+}
+
+// --- FPE-001 — Functional Program Engine. Takes the already-computed, conflict-resolved
+// zonePlan (from computeSpatialPlan — unchanged formulas) and reframes it as a functional
+// program: what exists, by category/priority, independent of its own dimensions. Each entry
+// still carries a reference to the already-computed zone (area/dims/status/position, all decided
+// upstream) so downstream stages never need to recompute anything already decided — but this
+// stage's own concern is only "what exists," per Stage 1 of the redesign (no dimensions here).
+function buildFunctionalProgram(zonePlan){
+  const zones = zonePlan
+    .filter(z => z.status !== 'Removed')
+    .map(z => ({
+      id: zoneConflictId(z.name),
+      name: z.name,
+      category: z.priorityName,
+      priorityTier: z.priorityTier,
+      required: !!z.required,
+      sourceZone: z,
+    }));
+  return { zones };
+}
+
+// --- ADJ-001 — Adjacency & Spatial Relationship Engine. A fixed, deterministic rule table by
+// priority tier/category — the layer that doesn't exist at all in the old pipeline (which only
+// ever had a flat open-side/wall-side preference per tier, never a real named relationship
+// between two specific zones). Produces relationship rules, never coordinates — LSE-001 below is
+// the only thing that turns these into an actual position.
+const ADJ_RELATION_RULES_BY_TIER = {
+  1: 'primary-sightline', 2: 'near-entrance', 3: 'facing-open-side', 4: 'near-entrance',
+  5: 'near-entrance', 6: 'near-rear-wall', 7: 'behind-meeting', 8: 'near-rear-wall',
+};
+function buildSpatialRelationships(functionalProgram){
+  const meetingZone = functionalProgram.zones.find(z => z.priorityTier === 6);
+  return {
+    adjacencies: functionalProgram.zones.map(z => {
+      let relation = ADJ_RELATION_RULES_BY_TIER[z.priorityTier] || 'near-rear-wall';
+      let targetZoneId = null;
+      if(/^Storage room/.test(z.name) || relation === 'behind-meeting'){
+        relation = meetingZone ? 'behind' : 'near-rear-wall';
+        targetZoneId = meetingZone ? meetingZone.id : null;
+      }
+      return { zoneId: z.id, name: z.name, relation, targetZoneId, weight: z.priorityTier <= 2 ? 2 : 1 };
+    })
+  };
+}
+
+// --- VJE-001 — Visitor Journey Engine. Orders the functional program into the narrative
+// sequence a visitor actually experiences, per priority tier (Hero seen first, Decorative last).
+// This sequence is a scoring input for LSE-001 below, not a set of coordinates itself.
+const VISITOR_JOURNEY_TIER_ORDER = [1, 4, 2, 3, 5, 6, 7, 8]; // Hero -> Reception -> Brand Experience -> Products -> Information -> Meeting -> Hospitality -> Decorative
+function buildVisitorJourney(functionalProgram, openSidesSet){
+  const byTier = {};
+  functionalProgram.zones.forEach(z => { (byTier[z.priorityTier] = byTier[z.priorityTier] || []).push(z.id); });
+  const sequence = [];
+  VISITOR_JOURNEY_TIER_ORDER.forEach(tier => { (byTier[tier] || []).forEach(id => sequence.push(id)); });
+  const entryPoints = openSidesSet.size ? [...openSidesSet] : ['Front'];
+  return { entryPoints, sequence, exitPoints: entryPoints };
+}
+
+// --- ZAE-001 — Zone Allocation Engine (admin-test scope). Computes what an intent-adjusted
+// circulation reserve % WOULD be for this project (bounded ±5 points off the existing formula,
+// based on designIntent) and reports it alongside the actual % the unchanged pipeline used. This
+// stage does NOT yet feed the adjusted % back into the real area-budget math — that requires
+// re-running the merge/reduce loop and conflict-approval screen against a new budget, which is
+// deliberately out of scope for this first admin test (see the redesign doc's open decisions).
+// Per-zone area/status/basis is carried straight through from computeSpatialPlan, unchanged.
+function computeZoneAllocation(designIntent, spatialPlan){
+  const baseCirculationPercent = getCirculationReservePercent(designIntent.totalAreaSqm);
+  let adjustPoints = 0;
+  if(designIntent.budgetTier === 'flagship') adjustPoints += 3;
+  if(designIntent.budgetTier === 'premium') adjustPoints += 2;
+  if(designIntent.brandImportance === 'high') adjustPoints += 2;
+  if(designIntent.budgetTier === 'economy') adjustPoints -= 2;
+  adjustPoints = Math.max(-5, Math.min(5, adjustPoints));
+  const intentAdjustedCirculationPercent = Math.max(0.25, Math.min(0.55, baseCirculationPercent + adjustPoints / 100));
+
+  const zones = spatialPlan.zonePlan.filter(z => z.status !== 'Removed').map(z => ({
+    id: zoneConflictId(z.name), name: z.name, priorityTier: z.priorityTier, priorityName: z.priorityName,
+    areaSqm: z.areaAllocationSqm, percentOfTotal: Math.round((z.areaAllocationSqm / designIntent.totalAreaSqm) * 1000) / 10,
+    basis: z.areaBasis, status: z.status, resolutionNote: z.resolutionNote || null,
+  }));
+
+  return {
+    totalAllocatableSqm: designIntent.totalAreaSqm,
+    circulationReserveSqm: spatialPlan.circulationReserveSqm,
+    circulationReservePercentUsed: Math.round(baseCirculationPercent * 1000) / 10,
+    circulationReservePercentIntentRecommendation: Math.round(intentAdjustedCirculationPercent * 1000) / 10,
+    zones,
+  };
+}
+
+// --- HSE-001 — Hero Strategy Engine. Deterministic archetype selection from a fixed vocabulary
+// (Portal / Tower / Floating Frame / Feature Wall / Sculptural Element / LED Gateway) — replaces
+// the bare "13% of area" framing with an actual architectural decision, while leaving the
+// underlying footprint sqm / height mm numbers exactly as computeSpatialPlan already computed
+// them (per "do not modify existing sizing formulas yet"). A future phase can let the archetype
+// itself drive the footprint formula once that constraint is lifted.
+function buildHeroStrategy(designIntent){
+  const archetypes = ARCHITECTURAL_LIBRARY.archetypes;
+  const openSidesCount = designIntent.openSides.length;
+  const scored = Object.keys(archetypes).map(name => {
+    const a = archetypes[name];
+    let score = 1; // baseline so every archetype is always a valid candidate
+    if(a.needsOpenSides != null) score += (openSidesCount >= a.needsOpenSides) ? 2 : -2;
+    if(a.minSizeClass) score += a.minSizeClass.includes(designIntent.sizeClass) ? 2 : 0;
+    if(a.maxSizeClass) score += a.maxSizeClass.includes(designIntent.sizeClass) ? 2 : -1;
+    if(a.prefersBudget) score += a.prefersBudget.includes(designIntent.budgetTier) ? 1.5 : 0;
+    if(a.prefersIndustry) score += a.prefersIndustry.includes(designIntent.industry) ? 2 : 0;
+    if(designIntent.brandImportance === 'high' && (name === 'Tower' || name === 'Sculptural Element' || name === 'LED Gateway')) score += 1;
+    return { name, score, ...a };
+  }).sort((x, y) => y.score - x.score);
+
+  const chosen = scored[0];
+  const rationale = `Chosen for a ${designIntent.sizeClass.toLowerCase()} (${designIntent.openSides.join('/') || 'no'} open side(s), ${designIntent.budgetTier} budget signal${designIntent.industry ? ', ' + designIntent.industry + ' industry' : ''}${designIntent.brandImportance === 'high' ? ', high brand-importance brief' : ''}): ${chosen.description}`;
+
+  return {
+    archetype: chosen.name, aspect: chosen.aspect, rationale,
+    source: 'HSE-001 rule-based (deterministic) — footprint/height figures unchanged from the existing Scale Specification Engine',
+    candidateScores: scored.map(s => ({ name: s.name, score: Math.round(s.score * 10) / 10 })),
+  };
+}
+
+// --- FUR-001 — Furniture Selection Engine (admin-test scope). The actual dimensions for every
+// zone were already computed upstream by computeKnownAddreqFootprints/computeOtherRequestedZoneNames
+// (unchanged formulas) inside computeSpatialPlan. This stage's job here is traceability only:
+// tag each zone with which library entry it maps to, so the brief can cite a named library
+// source rather than a bare number — a real step toward Stage 6/7's named-variant library,
+// without changing what any zone actually measures yet.
+function tagFurnitureSelection(functionalProgram){
+  const nameToLibraryKey = [
+    [/^Reception counter/, 'FURNITURE_LIBRARY.receptionCounter'],
+    [/^Meeting table/, 'FURNITURE_LIBRARY.meetingTable'],
+    [/^Private meeting room/, 'ARCHITECTURAL_LIBRARY (enclosed room — architectural space, not a furniture item)'],
+    [/^VIP meeting room/, 'ARCHITECTURAL_LIBRARY (enclosed/semi-enclosed room)'],
+    [/^Touch screen/, 'FURNITURE_LIBRARY.touchScreen'],
+    [/^Display table/, 'FURNITURE_LIBRARY.displayTable'],
+    [/^Product pedestal/, 'FURNITURE_LIBRARY.pedestal'],
+    [/^Storage room/, 'EXHIBITION_RULES_LIBRARY (enclosed back-of-house room)'],
+    [/^Information counter/, 'FURNITURE_LIBRARY.informationCounter'],
+    [/^LED screen/, 'FURNITURE_LIBRARY.ledScreen'],
+    [/^TV screen/, 'FURNITURE_LIBRARY.tvScreen'],
+    [/^Coffee bar/, 'FURNITURE_LIBRARY.coffeeBar'],
+    [/^Lounge area/, 'FURNITURE_LIBRARY.loungeChair'],
+    [/^Seating area/, 'FURNITURE_LIBRARY.loungeChair'],
+    [/^Tool testing bench/, 'FURNITURE_LIBRARY.demoBench'],
+    [/^Vehicle display/, 'PRODUCT_DISPLAY_LIBRARY.vehicleDisplayArea'],
+    [/^Interactive kiosk/, 'FURNITURE_LIBRARY.interactiveKiosk'],
+  ];
+  functionalProgram.zones.forEach(z => {
+    const match = nameToLibraryKey.find(([re]) => re.test(z.name));
+    z.libraryRef = match ? match[1] : 'PRODUCT_DISPLAY_LIBRARY.genericZoneMeta (generic estimated zone)';
+  });
+  return functionalProgram;
+}
+
+// --- LSE-001 — Layout Solver Engine (admin-test scope: greedy scored placement over the
+// existing 9-region grid — a finer continuous-coordinate solver is Phase 6 of the migration
+// plan). Unlike the old assignZonePositions (a flat "tier 6/7 prefer walls, everyone else
+// prefers open sides" rule), this scores every candidate region against the actual relationship
+// graph (ADJ-001) and visitor journey (VJE-001) before picking one — coordinates are the LAST
+// thing this pipeline decides, never the first.
+function solveLayoutNewEngine(functionalProgram, relationships, journey, openSidesSet){
+  const regions = buildLayoutRegions(openSidesSet);
+  const relationById = {};
+  relationships.adjacencies.forEach(r => { relationById[r.zoneId] = r; });
+  const journeyIndex = {};
+  journey.sequence.forEach((id, i) => { journeyIndex[id] = i; });
+  const placed = {};
+
+  function scoreRegion(region, zone, relation){
+    let score = 0;
+    if(relation){
+      if((relation.relation === 'facing-open-side' || relation.relation === 'near-entrance') && region.touchesOpenSide) score += 2;
+      if(relation.relation === 'near-rear-wall' && region.touchesWallSide) score += 2;
+      if(relation.relation === 'primary-sightline' && (region.label === 'Center' || /^Front/.test(region.label))) score += 2;
+      if(relation.relation === 'behind' && relation.targetZoneId && placed[relation.targetZoneId]){
+        const t = placed[relation.targetZoneId];
+        const regionParts = region.label.split(' ');
+        const targetParts = t.label.split(' ');
+        if(regionParts[0] === targetParts[0] || regionParts.slice(-1)[0] === targetParts.slice(-1)[0]) score += 1.5;
+        if(region.touchesWallSide) score += 0.5;
+      }
+    }
+    const journeyPos = journeyIndex[zone.id];
+    if(journeyPos != null && journeyPos <= 1 && region.touchesOpenSide) score += 0.5;
+    score -= region.used ? 1 : 0; // still allow reuse (every real booth reuses regions) but prefer spreading zones out first
+    return score;
+  }
+
+  functionalProgram.zones.slice().sort((a, b) => a.priorityTier - b.priorityTier).forEach(zone => {
+    const relation = relationById[zone.id];
+    const best = regions.slice().sort((a, b) => scoreRegion(b, zone, relation) - scoreRegion(a, zone, relation))[0];
+    best.used = true;
+    placed[zone.id] = best;
+    zone.sourceZone.position = { label: best.label, xFrac: best.xFrac, yFrac: best.yFrac };
+  });
+
+  return functionalProgram;
+}
+
+// --- GPE-001 — Gemini Prompt Engine (admin-test scope): assembles the new pipeline's output
+// into a labeled brief block, replacing formatSpatialPlanForBrief()'s output for this project
+// only. Ends with the exact same per-zone Width/Depth/Height lines and Kept/Merged/Removed
+// status/notes as before (via formatDimsBlock), so the existing EPS-021 data-governance rule
+// block still applies to it unchanged.
+function assembleNewEngineBrief(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy){
+  const lines = [];
+  lines.push('=== NEW SPATIAL PLANNING ENGINE (Admin Test) — architect-driven pipeline ===');
+  lines.push('');
+  lines.push('DESIGN INTENT (DIE-001)');
+  lines.push(`Industry: ${designIntent.industry || 'not specified'} | Size class: ${designIntent.sizeClass} | Budget signal: ${designIntent.budgetTier} | Brand importance: ${designIntent.brandImportance}`);
+  lines.push(`Open sides: ${designIntent.openSides.join(', ') || 'none'} | Style preference: ${designIntent.architecturalStylePreference || 'not specified'}`);
+  lines.push('');
+  lines.push('FUNCTIONAL PROGRAM (FPE-001) — spaces defined before any furniture');
+  functionalProgram.zones.forEach(z => lines.push(`- ${z.name} [${z.category}, tier ${z.priorityTier}]${z.required ? ' (required)' : ''}`));
+  lines.push('');
+  lines.push('SPATIAL RELATIONSHIPS (ADJ-001)');
+  relationships.adjacencies.forEach(r => lines.push(`- ${r.name}: ${r.relation}${r.targetZoneId ? ' ' + r.targetZoneId : ''}`));
+  lines.push('');
+  lines.push('VISITOR JOURNEY (VJE-001)');
+  lines.push(`Enter (${journey.entryPoints.join('/')}) -> ` + journey.sequence.map(id => {
+    const z = functionalProgram.zones.find(zz => zz.id === id);
+    return z ? z.name : id;
+  }).join(' -> ') + ' -> Leave');
+  lines.push('');
+  lines.push('ZONE ALLOCATION (ZAE-001)');
+  lines.push(`Circulation reserve: ${zoneAllocation.circulationReserveSqm.toFixed(1)} sqm (${zoneAllocation.circulationReservePercentUsed}% of total used — intent-based recommendation for this brief: ${zoneAllocation.circulationReservePercentIntentRecommendation}%, not yet applied to the area budget in this admin-test pass)`);
+  zoneAllocation.zones.forEach(z => lines.push(`- ${z.name}: ${z.areaSqm.toFixed(1)} sqm (${z.percentOfTotal}% of total) [${z.basis}]${z.resolutionNote ? ' — ' + z.resolutionNote : ''}`));
+  lines.push('');
+  lines.push('HERO STRATEGY (HSE-001) — architectural concept, not a flat percentage');
+  lines.push(`Archetype: ${heroStrategy.archetype} (${heroStrategy.aspect} form)`);
+  lines.push(heroStrategy.rationale);
+  lines.push('');
+  lines.push('ARCHITECTURAL ZONES / FURNITURE SELECTION / LAYOUT (position + exact dims, unchanged sizing formulas)');
+  functionalProgram.zones.forEach(z => {
+    const zone = z.sourceZone;
+    lines.push(zone.name);
+    lines.push(`Status: ${zone.status}${zone.resolutionNote ? ' — ' + zone.resolutionNote : ''}${zone.feasibilityWarning ? ' — Feasibility Warning: client kept this at full size despite a flagged space conflict.' : ''}`);
+    lines.push(`Category: ${zone.priorityName} (tier ${zone.priorityTier}) | Furniture Library ref: ${z.libraryRef}`);
+    if(zone.position) lines.push(`Position: ${zone.position.label}`);
+    formatDimsBlock(zone.dims).forEach(l => lines.push(l));
+    if(zone.scaleSpecText) lines.push(zone.scaleSpecText);
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+/* ================= END NEW SPATIAL PLANNING ENGINE (admin test) ================= */
 
 function buildStructuralShell(widthM, depthM, boothHeightM, openSidesSet, storageZones){
   // Default max structural height per EPS-008's BOOTH HEIGHT RULES (4.0m) when the client hasn't
@@ -12407,6 +12761,34 @@ async function generateDesign(){
     return eventSizeUnknown
       ? `Exact size: not specified by the client. ${noFootprintInstruction}`
       : `Dimensions: ${eventWidth} m (width) × ${eventDepth} m (depth) — approximate area ${(parseFloat(eventWidth) * parseFloat(eventDepth)).toFixed(1)} square meters`;
+  }
+
+  // New Spatial Planning Engine (admin test) — see Spatial-Planning-Engine-Redesign.md. Runs on
+  // top of the already-finalized spatialPlan above (same conflict-resolved zones, same unchanged
+  // sizing formulas) and, when enabled, replaces spatialPlanText/structuralShellText with its own
+  // architect-first framing (Design Intent -> Functional Program -> Spatial Relationships ->
+  // Visitor Journey -> Zone Allocation -> Hero Strategy -> Layout Solver). Default OFF and
+  // admin-only; wrapped in try/catch so a bug here can never break generation for admin either —
+  // it silently falls back to the already-computed standard output.
+  const newEngineToggleEl = document.getElementById('f_newSpatialEngine');
+  if(isAdminUser && newEngineToggleEl && newEngineToggleEl.checked && mode === 'booth' && spatialPlan){
+    try{
+      const designIntent = buildDesignIntent(parseFloat(width), parseFloat(depth), parseFloat(totalHeight));
+      const functionalProgram = tagFurnitureSelection(buildFunctionalProgram(spatialPlan.zonePlan));
+      const relationships = buildSpatialRelationships(functionalProgram);
+      const journey = buildVisitorJourney(functionalProgram, getBoothOpenSidesSet());
+      const zoneAllocation = computeZoneAllocation(designIntent, spatialPlan);
+      const heroStrategy = buildHeroStrategy(designIntent);
+      solveLayoutNewEngine(functionalProgram, relationships, journey, getBoothOpenSidesSet());
+      spatialPlanText = assembleNewEngineBrief(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy);
+      structuralShellText = formatStructuralShellForBrief(buildStructuralShell(
+        parseFloat(width), parseFloat(depth), parseFloat(totalHeight),
+        getBoothOpenSidesSet(),
+        spatialPlan.zonePlan.filter(z => (z.status === 'Kept' || z.status === 'Merged') && /^Storage room/.test(z.name))
+      ));
+    }catch(newEngineErr){
+      console.error('New Spatial Engine (admin test) failed, falling back to the standard pipeline output:', newEngineErr);
+    }
   }
 
   // All validation returns above have already passed by this point — translate only now, so an
