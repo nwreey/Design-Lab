@@ -11151,12 +11151,41 @@ const REFUSAL_PATTERNS = [
   "i can't comply with that request",
   "i cannot comply with that request",
   "sorry, i can't help with that",
-  "sorry, but i can't help with that"
+  "sorry, but i can't help with that",
+  "i'm unable to process",
+  "i am unable to process",
+  "unable to process requests",
+  "i can't process",
+  "i cannot process",
+  "not able to process requests",
+  "let me know if there's anything else i can help"
 ];
+// A real second reported refusal used a phrasing not in the list above ("I'm unable to process
+// requests with specific images or content...") — an ever-growing list of exact phrases will
+// always be one step behind whatever wording the model happens to use next. This generic
+// fallback catches phrasings this list doesn't have yet: a genuine analysis/prompt-writer
+// response is always JSON-shaped (contains at least one brace, even when malformed) and runs
+// hundreds to thousands of characters; a short, brace-free reply that also reads as a
+// first-person decline ("I'm/I am/I can't/I cannot/sorry" alongside "unable/can't/cannot/sorry/
+// apolog.../decline/not able") is almost certainly a refusal rather than a genuinely broken
+// JSON attempt.
 function looksLikeRefusal(text){
-  const lower = text.trim().toLowerCase();
-  return REFUSAL_PATTERNS.some(p => lower.startsWith(p) || lower.includes(p));
+  const trimmed = text.trim();
+  const lower = trimmed.toLowerCase();
+  if(REFUSAL_PATTERNS.some(p => lower.startsWith(p) || lower.includes(p))) return true;
+  const looksConversational = !trimmed.includes('{') && trimmed.length < 400;
+  if(!looksConversational) return false;
+  const hasFirstPersonDisclaimer = /\b(i'm|i am|i can't|i cannot|sorry)\b/.test(lower);
+  const hasDeclineWord = /\b(unable|can't|cannot|sorry|apolog|decline|not able)\b/.test(lower);
+  return hasFirstPersonDisclaimer && hasDeclineWord;
 }
+
+// Thrown specifically for a detected refusal (see looksLikeRefusal above) so callers can branch
+// on `instanceof AiRefusalError` — e.g. to automatically retry Stage 1 of the booth pipeline
+// without its attached images, since a refusal is very often the model declining to process a
+// specific uploaded image rather than the brief text itself — instead of having to pattern-match
+// the thrown error's message string, which is fragile and only meant for display.
+class AiRefusalError extends Error {}
 
 async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
   const response = await fetch("/api/generate", {
@@ -11200,7 +11229,7 @@ async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
     // refusal isn't a truncation, even though it fails JSON.parse the same way) and the
     // "retry once" fallback below (retrying identical content almost never un-refuses it).
     if(looksLikeRefusal(cleaned)){
-      throw new Error('The AI declined to generate a response for this request, most likely because something in your brief, description, or an uploaded image (logo, poster, or brand asset) triggered its content safety filters. Please review those for anything sensitive or against usage policies, adjust or remove it, and try Generate again.');
+      throw new AiRefusalError('The AI declined to generate a response for this request, most likely because something in your brief, description, or an uploaded image (logo, poster, or brand asset) triggered its content safety filters. Please review those for anything sensitive or against usage policies, adjust or remove it, and try Generate again.');
     }
     // finish_reason === 'length' means the API itself reported cutting the response off at
     // max_tokens — a hard confirmation of truncation. looksTruncated(cleaned) is a second,
@@ -12376,14 +12405,43 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
     // even within budget. Rather than fail the whole generation on one incomplete response,
     // retry the same call once — a fresh completion, not a repair of the broken one — before
     // surfacing an error to the user.
-    let analysis = await callPromptWriterApi(promptWriterSystem, userContent);
+    // Reassigned to a text-only fallback below if Stage 1 is refused with images attached — every
+    // subsequent call in this Stage 1 block (including the missing-fields retry just below) then
+    // keeps using whichever variant actually succeeded, instead of re-attaching the same images
+    // that were just refused and risking the identical refusal again on retry.
+    let analysisRequestContent = userContent;
+    let analysisImagesDropped = false;
+    let analysis;
+    try{
+      analysis = await callPromptWriterApi(promptWriterSystem, analysisRequestContent);
+    }catch(err){
+      // A real reported case showed OpenAI refusing specifically because of an attached image
+      // ("I'm unable to process requests with specific images or content...") — not the brief
+      // text itself. Since userContentParts always ends with the brief as its own text part (see
+      // its construction above), length > 1 here means at least one image was actually attached.
+      // Retrying without any images gives the user a real, unblocked generation instead of an
+      // outright failure; customAlert below tells them plainly what happened and why, so nothing
+      // is silently dropped without their knowledge.
+      if(err instanceof AiRefusalError && userContentParts.length > 1){
+        console.warn('[Project Analysis Engine] refused with attached images — retrying text-only (images dropped) once.');
+        document.getElementById('loadingText').textContent = 'Retrying without attached images...';
+        analysisImagesDropped = true;
+        analysisRequestContent = userBrief;
+        analysis = await callPromptWriterApi(promptWriterSystem, analysisRequestContent);
+      }else{
+        throw err;
+      }
+    }
+    if(analysisImagesDropped){
+      await customAlert('One or more of your uploaded images (logo, poster designs, brand portfolio, or reference image) triggered a content safety filter, so this design was generated from your text brief only, without those images. Review them for anything sensitive or against usage policies if you\'d like them included next time.', 'Note');
+    }
     let missingAnalysisFields = requiredAnalysisFields
       .filter(([mod, field]) => !(analysis && analysis[mod] && typeof analysis[mod][field] === 'string' && analysis[mod][field].trim()))
       .map(([mod, field]) => `${mod}.${field}`);
     if(missingAnalysisFields.length){
       console.warn('[Project Analysis Engine] first analysis pass was incomplete (missing: ' + missingAnalysisFields.join(', ') + ') — retrying once.');
       document.getElementById('loadingText').textContent = 'Refining the design decisions...';
-      analysis = await callPromptWriterApi(promptWriterSystem, userContent);
+      analysis = await callPromptWriterApi(promptWriterSystem, analysisRequestContent);
       missingAnalysisFields = requiredAnalysisFields
         .filter(([mod, field]) => !(analysis && analysis[mod] && typeof analysis[mod][field] === 'string' && analysis[mod][field].trim()))
         .map(([mod, field]) => `${mod}.${field}`);
