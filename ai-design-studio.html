@@ -10530,7 +10530,12 @@ function buildBoothAutofillPrompt(goal, website, websiteText, websiteWarning, wa
   }
 
   const descriptors = collectAutofillFieldDescriptors();
-  const fieldSchema = descriptors.map(d => ({ id: d.id, label: d.label, kind: d.kind, options: d.options || undefined }));
+  // f_desc (the AI Creative Brief field) is deliberately excluded from what the model fills in —
+  // the client asked for that field to reflect what they actually wrote and selected (their own
+  // Goal text plus whichever Requirements end up checked), not an AI-invented paragraph. It's
+  // composed deterministically in runAiAutofill() after this result is applied instead. See that
+  // function's own comment for the reasoning.
+  const fieldSchema = descriptors.filter(d => d.id !== 'f_desc').map(d => ({ id: d.id, label: d.label, kind: d.kind, options: d.options || undefined }));
 
   // These three checkbox groups (Optional Floor Features, Integrated Elements, and Rigging/
   // Ceiling Lighting) have no [id] at all — see applyCheckboxGroupByValue's own comment —
@@ -10582,7 +10587,7 @@ Rules:
   - kind "checkbox": true or false only, following the MANDATORY category rule above for anything in REQUIREMENT CATEGORIES; for every other checkbox, true only where it genuinely fits this brand, goal, and space. Every requirement you check has a paired quantity/capacity field elsewhere in the FIELD SCHEMA where one exists (e.g. "addreq_reception_count" for "addreq_reception") — always give that paired field a sensible number sized to the space too, never leave it at an unconsidered default.
   - kind "number": a plain integer as a number, sized to the space (e.g. never suggest 6 reception counters in a 9 sqm booth). This also covers "f_posterCount" (how many posters) — note there is no field here for whether the client already has poster designs; that choice is fixed by the client and is never yours to set, only how many posters is.
   - kind "color": a hex string like "#RRGGBB".
-  - kind "text"/"textarea": a short, concrete value in the same spirit as the field's label — for the AI Creative Brief field specifically, write a rich, specific paragraph synthesizing the goal, website, and booth facts into a real design brief.
+  - kind "text"/"textarea": a short, concrete value in the same spirit as the field's label.
 - Never invent facts about the company that aren't supported by the goal or website — where information is missing, make a reasonable, clearly generic choice appropriate to the stated industry instead of fabricating specifics.
 
 REQUIREMENT CATEGORIES (six mandatory — see the rule above — plus Art & Brand, optional):
@@ -10785,6 +10790,32 @@ async function runAiAutofill(){
     const result = await callPromptWriterApi(system, contentParts);
     applyAutofillResult(result);
 
+    // The AI Creative Brief field (f_desc) is deliberately NOT written by the model (see
+    // buildBoothAutofillPrompt's own comment) — the client wants it to reflect what they actually
+    // said, not an AI-invented paragraph. Built here instead, after applyAutofillResult has
+    // finished checking Requirements boxes, from two real facts only: the Goal text the client
+    // typed themselves (used verbatim, never reworded) and the list of Requirements that ended
+    // up selected (by the client beforehand, or by the model just now) — never anything
+    // fabricated beyond that. Booth mode only; Event mode's own f_desc ("Event Story") keeps its
+    // existing AI-authored behavior, which the client hasn't asked to change.
+    if(mode === 'booth'){
+      const descEl = document.getElementById('f_desc');
+      if(descEl){
+        const selectedRequirementLabels = ADDREQ_ALL_CHECKBOX_IDS
+          .map(id => document.getElementById(id))
+          .filter(cb => cb && cb.checked)
+          .map(cb => { const labelHost = cb.closest('label'); return labelHost ? labelHost.textContent.trim() : cb.id; });
+        const descParts = [];
+        if(goal) descParts.push(goal);
+        if(selectedRequirementLabels.length) descParts.push(`Selected requirements: ${selectedRequirementLabels.join(', ')}.`);
+        if(descParts.length){
+          descEl.value = descParts.join('\n\n');
+          descEl.dispatchEvent(new Event('input', { bubbles: true }));
+          descEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    }
+
     // Belt-and-suspenders: the system prompt already instructs the model to set
     // f_ceilingRigging to "No overhead structure" when the client said No to rigging, but a
     // stated preference like this shouldn't depend on the model actually following it —
@@ -10807,8 +10838,11 @@ async function runAiAutofill(){
     // is unchecked and rechecked to run it again.
     setAiAutofillPromptFieldsOpen(false);
   }catch(err){
+    // The raw error (e.g. an OpenAI quota/billing 429) is logged for diagnosis but never shown
+    // to the user directly — it's not actionable for them and reads like something's broken.
+    // A calm, generic message plus the manual-fill fallback is more useful here.
     console.error('AI auto-fill failed:', err);
-    status.textContent = 'Could not auto-fill: ' + (err && err.message ? err.message : 'unknown error');
+    status.textContent = 'Auto-fill is not available at the moment — we\'re updating this feature. Please fill in the fields manually for now.';
   }finally{
     btn.disabled = false;
     unlockForm();
