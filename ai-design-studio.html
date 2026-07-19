@@ -12451,6 +12451,7 @@ async function runAiAutofill(){
   // starting point, not a final answer, so the client always knows to check the form before
   // generating regardless of exactly when they glance back at this panel.
   if(reviewNote) reviewNote.style.display = 'block';
+  status.style.color = ''; // clear any red left over from a previous failed run
   status.textContent = mode === 'event' ? 'Reading the event details...' : 'Reading the booth details...';
 
   try{
@@ -12520,11 +12521,21 @@ async function runAiAutofill(){
     // is unchecked and rechecked to run it again.
     setAiAutofillPromptFieldsOpen(false);
   }catch(err){
-    // The raw error (e.g. an OpenAI quota/billing 429) is logged for diagnosis but never shown
-    // to the user directly — it's not actionable for them and reads like something's broken.
-    // A calm, generic message plus the manual-fill fallback is more useful here.
+    // The raw error (e.g. an OpenAI quota/billing 429, a missing OPENAI_API_KEY, a malformed
+    // request) is always logged for diagnosis. For regular clients it's never shown directly —
+    // it's not actionable for them and reads like something's broken, so they get a calm,
+    // generic message plus the manual-fill fallback instead. Admins, however, are the ones who
+    // actually need to see and act on the real cause (wrong/missing API key, model error, rate
+    // limit, etc.), so the exact underlying message is appended for them right in this same
+    // status line — no separate debug panel needed, and nothing here changes for non-admins.
     console.error('AI auto-fill failed:', err);
-    status.textContent = 'Auto-fill is not available at the moment — we\'re updating this feature. Please fill in the fields manually for now.';
+    const rawMessage = (err && err.message) ? err.message : String(err);
+    if(isAdminUser){
+      status.textContent = 'Auto-fill failed — admin-only detail: ' + rawMessage;
+      status.style.color = '#c0432b';
+    } else {
+      status.textContent = 'Auto-fill is not available at the moment — we\'re updating this feature. Please fill in the fields manually for now.';
+    }
   }finally{
     btn.disabled = false;
     unlockForm();
@@ -15842,6 +15853,18 @@ async function confirmRegenerateOtherOption(){
       otherOptionBody.additionalReferenceImages = otherOptionBrandAssets.images;
       otherOptionBody.prompt += otherOptionBrandAssets.note;
     }
+    // CAD Floor Plan Reference (Test Engine only) — same gap, same fix as the two blocks above:
+    // this call built its reference-image list entirely on its own and never re-attached the
+    // actual CAD floor plan image that startRenderSession's original Generate Design call sent
+    // (see that call's own comment). opt.image_prompt's text already assumes/references that
+    // geometry image (it was written by OpenAI while that image was attached to the original
+    // brief), so leaving the real file out of every "Other option" click let the design quietly
+    // drift from the exact reference geometry over time — a real reported case. lastWhiteBoxModelImage
+    // stays '' for Special Engine projects, so this is a no-op there, exactly like the original.
+    if(lastWhiteBoxModelImage){
+      const otherOptionGeomParts = dataUrlParts(lastWhiteBoxModelImage);
+      otherOptionBody.additionalReferenceImages = (otherOptionBody.additionalReferenceImages || []).concat([{ data: otherOptionGeomParts.base64, mimeType: otherOptionGeomParts.mime }]);
+    }
     // The very first render (Generate Design) always stays on Gemini. Admins picked an exact
     // engine for this click via the dialog at the top of this function (forcedEngine); every
     // other user instead gets automatic alternation — 1st Other option -> OpenAI, 2nd ->
@@ -16455,6 +16478,14 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
   if(modifyDesignBrandAssets.images.length){
     additionalReferenceImages.push(...modifyDesignBrandAssets.images);
     modifyPrompt += modifyDesignBrandAssets.note;
+  }
+  // CAD Floor Plan Reference (Test Engine only) — same gap, same fix as confirmRegenerateOtherOption's
+  // own identical wiring (see its comment): re-attach the actual CAD floor plan image from the
+  // original Generate Design call so a marked-area edit still has the exact reference geometry to
+  // work from, not just this edit's own composite screenshot. No-op ('') for Special Engine projects.
+  if(lastWhiteBoxModelImage){
+    const modifyGeomParts = dataUrlParts(lastWhiteBoxModelImage);
+    additionalReferenceImages.push({ data: modifyGeomParts.base64, mimeType: modifyGeomParts.mime });
   }
 
   // Captured before the request, since opt.usedFreeModification changes as a result of it.
