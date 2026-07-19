@@ -15859,12 +15859,22 @@ async function confirmRegenerateOtherOption(){
   const opt = optionResults[idx];
   if(!opt) return;
 
+  // Test Engine (admin only) — per explicit client direction, "Other option" no longer offers a
+  // choice here at all: it always renders through Gemini, silently, with no dialog to click
+  // through. Special Engine is completely untouched by this — admins there still get the
+  // explicit engine-choice dialog below, and non-admins still get their usual automatic
+  // alternation between Gemini and OpenAI further down this function.
+  const otherOptionEngineModeEl = document.getElementById('f_engineMode');
+  const isTestEngineSelectedForOtherOption = isAdminUser && otherOptionEngineModeEl && otherOptionEngineModeEl.value === 'test';
+
   // Admins choose the engine explicitly for this one click, via a dialog, instead of the
   // automatic alternation every other user gets — asked here, before anything else is
   // touched, so cancelling out of the choice leaves the UI completely untouched (no lock,
   // no progress bar, no disabled buttons to undo).
   let forcedEngine = null;
-  if(isAdminUser){
+  if(isTestEngineSelectedForOtherOption){
+    forcedEngine = 'gemini';
+  }else if(isAdminUser){
     forcedEngine = await chooseImageEngine('Which engine should render this "Other option"?', 'Choose Image Engine');
     if(!forcedEngine) return;
   }
@@ -16576,8 +16586,18 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
   // the picture being modified, so it can never come back stretched.
   const modifyAspectRatio = computeBoothAspectRatio(composite.width, composite.height);
 
+  // Test Engine (admin only) — per explicit client direction, Modify Design always renders
+  // through OpenAI now, never Gemini. Special Engine (every real user) is completely untouched
+  // and keeps using Gemini exactly as before. /api/generate-image-openai already accepts this
+  // exact same request shape (prompt/referenceImage/referenceMimeType/additionalReferenceImages/
+  // aspectRatio/isUserInitiatedEdit/isFreeFirstModification) — see confirmRegenerateOtherOption's
+  // own otherOptionBody for the identical pattern — so no reshaping is needed, only the endpoint.
+  const modifyEngineModeEl = document.getElementById('f_engineMode');
+  const modifyUsesOpenAiTE = isAdminUser && modifyEngineModeEl && modifyEngineModeEl.value === 'test';
+  const modifyEndpoint = modifyUsesOpenAiTE ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+
   try{
-    const response = await fetchWithTimeout('/api/generate-image-gemini', {
+    const response = await fetchWithTimeout(modifyEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: modifyPrompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: true, isFreeFirstModification, aspectRatio: modifyAspectRatio })
@@ -16590,7 +16610,7 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
     }
 
     const correctedImage = await runBrandAssetIntegrityEngine(data.image);
-    opt.gallery.push({ label: 'Modified by DesignsLab', image: correctedImage });
+    opt.gallery.push({ label: 'Modified by DesignsLab', image: correctedImage, engine: modifyUsesOpenAiTE ? 'openai' : 'gemini' });
     opt.activeGalleryIndex = opt.gallery.length - 1;
     if(activeOptionIndex === idx){
       document.getElementById('renderSlotImg').src = data.image;
