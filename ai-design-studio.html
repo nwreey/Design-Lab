@@ -5248,6 +5248,33 @@ const HARD_CONSTRAINTS_SUFFIX = `
 
 Non-negotiable rules for this image: never alter, redesign, restyle, distort, recolor, or modify the company logo in any way — it must appear exactly as shown, completely unchanged. Do not add product showcases, display cases, or vitrines unless explicitly requested. Do not add vertical screens or vertical digital displays unless explicitly requested. Do not add touchscreen display stands or interactive touchscreen kiosks unless explicitly requested and written in the client's brief. Do not add TV screens unless explicitly requested and written in the client's brief. Do not add iPad or tablet display stands unless explicitly requested and written in the client's brief. If the booth is open on only one side (typically the front) with the other sides being closed, solid walls, then any view showing the booth from the left or right side from outside — looking at the exterior face of a closed wall — must show that exterior wall face as a plain, flat, single solid color with no added graphics, branding, decorative elements, or texture beyond what is already visible in the reference image. Do not invent decoration on a closed exterior wall face that was not explicitly requested. This image must contain NO people, staff, visitors, or crowds anywhere — not inside the booth, not outside it, not in the background, not as silhouettes, shadows, reflections, or partial body parts. The booth must be completely empty of people; this is a clean architectural visualization only. FULL-BLEED COMPOSITION: the photograph must completely fill the entire frame edge to edge — absolutely no black bars, letterboxing, borders, frames, or empty padding of any color on any side of the image. This is a full-bleed photographic composition, not a presentation slide or cinematic crop; the exhibition hall and booth must extend all the way to every edge of the image. FLOOR AWARENESS: the booth has a raised floor platform with a crisp, clearly defined edge separating it from the surrounding exhibition hall's dark gray carpet floor — always keep this boundary sharp and precise, exactly where it already is in the reference image; never blur, shift, extend, shrink, or otherwise misread the booth's actual footprint or corners when making any change. The floor's actual material, color, and finish must exactly match whatever was specified in the client's brief — never substitute a different flooring material or color than what was explicitly requested.`;
 
+// MULTI-VIEW RENDER ENGINE (MRE-001, Test Engine only) — appended (never in Special Engine) to
+// the very first Gemini render of a booth, replacing the usual single hero photograph with one
+// image that is itself a four-quadrant presentation sheet: Front / Right / Left / Top, all of the
+// exact same immutable booth. Explicitly overrides HARD_CONSTRAINTS_SUFFIX's own full-bleed,
+// single-photograph framing above (that rule is written for a normal hero shot; this request is
+// a deliberate four-quadrant sheet, so it says so directly rather than leaving the two in silent
+// conflict). Kept as its own constant, appended after HARD_CONSTRAINTS_SUFFIX, so "last
+// instruction wins" reinforces the override rather than relying on ordering alone.
+const MRE_001_MULTIVIEW_SHEET_SUFFIX_TE = `
+
+MULTI-VIEW RENDER ENGINE (MRE-001) — MANDATORY OVERRIDE FOR THIS SPECIFIC REQUEST, REPLACING EVERYTHING ABOVE THIS POINT ABOUT A SINGLE FULL-BLEED PHOTOGRAPH: do not render a single photograph of this booth. Render exactly ONE image that is a presentation sheet, divided into four equal quadrants by a clean, visible divider line, arranged in this exact 2x2 grid:
+
+TOP-LEFT quadrant — FRONT VIEW: camera positioned in front of the booth, looking directly toward the front opening, showing the primary entrance. Do not rotate the booth.
+TOP-RIGHT quadrant — RIGHT PERSPECTIVE: camera positioned outside the right open side, looking diagonally toward the booth, showing both the front and right openings. Do not rotate the booth — only move the camera.
+BOTTOM-LEFT quadrant — LEFT PERSPECTIVE: camera positioned outside the left side, looking diagonally toward the booth. The left wall must still exist exactly as designed. Do not remove walls. Do not mirror the booth.
+BOTTOM-RIGHT quadrant — TOP VIEW (BIRD'S-EYE VIEW): camera positioned directly above the booth, orthographic or near-orthographic, showing the complete layout, furniture locations, wall locations, and circulation. Never rotate the plan — Front must remain at the top of this quadrant too, matching the same orientation as every other quadrant. If a black-and-white CAD floor plan reference image is also attached to this request, this quadrant must match its wall positions, zone layout, and dimensions exactly.
+
+ABSOLUTE GEOMETRY LOCK — before rendering, lock the following as permanently identical across all four quadrants: booth width, booth depth, booth height, structural walls, hero structure, reception counter, meeting room, furniture, display shelves, coffee bar, TV locations, branding locations, logos, posters, flooring, ceiling, and lighting layout. Only the camera position may change between quadrants — the booth itself is one single immutable architectural object. It is forbidden to redesign, reinterpret, regenerate, mirror, rotate, simplify, or otherwise modify the booth between quadrants.
+
+ORIENTATION RULES: Front always remains Front. Rear always remains Rear. Left always remains Left. Right always remains Right, in every quadrant. Never mirror. Never rotate the booth itself — camera movement is allowed, booth movement is forbidden. Never flip. Never rebuild the booth between quadrants.
+
+CONSISTENCY: every quadrant must show the exact same architecture, dimensions, furniture, wall positions, branding, posters, materials, lighting concept, product locations, ceiling, and flooring. The booth must appear to have been photographed from four different camera positions around one real, physical booth — never redesigned between shots.
+
+RENDERING RULE: generate all four quadrants together, in this single image, as four synchronized cameras observing the same booth — never treat one quadrant as independent of the others. Before finalizing, verify all four quadrants share identical booth dimensions, wall positions, furniture positions, branding, posters, materials, lighting, geometry, architectural concept, and proportions; if any quadrant's geometry would differ from the others, reconcile it back to match rather than producing a mismatched quadrant.
+
+FINAL INSTRUCTION: render one single exhibition booth from four synchronized camera positions, arranged as a four-quadrant presentation sheet. The booth is a single immutable architectural object. Only the camera position changes between quadrants. Never redesign, reinterpret, rotate, mirror, or modify the booth between quadrants. The four quadrants must appear as if they were taken by four cameras placed around the same real booth.`;
+
 /* Optional, user-toggled rule — off by default. When the "Modular Wall Layout" checkbox is
    checked (on the form, the main image edit panel, or the snapshot edit panel), this exact
    text is appended so every wall, panel, and divider follows one repeated, symmetrical,
@@ -15299,13 +15326,26 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
   const renderEngineModeEl = document.getElementById('f_engineMode');
   const renderEngineMode = (isAdminUser && renderEngineModeEl && renderEngineModeEl.value === 'test') ? 'test' : 'special';
 
+  // MRE-001 (Multi-View Render Engine, Test Engine only) — the very first Generate Booth Design
+  // render for a Test Engine booth becomes a single four-quadrant presentation sheet (Front /
+  // Right / Left / Top) instead of one hero photograph, per explicit client direction. Scoped
+  // narrowly to exactly that click: mode 'booth' (Event mode has no camera-angle concept the same
+  // way), renderEngineMode 'test' (Special Engine — every real user — is completely untouched),
+  // and !isUserInitiatedEdit (this flag is also true for the Quick Style Change tool's own call to
+  // this same function — see submitModifyDesignStyleChange — which edits an EXISTING approved
+  // design and must never suddenly turn it into a 4-quadrant sheet). A 2x2 grid of four distinct
+  // camera angles reads best in a landscape sheet regardless of the booth's own footprint shape,
+  // so this overrides computeBoothAspectRatio's usual per-booth ratio with a fixed 4:3 here only.
+  const isMultiViewSheetTE = mode === 'booth' && renderEngineMode === 'test' && !isUserInitiatedEdit;
+  const finalRenderAspectRatio = isMultiViewSheetTE ? '4:3' : renderAspectRatio;
+
   // Computed ONCE per render session (identical for every option/variation being generated,
   // since they all share the same brandPortfolio state) rather than inside the loop below —
   // see buildBrandPortfolioRenderAssets' own comment for why this exists at all.
   const brandAssets = await buildBrandPortfolioRenderAssets();
 
   optionResults.forEach((opt, i) => {
-    const requestBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: !!isUserInitiatedEdit, aspectRatio: renderAspectRatio, engineMode: renderEngineMode };
+    const requestBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX + (isMultiViewSheetTE ? MRE_001_MULTIVIEW_SHEET_SUFFIX_TE : ''), isUserInitiatedEdit: !!isUserInitiatedEdit, aspectRatio: finalRenderAspectRatio, engineMode: renderEngineMode };
     // Attach the actual logo file as a reference image — without this, Gemini only ever
     // saw a text description of the logo (written by OpenAI's earlier vision pass) and had
     // to invent its actual appearance from scratch each time, which is exactly why it could
