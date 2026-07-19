@@ -526,6 +526,8 @@
   .gen-notice-overlay{display:none;position:fixed;inset:0;background:rgba(11,12,16,0.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:9998;align-items:center;justify-content:center;padding:24px;animation:genNoticeFadeIn .18s ease;}
   @keyframes genNoticeFadeIn{from{opacity:0;}to{opacity:1;}}
   @keyframes genNoticeCardIn{from{opacity:0;transform:translateY(6px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+  .mandatory-field-highlight{animation:mandatoryFieldPulse 2.2s ease;border-radius:2px;}
+  @keyframes mandatoryFieldPulse{0%{box-shadow:0 0 0 3px rgba(192,67,43,.55);}60%{box-shadow:0 0 0 3px rgba(192,67,43,.55);}100%{box-shadow:0 0 0 0 rgba(192,67,43,0);}}
   .gen-notice-card{background:var(--paper);border:1.5px solid var(--navy);border-radius:2px;padding:30px 30px 28px;max-width:460px;box-shadow:0 20px 60px rgba(11,12,16,.35);position:relative;animation:genNoticeCardIn .22s cubic-bezier(.2,.8,.3,1);}
   .admin-preview-card{background:var(--paper);border:1.5px solid var(--navy);border-radius:2px;padding:26px 28px 24px;max-width:720px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(11,12,16,.35);position:relative;animation:genNoticeCardIn .22s cubic-bezier(.2,.8,.3,1);}
   .admin-preview-view-block{border:1px solid var(--line);border-radius:2px;padding:12px 14px;margin-bottom:10px;background:#fff;}
@@ -11349,7 +11351,7 @@ function buildCadFloorPlanSnapshot_TE(shell, functionalProgram){
     ctx.fillText('FLOOR PLAN — TOP VIEW (Front at top, Left/Right unmirrored)', W / 2, 30);
 
     // Reference grid
-    const gridStepM = Math.max(widthM, depthM) >= 8 ? 1 : 0.5;
+    const gridStepM = 1; // fixed 1m squares, every booth size, per explicit client direction
     ctx.strokeStyle = '#dddddd';
     ctx.lineWidth = 1;
     for(let x = 0; x <= widthM + 1e-6; x += gridStepM){
@@ -12642,9 +12644,15 @@ These exact quantities override EPS-011's general ranges for this specific proje
 }
 
 // Single source of truth for "what does this mode still need before it can generate" —
-// used both to show the specific error message on click, and to enable/disable the
-// Generate button in real time. Keeping this as one function (rather than two copies)
-// is what keeps those two behaviors from silently drifting out of sync over time.
+// used both to show the specific error message on click, and to jump the client straight to
+// the first missing mandatory field (see scrollToFirstMissingMandatoryField below). Keeping
+// this as one function (rather than two copies) is what keeps those two behaviors from
+// silently drifting out of sync over time. Each entry is {message, target} — target is either
+// an element id string (resolved via getElementById) or {selector} (resolved via querySelector,
+// for class-based groups like brand-color swatches or checkbox groups with no shared id) — see
+// resolveMandatoryFieldTarget. Order matters: entries are pushed in the same top-to-bottom order
+// the fields actually appear in the form, so "the first missing one" is always the first one a
+// client would actually scroll past, never an arbitrary internal check order.
 function getMissingRequirements(m){
   const missing = [];
 
@@ -12684,88 +12692,146 @@ function getMissingRequirements(m){
   const needsIndoorSize = environmentForSize === 'Indoor' || environmentForSize === 'Hybrid (Indoor + Outdoor)';
   const needsOutdoorSize = environmentForSize === 'Outdoor' || environmentForSize === 'Hybrid (Indoor + Outdoor)';
 
+  function addMissing(message, target){ missing.push({ message, target }); }
+
   // Industry style is a shared field (both Booth and Event modes use the same #f_industryStyle
   // element — see the comment above captureModeSnapshot/applyModeSnapshot) and is now mandatory
   // in both, so it's checked once here rather than duplicated inside each mode's own block below.
-  if(!industryStyle) missing.push('an Industry style');
+  if(!industryStyle) addMissing('an Industry style', 'f_industryStyle');
 
   if(m === 'event'){
-    if(!desc) missing.push('a detailed description');
-    if(!logoDataUrl) missing.push(t('validation.logo'));
+    if(!desc) addMissing('a detailed description', 'f_desc');
+    if(!logoDataUrl) addMissing(t('validation.logo'), 'logoUploadBox');
     const eventObjective = document.getElementById('f_eventObjective').value;
     const eventObjectiveCustom = String(document.getElementById('f_eventObjectiveCustom').value).trim();
-    if(!eventObjective) missing.push('an Event Objective');
-    else if(eventObjective === 'Other' && !eventObjectiveCustom) missing.push('a description for the custom Event Objective');
-    if(document.querySelectorAll('.target-audience-cb:checked').length === 0) missing.push('at least one Target Audience');
+    if(!eventObjective) addMissing('an Event Objective', 'f_eventObjective');
+    else if(eventObjective === 'Other' && !eventObjectiveCustom) addMissing('a description for the custom Event Objective', 'f_eventObjectiveCustom');
+    if(document.querySelectorAll('.target-audience-cb:checked').length === 0) addMissing('at least one Target Audience', { selector: '.target-audience-cb' });
     const visitorJourney = document.getElementById('f_visitorJourney').value;
     const visitorJourneyCustom = String(document.getElementById('f_visitorJourneyCustom').value).trim();
-    if(!visitorJourney) missing.push('a Visitor Journey');
-    else if(visitorJourney === 'Custom' && !visitorJourneyCustom) missing.push('a description for the custom Visitor Journey');
+    if(!visitorJourney) addMissing('a Visitor Journey', 'f_visitorJourney');
+    else if(visitorJourney === 'Custom' && !visitorJourneyCustom) addMissing('a description for the custom Visitor Journey', 'f_visitorJourneyCustom');
     if(needsIndoorSize || needsOutdoorSize){
-      if(needsIndoorSize && !indoorSizeUnknown && (!indoorWidth || !indoorDepth)) missing.push('the indoor size (or check "I don\'t know the indoor size")');
-      if(needsOutdoorSize && !outdoorSizeUnknown && (!outdoorWidth || !outdoorDepth)) missing.push('the outdoor size (or check "I don\'t know the outdoor size")');
-      if((needsIndoorSize && indoorSizeUnknown || needsOutdoorSize && outdoorSizeUnknown) && areaPlanningList.length === 0) missing.push('at least one Area in Area Planning (since the exact size is unknown)');
+      if(needsIndoorSize && !indoorSizeUnknown && (!indoorWidth || !indoorDepth)) addMissing('the indoor size (or check "I don\'t know the indoor size")', 'f_indoorWidth');
+      if(needsOutdoorSize && !outdoorSizeUnknown && (!outdoorWidth || !outdoorDepth)) addMissing('the outdoor size (or check "I don\'t know the outdoor size")', 'f_outdoorWidth');
+      if((needsIndoorSize && indoorSizeUnknown || needsOutdoorSize && outdoorSizeUnknown) && areaPlanningList.length === 0) addMissing('at least one Area in Area Planning (since the exact size is unknown)', 'areaPlanningListField');
     } else if(eventSizeUnknown){
-      if(areaPlanningList.length === 0) missing.push('at least one Area in Area Planning (since the exact size is unknown)');
+      if(areaPlanningList.length === 0) addMissing('at least one Area in Area Planning (since the exact size is unknown)', 'areaPlanningListField');
     } else if(environmentForSize === ''){
       // No Environment chosen — nothing to require here, the brief tells the AI to infer it.
     } else if(!eventWidth || !eventDepth){
-      missing.push('width and depth (or check "I don\'t know the exact size of the space")');
+      addMissing('width and depth (or check "I don\'t know the exact size of the space")', 'f_eventWidth');
     }
   } else if(m === 'booth'){
-    if(!name) missing.push(t('validation.projectName'));
-    if(!width) missing.push(t('validation.width'));
-    if(!depth) missing.push(t('validation.depth'));
-    if(!totalHeight) missing.push(t('validation.boothHeight'));
-    if(levels === '2' && upperDeckPurposeCount === 0) missing.push(t('validation.upperDeckPurpose'));
-    if(levels === '2' && !openSidesConfirmedByUser) missing.push('Number of open sides — please confirm it for this double-deck booth (open the dropdown and choose one, even if keeping the current selection)');
+    if(!name) addMissing(t('validation.projectName'), 'f_name');
+    if(!width) addMissing(t('validation.width'), 'f_width');
+    if(!depth) addMissing(t('validation.depth'), 'f_depth');
+    if(!totalHeight) addMissing(t('validation.boothHeight'), 'f_totalHeight');
+    if(levels === '2' && upperDeckPurposeCount === 0) addMissing(t('validation.upperDeckPurpose'), { selector: '.upperdeck-purpose-cb' });
+    if(levels === '2' && !openSidesConfirmedByUser) addMissing('Number of open sides — please confirm it for this double-deck booth (open the dropdown and choose one, even if keeping the current selection)', 'f_openSides');
     if(levels === '2'){
       const feasibility = computeDoubleDeckFeasibility(parseFloat(width), parseFloat(depth));
-      if(!feasibility.feasible) missing.push(feasibility.reason);
+      if(!feasibility.feasible) addMissing(feasibility.reason, 'f_width');
     }
     // SFE-001 Program Fit, checked here too (not just inside generateDesign()'s own duplicate
-    // validation) so the Generate button itself goes disabled — with this exact reason in its
-    // tooltip — the moment someone selects more Requirements/Areas than this booth size can
-    // hold, even after the engine's own automatic merge/removal of the lowest-priority zones.
+    // validation) so the Generate click itself can jump straight to it — with this exact reason
+    // in the message — the moment someone selects more Requirements/Areas than this booth size
+    // can hold, even after the engine's own automatic merge/removal of the lowest-priority zones.
     // A real reported case showed this scenario reaching the AI instead, which then responded
     // with a plain-English explanation instead of JSON — misread by the refusal detector as a
     // content-safety refusal, a confusing and wrong message for what is actually just a sizing
     // problem. See generateDesign()'s own copy of this same check for the harder, visible-error
-    // block (this one only disables the button/tooltip; that one stops an in-flight click before
-    // any project gets saved or any AI call is made).
+    // block (this one only surfaces the message/jump target; that one stops an in-flight click
+    // before any project gets saved or any AI call is made).
     if(width && depth && totalHeight && parseFloat(width) > 0 && parseFloat(depth) > 0 && parseFloat(totalHeight) > 0){
       // Rule 1 — a resolvable conflict (something COULD be merged/reduced to fit) is no longer a
-      // reason to disable the button; that now routes to the interactive approval screen instead.
+      // reason to block Generate here; that now routes to the interactive approval screen instead.
       // Only a genuine Level 3 impossibility (doesn't fit even after every possible reduction)
-      // still disables Generate here, via detectSpatialConflicts' own isImpossible flag.
+      // still surfaces here, via detectSpatialConflicts' own isImpossible flag.
       const conflictCheck = detectSpatialConflicts(parseFloat(width), parseFloat(depth), parseFloat(totalHeight));
       if(conflictCheck.isImpossible){
-        missing.push('a bigger booth size or fewer selected Requirements/Areas — the elements you\'ve selected don\'t fit this booth\'s size even after reducing every possible lower-priority item');
+        addMissing('a bigger booth size or fewer selected Requirements/Areas — the elements you\'ve selected don\'t fit this booth\'s size even after reducing every possible lower-priority item', 'f_width');
       }
     }
-    if(colorHexes.length === 0) missing.push(t('validation.brandColor'));
-    if(!logoDataUrl) missing.push(t('validation.logo'));
-    if(hasPosters.startsWith('yes') && posterFiles.length === 0) missing.push(t('validation.posterFile'));
-    if(selectedRequirementsCount < 2) missing.push(t('validation.requirementsCount'));
-    if(floorType === 'Custom' && !floorTypeCustom) missing.push('a description for the custom floor type');
-    if(floorFinish === 'Custom Finish' && !floorFinishCustom) missing.push('a description for the custom floor finish');
-    if(MARBLE_FLOOR_FINISHES.includes(floorFinish) && marbleColor === 'Custom' && !marbleColorCustom) missing.push('a description for the custom marble color');
-    if((floorType === 'Raised Floor' || floorType === 'Double Raised Floor') && raisedFloorHeight === 'Custom' && !raisedFloorHeightCustom) missing.push('a value for the custom raised floor height');
+    if(colorHexes.length === 0) addMissing(t('validation.brandColor'), { selector: '.color-hex' });
+    if(!logoDataUrl) addMissing(t('validation.logo'), 'logoUploadBox');
+    if(hasPosters.startsWith('yes') && posterFiles.length === 0) addMissing(t('validation.posterFile'), 'posterUploadBox');
+    if(selectedRequirementsCount < 2) addMissing(t('validation.requirementsCount'), 'additionalReqField');
+    if(floorType === 'Custom' && !floorTypeCustom) addMissing('a description for the custom floor type', 'f_floorTypeCustom');
+    if(floorFinish === 'Custom Finish' && !floorFinishCustom) addMissing('a description for the custom floor finish', 'f_floorFinishCustom');
+    if(MARBLE_FLOOR_FINISHES.includes(floorFinish) && marbleColor === 'Custom' && !marbleColorCustom) addMissing('a description for the custom marble color', 'f_marbleColorCustom');
+    if((floorType === 'Raised Floor' || floorType === 'Double Raised Floor') && raisedFloorHeight === 'Custom' && !raisedFloorHeightCustom) addMissing('a value for the custom raised floor height', 'f_raisedFloorHeightCustom');
   }
 
   return missing;
 }
 
-// Re-checks whether the current mode's mandatory fields are complete, and enables or
-// disables the Generate button accordingly. Called on load, on every relevant field
-// change, and whenever setMode() switches between booth and event.
+// Resolves a getMissingRequirements() entry's `target` into a real DOM element — id string via
+// getElementById, {selector} via querySelector (for class-based groups with no single shared
+// id, like brand-color swatches or checkbox groups). Returns null rather than throwing if the
+// element genuinely isn't in the DOM right now (e.g. a field that's currently hidden behind a
+// mode/level toggle) so the caller can fall back to something else rather than crash.
+function resolveMandatoryFieldTarget(target){
+  if(!target) return null;
+  if(typeof target === 'string') return document.getElementById(target);
+  if(target.selector) return document.querySelector(target.selector);
+  return null;
+}
+
+// Scrolls to, focuses, and briefly highlights the first genuinely missing mandatory field for
+// the current mode — "move him to the first mandatory bar" — so a client who clicks Generate
+// with something incomplete lands exactly on what to fix instead of an inert disabled button or
+// a generic top-of-page error. Returns true if it found (and jumped to) something missing,
+// false if the mode is already fully ready to generate — generateDesign() uses that return
+// value to decide whether to stop here or actually proceed.
+function scrollToFirstMissingMandatoryField(m){
+  const missing = getMissingRequirements(m);
+  if(missing.length === 0) return false;
+
+  const first = missing[0];
+  const el = resolveMandatoryFieldTarget(first.target);
+
+  const errBox = document.getElementById('errorBox');
+  if(errBox){
+    errBox.textContent = t('validation.enterPrefix') + first.message + (missing.length > 1 ? ` (and ${missing.length - 1} more item${missing.length > 2 ? 's' : ''} still needed below)` : '.');
+    errBox.style.display = 'block';
+  }
+
+  if(el){
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // A short, self-removing highlight — visible even on elements that can't take real focus
+    // (a checkbox group's first item, a disabled-looking upload box) — rather than relying on
+    // :focus styling alone, which not every one of these element types shows clearly.
+    el.classList.add('mandatory-field-highlight');
+    setTimeout(() => el.classList.remove('mandatory-field-highlight'), 2200);
+    if(typeof el.focus === 'function'){
+      try{ el.focus({ preventScroll: true }); }catch(e){ el.focus(); }
+    }
+  } else if(errBox){
+    errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  return true;
+}
+
+// Re-checks whether the current mode's mandatory fields are complete and keeps the Generate
+// button's tooltip current. Called on load, on every relevant field change, and whenever
+// setMode() switches between booth and event.
+//
+// The button itself is deliberately NEVER disabled here (per explicit client direction): a
+// disabled button with a hover-only tooltip is easy to miss, especially on touch devices where
+// there's no hover at all — a client could tap a dead button repeatedly with no idea why.
+// Instead the button always stays clickable; generateDesign() itself calls
+// scrollToFirstMissingMandatoryField() the moment it's clicked, which does the actual
+// check-and-explain job by jumping straight to whatever's missing. This function's only
+// remaining job is keeping the hover tooltip (a nice-to-have hint for anyone who does hover)
+// in sync — it must never touch btn.disabled again.
 function updateGenerateButtonState(){
   if(mode !== 'booth' && mode !== 'event') return; // Display Stand's button is disabled for an unrelated reason (no generation logic yet)
   const btn = document.getElementById('submitBtn');
   if(!btn) return;
   const missing = getMissingRequirements(mode);
-  btn.disabled = missing.length > 0;
-  btn.title = missing.length > 0 ? t('validation.stillNeeded') + missing.join(', ') : '';
+  btn.title = missing.length > 0 ? t('validation.stillNeeded') + missing.map(x => x.message).join(', ') : '';
 }
 
 // Shared by both stages of the Project Analysis Engine (see generateDesign below): sends
@@ -13549,6 +13615,14 @@ async function submitModifyTheme(){
 }
 
 async function generateDesign(){
+  // Generate is always clickable now (see updateGenerateButtonState's own comment) — this is
+  // the very first thing that runs on every click, before any project data is touched, any
+  // quota checked, or any API called. If anything mandatory for this mode is still missing, this
+  // scrolls/focuses the client straight to the first one (top-to-bottom form order) and stops
+  // here entirely; only a mode with nothing missing ever falls through to the real generation
+  // logic below.
+  if((mode === 'booth' || mode === 'event') && scrollToFirstMissingMandatoryField(mode)) return;
+
   const name = document.getElementById('f_name').value.trim();
   currentProjectName = name || 'Untitled Project';
   const width = document.getElementById('f_width').value.trim();
