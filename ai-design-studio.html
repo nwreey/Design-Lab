@@ -13933,7 +13933,17 @@ async function generateDesign(){
   }
 
   pendingGenerateAction = async function proceedWithGeneration(){
-  lockForm();
+  // Test Engine (admin only) — per explicit client direction, clicking Generate here must NOT
+  // dim/disable the form the way it does everywhere else: the admin wants to keep tweaking fields
+  // and firing off another Generate click while iterating, rather than having to wait for one run
+  // to fully finish (or fail) before the form becomes editable again. Special Engine (every real
+  // user, and admins who leave the selector on Special) keeps the existing protective lock exactly
+  // as before — this is a Test Engine-only relaxation, not a general change. Every unlockForm()
+  // call elsewhere in this flow (error paths, cancel, etc.) stays as-is; it's just a harmless no-op
+  // here since the form was never locked to begin with.
+  const generateEngineModeEl = document.getElementById('f_engineMode');
+  const isTestEngineGenerateClick = isAdminUser && generateEngineModeEl && generateEngineModeEl.value === 'test';
+  if(!isTestEngineGenerateClick) lockForm();
   projectSwitchLocked = true;
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('loadingText').textContent = mode === 'event' ? 'Writing your event concept...' : 'Analyzing your brief and generating concept and design...';
