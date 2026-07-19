@@ -5275,6 +5275,33 @@ RENDERING RULE: generate all four quadrants together, in this single image, as f
 
 FINAL INSTRUCTION: render one single exhibition booth from four synchronized camera positions, arranged as a four-quadrant presentation sheet. The booth is a single immutable architectural object. Only the camera position changes between quadrants. Never redesign, reinterpret, rotate, mirror, or modify the booth between quadrants. The four quadrants must appear as if they were taken by four cameras placed around the same real booth.`;
 
+// OpenAI's image endpoints hard-reject any prompt over 32,000 characters — confirmed via a real
+// production error: "Invalid 'prompt': string too long. Expected a string with maximum length
+// 32000, but got a string with length 34968 instead." Gemini has no such practical limit, so this
+// only ever needs to run on an OpenAI-bound request — a Test Engine brief is already substantial
+// on its own, and MRE-001's own sizeable multi-quadrant suffix (or the logo/brand-fidelity notes
+// appended after it) is exactly what was pushing real prompts over that ceiling. Rather than let
+// the whole render fail outright, this trims the excess out of the MIDDLE of the string, keeping
+// both the opening (the core concept/company identity, always written first) and the closing text
+// (the hard constraints, MRE-001's geometry lock, and the logo/brand fidelity notes, all appended
+// last) fully intact — that's exactly the text that matters most for compliance, so the free-text
+// architectural elaboration in the middle is what gets shortened, not the fixed instructions.
+// Called right before an OpenAI-bound fetch, on the FINAL assembled prompt (after every other
+// section has already been appended), so it always sees the true final length regardless of how
+// many notes got added along the way. A 300-char safety margin is kept below OpenAI's documented
+// 32,000-char limit for byte/encoding overhead OpenAI may count slightly differently than
+// JavaScript's .length.
+const OPENAI_PROMPT_MAX_CHARS = 32000 - 300;
+function capOpenAiPromptLength(fullPrompt){
+  if(typeof fullPrompt !== 'string' || fullPrompt.length <= OPENAI_PROMPT_MAX_CHARS) return fullPrompt;
+  const note = '\n\n[...shortened to fit OpenAI\'s prompt length limit...]\n\n';
+  const overage = (fullPrompt.length - OPENAI_PROMPT_MAX_CHARS) + note.length;
+  const mid = Math.floor(fullPrompt.length / 2);
+  const cutStart = Math.max(0, mid - Math.floor(overage / 2));
+  const cutEnd = Math.min(fullPrompt.length, cutStart + overage);
+  return fullPrompt.slice(0, cutStart) + note + fullPrompt.slice(cutEnd);
+}
+
 /* Optional, user-toggled rule — off by default. When the "Modular Wall Layout" checkbox is
    checked (on the form, the main image edit panel, or the snapshot edit panel), this exact
    text is appended so every wall, panel, and divider follows one repeated, symmetrical,
@@ -15423,6 +15450,11 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
     // 180s timeout room to fire first, with an actual error message, instead of the client aborting
     // prematurely on an unusually slow render.
     const genEndpoint = firstRenderChosenEngine === 'openai' ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+    // See capOpenAiPromptLength's own comment — OpenAI hard-rejects prompts over 32,000 chars,
+    // and a Test Engine brief plus MRE-001's own suffix is exactly what was hitting that ceiling
+    // in real use. No-op for Gemini (its branch never runs this) and a no-op here too whenever the
+    // prompt is already under the limit, which is every other case.
+    if(genEndpoint === '/api/generate-image-openai') requestBody.prompt = capOpenAiPromptLength(requestBody.prompt);
     fetchWithTimeout(genEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -15993,6 +16025,9 @@ async function confirmRegenerateOtherOption(){
       ? forcedEngine === 'openai'
       : (opt.gallery.filter(g => g.label === 'Other option').length + 1) % 2 === 1;
     const otherOptionEndpoint = otherOptionUsesOpenAi ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+    // See capOpenAiPromptLength's own comment — OpenAI hard-rejects prompts over 32,000 chars.
+    // A no-op whenever otherOptionBody.prompt is already under the limit, which is most cases.
+    if(otherOptionUsesOpenAi) otherOptionBody.prompt = capOpenAiPromptLength(otherOptionBody.prompt);
     // Same 190s allowance as the main Generate Design call above — OpenAI's gpt-image-2 needs
     // more headroom than the old 100s default gave it (see that comment for the full reasoning).
     const response = await fetchWithTimeout(otherOptionEndpoint, {
@@ -16637,6 +16672,11 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
   const modifyEngineModeEl = document.getElementById('f_engineMode');
   const modifyUsesOpenAiTE = isAdminUser && modifyEngineModeEl && modifyEngineModeEl.value === 'test';
   const modifyEndpoint = modifyUsesOpenAiTE ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+  // See capOpenAiPromptLength's own comment — OpenAI hard-rejects prompts over 32,000 chars, and
+  // Modify Design always goes through OpenAI for Test Engine now (see the comment just above), so
+  // this is the one place it's guaranteed to actually run rather than being a rare edge case. A
+  // no-op whenever modifyPrompt is already under the limit, which is most cases.
+  if(modifyUsesOpenAiTE) modifyPrompt = capOpenAiPromptLength(modifyPrompt);
 
   try{
     const response = await fetchWithTimeout(modifyEndpoint, {
