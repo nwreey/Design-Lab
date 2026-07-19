@@ -321,6 +321,7 @@
   .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:1.5px;color:var(--teal);text-transform:uppercase;margin-bottom:6px;}
   .concept-title{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:24px;color:var(--navy);margin:0 0 2px;}
   .concept-subtitle{font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:13.5px;color:var(--teal);margin:0 0 14px;}
+  .concept-dimensions{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink);opacity:.65;margin:0 0 6px;}
   .concept-description-block{background:var(--paper);border:1.5px solid var(--line);border-radius:2px;padding:14px 16px;margin:0 0 4px;}
   .concept-description-block-compact{margin:0 0 20px;}
   .concept-description-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);opacity:.6;margin-bottom:8px;}
@@ -3154,6 +3155,7 @@ Replace only the materials and graphics."></textarea>
 
     <div class="eyebrow" id="resultEyebrow">Rendered Concept</div>
     <h2 class="concept-title" id="resConceptTitle"></h2>
+    <div class="concept-dimensions" id="resConceptDimensions" style="display:none;"></div>
     <div class="concept-subtitle" id="resConceptSubtitle"></div>
 
     <div class="concept-description-block" id="conceptDescriptionBlockCamera" style="display:none;">
@@ -15466,6 +15468,28 @@ function showOptionV2(i){
   const opt = optionResults[i];
   document.getElementById('resConceptTitle').textContent = currentProjectName;
   document.getElementById('resConceptSubtitle').textContent = opt.title;
+
+  // Booth size (W × D × H), shown right under the company name for the whole life of this
+  // render slot — including while it's still generating, so the client can see exactly what
+  // size booth this concept is being built for without having to scroll back up to the form.
+  // Same for every user (this reads the plain form fields, not anything engine-specific), so it
+  // shows identically whether this was produced by the Special Engine or the admin Test Engine.
+  // Event mode has no single universal W/D/H the same way (indoor/outdoor/unknown-size cases),
+  // so this stays hidden there.
+  const dimsEl = document.getElementById('resConceptDimensions');
+  if(mode === 'booth'){
+    const dW = document.getElementById('f_width').value.trim();
+    const dD = document.getElementById('f_depth').value.trim();
+    const dH = document.getElementById('f_totalHeight').value.trim();
+    if(dW && dD && dH){
+      dimsEl.textContent = `W × D × H: ${dW} × ${dD} × ${dH} m`;
+      dimsEl.style.display = 'block';
+    }else{
+      dimsEl.style.display = 'none';
+    }
+  }else{
+    dimsEl.style.display = 'none';
+  }
 
   const descBlockCamera = document.getElementById('conceptDescriptionBlockCamera');
   if(opt.conceptDescription){
