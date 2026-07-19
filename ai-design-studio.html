@@ -627,9 +627,8 @@
     </div>
     <div class="sidebar-note" data-i18n="sidebar.autoSaveNote">Projects save automatically and sync across devices.</div>
 
-    <!-- Hidden from everyone, including admins, per an explicit product decision (see
-         checkAdminAccess(), which used to reveal this for data.role === 'admin' and no longer
-         does) — kept fully working under the hood, not removed, in case it's needed again later. -->
+    <!-- Admin-only — hidden here by default and revealed only for data.role === 'admin' in
+         checkAdminAccess(). Regular users never see this section. -->
     <div class="sidebar-upload-existing" id="sidebarUploadExisting" style="display:none;">
       <div class="sidebar-upload-divider" data-i18n="sidebar.or">or</div>
       <div class="sidebar-upload-dims-label" data-i18n="sidebar.boothSizeRequired">Booth size (required)</div>
@@ -9169,16 +9168,22 @@ async function checkAdminAccess(){
       // Event Concept and Display Stand are still in testing — kept visible to admins only
       // until each is finished and deliberately opened up to all users. Remove this reveal
       // (and the style="display:none;" on the buttons themselves) when that happens.
-      // Modify Design (tabEditDesign) and "Upload an existing design" (sidebar) used to get the
-      // same admin-only reveal, but are now hidden from everyone, including admins, per an
-      // explicit product decision — left fully working under the hood (not removed) in case
-      // they're needed again later; just no longer revealed here for any role.
+      // Modify Design (tabEditDesign) stays hidden from everyone, including admins, per that
+      // same earlier product decision — left fully working under the hood (not removed) in case
+      // it's needed again later; just not revealed here for any role.
       ['tabEvent', 'tabDisplayStand'].forEach(id => {
         const tab = document.getElementById(id);
         if(tab) tab.style.display = '';
       });
       const newEngineField = document.getElementById('newSpatialEngineField');
       if(newEngineField) newEngineField.style.display = 'block';
+      // "Upload an existing design" (left sidebar, below the project list) — per explicit client
+      // direction, this is back to its original admin-only reveal: visible only inside the admin
+      // control panel, never for a regular user. Nothing else about it changed (the upload/booth
+      // size fields and handleExistingDesignUpload() were already fully working, just unreachable
+      // with no role ever able to see this section) — this is purely a visibility toggle.
+      const sidebarUploadExisting = document.getElementById('sidebarUploadExisting');
+      if(sidebarUploadExisting) sidebarUploadExisting.style.display = 'block';
     }
     // The AI Auto-fill Helper ("Need help completing this brief?") has now graduated from an
     // admin-only test to a normal feature for every user, in both Booth and Event modes — shown
