@@ -15326,6 +15326,34 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
   const renderEngineModeEl = document.getElementById('f_engineMode');
   const renderEngineMode = (isAdminUser && renderEngineModeEl && renderEngineModeEl.value === 'test') ? 'test' : 'special';
 
+  // Engine choice (Test Engine, admin only, first Generate Booth Design click only) — per explicit
+  // client direction, the very first render for a Test Engine booth now lets the admin pick which
+  // engine renders it (Gemini or OpenAI) instead of always silently using Gemini. The result panel
+  // and its loading spinners are already showing by this point (same visual moment "Other option"'s
+  // own engine-choice dialog appears at), so the dialog reads as an overlay on top of an
+  // already-in-progress render rather than a blocking step before anything happens. Scoped to the
+  // exact same case MRE-001 uses just below: mode 'booth' (Event mode has no engine selector exposed
+  // the same way), renderEngineMode 'test' (Special Engine — every real user — is completely
+  // untouched and still always renders via Gemini with no dialog), and !isUserInitiatedEdit (Quick
+  // Style Change reuses this same function with isUserInitiatedEdit true for an EXISTING approved
+  // design, and must never re-prompt for an engine there). If the admin cancels, every option slot
+  // is marked as a normal error (same status/errorMsg/unlockForm() pattern already used below for a
+  // failed fetch) so the admin can just click Generate again — there's no image to protect yet.
+  const isFirstTestEngineBoothRender = mode === 'booth' && renderEngineMode === 'test' && !isUserInitiatedEdit;
+  let firstRenderChosenEngine = null;
+  if(isFirstTestEngineBoothRender){
+    firstRenderChosenEngine = await chooseImageEngine('Which engine should render this booth design?', 'Choose Image Engine');
+    if(!firstRenderChosenEngine){
+      optionResults.forEach(opt => {
+        opt.status = 'error';
+        opt.errorMsg = 'Cancelled — no engine was selected.';
+      });
+      showOptionV2(activeOptionIndex);
+      unlockForm();
+      return;
+    }
+  }
+
   // MRE-001 (Multi-View Render Engine, Test Engine only) — the very first Generate Booth Design
   // render for a Test Engine booth becomes a single four-quadrant presentation sheet (Front /
   // Right / Left / Top) instead of one hero photograph, per explicit client direction. Scoped
@@ -15336,7 +15364,9 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
   // design and must never suddenly turn it into a 4-quadrant sheet). A 2x2 grid of four distinct
   // camera angles reads best in a landscape sheet regardless of the booth's own footprint shape,
   // so this overrides computeBoothAspectRatio's usual per-booth ratio with a fixed 4:3 here only.
-  const isMultiViewSheetTE = mode === 'booth' && renderEngineMode === 'test' && !isUserInitiatedEdit;
+  // This still applies regardless of which engine the admin picked above — the choice only changes
+  // which endpoint renders the sheet, not whether it's a 4-quadrant sheet at all.
+  const isMultiViewSheetTE = isFirstTestEngineBoothRender;
   const finalRenderAspectRatio = isMultiViewSheetTE ? '4:3' : renderAspectRatio;
 
   // Computed ONCE per render session (identical for every option/variation being generated,
@@ -15375,12 +15405,14 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
       const geomParts = dataUrlParts(lastWhiteBoxModelImage);
       requestBody.additionalReferenceImages = (requestBody.additionalReferenceImages || []).concat([{ data: geomParts.base64, mimeType: geomParts.mime }]);
     }
-    // Gemini only — no other option (the Image Engine admin-test selector has been removed;
-    // every render, admin or not, goes through this one endpoint now). The 190s timeout (up from
-    // a 100s default) still matters even with only one engine: it gives the server's own 180s
-    // timeout room to fire first, with an actual error message, instead of the client aborting
+    // Endpoint selection — every case still always renders via Gemini, EXCEPT the one gated case
+    // above (Test Engine's very first booth render) where the admin explicitly chose OpenAI in the
+    // dialog. firstRenderChosenEngine stays null for every other case (Special Engine, Quick Style
+    // Change reusing this function, Event mode), so this falls through to Gemini exactly as before.
+    // The 190s timeout (up from a 100s default) still matters either way: it gives the server's own
+    // 180s timeout room to fire first, with an actual error message, instead of the client aborting
     // prematurely on an unusually slow render.
-    const genEndpoint = '/api/generate-image-gemini';
+    const genEndpoint = firstRenderChosenEngine === 'openai' ? '/api/generate-image-openai' : '/api/generate-image-gemini';
     fetchWithTimeout(genEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -15403,7 +15435,7 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
           // later entry with a different engine (see confirmRegenerateOtherOption's
           // alternation), so whichever entry ends up approved is what downstream camera-view
           // generation needs to match, not necessarily this first one.
-          optionResults[i].gallery = [{ label: 'Original', image: compressed, engine: 'gemini' }];
+          optionResults[i].gallery = [{ label: 'Original', image: compressed, engine: firstRenderChosenEngine === 'openai' ? 'openai' : 'gemini' }];
           optionResults[i].activeGalleryIndex = 0;
           if(isUserInitiatedEdit && !isAdminUser && currentUserModifyCount != null){
             currentUserModifyCount++;
