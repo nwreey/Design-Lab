@@ -9139,6 +9139,18 @@ let lastBubbleDiagramSVG = '';
 // simply omits the reference image in that case, never blocking generation.
 let lastWhiteBoxModelImage = '';
 
+// PBG-001 — Test Engine only. Three more deterministic, zero-AI reference images: real Three.js
+// screenshots of this exact booth's walls + zone massing from the Front, Left-perspective and
+// Right-perspective camera positions (see buildParametricElevationViews_TE), the same "hand the
+// AI real geometry" idea lastWhiteBoxModelImage already applies to the Top view. Each one is sent
+// to its OWN separate image-generation call with its OWN reference image (never one combined
+// sheet) so a mistake reading one view's geometry can never bleed into another. Reset to
+// {front:'',left:'',right:''} at the top of every generateDesign() call, same reasoning as
+// lastWhiteBoxModelImage above. Stays empty (graceful no-op) whenever THREE/WebGL isn't available
+// or rendering fails — startRenderSession() simply falls back to the old single-call MRE-001 flow
+// in that case, never blocking generation.
+let lastParametricElevations_TE = { front: '', left: '', right: '' };
+
 // Whether the run that just built spatialPlanText/lastWhiteBoxModelImage actually used the Test
 // Engine — read by renderPromptReviewAttachments_TE() so the review screen's attachment gallery
 // only ever appears for a genuine Test Engine run, never for Special Engine or a reopened project
@@ -11584,6 +11596,162 @@ function drawZoneLabel_TE(ctx, zone, x, y, w, h){
     ctx.fillStyle = '#111111';
     ctx.font = '10px Arial';
     ctx.fillText(zone.name, cx, y - 4);
+  }
+}
+
+// PBG-001 — Parametric Booth Generator: true 3D elevation reference images (Test Engine only).
+// buildCadFloorPlanSnapshot_TE above already gives a fully deterministic, zero-AI TOP view (a 2D
+// CAD floor plan) — this does the same "hand the AI real geometry, never make it imagine a
+// description" job for the other three MRE-001 camera positions (Front, Left, Right) by actually
+// constructing this exact booth's walls and zone massing as a real Three.js 3D scene — the SAME
+// numbers buildStructuralShell/LSE-002 already computed, never a second, separately-derived
+// model — and taking a real camera screenshot of it from each position. A prior version of this
+// idea in this codebase (see the old buildWhiteBoxModelSnapshot_TE, since fully replaced) got
+// Left/Right swapped and Front/Rear flipped from hand-picked ad hoc camera vectors; this instead
+// locks every camera's "up" vector to world-up and derives every position/target directly from
+// the same (X: Left(0)->Right(width), Z: Front(0)->Rear(depth), Y: floor(0)->ceiling(height))
+// coordinate convention buildCadFloorPlanSnapshot_TE already proved correct for the Top view, so
+// there is no remaining rotation math that could silently mirror or flip a view.
+// Camera semantics match MRE-001's own definitions exactly (see MRE_001_MULTIVIEW_SHEET_SUFFIX_TE
+// above) so a viewer can't tell these apart from what that spec already promises: FRONT VIEW
+// stands outside the front opening looking straight in; RIGHT/LEFT PERSPECTIVE stand outside
+// that side, angled so both the front and that side's opening are visible in one frame.
+// Gracefully returns all-empty strings whenever THREE isn't loaded (jsdom tests, or a real
+// browser where WebGL is unavailable for any reason) or the renderer throws — never blocks
+// generation, exactly like buildCadFloorPlanSnapshot_TE's own contract right above it.
+function buildParametricElevationViews_TE(shell, functionalProgram, heightM){
+  const empty = { front: '', left: '', right: '' };
+  if(typeof THREE === 'undefined') return empty;
+  try{
+    const widthM = shell.widthM, depthM = shell.depthM;
+    const H = heightM > 0 ? heightM : (shell.wallHeightMm / 1000);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf2f2f0);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+    sun.position.set(widthM, H * 3, -depthM);
+    scene.add(sun);
+
+    // Floor
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(widthM, depthM),
+      new THREE.MeshBasicMaterial({ color: 0xe4e4e0, side: THREE.DoubleSide })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(widthM / 2, 0, depthM / 2);
+    scene.add(floor);
+
+    // Walls — one flat box per STRUCTURAL WALL side, at the exact same corners/thickness/height
+    // buildStructuralShell already computed (and formatStructuralShellForBrief already puts into
+    // the text brief) — never a second, independently-guessed geometry that could disagree with it.
+    const wallThicknessM = shell.wallThicknessMm / 1000;
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const wallEdgeMat = new THREE.LineBasicMaterial({ color: 0x222222 });
+    function addBox(mat, edgeMat, cx, cy, cz, w, h, d){
+      const geo = new THREE.BoxGeometry(Math.max(w, 0.01), Math.max(h, 0.01), Math.max(d, 0.01));
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(cx, cy, cz);
+      scene.add(mesh);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat);
+      edges.position.copy(mesh.position);
+      scene.add(edges);
+    }
+    ['Front', 'Back', 'Left', 'Right'].forEach(sideName => {
+      const s = shell.sides[sideName];
+      if(s.state !== 'STRUCTURAL WALL') return;
+      const wallH = s.heightMm / 1000;
+      if(sideName === 'Front') addBox(wallMat, wallEdgeMat, widthM / 2, wallH / 2, 0, widthM, wallH, wallThicknessM);
+      if(sideName === 'Back') addBox(wallMat, wallEdgeMat, widthM / 2, wallH / 2, depthM, widthM, wallH, wallThicknessM);
+      if(sideName === 'Left') addBox(wallMat, wallEdgeMat, 0, wallH / 2, depthM / 2, wallThicknessM, wallH, depthM);
+      if(sideName === 'Right') addBox(wallMat, wallEdgeMat, widthM, wallH / 2, depthM / 2, wallThicknessM, wallH, depthM);
+    });
+
+    // Zone massing — one plain, semi-transparent grey box per zone, extruded to its own real
+    // height, from LSE-002's own non-overlapping footprint (functionalProgram.zones) — the same
+    // "white-box" massing concept the Top view already shows in 2D, now as real 3D volume so
+    // Front/Left/Right can also show each zone's height and position, not just its floor outline.
+    const zoneMat = new THREE.MeshLambertMaterial({ color: 0xb9c4cf, transparent: true, opacity: 0.55 });
+    const zoneEdgeMat = new THREE.LineBasicMaterial({ color: 0x445566 });
+    (functionalProgram.zones || []).forEach(zone => {
+      if(!zone.footprint) return;
+      const f = zone.footprint;
+      const zoneHeightM = (zone.dims && zone.dims.heightMm ? zone.dims.heightMm : 1000) / 1000;
+      addBox(zoneMat, zoneEdgeMat, f.xM + f.widthM / 2, zoneHeightM / 2, f.yM + f.depthM / 2, f.widthM, zoneHeightM, f.depthM);
+    });
+
+    const RW = 1000, RH = 750;
+    const canvas = document.createElement('canvas');
+    canvas.width = RW; canvas.height = RH;
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(RW, RH, false);
+    renderer.setClearColor(0xf2f2f0, 1);
+
+    const maxSpan = Math.max(widthM, depthM, H) || 1;
+    function shoot(camera, label, note){
+      renderer.render(scene, camera);
+      return stampViewLabel_TE(canvas, label, note);
+    }
+
+    // FRONT VIEW — orthographic, camera standing outside the front open side looking straight in,
+    // matching MRE-001's own "camera positioned in front of the booth, looking directly toward the
+    // front opening" definition exactly. Orthographic (not perspective) so width and height read
+    // as true, undistorted proportions rather than a perspective-skewed guess.
+    const frontCam = new THREE.OrthographicCamera(-widthM * 0.62, widthM * 0.62, H * 1.15, -H * 0.08, 0.1, maxSpan * 6);
+    frontCam.position.set(widthM / 2, H * 0.5, -maxSpan * 2);
+    frontCam.up.set(0, 1, 0);
+    frontCam.lookAt(widthM / 2, H * 0.5, depthM / 2);
+    const front = shoot(frontCam, 'FRONT VIEW', 'Camera stands outside the Front opening, looking straight in. Left is image-left, Right is image-right.');
+
+    // RIGHT PERSPECTIVE — wide-angle camera outside the right side, angled so both the front and
+    // right openings are visible together, per MRE-001's own definition.
+    const rightCam = new THREE.PerspectiveCamera(55, RW / RH, 0.1, maxSpan * 8);
+    rightCam.position.set(widthM * 1.55, H * 1.05, -depthM * 0.35);
+    rightCam.up.set(0, 1, 0);
+    rightCam.lookAt(widthM * 0.1, H * 0.3, depthM * 0.6);
+    const right = shoot(rightCam, 'RIGHT PERSPECTIVE', 'Camera stands outside the Right side; the Right wall/opening is nearest the camera.');
+
+    // LEFT PERSPECTIVE — mirror of the right camera, outside the left side.
+    const leftCam = new THREE.PerspectiveCamera(55, RW / RH, 0.1, maxSpan * 8);
+    leftCam.position.set(-widthM * 0.55, H * 1.05, -depthM * 0.35);
+    leftCam.up.set(0, 1, 0);
+    leftCam.lookAt(widthM * 0.9, H * 0.3, depthM * 0.6);
+    const left = shoot(leftCam, 'LEFT PERSPECTIVE', 'Camera stands outside the Left side; the Left wall/opening is nearest the camera.');
+
+    renderer.dispose();
+    return { front, left, right };
+  }catch(err){
+    console.error('Parametric elevation render failed (Test Engine) — continuing without these reference images:', err);
+    return empty;
+  }
+}
+
+// Draws a small text banner (view name + a one-line orientation reminder) above a captured WebGL
+// screenshot — same "make the convention impossible to misread" reasoning as the CAD floor plan's
+// own FRONT arrow and axis labels. Composited via a normal 2D canvas (WebGL itself has no text
+// support); drawImage() accepts the live WebGL <canvas> element directly, so this is fully
+// synchronous — no Image()/onload round-trip needed, and it must run immediately after each
+// render() call, before the next camera's render() overwrites the same canvas.
+function stampViewLabel_TE(sourceCanvas, label, note){
+  try{
+    const w = sourceCanvas.width, h = sourceCanvas.height;
+    const bannerH = 46;
+    const out = document.createElement('canvas');
+    out.width = w; out.height = h + bannerH;
+    const ctx = out.getContext('2d');
+    if(!ctx) return sourceCanvas.toDataURL('image/png');
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, w, bannerH);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, 12, 20);
+    ctx.font = '11px Arial';
+    ctx.fillText(note, 12, 38);
+    ctx.drawImage(sourceCanvas, 0, bannerH);
+    return out.toDataURL('image/png');
+  }catch(err){
+    try{ return sourceCanvas.toDataURL('image/png'); }catch(e2){ return ''; }
   }
 }
 
@@ -14044,6 +14212,7 @@ async function generateDesign(){
   const useTestEngine = isAdminUser && engineModeEl && engineModeEl.value === 'test';
   lastBubbleDiagramSVG = ''; // reset every run — a stale diagram from a previous project must never linger in the admin preview
   lastWhiteBoxModelImage = ''; // reset every run — same reasoning as lastBubbleDiagramSVG above
+  lastParametricElevations_TE = { front: '', left: '', right: '' }; // reset every run — same reasoning as lastWhiteBoxModelImage above
   lastGenerationUsedTestEngine = useTestEngine; // reset every run too — read by the promptReview attachment gallery
   if(mode === 'booth' && spatialPlan){
     try{
@@ -14077,6 +14246,13 @@ async function generateDesign(){
         if(lastWhiteBoxModelImage){
           spatialPlanText += '\n\nGEOMETRY REFERENCE IMAGE ATTACHED (Test Engine only) — one attached image is a black-and-white architectural floor plan (top-down CAD-style line drawing, not a photo) built directly from this exact booth\'s own computed numbers (floor footprint, real wall thickness, open sides, and every zone\'s own real, non-overlapping footprint rectangle) — zero AI involved in producing it. It shows a reference grid, coordinate axes, a FRONT orientation arrow, every wall side labeled WALL or (OPEN), and every zone labeled with its name and exact width × depth in millimeters. Orientation in this image is fixed: Front is at the TOP edge, Rear is at the BOTTOM edge, Left is on the LEFT, Right is on the RIGHT — matching this brief\'s own coordinate system exactly (never mirrored or rotated). It is the ground truth for shape, wall position, orientation, and zone layout, overriding this text description if the two ever disagree on geometry. Match its floor size, wall positions, open sides, and every zone\'s exact position and dimensions. Never redesign, rotate, mirror, resize, or reinterpret the layout it shows, and never let two zones overlap in the final render — this reference image already guarantees they don\'t. Use this text only for what the reference image cannot show: each zone\'s purpose/identity, materials, branding, lighting, and decoration.';
         }
+        // PBG-001 — same "hand it real geometry, zero AI" idea as the CAD floor plan above, now
+        // for Front/Left/Right too. Only meaningful for a fresh booth render (not an edit), same
+        // scope MRE-001's multi-view sheet already used — a true 3D scene of THIS exact shell +
+        // zone massing, screenshotted from each camera position. Silently stays empty on any
+        // failure (see buildParametricElevationViews_TE) — startRenderSession() falls back to the
+        // prior single-call MRE-001 flow whenever these are empty, never blocking generation.
+        lastParametricElevations_TE = buildParametricElevationViews_TE(structuralShellRaw, functionalProgram, parseFloat(totalHeight));
       }else{
         const designIntent = buildDesignIntent(parseFloat(width), parseFloat(depth), parseFloat(totalHeight));
         const functionalProgram = tagFurnitureSelection(buildFunctionalProgram(spatialPlan.zonePlan));
@@ -15005,6 +15181,20 @@ async function renderPromptReviewAttachments_TE(){
     items.push({ dataUrl: lastWhiteBoxModelImage, label: 'Geometry reference — CAD floor plan (labeled walls/zones/dimensions, non-overlapping; Front=top, Rear=bottom, Left=left, Right=right)' });
   }
 
+  // PBG-001 — the 3 new true-3D elevation references (Front/Left/Right), shown here purely so an
+  // admin reviewing the prompt can see exactly what geometry each of the 4 separate render calls
+  // will be locked to. Each is used by a DIFFERENT one of the 4 render calls, not all attached to
+  // one call — see startRenderSession()'s per-view loop.
+  if(lastParametricElevations_TE && lastParametricElevations_TE.front){
+    items.push({ dataUrl: lastParametricElevations_TE.front, label: 'Geometry reference — Front view (real 3D render of this booth\'s walls/zones, used only for the Front image call)' });
+  }
+  if(lastParametricElevations_TE && lastParametricElevations_TE.right){
+    items.push({ dataUrl: lastParametricElevations_TE.right, label: 'Geometry reference — Right perspective (real 3D render, used only for the Right-perspective image call)' });
+  }
+  if(lastParametricElevations_TE && lastParametricElevations_TE.left){
+    items.push({ dataUrl: lastParametricElevations_TE.left, label: 'Geometry reference — Left perspective (real 3D render, used only for the Left-perspective image call)' });
+  }
+
   if(!items.length){
     wrap.style.display = 'none';
     list.innerHTML = '';
@@ -15411,12 +15601,25 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
   const isMultiViewSheetTE = isFirstTestEngineBoothRender;
   const finalRenderAspectRatio = isMultiViewSheetTE ? '4:3' : renderAspectRatio;
 
+  // PBG-001 — when the parametric 3D engine actually produced all three elevation images this
+  // run (see generateDesign()'s call to buildParametricElevationViews_TE), the 4-quadrant sheet
+  // is now built from 4 SEPARATE render calls (one per view, each locked to its own real-geometry
+  // reference image) instead of one single call asking the AI to lay out and label a 4-in-1 grid
+  // itself — see renderParametricMultiViewOption_TE below. Falls back to the prior single-call
+  // MRE-001 flow whenever the 3D renderer wasn't available or failed (lastParametricElevations_TE
+  // left empty) so a WebGL hiccup can never block a Test Engine render outright.
+  const use3DViews = isMultiViewSheetTE && lastParametricElevations_TE && lastParametricElevations_TE.front && lastParametricElevations_TE.left && lastParametricElevations_TE.right;
+
   // Computed ONCE per render session (identical for every option/variation being generated,
   // since they all share the same brandPortfolio state) rather than inside the loop below —
   // see buildBrandPortfolioRenderAssets' own comment for why this exists at all.
   const brandAssets = await buildBrandPortfolioRenderAssets();
 
   optionResults.forEach((opt, i) => {
+    if(use3DViews){
+      renderParametricMultiViewOption_TE(i, opt, { renderEngineMode, firstRenderChosenEngine, brandAssets });
+      return;
+    }
     const requestBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX + (isMultiViewSheetTE ? MRE_001_MULTIVIEW_SHEET_SUFFIX_TE : ''), isUserInitiatedEdit: !!isUserInitiatedEdit, aspectRatio: finalRenderAspectRatio, engineMode: renderEngineMode };
     // Attach the actual logo file as a reference image — without this, Gemini only ever
     // saw a text description of the logo (written by OpenAI's earlier vision pass) and had
@@ -15505,6 +15708,154 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
         pendingRenderCount = Math.max(0, pendingRenderCount - 1);
         if(pendingRenderCount === 0) projectSwitchLocked = false;
       });
+  });
+}
+
+// PBG-001 — replaces MRE_001_MULTIVIEW_SHEET_SUFFIX_TE for the 4-separate-calls flow only (that
+// constant is untouched and still used verbatim by the single-call fallback above, whenever the
+// 3D renderer couldn't produce all three elevation images). Describes ONE single photograph of
+// ONE camera position, never a 4-in-1 grid the AI has to lay out and label itself — that
+// self-layout responsibility is exactly what let the AI add walls that shouldn't exist or
+// misread which side was which; now the geometry is locked in an attached reference image and
+// the AI's only job is materials/lighting/photorealism, one view at a time.
+function buildSingleViewRenderInstruction_TE(viewLabel, viewDetail){
+  return `\n\nSINGLE-VIEW PARAMETRIC RENDER (Test Engine, PBG-001) — render exactly ONE photograph: the ${viewLabel}. ${viewDetail} A reference image is attached showing this exact booth's real geometry (walls, floor footprint, and zone massing) already correctly positioned and oriented from this exact camera angle — treat it as locked, ground-truth geometry to texture, light, furnish, and photorealistically render over, never as a rough sketch to reinterpret or a suggestion to redesign. Never add a wall, column, ceiling, or opening that is not shown in the reference image, and never remove, resize, move, or reorient a wall that is shown in it. Do not output a multi-panel grid, a collage, or any other camera angle — one full-frame photograph of exactly this view only.`;
+}
+
+// PBG-001 — fires the 4 separate, per-view render calls (Front / Right Perspective / Left
+// Perspective / Top), each locked to its own separate reference image (3 from
+// buildParametricElevationViews_TE's real Three.js screenshots, Top reused directly from the
+// existing buildCadFloorPlanSnapshot_TE result), then composites the 4 results into ONE
+// four-quadrant sheet client-side (compositeMultiViewSheet_TE) so every existing single-image
+// downstream consumer — the gallery, download, Other option, Modify Design, the brand asset
+// integrity pass, compression — needs zero changes and never has to know 4 separate AI calls
+// happened. On any failure (one view's call errors, or compositing fails), the whole option is
+// marked as a normal error — same status/errorMsg/unlockForm() pattern the single-call fallback
+// above already uses for a failed fetch — so nothing partial or mismatched-geometry ever reaches
+// the gallery.
+async function renderParametricMultiViewOption_TE(i, opt, renderCtx){
+  const { renderEngineMode, firstRenderChosenEngine, brandAssets } = renderCtx;
+  const genEndpoint = firstRenderChosenEngine === 'openai' ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+  const views = [
+    { key: 'front', instruction: buildSingleViewRenderInstruction_TE('FRONT VIEW', 'Camera stands directly outside the Front opening, looking straight into the booth; the entrance is centered in frame.'), refImage: lastParametricElevations_TE.front },
+    { key: 'right', instruction: buildSingleViewRenderInstruction_TE('RIGHT PERSPECTIVE VIEW', 'Camera stands outside the Right side of the booth, angled so both the Front and Right openings are visible together in one frame.'), refImage: lastParametricElevations_TE.right },
+    { key: 'left', instruction: buildSingleViewRenderInstruction_TE('LEFT PERSPECTIVE VIEW', 'Camera stands outside the Left side of the booth, angled so both the Front and Left openings are visible together in one frame (mirror of the Right Perspective view).'), refImage: lastParametricElevations_TE.left },
+    { key: 'top', instruction: buildSingleViewRenderInstruction_TE('TOP VIEW', 'Orthographic bird\'s-eye view directly above the booth. Front edge at the top of the frame, Rear edge at the bottom, Left on the left, Right on the right.'), refImage: lastWhiteBoxModelImage },
+  ];
+
+  try{
+    const results = await Promise.all(views.map(async view => {
+      const requestBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX + view.instruction, isUserInitiatedEdit: false, aspectRatio: '4:3', engineMode: renderEngineMode };
+      // Same reasoning as the single-call flow above: real pixels, not a guess, attached
+      // directly to every one of the 4 calls, not just the first — a logo or brand product
+      // photo needs to appear correctly in every view, not only whichever one happened to
+      // render first.
+      if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+        requestBody.referenceImage = logoDataUrl.split(',')[1];
+        requestBody.referenceMimeType = logoMediaType;
+        requestBody.prompt += '\n\nThe attached company logo image is the exact logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
+      }
+      if(brandAssets.images.length){
+        requestBody.additionalReferenceImages = (requestBody.additionalReferenceImages || []).concat(brandAssets.images);
+        requestBody.prompt += brandAssets.note;
+      }
+      if(view.refImage){
+        // The primary referenceImage slot is already claimed by the logo above when present (the
+        // OpenAI edits endpoint only treats the first image as primary) — this view's own
+        // geometry reference always rides in additionalReferenceImages instead, exactly like the
+        // CAD floor plan reference already does in the single-call flow above.
+        const parts = dataUrlParts(view.refImage);
+        requestBody.additionalReferenceImages = (requestBody.additionalReferenceImages || []).concat([{ data: parts.base64, mimeType: parts.mime }]);
+      }
+      if(genEndpoint === '/api/generate-image-openai') requestBody.prompt = capOpenAiPromptLength(requestBody.prompt);
+
+      const res = await fetchWithTimeout(genEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      }, 190000);
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok || !data.image) throw new Error((data.error && data.error.message) || `The ${view.key} view failed to render.`);
+      return [view.key, data.image];
+    }));
+
+    const viewImages = {};
+    results.forEach(([key, image]) => { viewImages[key] = image; });
+
+    const composite = await compositeMultiViewSheet_TE(viewImages);
+    const correctedImage = await runBrandAssetIntegrityEngine(composite);
+    const compressed = await compressDataUrlToTarget(correctedImage);
+    optionResults[i].status = 'done';
+    optionResults[i].gallery = [{ label: 'Original', image: compressed, engine: firstRenderChosenEngine === 'openai' ? 'openai' : 'gemini' }];
+    optionResults[i].activeGalleryIndex = 0;
+  }catch(err){
+    optionResults[i].status = 'error';
+    optionResults[i].errorMsg = err && err.message ? err.message : 'Unexpected error rendering the 4-view parametric sheet.';
+    unlockForm();
+  }
+  renderOptionTabsV2();
+  if(activeOptionIndex === i) showOptionV2(i);
+  saveCurrentProject();
+  pendingRenderCount = Math.max(0, pendingRenderCount - 1);
+  if(pendingRenderCount === 0) projectSwitchLocked = false;
+}
+
+// PBG-001 — composites the 4 separately-rendered, separately-referenced view images (Front/Right
+// Perspective/Left Perspective/Top) into ONE four-quadrant sheet, purely client-side, with a
+// small labeled banner over each quadrant so it's unambiguous which panel is which — same
+// TOP-LEFT=Front, TOP-RIGHT=Right, BOTTOM-LEFT=Left, BOTTOM-RIGHT=Top arrangement MRE-001's own
+// single-call sheet already used, so this reads identically to admins already used to that
+// layout. This is what lets every existing single-image downstream consumer keep working
+// completely unchanged.
+function compositeMultiViewSheet_TE(views){
+  return new Promise((resolve, reject) => {
+    const order = [
+      { key: 'front', label: 'FRONT VIEW', col: 0, row: 0 },
+      { key: 'right', label: 'RIGHT PERSPECTIVE', col: 1, row: 0 },
+      { key: 'left', label: 'LEFT PERSPECTIVE', col: 0, row: 1 },
+      { key: 'top', label: 'TOP VIEW', col: 1, row: 1 },
+    ];
+    const cellW = 800, cellH = 600, labelH = 32;
+    const canvas = document.createElement('canvas');
+    canvas.width = cellW * 2;
+    canvas.height = (cellH + labelH) * 2;
+    const ctx = canvas.getContext('2d');
+    if(!ctx){ reject(new Error('2D canvas context unavailable for compositing the multi-view sheet.')); return; }
+
+    let loaded = 0;
+    let failed = null;
+    const images = {};
+
+    function finish(){
+      order.forEach(cell => {
+        const x = cell.col * cellW;
+        const y = cell.row * (cellH + labelH);
+        ctx.fillStyle = '#111111';
+        ctx.fillRect(x, y, cellW, labelH);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(cell.label, x + 10, y + 22);
+        ctx.drawImage(images[cell.key], x, y + labelH, cellW, cellH);
+      });
+      resolve(canvas.toDataURL('image/png'));
+    }
+
+    order.forEach(cell => {
+      const img = new Image();
+      img.onload = () => {
+        if(failed) return;
+        images[cell.key] = img;
+        loaded++;
+        if(loaded === order.length) finish();
+      };
+      img.onerror = () => {
+        if(failed) return;
+        failed = new Error('Failed to load the ' + cell.label + ' image while compositing the multi-view sheet.');
+        reject(failed);
+      };
+      img.src = views[cell.key];
+    });
   });
 }
 
