@@ -105,18 +105,17 @@ module.exports = async (req, res) => {
     const SUPPORTED_ASPECT_RATIOS = new Set(['1:1', '3:2', '2:3', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
     const resolvedAspectRatio = SUPPORTED_ASPECT_RATIOS.has(aspectRatio) ? aspectRatio : '16:9';
 
-    // Resolution now follows which Spatial Planning Engine generated this design, not simply
-    // "is this caller an admin": Special Engine — the production pipeline, exactly what every
-    // regular user's design goes through — always renders at Gemini's full 2K ("good" quality,
-    // matching what the user platform actually ships). Test Engine — the admin's isolated sandbox
-    // copy for active development — renders at a faster, lower 1K ("medium") so an admin iterating
-    // there isn't stuck in a long "click Generate, wait" loop. Both the admin-role check AND the
-    // engineMode value are verified server-side: caller.role comes from the signed auth cookie
-    // (see getCaller above, never a client-sent flag) and engineMode is only ever honored when
-    // that role check passes, so a non-admin spoofing engineMode:'test' in the request body still
-    // gets the full 2K production quality, unchanged. (Gemini's imageSize enum is 512/1K/2K/4K —
-    // ai.google.dev/gemini-api/docs/image-generation — 1K and 2K are the two currently used here.)
-    const resolvedImageSize = (caller.role === 'admin' && engineMode === 'test') ? '1K' : '2K';
+    // Always 1K now, for every caller. Used to be 2K for every regular user (Test Engine's admin
+    // sandbox got 1K for faster iteration) — but Test Engine has since been fully retired (Special
+    // Engine is the only pipeline left, for every role, including admins), and per an explicit
+    // product decision, generation speed now matters more than the marginal sharpness gain 2K gave:
+    // Gemini takes noticeably longer to render a 2K image than a 1K one, and 2K's own output then
+    // still gets compressed straight back down to a ~195KB budget on the client anyway (see
+    // compressDataUrlToTarget), so almost none of that extra resolution ever survived to be seen.
+    // engineMode is still accepted on the request body (older/cached clients may still send it)
+    // but no longer has any effect — kept only so a stray 'test' value can never throw here.
+    // (Gemini's imageSize enum is 512/1K/2K/4K — ai.google.dev/gemini-api/docs/image-generation.)
+    const resolvedImageSize = '1K';
 
     // The very first modification on a freshly generated design doesn't count against the
     // modify quota at all — occasionally the initial render needs a quick correction, and

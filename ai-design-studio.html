@@ -16407,17 +16407,27 @@ function compressDataUrl(dataUrl, maxDim, quality){
 
 /* Every image returned from Gemini/OpenAI is displayed, downloaded, and saved into
    IndexedDB with the project — at ~2MB per image that adds up fast and slows everything
-   down. This compresses any result image down to a hard byte-size budget (default 800KB)
-   by iteratively stepping down quality and, if still too big, resolution too. */
+   down. This compresses any result image down to a hard byte-size budget (default ~195KB,
+   per an explicit product decision to keep every result under 200KB — see
+   compressDataUrlToTarget's own comment) by iteratively stepping down quality and, if still
+   too big, resolution too. */
 function estimateDataUrlBytes(dataUrl){
   const base64 = dataUrl.split(',')[1] || '';
   return Math.floor(base64.length * 0.75);
 }
 
+// Default budget dropped from 800KB to ~195KB (a hair under the 200KB ceiling) per an explicit
+// product decision: large result images were the main contributor to how long "Generate" felt
+// like it was taking end-to-end (multi-MB downloads/decodes/canvas work on top of the actual AI
+// render time), so every result — hero render, Other option, Modify Design — now gets pushed
+// down to this same small budget by default. The dims/qualities ladder gained one smaller final
+// rung (640px / 0.3 quality) so a genuinely complex/busy image still has a real shot at landing
+// under budget instead of exiting the loop early on the old smallest rung (832px / 0.4). Callers
+// that pass their own maxBytes (event mood board, camera views, etc.) are untouched.
 async function compressDataUrlToTarget(dataUrl, maxBytes){
-  const budget = maxBytes || 800 * 1024;
-  const dims = [1536, 1280, 1024, 832];
-  const qualities = [0.85, 0.72, 0.6, 0.5, 0.4];
+  const budget = maxBytes || 195 * 1024;
+  const dims = [1536, 1280, 1024, 832, 640];
+  const qualities = [0.85, 0.72, 0.6, 0.5, 0.4, 0.3];
   let best = null;
   for(const dim of dims){
     for(const q of qualities){
