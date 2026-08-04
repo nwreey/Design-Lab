@@ -3432,6 +3432,23 @@ Replace only the materials and graphics."></textarea>
     </div>
   </div>
 
+  <!-- Admin-only: shows the exact final "Other option" rendering prompt before it's sent to the
+       image engine, editable, with Approve/Cancel — same purpose as the #promptReview screen on
+       the main Generate flow, just for this action instead. Regular users never see this; their
+       "Other option" click goes straight through to generation as before. -->
+  <div class="gen-notice-overlay" id="otherOptionPromptReviewOverlay">
+    <div class="gen-notice-card" style="max-width:640px;width:92vw;">
+      <div class="gen-notice-eyebrow">Other Option — Review Prompt (Admin Only)</div>
+      <h3 style="margin-top:2px;">This is the prompt that will be sent</h3>
+      <p style="font-size:13px;color:var(--ink);opacity:.75;margin:0 0 12px;">Edit it directly if needed, then approve to generate — or cancel to leave everything untouched.</p>
+      <textarea id="otherOptionPromptReviewText" style="width:100%;min-height:260px;font-family:inherit;font-size:12.5px;line-height:1.5;padding:10px;border:1px solid var(--line);border-radius:4px;resize:vertical;"></textarea>
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="ghost" style="flex:1;" onclick="__resolveOtherOptionPromptReview(false)">Cancel</button>
+        <button class="primary" style="flex:1;" onclick="__resolveOtherOptionPromptReview(true)">Approve &amp; generate</button>
+      </div>
+    </div>
+  </div>
+
   <div class="lightbox-overlay" id="lightboxOverlay" onclick="closeImageLightbox()">
     <button class="lightbox-close" onclick="event.stopPropagation(); closeImageLightbox()">Close ✕</button>
     <img id="lightboxImg" alt="Full size preview" onclick="event.stopPropagation();">
@@ -15108,6 +15125,26 @@ function __resolveEngineChoice(engine){
   }
 }
 
+// Admin-only: shows the exact final "Other option" rendering prompt before it's sent, editable,
+// with Approve/Cancel — same promise-based pattern as chooseImageEngine above. Resolves to the
+// (possibly edited) prompt text on Approve, or null on Cancel. Called only from
+// confirmRegenerateOtherOption(), only when isAdminUser is true; regular users never see this.
+let __otherOptionPromptReviewResolve = null;
+function reviewOtherOptionPrompt(promptText){
+  return new Promise(resolve => {
+    __otherOptionPromptReviewResolve = resolve;
+    document.getElementById('otherOptionPromptReviewText').value = promptText || '';
+    document.getElementById('otherOptionPromptReviewOverlay').style.display = 'flex';
+  });
+}
+
+function __resolveOtherOptionPromptReview(approved){
+  document.getElementById('otherOptionPromptReviewOverlay').style.display = 'none';
+  const resolve = __otherOptionPromptReviewResolve;
+  __otherOptionPromptReviewResolve = null;
+  if(resolve) resolve(approved ? document.getElementById('otherOptionPromptReviewText').value : null);
+}
+
 /* ---------- prompt review step: edit/approve before rendering ---------- */
 
 let pendingPromptResult = null;
@@ -16451,6 +16488,70 @@ async function confirmRegenerateOtherOption(){
   const statusEl = document.getElementById('actionStatus');
   const isFreeFirstModification = !opt.usedFreeModification;
 
+  // Build the exact request body up front — including the admin-only prompt review step below —
+  // before touching any lock/progress-bar UI state, so cancelling either dialog leaves the screen
+  // completely untouched, same guarantee the engine-choice dialog above already gives.
+
+  // Same booth-shape-matched aspect ratio as the original render (see computeBoothAspectRatio)
+  // — regenerating "Other option" should never silently switch frame shape mid-project.
+  const otherOptionAspectRatio = mode === 'booth'
+    ? computeBoothAspectRatio(parseFloat(document.getElementById('f_width').value), parseFloat(document.getElementById('f_depth').value))
+    : '16:9';
+  const otherOptionBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: true, isFreeFirstModification, aspectRatio: otherOptionAspectRatio };
+  if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+    otherOptionBody.referenceImage = logoDataUrl.split(',')[1];
+    otherOptionBody.referenceMimeType = logoMediaType;
+    otherOptionBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
+  }
+  // Same fix as startRenderSession's own brandAssets wiring (see buildBrandPortfolioRenderAssets'
+  // comment) — "Other option" used to build its request body entirely on its own, skipping this
+  // attachment step, so it never actually saw the represented brands' real logo/product pixels
+  // and only ever had BIE-001's after-the-fact correction pass to fall back on. Real reported
+  // case: a user's Brand Portfolio & Products were correctly used on the initial Generate, but
+  // ignored on every "Other option" click afterward. Attached the same way here, per option.
+  const otherOptionBrandAssets = await buildBrandPortfolioRenderAssets();
+  if(otherOptionBrandAssets.images.length){
+    otherOptionBody.additionalReferenceImages = otherOptionBrandAssets.images;
+    otherOptionBody.prompt += otherOptionBrandAssets.note;
+  }
+  // CAD Floor Plan Reference (Test Engine only) — same gap, same fix as the two blocks above:
+  // this call built its reference-image list entirely on its own and never re-attached the
+  // actual CAD floor plan image that startRenderSession's original Generate Design call sent
+  // (see that call's own comment). opt.image_prompt's text already assumes/references that
+  // geometry image (it was written by OpenAI while that image was attached to the original
+  // brief), so leaving the real file out of every "Other option" click let the design quietly
+  // drift from the exact reference geometry over time — a real reported case. lastWhiteBoxModelImage
+  // stays '' for Special Engine projects, so this is a no-op there, exactly like the original.
+  if(lastWhiteBoxModelImage){
+    const otherOptionGeomParts = dataUrlParts(lastWhiteBoxModelImage);
+    otherOptionBody.additionalReferenceImages = (otherOptionBody.additionalReferenceImages || []).concat([{ data: otherOptionGeomParts.base64, mimeType: otherOptionGeomParts.mime }]);
+  }
+  // The very first render (Generate Design) always stays on Gemini. Admins picked an exact
+  // engine for this click via the dialog at the top of this function (forcedEngine); every
+  // other user instead gets automatic alternation — 1st Other option -> OpenAI, 2nd ->
+  // Gemini, 3rd -> OpenAI, and so on — so the two engines still end up compared directly
+  // against each other across a design's option history. Counted from this option's own
+  // gallery (each prior "Other option" click already pushed one 'Other option' entry onto
+  // it), so the sequence survives page refreshes/project reopens rather than resetting to
+  // "always OpenAI first" every time.
+  const otherOptionUsesOpenAi = forcedEngine
+    ? forcedEngine === 'openai'
+    : (opt.gallery.filter(g => g.label === 'Other option').length + 1) % 2 === 1;
+  const otherOptionEndpoint = otherOptionUsesOpenAi ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+  // See capOpenAiPromptLength's own comment — OpenAI hard-rejects prompts over 32,000 chars.
+  // A no-op whenever otherOptionBody.prompt is already under the limit, which is most cases.
+  if(otherOptionUsesOpenAi) otherOptionBody.prompt = capOpenAiPromptLength(otherOptionBody.prompt);
+
+  // Admin-only: show the exact final prompt about to be sent — editable — before anything
+  // actually renders. Same "debuggability without exposing this to every user" principle as
+  // showPromptReview() on the main Generate flow; regular users never see this, their click goes
+  // straight through to generation exactly as before.
+  if(isAdminUser){
+    const reviewedPrompt = await reviewOtherOptionPrompt(otherOptionBody.prompt);
+    if(reviewedPrompt === null) return; // cancelled — nothing was touched yet, so nothing to undo
+    otherOptionBody.prompt = reviewedPrompt;
+  }
+
   const btn = document.getElementById('otherOptionBtn');
   const approveBtn = document.getElementById('approveDesignBtn');
   const modifyBtn = document.querySelector('.action-bar button[onclick="openModifyDesignPanel()"]');
@@ -16474,55 +16575,6 @@ async function confirmRegenerateOtherOption(){
   }
 
   try{
-    // Same booth-shape-matched aspect ratio as the original render (see computeBoothAspectRatio)
-    // — regenerating "Other option" should never silently switch frame shape mid-project.
-    const otherOptionAspectRatio = mode === 'booth'
-      ? computeBoothAspectRatio(parseFloat(document.getElementById('f_width').value), parseFloat(document.getElementById('f_depth').value))
-      : '16:9';
-    const otherOptionBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: true, isFreeFirstModification, aspectRatio: otherOptionAspectRatio };
-    if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
-      otherOptionBody.referenceImage = logoDataUrl.split(',')[1];
-      otherOptionBody.referenceMimeType = logoMediaType;
-      otherOptionBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
-    }
-    // Same fix as startRenderSession's own brandAssets wiring (see buildBrandPortfolioRenderAssets'
-    // comment) — "Other option" used to build its request body entirely on its own, skipping this
-    // attachment step, so it never actually saw the represented brands' real logo/product pixels
-    // and only ever had BIE-001's after-the-fact correction pass to fall back on. Real reported
-    // case: a user's Brand Portfolio & Products were correctly used on the initial Generate, but
-    // ignored on every "Other option" click afterward. Attached the same way here, per option.
-    const otherOptionBrandAssets = await buildBrandPortfolioRenderAssets();
-    if(otherOptionBrandAssets.images.length){
-      otherOptionBody.additionalReferenceImages = otherOptionBrandAssets.images;
-      otherOptionBody.prompt += otherOptionBrandAssets.note;
-    }
-    // CAD Floor Plan Reference (Test Engine only) — same gap, same fix as the two blocks above:
-    // this call built its reference-image list entirely on its own and never re-attached the
-    // actual CAD floor plan image that startRenderSession's original Generate Design call sent
-    // (see that call's own comment). opt.image_prompt's text already assumes/references that
-    // geometry image (it was written by OpenAI while that image was attached to the original
-    // brief), so leaving the real file out of every "Other option" click let the design quietly
-    // drift from the exact reference geometry over time — a real reported case. lastWhiteBoxModelImage
-    // stays '' for Special Engine projects, so this is a no-op there, exactly like the original.
-    if(lastWhiteBoxModelImage){
-      const otherOptionGeomParts = dataUrlParts(lastWhiteBoxModelImage);
-      otherOptionBody.additionalReferenceImages = (otherOptionBody.additionalReferenceImages || []).concat([{ data: otherOptionGeomParts.base64, mimeType: otherOptionGeomParts.mime }]);
-    }
-    // The very first render (Generate Design) always stays on Gemini. Admins picked an exact
-    // engine for this click via the dialog at the top of this function (forcedEngine); every
-    // other user instead gets automatic alternation — 1st Other option -> OpenAI, 2nd ->
-    // Gemini, 3rd -> OpenAI, and so on — so the two engines still end up compared directly
-    // against each other across a design's option history. Counted from this option's own
-    // gallery (each prior "Other option" click already pushed one 'Other option' entry onto
-    // it), so the sequence survives page refreshes/project reopens rather than resetting to
-    // "always OpenAI first" every time.
-    const otherOptionUsesOpenAi = forcedEngine
-      ? forcedEngine === 'openai'
-      : (opt.gallery.filter(g => g.label === 'Other option').length + 1) % 2 === 1;
-    const otherOptionEndpoint = otherOptionUsesOpenAi ? '/api/generate-image-openai' : '/api/generate-image-gemini';
-    // See capOpenAiPromptLength's own comment — OpenAI hard-rejects prompts over 32,000 chars.
-    // A no-op whenever otherOptionBody.prompt is already under the limit, which is most cases.
-    if(otherOptionUsesOpenAi) otherOptionBody.prompt = capOpenAiPromptLength(otherOptionBody.prompt);
     // Same 190s allowance as the main Generate Design call above — OpenAI's gpt-image-2 needs
     // more headroom than the old 100s default gave it (see that comment for the full reasoning).
     const response = await fetchWithTimeout(otherOptionEndpoint, {
