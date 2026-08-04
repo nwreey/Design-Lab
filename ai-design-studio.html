@@ -8941,36 +8941,23 @@ function collectFlooringSpecification(){
   const floorTypeRaw = document.getElementById('f_floorType').value;
   const floorType = floorTypeRaw === 'Custom' ? (document.getElementById('f_floorTypeCustom').value.trim() || 'Custom') : floorTypeRaw;
 
-  const floorFinishRaw = document.getElementById('f_floorFinish').value;
-  const floorFinish = floorFinishRaw === 'Custom Finish' ? (document.getElementById('f_floorFinishCustom').value.trim() || 'Custom Finish') : floorFinishRaw;
+  const lines = [`Floor Type: ${floorType}.`];
 
-  const lines = [`Floor Type: ${floorType}.`, `Floor Finish: ${floorFinish}.`];
-
-  if(CARPET_FLOOR_FINISHES.includes(floorFinishRaw)){
-    lines.push(`Carpet Type: ${document.getElementById('f_carpetType').value}.`);
-    lines.push(`Carpet Color: ${document.getElementById('f_carpetColorHex').value} — coordinate this color with the booth's brand color palette unless a different specific color is clearly intended.`);
-  }
-
-  if(WOOD_FLOOR_FINISHES.includes(floorFinishRaw)){
-    lines.push(`Wood Type: ${document.getElementById('f_woodType').value}.`);
-    lines.push(`Wood Finish: ${document.getElementById('f_woodFinish').value}.`);
-  }
-
-  if(MARBLE_FLOOR_FINISHES.includes(floorFinishRaw)){
-    const marbleColorRaw = document.getElementById('f_marbleColor').value;
-    const marbleColor = marbleColorRaw === 'Custom' ? (document.getElementById('f_marbleColorCustom').value.trim() || 'a custom color') : marbleColorRaw;
-    lines.push(`Marble Color: ${marbleColor}.`);
-  }
-
-  if(EPOXY_FLOOR_FINISHES.includes(floorFinishRaw)){
-    lines.push(`Epoxy Finish: ${document.getElementById('f_epoxyFinish').value}.`);
-  }
+  // DSS-001 + explicit flooring material rule (both per an explicit product decision) — Floor
+  // Finish/Carpet/Wood/Marble/Epoxy sub-fields are no longer client checklist choices (hidden,
+  // not deleted — see floorFinishField's own comment), so f_floorFinish's own value (a leftover
+  // default, "Exhibition Carpet") must never be read here as if the client actually chose it —
+  // that was the bug this comment block replaces. The explicit rule: NEVER a full carpet floor.
+  // Default to wooden melamine flooring (glossy or matte, whichever best suits this brand and
+  // architectural style) — unless the client's own written description explicitly names a
+  // different flooring material, in which case follow exactly what the client asked for instead.
+  lines.push('Floor Finish: not a client checklist choice. DEFAULT (when the client\'s own written description below does not name a specific flooring material): wooden melamine flooring, glossy or matte finish — whichever best suits this brand, industry, and architectural style, decided per DESIGNSLAB SIGNATURE STYLE (DSS-001). NEVER use a full carpet floor finish under this default. EXCEPTION: if the client\'s own written description explicitly requests a specific flooring material (carpet or otherwise), follow exactly what the client asked for instead of this default — the client\'s own explicit request always overrides this rule.');
 
   if(floorTypeRaw === 'Raised Floor' || floorTypeRaw === 'Double Raised Floor'){
     const heightRaw = document.getElementById('f_raisedFloorHeight').value;
     const height = heightRaw === 'Custom' ? (document.getElementById('f_raisedFloorHeightCustom').value.trim() || 'a custom height') : heightRaw;
     lines.push(`Raised Floor Height: ${height} above the venue floor.`);
-    lines.push(`Floor Edge Finish: ${document.getElementById('f_floorEdgeFinish').value} — this is the visible finish of the raised floor's perimeter edge, where it meets the venue floor.`);
+    lines.push('Floor Edge Finish: not specified by the client — design this automatically per DESIGNSLAB SIGNATURE STYLE (DSS-001), matching the flooring material and the rest of the booth\'s architectural language.');
   }
 
   const floorFeatures = Array.from(document.querySelectorAll('.floor-feature-cb:checked')).map(cb => cb.value);
