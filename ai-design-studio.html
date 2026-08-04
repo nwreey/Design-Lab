@@ -9158,6 +9158,20 @@ let lastParametricElevations_TE = { front: '', left: '', right: '' };
 // default the other two lastXxx globals above already rely on).
 let lastGenerationUsedTestEngine = false;
 
+// Whether the Generate click currently in flight is a REGENERATE of an already-existing project
+// (as opposed to that project's very first-ever generate) — captured once, early, inside
+// generateDesign()'s proceedWithGeneration() (from the same isNewProject check that already
+// gates the project-quota block/messaging), then read later by approvePrompts() when it calls
+// startRenderSession(). This is what lets the exhibition booth form stay fully editable after
+// Generate (see proceedWithGeneration's own lockForm() comment): the FIRST Generate click for a
+// brand-new project still bills 1 project slot exactly as before; if the user then edits the form
+// and clicks Generate again on that same now-existing project, this flag is true and
+// startRenderSession() is told isUserInitiatedEdit=true, which routes it through the exact same
+// modify-quota check/increment /api/generate-image-gemini.js and /api/generate-image-openai.js
+// already apply to Other option and Modify Design — no backend changes needed, since those
+// endpoints already gate on isUserInitiatedEdit, not on which client-side feature triggered it.
+let pendingGenerateIsRegenerate = false;
+
 let isAdminUser = false;
 let currentUserProjectLimit = null; // null = no limit known yet, or admin (unlimited)
 let lastKnownProjectCount = null;
@@ -14112,38 +14126,67 @@ async function generateDesign(){
   // adminCheckPromise first guarantees currentUserProjectLimit/lastKnownProjectCount are this
   // page load's real numbers, not stale nulls from a race with an unusually fast click.
   if(adminCheckPromise) await adminCheckPromise;
-  const isNewProject = !currentProjectId; // re-generating an existing project never counts against the quota, per the backend's own enforcement logic
+  const isNewProject = !currentProjectId; // re-generating an existing project never counts against the PROJECT quota — it now counts against the MODIFY quota instead, per the block below
   if(!isAdminUser && isNewProject && currentUserProjectLimit != null && lastKnownProjectCount != null && lastKnownProjectCount >= currentUserProjectLimit){
     errBox.textContent = `You've reached your project limit (${currentUserProjectLimit}). Please contact your administrator to increase this limit, or open an existing project instead of starting a new one.`;
     errBox.style.display = 'block';
     errBox.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
+  // Clicking Generate again on an already-existing exhibition booth project (the form now stays
+  // open and editable after the first Generate — see proceedWithGeneration's own lockForm()
+  // comment below) is a real regeneration of that project, so it's billed against the MODIFY
+  // quota instead of the project quota, the same way Other option/Modify Design already are.
+  // Scoped to booth mode only — Event mode's own pipeline (generateEventConceptBoard) isn't
+  // wired to isUserInitiatedEdit/modify-quota billing, so this must never block or message
+  // there. Blocked here, before Stage 1 even runs, for the same reason the project-limit check
+  // above is: a user already at their modify limit shouldn't burn a real generation only to have
+  // it fail at the image-render step after the cost was already spent for nothing.
+  if(!isAdminUser && mode === 'booth' && !isNewProject && currentUserModifyLimit != null && currentUserModifyCount != null && currentUserModifyCount >= currentUserModifyLimit){
+    errBox.textContent = `You've reached your modify limit (${currentUserModifyLimit}). Please contact your administrator to increase this limit.`;
+    errBox.style.display = 'block';
+    errBox.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
 
   // Now blocking: nothing below runs until the user actually confirms via the popup's
-  // "Generate" button — this is what gates both the project-quota deduction and the
+  // "Generate" button — this is what gates both the project/modify-quota deduction and the
   // actual API calls behind a real, deliberate confirmation, rather than firing instantly.
   const quotaTextEl = document.getElementById('genNoticeQuotaText');
   if(!isAdminUser && isNewProject && currentUserProjectLimit != null && lastKnownProjectCount != null){
     const remainingAfterThis = currentUserProjectLimit - lastKnownProjectCount - 1;
     quotaTextEl.textContent = `This will use 1 of your allowed projects — you'll have ${Math.max(0, remainingAfterThis)} remaining after this one.`;
     quotaTextEl.style.display = 'block';
+  }else if(!isAdminUser && mode === 'booth' && !isNewProject && currentUserModifyCount != null && currentUserModifyLimit != null){
+    const remainingAfterThis = currentUserModifyLimit - currentUserModifyCount - 1;
+    quotaTextEl.textContent = `This will use 1 of your allowed modifications — you'll have ${Math.max(0, remainingAfterThis)} remaining after this one.`;
+    quotaTextEl.style.display = 'block';
+  }else if(!isAdminUser && mode === 'booth' && !isNewProject && currentUserModifyCount != null && currentUserModifyLimit == null){
+    quotaTextEl.textContent = `This will use 1 of your modifications — you've used ${currentUserModifyCount} so far, with no set limit.`;
+    quotaTextEl.style.display = 'block';
   }else{
     quotaTextEl.style.display = 'none';
   }
 
   pendingGenerateAction = async function proceedWithGeneration(){
-  // Test Engine (admin only) — per explicit client direction, clicking Generate here must NOT
-  // dim/disable the form the way it does everywhere else: the admin wants to keep tweaking fields
-  // and firing off another Generate click while iterating, rather than having to wait for one run
-  // to fully finish (or fail) before the form becomes editable again. Special Engine (every real
-  // user, and admins who leave the selector on Special) keeps the existing protective lock exactly
-  // as before — this is a Test Engine-only relaxation, not a general change. Every unlockForm()
-  // call elsewhere in this flow (error paths, cancel, etc.) stays as-is; it's just a harmless no-op
-  // here since the form was never locked to begin with.
-  const generateEngineModeEl = document.getElementById('f_engineMode');
-  const isTestEngineGenerateClick = isAdminUser && generateEngineModeEl && generateEngineModeEl.value === 'test';
-  if(!isTestEngineGenerateClick) lockForm();
+  // Per explicit product decision, clicking Generate no longer dims/disables the exhibition
+  // booth form for anyone — every user (not just an admin on Test Engine, which is how this
+  // started) can keep tweaking fields and fire off another Generate click while a render is in
+  // flight, rather than waiting for one run to fully finish (or fail) before the form becomes
+  // editable again. Clicking Generate again on a project that already exists is now billed
+  // against the modify quota instead of the project quota (see pendingGenerateIsRegenerate
+  // below and the modify-quota block/messaging just above this function) — that's what makes
+  // leaving the form open safe from a billing standpoint rather than an unmetered loophole.
+  // Event mode is deliberately excluded: its own pipeline (generateEventConceptBoard ->
+  // renderEventConceptBoardResult) still locks the form on completion exactly as before, since
+  // regenerating an existing event concept isn't wired to modify-quota billing. Every
+  // unlockForm() call elsewhere in this flow (error paths, cancel, etc.) stays as-is; it's just
+  // a harmless no-op here whenever the form was never locked to begin with.
+  if(mode === 'event') lockForm();
+  // Captured once, here, before Stage 1 runs (see this global's own comment) — read later by
+  // approvePrompts() when it calls startRenderSession(), since isNewProject itself isn't in
+  // scope there (approvePrompts is a separate top-level function, not nested inside this one).
+  pendingGenerateIsRegenerate = mode === 'booth' && !isNewProject;
   projectSwitchLocked = true;
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('loadingText').textContent = mode === 'event' ? 'Writing your event concept...' : 'Analyzing your brief and generating concept and design...';
@@ -15228,7 +15271,11 @@ function approvePrompts(){
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('loadingText').textContent = 'Generating your rendered image...';
 
-  startRenderSession(renderSlots);
+  // pendingGenerateIsRegenerate (see its own comment) is true only when this Generate click is
+  // a regeneration of an already-existing booth project — passing it as isUserInitiatedEdit
+  // routes this render through the exact same modify-quota check/increment the backend already
+  // applies to Other option and Modify Design, billing 1 modify credit instead of a project slot.
+  startRenderSession(renderSlots, pendingGenerateIsRegenerate);
 }
 
 /* ---------- render session: 1 image from the approved prompt (or more, if ever changed) ---------- */
