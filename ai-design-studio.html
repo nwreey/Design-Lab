@@ -2303,8 +2303,25 @@ Replace only the materials and graphics."></textarea>
         <div class="hint">Most booths are self-supporting with no overhead structure (per EPS-012) — only choose rigging or a suspended structure if the venue explicitly permits it and it's genuinely wanted for this design.</div>
       </div>
 
+      <!-- DSS-001 — Rigging Shape/Width/Depth/Height/Finish/Integrated Elements/Brand Visibility
+           are no longer client choices, per an explicit product decision: the AI designs the
+           rigging/suspended structure itself, as one cohesive, beautiful piece of architecture
+           with the rest of the booth, the same way it already decides lighting and materials.
+           Kept in the DOM, hidden, with their existing defaults intact, so collectCeilingRigging
+           Specification (which now delegates this whole block to DSS-001 — see its own comment)
+           and every id-based lookup elsewhere stay valid without further changes. -->
       <div id="riggingDetailsFields" style="display:none;">
-        <div class="field" id="riggingShapeField">
+        <!-- DSS-001 — Rigging Shape/Width/Depth/Height/Finish/Integrated Elements/Brand
+             Visibility are no longer client choices, per an explicit product decision: the AI
+             designs the rigging/suspended structure itself, as one cohesive, beautiful piece of
+             architecture with the rest of the booth. Every field below is force-hidden with its
+             own inline style (not just via the shared riggingDetailsFields wrapper, since
+             toggleRiggingSubfields() still legitimately shows that wrapper whenever the client
+             picks a rigging option) so they stay hidden regardless of that selection. Kept in the
+             DOM with their existing defaults intact so collectCeilingRiggingSpecification (which
+             now delegates this whole block to DSS-001 — see its own comment) and every id-based
+             lookup elsewhere stay valid without further changes. -->
+        <div class="field" id="riggingShapeField" style="display:none;">
           <label>Rigging Shape</label>
           <select id="f_riggingShape" onchange="toggleRiggingShapeCustom(this)">
             <option value="Circular" selected>Circular</option>
@@ -2319,7 +2336,7 @@ Replace only the materials and graphics."></textarea>
           <input type="text" id="f_riggingShapeCustom" placeholder="Describe the custom rigging shape" style="display:none;margin-top:8px;">
         </div>
 
-        <div class="row2">
+        <div class="row2" style="display:none;">
           <div class="field">
             <label>Rigging Width (m)</label>
             <input type="number" min="0.1" step="0.1" id="f_riggingWidth" placeholder="e.g. 4">
@@ -2329,12 +2346,12 @@ Replace only the materials and graphics."></textarea>
             <input type="number" min="0.1" step="0.1" id="f_riggingDepth" placeholder="e.g. 4">
           </div>
         </div>
-        <div class="field">
+        <div class="field" style="display:none;">
           <label>Rigging Height from floor (m)</label>
           <input type="number" min="0.1" step="0.1" id="f_riggingHeightFromFloor" placeholder="e.g. 4.5">
         </div>
 
-        <div class="field" id="riggingFinishField">
+        <div class="field" id="riggingFinishField" style="display:none;">
           <label>Rigging Finish</label>
           <select id="f_riggingFinish" onchange="toggleRiggingFabricColor(this)">
             <option value="Aluminum Truss" selected>Aluminum Truss</option>
@@ -2358,19 +2375,19 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">The color of the backlit fabric panel itself.</div>
         </div>
 
-        <div class="field" id="riggingElementsField">
+        <div class="field" id="riggingElementsField" style="display:none;">
           <label>Integrated Elements</label>
           <div class="requirements-grid">
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Logo"> Logo</label>
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="LED Screens"> LED Screens</label>
-            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="rigging-element-cb" value="Lighting"> Lighting</label>
+            <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Lighting"> Lighting</label>
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Hanging Banner"> Hanging Banner</label>
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Fabric Ceiling"> Fabric Ceiling</label>
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Digital Ring"> Digital Ring</label>
-            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="rigging-element-cb" value="Decorative Panels"> Decorative Panels</label>
-            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="rigging-element-cb" value="Plants"> Plants</label>
+            <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Decorative Panels"> Decorative Panels</label>
+            <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Plants"> Plants</label>
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Speakers"> Speakers</label>
-            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="rigging-element-cb" value="Moving Lights"> Moving Lights</label>
+            <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Moving Lights"> Moving Lights</label>
           </div>
           <div class="hint">Optional — select any elements integrated directly into the rigging/suspended structure itself.</div>
         </div>
@@ -2388,7 +2405,7 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">Optional — lighting integrated specifically into the rigging/suspended structure, separate from the booth's general lighting.</div>
         </div>
 
-        <div class="field" id="riggingBrandVisibilityField">
+        <div class="field" id="riggingBrandVisibilityField" style="display:none;">
           <label>Brand Visibility</label>
           <select id="f_riggingBrandVisibility">
             <option value="Logo on all sides" selected>Logo on all sides</option>
@@ -2402,7 +2419,13 @@ Replace only the materials and graphics."></textarea>
       </div>
 
       <div id="selfSupportedCeilingFields" style="display:none;">
-        <div class="field" id="ceilingShapeField">
+        <!-- DSS-001 — same reasoning as riggingDetailsFields above: Ceiling Shape/Width/Depth/
+             Height/Finish/Integrated Elements/Brand Visibility are no longer client choices, force-
+             hidden individually since selfSupportedCeilingFields' own wrapper still legitimately
+             shows whenever "Self-supported ceiling feature" is picked. Architectural Purpose stays
+             a real client choice (a strategic driver DSS-001 should honor as an input, not
+             override), so it's the one field in this section left untouched. -->
+        <div class="field" id="ceilingShapeField" style="display:none;">
           <label>Ceiling Shape</label>
           <select id="f_ceilingShape" onchange="toggleCeilingShapeCustom(this)">
             <option value="Rectangle" selected>Rectangle</option>
@@ -2426,7 +2449,7 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">The physical shape of the self-supported ceiling feature itself.</div>
         </div>
 
-        <div class="row2">
+        <div class="row2" style="display:none;">
           <div class="field">
             <label>Ceiling Width (m)</label>
             <input type="number" min="0.1" step="0.1" id="f_ceilingWidth" placeholder="e.g. 4">
@@ -2436,12 +2459,12 @@ Replace only the materials and graphics."></textarea>
             <input type="number" min="0.1" step="0.1" id="f_ceilingDepth" placeholder="e.g. 4">
           </div>
         </div>
-        <div class="field">
+        <div class="field" style="display:none;">
           <label>Ceiling Height from floor (m)</label>
           <input type="number" min="0.1" step="0.1" id="f_ceilingHeightFromFloor" placeholder="e.g. 4.5">
         </div>
 
-        <div class="field" id="ceilingFinishField">
+        <div class="field" id="ceilingFinishField" style="display:none;">
           <label>Ceiling Finish</label>
           <select id="f_ceilingFinish" onchange="toggleCeilingFabricColor(this);toggleCeilingFinishCustom(this)">
             <option value="Matte White" selected>Matte White</option>
@@ -2490,19 +2513,19 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">The color of the backlit fabric panel itself.</div>
         </div>
 
-        <div class="field" id="ceilingElementsField">
+        <div class="field" id="ceilingElementsField" style="display:none;">
           <label>Integrated Elements</label>
           <div class="requirements-grid">
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Logo"> Logo</label>
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="LED Screens"> LED Screens</label>
-            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="ceiling-element-cb" value="Lighting"> Lighting</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Lighting"> Lighting</label>
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Hanging Banner"> Hanging Banner</label>
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Fabric Ceiling"> Fabric Ceiling</label>
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Digital Ring"> Digital Ring</label>
-            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="ceiling-element-cb" value="Decorative Panels"> Decorative Panels</label>
-            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="ceiling-element-cb" value="Plants"> Plants</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Decorative Panels"> Decorative Panels</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Plants"> Plants</label>
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Speakers"> Speakers</label>
-            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="ceiling-element-cb" value="Moving Lights"> Moving Lights</label>
+            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Moving Lights"> Moving Lights</label>
           </div>
           <div class="hint">Optional — select any elements integrated directly into the self-supported ceiling feature itself.</div>
         </div>
@@ -2520,7 +2543,7 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">Optional — lighting integrated specifically into the self-supported ceiling feature, separate from the booth's general lighting.</div>
         </div>
 
-        <div class="field" id="ceilingBrandVisibilityField">
+        <div class="field" id="ceilingBrandVisibilityField" style="display:none;">
           <label>Brand Visibility</label>
           <select id="f_ceilingBrandVisibility">
             <option value="Logo on all sides" selected>Logo on all sides</option>
@@ -8977,73 +9000,23 @@ function collectCeilingRiggingSpecification(){
 
   const needsDetails = ceilingRigging === 'Hanging rigging / truss' || ceilingRigging === 'Full suspended architectural structure';
   if(needsDetails){
-    const shapeRaw = document.getElementById('f_riggingShape').value;
-    const shape = shapeRaw === 'Custom' ? (document.getElementById('f_riggingShapeCustom').value.trim() || 'Custom') : shapeRaw;
-    lines.push(`Rigging Shape: ${shape}.`);
-
-    const width = document.getElementById('f_riggingWidth').value.trim();
-    const depth = document.getElementById('f_riggingDepth').value.trim();
-    const heightFromFloor = document.getElementById('f_riggingHeightFromFloor').value.trim();
-    const sizeParts = [];
-    if(width) sizeParts.push(`Width ${width}m`);
-    if(depth) sizeParts.push(`Depth ${depth}m`);
-    if(heightFromFloor) sizeParts.push(`Height from floor ${heightFromFloor}m`);
-    lines.push(sizeParts.length ? `Rigging Size: ${sizeParts.join(', ')}.` : 'Rigging Size: not specified — estimate a size proportionate to the booth footprint.');
-
-    const riggingFinish = document.getElementById('f_riggingFinish').value;
-    lines.push(`Rigging Finish: ${riggingFinish}.`);
-    if(riggingFinish === 'Fabric Lightbox'){
-      lines.push(`Fabric Lightbox Color: ${document.getElementById('f_riggingFabricColorHex').value}.`);
-    }
-
-    const riggingElements = Array.from(document.querySelectorAll('.rigging-element-cb:checked')).map(cb => cb.value);
-    lines.push(riggingElements.length
-      ? `Integrated Elements — EXPLICITLY REQUESTED BY THE CLIENT: ${riggingElements.join(', ')}.`
-      : 'Integrated Elements: none requested.');
-
-    const riggingLighting = Array.from(document.querySelectorAll('.rigging-lighting-cb:checked')).map(cb => cb.value);
-    lines.push(riggingLighting.length
-      ? `Rigging Lighting — EXPLICITLY REQUESTED BY THE CLIENT: ${riggingLighting.join(', ')}.`
-      : 'Rigging Lighting: none requested.');
-
-    lines.push(`Brand Visibility: ${document.getElementById('f_riggingBrandVisibility').value}.`);
+    // DSS-001 — per an explicit product decision, Rigging Shape/Width/Depth/Height/Finish/
+    // Integrated Elements/Brand Visibility are no longer client-specified facts (their fields
+    // are hidden now, not deleted — see riggingDetailsFields' own comment). The AI designs this
+    // rigging/suspended structure itself, exactly like it already designs lighting and materials
+    // — one delegation line here rather than restating DSS-001's own rules a second time.
+    lines.push('Rigging Shape, Size, Finish, Integrated Elements, and Brand Visibility: not specified by the client — design these automatically per DESIGNSLAB SIGNATURE STYLE (DSS-001), so this rigging/suspended structure reads as one cohesive, beautiful piece of architecture with the rest of the booth, using the exact same architectural language, material hierarchy, and lighting philosophy already established there.');
   }
 
   // Per DIR-010/DIR-011, "Self-supported ceiling feature" gets its own configuration —
   // Ceiling Shape, Ceiling Size, Ceiling Finish, and Architectural Purpose — mirroring the
   // same pattern used for the rigging sub-fields above.
   if(ceilingRigging === 'Self-supported ceiling feature'){
-    const ceilingShapeRaw = document.getElementById('f_ceilingShape').value;
-    const ceilingShape = ceilingShapeRaw === 'Custom Shape' ? (document.getElementById('f_ceilingShapeCustom').value.trim() || 'Custom Shape') : ceilingShapeRaw;
-    lines.push(`Ceiling Shape: ${ceilingShape}.`);
-
-    const ceilingWidth = document.getElementById('f_ceilingWidth').value.trim();
-    const ceilingDepth = document.getElementById('f_ceilingDepth').value.trim();
-    const ceilingHeightFromFloor = document.getElementById('f_ceilingHeightFromFloor').value.trim();
-    const ceilingSizeParts = [];
-    if(ceilingWidth) ceilingSizeParts.push(`Width ${ceilingWidth}m`);
-    if(ceilingDepth) ceilingSizeParts.push(`Depth ${ceilingDepth}m`);
-    if(ceilingHeightFromFloor) ceilingSizeParts.push(`Height from floor ${ceilingHeightFromFloor}m`);
-    lines.push(ceilingSizeParts.length ? `Ceiling Size: ${ceilingSizeParts.join(', ')}.` : 'Ceiling Size: not specified — estimate a size proportionate to the booth footprint.');
-
-    const ceilingFinishRaw = document.getElementById('f_ceilingFinish').value;
-    const ceilingFinish = ceilingFinishRaw === 'Custom' ? (document.getElementById('f_ceilingFinishCustom').value.trim() || 'Custom') : ceilingFinishRaw;
-    lines.push(`Ceiling Finish: ${ceilingFinish}.`);
-    if(ceilingFinishRaw === 'LED Diffuser Panel'){
-      lines.push(`LED Diffuser Panel Color: ${document.getElementById('f_ceilingFabricColorHex').value}.`);
-    }
-
-    const ceilingElements = Array.from(document.querySelectorAll('.ceiling-element-cb:checked')).map(cb => cb.value);
-    lines.push(ceilingElements.length
-      ? `Integrated Elements — EXPLICITLY REQUESTED BY THE CLIENT: ${ceilingElements.join(', ')}.`
-      : 'Integrated Elements: none requested.');
-
-    const ceilingLighting = Array.from(document.querySelectorAll('.ceiling-lighting-cb:checked')).map(cb => cb.value);
-    lines.push(ceilingLighting.length
-      ? `Ceiling Lighting — EXPLICITLY REQUESTED BY THE CLIENT: ${ceilingLighting.join(', ')}.`
-      : 'Ceiling Lighting: none requested.');
-
-    lines.push(`Brand Visibility: ${document.getElementById('f_ceilingBrandVisibility').value}.`);
+    // DSS-001 — same delegation as the rigging branch above: Ceiling Shape/Width/Depth/Height/
+    // Finish/Integrated Elements/Brand Visibility are no longer client-specified facts. Ceiling
+    // Purpose (below) is kept as a real client input — it's a strategic driver, not a physical
+    // design detail, so DSS-001 designs around it rather than replacing it.
+    lines.push('Ceiling Shape, Size, Finish, Integrated Elements, and Brand Visibility: not specified by the client — design these automatically per DESIGNSLAB SIGNATURE STYLE (DSS-001), so this ceiling feature reads as one cohesive, beautiful piece of architecture with the rest of the booth, using the exact same architectural language, material hierarchy, and lighting philosophy already established there.');
 
     const ceilingPurposeRaw = document.getElementById('f_ceilingPurpose').value;
     const ceilingPurpose = ceilingPurposeRaw === 'Custom Purpose' ? (document.getElementById('f_ceilingPurposeCustom').value.trim() || 'Custom Purpose') : ceilingPurposeRaw;
@@ -12254,6 +12227,13 @@ const AUTOFILL_EXCLUDED_IDS = new Set([
   'addreq_architecturalfins', 'addreq_verticalslats', 'addreq_decorativescreens', 'addreq_featureportal', 'addreq_entrancefeature', 'addreq_featurearch', 'addreq_digitalartwall',
   'addreq_minimalplanters', 'addreq_premiumplanters', 'addreq_livingwall', 'addreq_indoortrees', 'addreq_artificialplants', 'addreq_mosswall', 'addreq_waterfeature', 'addreq_stonefeature',
   'addreq_decorativelightboxes', 'addreq_illuminatedlogo', 'addreq_edgelighting', 'addreq_backlitpanels', 'addreq_neonfeature', 'addreq_architecturallightfeature',
+  // DSS-001 — Rigging/Ceiling Shape/Width/Depth/Height/Finish/Brand Visibility: the AI designs
+  // the rigging/suspended structure and self-supported ceiling feature itself now, the same as
+  // it already designs lighting and materials (see collectCeilingRiggingSpecification's own
+  // comment). f_ceilingPurpose stays autofillable — it's a strategic driver, not a physical
+  // design detail.
+  'f_riggingShape', 'f_riggingShapeCustom', 'f_riggingWidth', 'f_riggingDepth', 'f_riggingHeightFromFloor', 'f_riggingFinish', 'f_riggingFabricColorPicker', 'f_riggingFabricColorHex', 'f_riggingBrandVisibility',
+  'f_ceilingShape', 'f_ceilingShapeCustom', 'f_ceilingWidth', 'f_ceilingDepth', 'f_ceilingHeightFromFloor', 'f_ceilingFinish', 'f_ceilingFinishCustom', 'f_ceilingFabricColorPicker', 'f_ceilingFabricColorHex', 'f_ceilingBrandVisibility',
 ]);
 
 function labelTextFor(el){
