@@ -105,19 +105,17 @@ module.exports = async (req, res) => {
     const SUPPORTED_ASPECT_RATIOS = new Set(['1:1', '3:2', '2:3', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
     const resolvedAspectRatio = SUPPORTED_ASPECT_RATIOS.has(aspectRatio) ? aspectRatio : '16:9';
 
-    // Always 0.5K now, for every caller — admin panel and user panel both, no branching by role.
-    // Was 2K for every regular user, then dropped to 1K (gemini-3.1-flash-image's own documented
-    // default) in the previous round of this same speed effort; per an explicit follow-up product
-    // decision, generation speed matters more than resolution here, so this now goes one step
-    // further to 0.5K, the smallest size gemini-3.1-flash-image supports (ai.google.dev/gemini-api/
-    // docs/models/gemini-3.1-flash-image: "New support for 0.5K, 2K and 4K, default 1K"). A smaller
-    // requested render is genuinely faster for Gemini to generate, not just faster to download —
-    // and whatever resolution comes back still gets compressed down to a ~195KB budget on the
-    // client anyway (see compressDataUrlToTarget), so very little of the extra resolution above
-    // 0.5K was ever actually being kept. engineMode is still accepted on the request body (older/
-    // cached clients may still send it) but no longer has any effect — kept only so a stray 'test'
-    // value can never throw here.
-    const resolvedImageSize = '0.5K';
+    // Always 1K now, for every caller — admin panel and user panel both, no branching by role.
+    // Was 2K for every regular user before this speed effort. gemini-3.1-flash-image's smallest
+    // supported size (512) was tried briefly for even more speed, but per an explicit decision to
+    // stay on a known-good, documented value (1K is this model's own stated default — see
+    // ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-image), this settled back on 1K.
+    // Whatever resolution comes back still gets compressed down to a ~195KB budget on the client
+    // anyway (see compressDataUrlToTarget), so little of the resolution above 1K was ever actually
+    // being kept — 2K -> 1K is where the real generation-speed win already was. engineMode is still
+    // accepted on the request body (older/cached clients may still send it) but no longer has any
+    // effect — kept only so a stray 'test' value can never throw here.
+    const resolvedImageSize = '1K';
 
     // The very first modification on a freshly generated design doesn't count against the
     // modify quota at all — occasionally the initial render needs a quick correction, and
