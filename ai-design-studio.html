@@ -1706,8 +1706,9 @@ Replace only the materials and graphics."></textarea>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Meeting Tables"> Meeting Tables</label>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Private Booths"> Private Booths</label>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Lockable Storage"> Lockable Storage</label>
-            <label><input type="checkbox" class="upperdeck-feature-cb" value="Planters"> Planters</label>
-            <label><input type="checkbox" class="upperdeck-feature-cb" value="Decorative Lighting"> Decorative Lighting</label>
+            <!-- DSS-001: automatic now, not a client checklist item. -->
+            <label style="display:none;"><input type="checkbox" class="upperdeck-feature-cb" value="Planters"> Planters</label>
+            <label style="display:none;"><input type="checkbox" class="upperdeck-feature-cb" value="Decorative Lighting"> Decorative Lighting</label>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Glass Railings"> Glass Railings</label>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Feature Ceiling"> Feature Ceiling</label>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Hanging Branding"> Hanging Branding</label>
@@ -2127,6 +2128,12 @@ Replace only the materials and graphics."></textarea>
         <input type="text" id="f_raisedFloorHeightCustom" placeholder="e.g. 200mm" style="display:none;margin-top:8px;">
       </div>
 
+      <!-- Designslab Signature Style (DSS-001) — floor material/finish is no longer a client
+           choice; DSS-001 determines it from brand/industry/budget/style, the same as every other
+           material decision. Kept in the DOM, hidden, with its existing default values intact
+           (Exhibition Carpet / Straight Edge / etc.) so nothing that reads these ids elsewhere
+           (project snapshot save/load, EPS-XXX brief text) has to change. -->
+      <div style="display:none;">
       <div class="field" id="floorFinishField">
         <label>Floor Finish <span class="required-mark">*</span></label>
         <select id="f_floorFinish" onchange="updateFloorFinishSections(this)">
@@ -2253,13 +2260,15 @@ Replace only the materials and graphics."></textarea>
         </select>
         <div class="hint">How the raised floor's visible perimeter edge is finished — irrelevant when Floor Type is Venue Floor (no platform edge exists).</div>
       </div>
+      </div>
 
       <div class="field" id="floorFeaturesField">
         <label>Optional Floor Features</label>
         <div class="requirements-grid">
-          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Hidden LED Strip"> Hidden LED Strip</label>
-          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Underfloor RGB Lighting"> Underfloor RGB Lighting</label>
-          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Illuminated Glass Inserts"> Illuminated Glass Inserts</label>
+          <!-- DSS-001: floor lighting treatments are automatic now, not a client checklist item. -->
+          <label class="check-item-compact" style="display:none;"><input type="checkbox" class="floor-feature-cb" value="Hidden LED Strip"> Hidden LED Strip</label>
+          <label class="check-item-compact" style="display:none;"><input type="checkbox" class="floor-feature-cb" value="Underfloor RGB Lighting"> Underfloor RGB Lighting</label>
+          <label class="check-item-compact" style="display:none;"><input type="checkbox" class="floor-feature-cb" value="Illuminated Glass Inserts"> Illuminated Glass Inserts</label>
           <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Cable Management System"> Cable Management System</label>
           <label class="check-item-compact"><input type="checkbox" id="floorfeat_integratedservices" onchange="toggleFloorFeatureSubsection(this.checked)"> Integrated Floor Services</label>
           <div id="floorfeat_integratedservices_body" style="display:none;margin:0 0 16px 22px;">
@@ -2354,19 +2363,20 @@ Replace only the materials and graphics."></textarea>
           <div class="requirements-grid">
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Logo"> Logo</label>
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="LED Screens"> LED Screens</label>
-            <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Lighting"> Lighting</label>
+            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="rigging-element-cb" value="Lighting"> Lighting</label>
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Hanging Banner"> Hanging Banner</label>
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Fabric Ceiling"> Fabric Ceiling</label>
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Digital Ring"> Digital Ring</label>
-            <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Decorative Panels"> Decorative Panels</label>
-            <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Plants"> Plants</label>
+            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="rigging-element-cb" value="Decorative Panels"> Decorative Panels</label>
+            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="rigging-element-cb" value="Plants"> Plants</label>
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Speakers"> Speakers</label>
-            <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Moving Lights"> Moving Lights</label>
+            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="rigging-element-cb" value="Moving Lights"> Moving Lights</label>
           </div>
           <div class="hint">Optional — select any elements integrated directly into the rigging/suspended structure itself.</div>
         </div>
 
-        <div class="field" id="riggingLightingField">
+        <!-- DSS-001: rigging lighting treatment is automatic now, not a client checklist item. -->
+        <div class="field" id="riggingLightingField" style="display:none;">
           <label>Rigging Lighting</label>
           <div class="requirements-grid">
             <label class="check-item-compact"><input type="checkbox" class="rigging-lighting-cb" value="Spotlights"> Spotlights</label>
@@ -2485,19 +2495,20 @@ Replace only the materials and graphics."></textarea>
           <div class="requirements-grid">
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Logo"> Logo</label>
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="LED Screens"> LED Screens</label>
-            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Lighting"> Lighting</label>
+            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="ceiling-element-cb" value="Lighting"> Lighting</label>
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Hanging Banner"> Hanging Banner</label>
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Fabric Ceiling"> Fabric Ceiling</label>
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Digital Ring"> Digital Ring</label>
-            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Decorative Panels"> Decorative Panels</label>
-            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Plants"> Plants</label>
+            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="ceiling-element-cb" value="Decorative Panels"> Decorative Panels</label>
+            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="ceiling-element-cb" value="Plants"> Plants</label>
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Speakers"> Speakers</label>
-            <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Moving Lights"> Moving Lights</label>
+            <label class="check-item-compact" style="display:none;"><input type="checkbox" class="ceiling-element-cb" value="Moving Lights"> Moving Lights</label>
           </div>
           <div class="hint">Optional — select any elements integrated directly into the self-supported ceiling feature itself.</div>
         </div>
 
-        <div class="field" id="ceilingLightingField">
+        <!-- DSS-001: ceiling lighting treatment is automatic now, not a client checklist item. -->
+        <div class="field" id="ceilingLightingField" style="display:none;">
           <label>Ceiling Lighting</label>
           <div class="requirements-grid">
             <label class="check-item-compact"><input type="checkbox" class="ceiling-lighting-cb" value="Spotlights"> Spotlights</label>
@@ -2943,6 +2954,16 @@ Replace only the materials and graphics."></textarea>
         <label class="check-item-compact"><input type="checkbox" id="addreq_lockablecabinet"> Lockable Cabinet</label>
         <label class="check-item-compact"><input type="checkbox" id="addreq_hiddenstorage"> Hidden Storage</label>
 
+        <!-- Designslab Signature Style (DSS-001) — lighting, decorative elements, and landscape/
+             feature-wall treatments are no longer client-facing choices; a senior exhibition
+             designer decides these, not a checklist. These four subareas are kept in the DOM,
+             hidden and permanently unchecked, purely so nothing downstream that still reads their
+             ids (simpleGroups below, autofill's range scan, project snapshot save/load) has to be
+             touched — every one of them always sees these as unchecked/absent now, which is exactly
+             the "don't ask the user" outcome DSS-001 calls for. DSS-001 itself (see its own system
+             prompt block) supplies the automatic layered-lighting and decorative-treatment
+             reasoning that used to depend on these checkboxes. -->
+        <div style="display:none;">
         <div class="subarea-label" style="margin-top:8px;">Lighting</div>
 
         <label class="check-item-compact"><input type="checkbox" id="addreq_ambientlighting"> Ambient Lighting</label>
@@ -2999,6 +3020,7 @@ Replace only the materials and graphics."></textarea>
         <label class="check-item-compact"><input type="checkbox" id="addreq_backlitpanels"> Backlit Panels</label>
         <label class="check-item-compact"><input type="checkbox" id="addreq_neonfeature"> Neon Feature</label>
         <label class="check-item-compact"><input type="checkbox" id="addreq_architecturallightfeature"> Architectural Light Feature</label>
+        </div>
 
         <div class="subarea-label" style="margin-top:8px;">Art &amp; Brand</div>
 
@@ -10612,6 +10634,60 @@ function solveLayoutNewEngine(functionalProgram, relationships, journey, openSid
   return functionalProgram;
 }
 
+// --- DSS-001 — Designslab Signature Style. Per an explicit product decision, after reviewing the
+// studio's best-performing projects (Rolex, BMW, Red Bull), Designslab AI now behaves like a
+// senior exhibition design studio rather than a form generator: lighting type, material
+// selection, flooring finish, decorative elements, and architectural detailing are no longer
+// client-facing choices (their old form checkboxes are hidden — see each field's own "DSS-001"
+// comment) — this function is what decides them instead, automatically, from brand + industry +
+// budget + architectural style, every single run, for every booth regardless of size. It reuses
+// INDUSTRY_LIGHTING_PROFILES and INDUSTRY_STYLE_ATTRIBUTES (already keyed by the exact same
+// designIntent.industry string) rather than inventing a second, competing taxonomy, and is
+// injected directly into the brief GPE-001 assembles below — since this app now sends that brief
+// straight to Gemini as the image_prompt with no LLM rewriting pass in between (see
+// isDirectToGeminiEngine's own comment), this text reaches the rendering model verbatim.
+function buildDesignslabSignatureStyleRules(designIntent){
+  const industry = designIntent.industry || '';
+  const lightingProfile = (typeof INDUSTRY_LIGHTING_PROFILES !== 'undefined' && INDUSTRY_LIGHTING_PROFILES[industry]) || 'a coherent, deliberately chosen color-temperature and accent palette appropriate to the brand';
+  const materialAttributes = (typeof INDUSTRY_STYLE_ATTRIBUTES !== 'undefined' && INDUSTRY_STYLE_ATTRIBUTES[industry]) || 'materials appropriate to this brand and industry';
+  const personalities = designIntent.brandPersonalities && designIntent.brandPersonalities.length ? designIntent.brandPersonalities.join(', ') : 'not specified';
+  const budgetMaterialTier = {
+    economy: 'efficient, well-detailed materials — never cheap-looking, but restrained rather than lavish',
+    standard: 'solid mid-tier materials with one or two genuine premium accents',
+    premium: 'refined premium materials throughout, confidently detailed',
+    flagship: 'the studio\'s highest material tier — bespoke-feeling finishes, no visible compromise anywhere',
+  }[designIntent.budgetTier] || 'materials appropriate to this project\'s scale';
+  const decorativeDensity = {
+    'Tiny Booth': 'extremely restrained — one or two purposeful accents at most, never decoration for its own sake',
+    'Compact Booth': 'restrained — a small number of purposeful accents',
+    'Small Booth': 'moderate, still disciplined — nothing filler',
+    'Medium Booth': 'a fuller but still coherent decorative layer',
+    'Large Booth': 'a rich, confident decorative layer across multiple zones',
+    'Flagship Pavilion': 'the fullest decorative expression the design supports, still never random or excessive',
+  }[designIntent.sizeClass] || 'a decorative density proportionate to this booth\'s own size';
+
+  return [
+    'DESIGNSLAB SIGNATURE STYLE (DSS-001) — house design language, applied automatically to every project regardless of size or budget',
+    `Designslab AI behaves like a senior exhibition design studio, not a form generator, for this exact reason: after reviewing the studio's best-performing projects (Rolex, BMW, Red Bull), the same architectural language, lighting philosophy, material hierarchy, and design discipline was found across all of them, and that discipline is now the default for every project. The client only specified requirements (dimensions, open/closed sides, construction style, hero mode, budget, brand, industry, design style, functional zones, products, and any special requirements) — every professional design detail below is this engine's own decision, never left to chance and never asked of the client. Lighting type, material selection, flooring finish, decorative elements, and architectural detailing are DELIBERATELY ABSENT from the client brief above for this reason — their absence is not missing information, it is this rule set taking over. This booth must be capable of standing alongside CES, GITEX, MWC, ISE, Arab Health, Automechanika, Expo, and Milan Design Week caliber work — regardless of booth size, it must read as professionally designed.`,
+    '',
+    'Rule 1 — ARCHITECTURE IS ALWAYS THE HERO. Architecture must dominate the visual composition. Target ratio: 70% architecture, 30% exhibition elements (furniture, products, graphics combined).',
+    'Rule 2 — ONE DOMINANT ARCHITECTURAL FOCAL POINT. Every booth, including Minimal Hero Mode, must create a memorable architectural identity — never a collection of unrelated features with no single point of focus.',
+    'Rule 3 — FURNITURE IS SECONDARY. Furniture must never visually compete with the architecture; it supports the architectural concept, never distracts from it.',
+    'Rule 4 — WALLS ARE ARCHITECTURAL ELEMENTS. Never generate a plain flat wall. Every wall receives deliberate architectural treatment through geometry, materials, lighting, graphics, depth, or texture — a wall with none of these is a defect, not a minimal design choice.',
+    `Rule 5 — LIGHTING IS LAYERED, AUTOMATICALLY. Every project includes a full professional layered lighting system decided here, not by the client: architectural lighting, ambient lighting, product lighting, brand lighting, hero lighting, hidden indirect lighting, and floor accent lighting where appropriate. Lighting always emphasizes the architecture before the products. For this industry (${industry || 'this client'}), commit to this exact lighting profile and never mix in an unrelated temperature or accent color: ${lightingProfile}. Lighting must never appear random — every fixture and technique serves this one deliberate scheme.`,
+    `Rule 6 — MATERIALS FOLLOW THE BRAND, AUTOMATICALLY. Material selection is fully automatic, chosen from brand, industry, budget, and architectural style — never a client checklist. Luxury brands receive refined materials; technology brands receive clean precision materials; industrial brands receive robust materials; lifestyle brands receive warmer materials. Never mix conflicting material languages. For this project: industry material direction is "${materialAttributes}"; the client's own brand personality traits (${personalities}) refine this further; and the budget tier (${designIntent.budgetTier}) sets the material quality bar at: ${budgetMaterialTier}. Material combinations stay coherent — typically 2-4 primary materials, paired the way a professional interior architect would pair them.`,
+    'Rule 7 — GEOMETRY MUST BE CONSISTENT. Furniture, reception, display units, meeting tables, storage, and digital elements all inherit the exact same design language as the architecture itself — never a mismatched catalog of unrelated forms.',
+    'Rule 8 — VISUAL HIERARCHY, IN THIS EXACT ORDER: 1. Hero Architecture 2. Brand 3. Products 4. Visitor Experience 5. Furniture 6. Decorative Elements. Nothing below this order may compete with the hero architecture for visual attention.',
+    `Rule 9 — NO EMPTY ARCHITECTURE. Avoid large empty walls, dead corners, and unused ceiling areas. Every architectural element must have a purpose. Decorative elements, feature walls, architectural fins, wall articulation, and ceiling detailing are all decided automatically here, at a density appropriate to this exact booth: ${decorativeDensity}. Never decoration for its own sake, and never a booth that reads as unfinished or under-designed.`,
+    'Rule 10 — PROFESSIONAL LIGHTING BALANCE. Never an overly dark booth, an overexposed booth, colorful RGB overload, or inconsistent lighting temperatures within the same design. Lighting must always read as professionally designed, committed to the one industry lighting profile stated in Rule 5.',
+    `Rule 11 — BRAND CONSISTENCY. The architecture itself must communicate this brand before the logo is even read. This exact brand's architectural language must be distinctly its own — never generic, and never resembling how a different brand in a different industry would be designed (a luxury watch brand and an energy-drink brand must never share the same architectural language). Ground this distinction in the client's own brand personality (${personalities}) and architectural style preference (${designIntent.architecturalStylePreference || 'inferred from industry and brand personality'}).`,
+    'Rule 12 — HUMAN SCALE. All architecture maintains realistic proportions. Never shrink or exaggerate furniture, never generate unrealistic ceiling heights, never create impossible structures.',
+    'Rule 13 — INTERNATIONAL EXHIBITION QUALITY. Every booth must be capable of winning a design competition — the quality target matches leading international exhibition design studios, not a generic rendering.',
+    'STRUCTURAL RHYTHM — repeated architectural elements (panels, fins, dividers, columns) follow a consistent, deliberate spacing rhythm rather than irregular or random placement, the same discipline Modular Wall Layout enforces when explicitly requested, applied here as the studio\'s own default design instinct.',
+    'Flooring finish, texture, edge treatment, and material transitions are likewise decided automatically per this same rule set — never left generic, never contradicting the material direction stated in Rule 6.',
+  ].join('\n');
+}
+
 // --- GPE-001 — Gemini Prompt Engine: assembles the pipeline's output into the labeled brief
 // block that becomes spatialPlanText (the old formula-first formatter this replaced has been
 // deleted entirely). Ends with the exact same per-zone Width/Depth/Height lines and
@@ -10624,6 +10700,8 @@ function assembleNewEngineBrief(designIntent, functionalProgram, relationships, 
   lines.push('DESIGN INTENT (DIE-001)');
   lines.push(`Industry: ${designIntent.industry || 'not specified'} | Size class: ${designIntent.sizeClass} | Budget signal: ${designIntent.budgetTier} | Brand importance: ${designIntent.brandImportance}`);
   lines.push(`Open sides: ${designIntent.openSides.join(', ') || 'none'} | Style preference: ${designIntent.architecturalStylePreference || 'not specified'}`);
+  lines.push('');
+  lines.push(buildDesignslabSignatureStyleRules(designIntent));
   lines.push('');
   lines.push('FUNCTIONAL PROGRAM (FPE-001) — spaces defined before any furniture; furniture lives inside its space, never listed as the program itself');
   functionalProgram.zones.forEach(z => lines.push(`- ${z.name} [${z.category}, tier ${z.priorityTier}]${z.required ? ' (required)' : ''}`));
@@ -12161,6 +12239,21 @@ const AUTOFILL_EXCLUDED_IDS = new Set([
   // guess or overwrite — it's left exactly as the client set it (default "No"). f_posterCount
   // (how many posters) stays autofillable since that's a space-driven design choice.
   'f_hasPosters',
+  // DSS-001 (Designslab Signature Style) — lighting type, floor material/finish, and decorative
+  // elements are no longer any human's choice, including the AI Autofill Helper's — DSS-001
+  // decides these itself, automatically, from brand/industry/budget/style, every run. These ids
+  // still physically exist in the DOM (hidden, not deleted — see each field's own comment) so
+  // collectAutofillDescriptorsInRange would otherwise still offer them to the autofill model;
+  // excluding them here is what actually stops that.
+  'f_floorFinish', 'f_floorFinishCustom', 'f_carpetType', 'f_carpetColorPicker', 'f_carpetColorHex',
+  'f_woodType', 'f_woodFinish', 'f_marbleColor', 'f_marbleColorCustom', 'f_epoxyFinish', 'f_floorEdgeFinish',
+  'addreq_ambientlighting', 'addreq_spotlights', 'addreq_hiddenledlighting', 'addreq_covelighting', 'addreq_accentlighting', 'addreq_decorativelighting',
+  'addreq_planters', 'addreq_greenwall', 'addreq_decorativepanels', 'addreq_brandgraphics', 'addreq_hangingdecor', 'addreq_sculpture',
+  'addreq_featurewall', 'addreq_graphicwall', 'addreq_mediawall', 'addreq_ledfeaturewall', 'addreq_tooldisplaywall', 'addreq_productdisplaywall',
+  'addreq_displayshelving', 'addreq_displayniches', 'addreq_floatingshelves', 'addreq_decorativeceilingpanels', 'addreq_hangingelements', 'addreq_hanginggraphics',
+  'addreq_architecturalfins', 'addreq_verticalslats', 'addreq_decorativescreens', 'addreq_featureportal', 'addreq_entrancefeature', 'addreq_featurearch', 'addreq_digitalartwall',
+  'addreq_minimalplanters', 'addreq_premiumplanters', 'addreq_livingwall', 'addreq_indoortrees', 'addreq_artificialplants', 'addreq_mosswall', 'addreq_waterfeature', 'addreq_stonefeature',
+  'addreq_decorativelightboxes', 'addreq_illuminatedlogo', 'addreq_edgelighting', 'addreq_backlitpanels', 'addreq_neonfeature', 'addreq_architecturallightfeature',
 ]);
 
 function labelTextFor(el){
@@ -12484,16 +12577,41 @@ function buildBoothAutofillPrompt(goal, website, websiteText, websiteWarning, wa
   // Ceiling Lighting) have no [id] at all — see applyCheckboxGroupByValue's own comment —
   // so they're pulled in here by class instead and handled as their own top-level JSON keys,
   // the same pattern already used for brandColors/brandPersonality above.
-  const floorFeatureOptions = Array.from(document.querySelectorAll('.floor-feature-cb')).map(cb => cb.value);
+  // DSS-001 — filtered to skip options whose <label> is hidden (display:none), which is how
+  // lighting/decorative values within these otherwise-still-live groups are now retired: the
+  // group itself (e.g. Optional Floor Features, Integrated Elements) still has legitimate
+  // functional options left in it, so only the specific lighting/decorative values are hidden,
+  // not the whole group — see each hidden <label>'s own DSS-001 comment.
+  // DSS-001 — walks every ancestor (not just the immediate <label>) looking for an inline
+  // display:none, since some retired options are hidden on their own <label> (e.g. the three
+  // lighting Floor Features) while others are hidden on a whole containing field div instead
+  // (e.g. all of Rigging Lighting) — a single closest('label') check misses the second case.
+  function isVisibleAutofillOption(cb){
+    let el = cb;
+    while(el){
+      if(el.style && el.style.display === 'none') return false;
+      el = el.parentElement;
+    }
+    return true;
+  }
+  const floorFeatureOptions = Array.from(document.querySelectorAll('.floor-feature-cb')).filter(isVisibleAutofillOption).map(cb => cb.value);
   // Integrated Elements and Rigging/Ceiling Lighting share the exact same value set whether
   // "Ceiling & Rigging" ends up as real rigging or a self-supported ceiling feature — only
   // one of the two id-less groups is ever visible at a time, so one option list covers both.
-  const integratedElementOptions = Array.from(document.querySelectorAll('.rigging-element-cb')).map(cb => cb.value);
-  const riggingLightingOptions = Array.from(document.querySelectorAll('.rigging-lighting-cb')).map(cb => cb.value);
+  const integratedElementOptions = Array.from(document.querySelectorAll('.rigging-element-cb')).filter(isVisibleAutofillOption).map(cb => cb.value);
+  // Rigging/Ceiling Lighting is retired in full (DSS-001 decides lighting, always) — the whole
+  // field is hidden now (see riggingLightingField/ceilingLightingField's own comment), so this
+  // always resolves to an empty list, which is exactly what keeps "riggingLighting" empty below.
+  const riggingLightingOptions = Array.from(document.querySelectorAll('.rigging-lighting-cb')).filter(isVisibleAutofillOption).map(cb => cb.value);
 
   // Mandatory-category rule below needs to know which addreq_* ids fall under each of these
-  // named Requirements categories — see collectRequirementCategoryIds' own comment.
-  const MANDATORY_REQUIREMENT_CATEGORIES = ['Product Display', 'Digital & Technology', 'Functional Spaces', 'Lighting', 'Decorative Elements', 'Lighting Features'];
+  // named Requirements categories — see collectRequirementCategoryIds' own comment. Lighting,
+  // Decorative Elements, and Lighting Features are retired per DSS-001 (their subarea-label
+  // groups are now nested inside a hidden wrapper, so collectRequirementCategoryIds can no
+  // longer find them as direct children of the grid either — removed here explicitly too, so
+  // the system prompt text below stays accurate rather than instructing the model to pick from
+  // categories that no longer resolve to anything).
+  const MANDATORY_REQUIREMENT_CATEGORIES = ['Product Display', 'Digital & Technology', 'Functional Spaces'];
   const OPTIONAL_REQUIREMENT_CATEGORIES = ['Art & Brand'];
   const requirementCategoryIds = collectRequirementCategoryIds([...MANDATORY_REQUIREMENT_CATEGORIES, ...OPTIONAL_REQUIREMENT_CATEGORIES]);
 
@@ -12524,7 +12642,7 @@ Rules:
 - "integratedElements": only relevant if "fields" sets f_ceilingRigging to anything other than "No overhead structure" — choose Integrated Elements that suit that overhead structure, from this exact list: ${integratedElementOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
 - "riggingLighting": same condition as "integratedElements" — if there is any overhead structure (real rigging OR a self-supported ceiling feature), choose its lighting from this exact list: ${riggingLightingOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
 - "fields.f_ceilingRigging" (Ceiling & Rigging): the client's STATED RIGGING PREFERENCE given below with the other facts overrides your own judgment — if it says "no", you MUST set f_ceilingRigging to exactly "No overhead structure", and "integratedElements"/"riggingLighting" must both be empty arrays; if it says "yes", set f_ceilingRigging to any value other than "No overhead structure" that genuinely suits this brief; if it says "unspecified", decide freely as you would for any other field.
-- Requirements — MANDATORY category rule: REQUIREMENT CATEGORIES below lists the "addreq_*" field ids grouped under their real category names from the form. You MUST check (set to true) at least one item from AT LEAST TWO different categories among these six: Product Display, Digital & Technology, Functional Spaces, Lighting, Decorative Elements, Lighting Features — choose whichever specific items and however many categories genuinely suit this brand, goal, and the available floor area (a 9 sqm booth should stay lean; a 200 sqm booth can support items from more categories). "Art & Brand" is different — it is entirely OPTIONAL, check something from it only if it would genuinely help this specific design (e.g. a heritage brand with real history to tell), never as default filler just to hit a count. Every other Requirements checkbox outside these seven categories (Visitor Experience, industry-specific categories, Landscape, etc.) stays entirely your own judgment call, with no minimum.
+- Requirements — MANDATORY category rule: REQUIREMENT CATEGORIES below lists the "addreq_*" field ids grouped under their real category names from the form. You MUST check (set to true) at least one item from AT LEAST TWO different categories among these three: Product Display, Digital & Technology, Functional Spaces — choose whichever specific items and however many categories genuinely suit this brand, goal, and the available floor area (a 9 sqm booth should stay lean; a 200 sqm booth can support items from more categories). "Art & Brand" is different — it is entirely OPTIONAL, check something from it only if it would genuinely help this specific design (e.g. a heritage brand with real history to tell), never as default filler just to hit a count. Lighting, Decorative Elements, and Lighting Features are retired per Designslab Signature Style (DSS-001) — never suggest or check anything from those categories; DSS-001 decides lighting and decorative treatment automatically, outside this helper entirely. Every other Requirements checkbox outside these four categories (Visitor Experience, industry-specific categories, Landscape, etc.) stays entirely your own judgment call, with no minimum.
 - "fields": for every field in the FIELD SCHEMA below, include a value keyed by its exact "id".
   - kind "select": the value MUST be exactly one of that field's "options", copied verbatim.
   - kind "checkbox": true or false only, following the MANDATORY category rule above for anything in REQUIREMENT CATEGORIES; for every other checkbox, true only where it genuinely fits this brand, goal, and space. Every requirement you check has a paired quantity/capacity field elsewhere in the FIELD SCHEMA where one exists (e.g. "addreq_reception_count" for "addreq_reception") — always give that paired field a sensible number sized to the space too, never leave it at an unconsidered default.
