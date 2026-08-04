@@ -3057,14 +3057,17 @@ Replace only the materials and graphics."></textarea>
     </div>
 
 
-    <div class="field" id="newSpatialEngineField" style="display:none;">
-      <label style="font-weight:600;">Spatial Planning Engine (Admin)</label>
-      <select id="f_engineMode">
-        <option value="special" selected>Special Engine</option>
-        <option value="test">Test Engine</option>
-      </select>
-      <div class="hint">The Spatial Planning Engine (Design Intent → Functional Program → Spatial Relationships → Visitor Journey → Zone Allocation → Hero Strategy → Layout Solver → Bubble Diagram → Architectural Composition) is the ONLY engine now — the old formula-first engine has been fully retired. Admin-only selector: "Special Engine" is production, exactly what every regular user gets, and is the default. "Test Engine" is an isolated duplicate of the same pipeline reserved for active development, so in-progress changes never risk affecting real users. See Spatial-Planning-Engine-Redesign.md for the full architecture.</div>
-    </div>
+    <!-- Test Engine has been retired per explicit product decision — the Rolex project's result,
+         produced by the Special Engine, is the quality bar, so Special Engine is now unconditionally
+         the only pipeline anyone (including admins) renders through. This div is kept as an empty,
+         hidden anchor (rather than deleted outright) because collectAutofillDescriptorsInRange()
+         still uses its id as a scan-range boundary elsewhere on this form; removing the id would
+         silently break that unrelated range. #f_engineMode itself is gone — every one of its 4
+         former read sites (generateDesign, startRenderSession, Other option, Modify Design) now
+         hardcodes the Special Engine path directly instead of reading a selector that no longer
+         exists. The underlying _TE-suffixed functions are left in place, unreachable, rather than
+         deleted, in case this sandbox is ever needed again for future development. -->
+    <div id="newSpatialEngineField" style="display:none;"></div>
 
     <div class="submit-bar">
       <button class="primary" id="submitBtn" onclick="generateDesign()" data-i18n="btn.generateDesign">Generate Design</button>
@@ -9201,8 +9204,8 @@ async function checkAdminAccess(){
         const tab = document.getElementById(id);
         if(tab) tab.style.display = '';
       });
-      const newEngineField = document.getElementById('newSpatialEngineField');
-      if(newEngineField) newEngineField.style.display = 'block';
+      // Test Engine selector reveal removed — Test Engine is retired, see newSpatialEngineField's
+      // own comment. Its div stays hidden for every role now, including admins.
       // "Upload an existing design" (left sidebar, below the project list) — per explicit client
       // direction, this is back to its original admin-only reveal: visible only inside the admin
       // control panel, never for a regular user. Nothing else about it changed (the upload/booth
@@ -10672,17 +10675,16 @@ function assembleNewEngineBrief(designIntent, functionalProgram, relationships, 
   });
   return lines.join('\n');
 }
-/* ================= END SPECIAL SPATIAL PLANNING ENGINE (production default; admin can additionally select the Test Engine sandbox copy below via #f_engineMode) ================= */
+/* ================= END SPECIAL SPATIAL PLANNING ENGINE (now the ONLY pipeline, for every role — see useTestEngine's comment in generateDesign()) ================= */
 
-/* ================= TEST SPATIAL PLANNING ENGINE (admin sandbox — duplicate of the Special
-   Engine above) =================
-   An exact functional duplicate of the Special Engine directly above (every constant/function
-   here is the same logic, suffixed _TE) — created so active development on the Spatial Planning
-   Engine can happen here, in isolation, without risking any change to what real users (and an
-   admin who leaves the selector on its default) actually get from the Special Engine. Selected
-   via #f_engineMode ("Test Engine" option), admin-only, in generateDesign(). At the moment these
-   two copies are identical; as this one is developed further they're expected to diverge, and
-   whatever proves out here can be deliberately promoted into the Special Engine above once ready.
+/* ================= TEST SPATIAL PLANNING ENGINE (RETIRED — dead code, unreachable) =================
+   Was an exact functional duplicate of the Special Engine directly above (every constant/function
+   here is the same logic, suffixed _TE), reserved for active development in isolation from real
+   users, selected via the since-removed #f_engineMode selector. Per an explicit product decision,
+   Test Engine has been retired — the Special Engine's own result quality is the bar everyone,
+   including admins, should get by default — so nothing in the app can select this path anymore
+   (see useTestEngine's own comment in generateDesign()). Left in place rather than deleted, in
+   case this sandbox is needed again for future development.
    ================= */
 
 
@@ -14244,15 +14246,15 @@ async function generateDesign(){
   // (Design Intent -> Functional Program -> Space Hierarchy -> Spatial Relationships / Bubble
   // Diagram -> Visitor Journey -> Zone Allocation -> Hero Strategy -> Architectural Composition ->
   // Layout Solver). This is now the ONLY spatial engine — the old formula-first engine has been
-  // deleted entirely, per an explicit product decision. Every non-admin always gets the Special
-  // Engine (production). Admin can additionally choose the Test Engine via #f_engineMode: an
-  // isolated duplicate of this exact same pipeline (identical right now, functions/constants
-  // suffixed _TE), reserved for active development so in-progress changes never risk affecting
-  // real users until deliberately promoted into the Special Engine. Wrapped in try/catch so a bug
-  // in either copy can never break generation outright — falls back to a bare-bones listing
-  // instead (buildMinimalFallbackSpatialPlanText), never to the old engine, which no longer exists.
-  const engineModeEl = document.getElementById('f_engineMode');
-  const useTestEngine = isAdminUser && engineModeEl && engineModeEl.value === 'test';
+  // deleted entirely, per an explicit product decision. Test Engine (the #f_engineMode admin
+  // sandbox duplicate of this same pipeline, functions/constants suffixed _TE) has since been
+  // retired too, per the explicit decision that the Special Engine's own result quality (the
+  // Rolex project) is the bar everyone — including admins — should get by default. useTestEngine
+  // is hardcoded false rather than deleted as a variable so the branch below stays easy to read;
+  // the _TE functions themselves are left in place, unreachable, not deleted. Wrapped in try/catch
+  // so a bug can never break generation outright — falls back to a bare-bones listing instead
+  // (buildMinimalFallbackSpatialPlanText), never to the old engine, which no longer exists.
+  const useTestEngine = false;
   lastBubbleDiagramSVG = ''; // reset every run — a stale diagram from a previous project must never linger in the admin preview
   lastWhiteBoxModelImage = ''; // reset every run — same reasoning as lastBubbleDiagramSVG above
   lastParametricElevations_TE = { front: '', left: '', right: '' }; // reset every run — same reasoning as lastWhiteBoxModelImage above
@@ -15595,15 +15597,12 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
     ? computeBoothAspectRatio(parseFloat(document.getElementById('f_width').value), parseFloat(document.getElementById('f_depth').value))
     : '16:9';
 
-  // Tells /api/generate-image-gemini which resolution to render at (2K "good" production quality
-  // for Special Engine, 1K "medium" for Test Engine — see that endpoint's own comment). Read fresh
-  // from the DOM here rather than passed in as a parameter, since this same function also serves
-  // Modify Design later, at which point the selector may have changed since the original Generate
-  // click — using its current value is the expected behavior either way. Non-admins never see or
-  // can move this selector, but the server independently re-checks caller.role too, so this is
-  // purely a preference signal, never trusted for anything security-sensitive.
-  const renderEngineModeEl = document.getElementById('f_engineMode');
-  const renderEngineMode = (isAdminUser && renderEngineModeEl && renderEngineModeEl.value === 'test') ? 'test' : 'special';
+  // Test Engine is retired (see useTestEngine's own comment in generateDesign()) — renderEngineMode
+  // is hardcoded 'special' for everyone, including admins, rather than read from a selector that no
+  // longer exists. Tells /api/generate-image-gemini which resolution to render at (2K "good"
+  // production quality); the server independently re-checks caller.role too either way, so this was
+  // always purely a preference signal, never trusted for anything security-sensitive.
+  const renderEngineMode = 'special';
 
   // Engine choice (Test Engine, admin only, first Generate Booth Design click only) — per explicit
   // client direction, the very first render for a Test Engine booth now lets the admin pick which
@@ -16336,13 +16335,11 @@ async function confirmRegenerateOtherOption(){
   const opt = optionResults[idx];
   if(!opt) return;
 
-  // Test Engine (admin only) — per explicit client direction, "Other option" no longer offers a
-  // choice here at all: it always renders through Gemini, silently, with no dialog to click
-  // through. Special Engine is completely untouched by this — admins there still get the
-  // explicit engine-choice dialog below, and non-admins still get their usual automatic
-  // alternation between Gemini and OpenAI further down this function.
-  const otherOptionEngineModeEl = document.getElementById('f_engineMode');
-  const isTestEngineSelectedForOtherOption = isAdminUser && otherOptionEngineModeEl && otherOptionEngineModeEl.value === 'test';
+  // Test Engine is retired (see useTestEngine's own comment in generateDesign()) — this is always
+  // false now, for every role including admins, so "Other option" always falls through to the
+  // Special Engine behavior below (admins get the explicit engine-choice dialog, non-admins get
+  // their usual automatic alternation between Gemini and OpenAI).
+  const isTestEngineSelectedForOtherOption = false;
 
   // Admins choose the engine explicitly for this one click, via a dialog, instead of the
   // automatic alternation every other user gets — asked here, before anything else is
@@ -17072,8 +17069,10 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
   // exact same request shape (prompt/referenceImage/referenceMimeType/additionalReferenceImages/
   // aspectRatio/isUserInitiatedEdit/isFreeFirstModification) — see confirmRegenerateOtherOption's
   // own otherOptionBody for the identical pattern — so no reshaping is needed, only the endpoint.
-  const modifyEngineModeEl = document.getElementById('f_engineMode');
-  const modifyUsesOpenAiTE = isAdminUser && modifyEngineModeEl && modifyEngineModeEl.value === 'test';
+  // Test Engine is retired (see useTestEngine's own comment in generateDesign()) — always false now,
+  // for every role including admins, so Modify Design always uses Gemini, exactly like Special
+  // Engine already did for every real user.
+  const modifyUsesOpenAiTE = false;
   const modifyEndpoint = modifyUsesOpenAiTE ? '/api/generate-image-openai' : '/api/generate-image-gemini';
   // See capOpenAiPromptLength's own comment — OpenAI hard-rejects prompts over 32,000 chars, and
   // Modify Design always goes through OpenAI for Test Engine now (see the comment just above), so
