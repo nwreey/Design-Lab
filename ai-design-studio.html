@@ -10612,6 +10612,167 @@ function solveLayoutNewEngine(functionalProgram, relationships, journey, openSid
 }
 
 // --- DSS-001 — Designslab Signature Style. Per an explicit product decision, after reviewing the
+// --- DNA-001 — Architectural DNA System. HIGHEST PRIORITY per an explicit client decision: the
+// generated booths were "technically good" but not yet at the architectural quality of the
+// studio's best projects (Rolex, BMW, Red Bull) — the diagnosis was that DSS-001's rules below,
+// while correct in principle, are abstract ("materials follow the brand", "lighting is layered")
+// and left too much room for each section of the brief to make its own separate, sometimes
+// inconsistent, concrete choice. DNA-001 fixes that by deciding ONE concrete architectural
+// identity — one geometry family, one hero landmark, one structural language, one material trio
+// (primary/secondary/accent, never more), one lighting technique, one furniture language, one
+// detail language, one repetition rhythm — before anything else is written, so every other section
+// of the brief (including DSS-001's own Rules 5/6/7 just below, which now read directly from this
+// object instead of re-deriving their own answer) inherits the exact same identity. Built
+// entirely from designIntent + heroStrategy (HSE-001, already deterministic and already chosen by
+// the time this runs) — never a second, independently-guessed identity that could contradict the
+// hero archetype HSE-001 already committed to.
+const GEOMETRY_FAMILIES = ['Rectangle', 'Rounded Rectangle', 'Circle', 'Arch', 'Ribbon', 'Wave', 'Diamond', 'Hexagon', 'Fold'];
+
+// One geometry family per HSE-001 archetype — deterministic, not randomized, so the SAME booth
+// always gets the SAME geometry, and the geometry always reads as a natural expression of the
+// hero structure HSE-001 already chose (e.g. Portal, a walk-through frame, naturally reads as an
+// Arch; Tower, a vertical mass, naturally reads as Rectangle).
+const ARCHETYPE_TO_GEOMETRY = {
+  Portal: 'Arch',
+  Tower: 'Rectangle',
+  'Floating Frame': 'Ribbon',
+  'Feature Wall': 'Rounded Rectangle',
+  'Sculptural Element': 'Wave',
+  'LED Gateway': 'Fold',
+};
+
+const STRUCTURAL_LANGUAGE_BY_ARCHETYPE = {
+  Portal: 'A single monumental frame with clean continuous surfaces and no visible seams at eye level',
+  Tower: 'A vertical sculptural mass built from continuous tapering surfaces, treating height as one unbroken gesture',
+  'Floating Frame': 'A lightweight suspended structure that appears to hover, slim continuous surfaces with no visible support at eye level',
+  'Feature Wall': 'One dominant wall mass with deep continuous relief — never a flat plane',
+  'Sculptural Element': 'One iconic sculptural mass with continuous flowing surfaces, self-supporting and freestanding',
+  'LED Gateway': 'An illuminated structural frame fusing screen and architecture into one continuous surface',
+};
+
+// Five named lighting TECHNIQUES (placement/behavior of the light itself) — deliberately a
+// separate axis from INDUSTRY_LIGHTING_PROFILES' color-temperature/accent-color palette below;
+// DSS-001's Rule 5 combines both (one technique from here + one palette from there) rather than
+// treating them as competing systems.
+const LIGHTING_STRATEGY_LIBRARY = {
+  'Hidden perimeter lighting': 'a continuous warm glow concealed along the architecture\'s own edges — the fixture itself is never visible, only its effect',
+  'Halo lighting': 'a soft luminous ring or edge-glow outlining the hero form\'s silhouette from behind or beneath it',
+  'Floating edge lighting': 'a thin line of light along the underside/edge of forms, making them read as if hovering above the floor or wall',
+  'Vertical light fins': 'slim vertical light elements repeated as their own architectural rhythm, echoing the structure\'s geometry',
+  'Continuous ribbon lighting': 'one unbroken line of light running through the architecture like a drawn line, tying separate elements into a single continuous form',
+};
+const GEOMETRY_TO_LIGHTING_STRATEGY = {
+  Rectangle: 'Hidden perimeter lighting',
+  'Rounded Rectangle': 'Floating edge lighting',
+  Circle: 'Halo lighting',
+  Arch: 'Hidden perimeter lighting',
+  Ribbon: 'Continuous ribbon lighting',
+  Wave: 'Floating edge lighting',
+  Diamond: 'Vertical light fins',
+  Hexagon: 'Vertical light fins',
+  Fold: 'Floating edge lighting',
+};
+
+const GEOMETRY_TO_FURNITURE_LANGUAGE = {
+  Rectangle: 'Sharp clean edges with exposed structural joints, matching the architecture\'s own geometry',
+  'Rounded Rectangle': 'Softened rectangular forms with rounded corners and continuous surfaces, no sharp edges',
+  Circle: 'Circular and cylindrical forms throughout, echoing the architecture\'s own curvature',
+  Arch: 'Rounded edges with floating illuminated bases, echoing the arch\'s own curve',
+  Ribbon: 'Flowing continuous forms with no hard corners, as if cut from the same ribbon as the architecture',
+  Wave: 'Undulating continuous surfaces with no flat planes, echoing the wave form throughout',
+  Diamond: 'Faceted angular forms with crisp diagonal edges, echoing the diamond geometry',
+  Hexagon: 'Faceted modular forms built on a hexagonal grid, repeated consistently',
+  Fold: 'Origami-like folded surfaces with crisp angular creases, echoing the architecture\'s own folds',
+};
+
+// Exactly three named materials per mood (primary/secondary/accent) — DSS-001's Rule 6 used to
+// say "typically 2-4 primary materials" in the abstract; DNA-001 replaces that with three named,
+// concrete materials repeated everywhere, per the client's explicit "no random material
+// additions" rule. Six moods, not one per industry — reusing INDUSTRY_STYLE_ATTRIBUTES' existing
+// 42-industry taxonomy at the mood-keyword level below keeps this from becoming a second,
+// competing 42-entry table that could drift out of sync with it.
+const MATERIAL_PALETTE_LIBRARY = {
+  luxury: { primary: 'Travertine', secondary: 'Walnut Wood Veneer', accent: 'Champagne Aluminum' },
+  technology: { primary: 'Matte White Composite Panel', secondary: 'Brushed Aluminum', accent: 'Illuminated Acrylic' },
+  industrial: { primary: 'Blackened Steel', secondary: 'Raw Concrete-effect Panel', accent: 'Exposed Copper' },
+  natural: { primary: 'Light Oak Wood', secondary: 'Linen-textured Fabric Panel', accent: 'Matte Bronze' },
+  minimal: { primary: 'Matte White Panel', secondary: 'Frosted Glass', accent: 'Brushed Steel' },
+  bold: { primary: 'Gloss Black Composite', secondary: 'Anodized Aluminum', accent: 'RGB-lit Acrylic Edge' },
+};
+const INDUSTRY_MOOD_KEYWORDS = {
+  luxury: ['Luxury', 'Fashion', 'Jewelry', 'Watches', 'Beauty', 'Cosmetics', 'Hospitality', 'Tourism'],
+  technology: ['Technology', 'Artificial Intelligence', 'Software', 'SaaS', 'Cybersecurity', 'Data Centers', 'Cloud Computing', 'Robotics', 'Electronics', 'FinTech', 'Telecommunications', 'Smart Cities'],
+  industrial: ['Oil & Gas', 'Manufacturing', 'Construction', 'Energy', 'Marine', 'Security & Defense', 'Logistics'],
+  natural: ['Food & Beverage', 'Furniture & Home', 'Agriculture', 'Non-Profit', 'Sustainability'],
+  minimal: ['Banking', 'Healthcare', 'Pharmaceutical', 'Government', 'Education', 'Finance', 'Insurance', 'Architecture & Interior Design'],
+  bold: ['Automotive', 'Aviation', 'Aerospace', 'Gaming', 'Sports', 'Entertainment', 'Media'],
+};
+// Brand personality overrides industry when the client picked a strong personal trait — same
+// precedence BRAND_PERSONALITY_ATTRIBUTES already gets elsewhere (a client's explicit brand
+// personality choice always refines/overrides an industry-only default).
+function classifyMaterialMood(industry, personalities){
+  const LUXURY_TRAITS = new Set(['Luxury', 'Elegant', 'Premium', 'Timeless', 'Exclusive']);
+  const BOLD_TRAITS = new Set(['Bold', 'Dynamic', 'Energetic', 'Futuristic', 'Innovative']);
+  if(personalities.some(p => LUXURY_TRAITS.has(p))) return 'luxury';
+  if(personalities.some(p => BOLD_TRAITS.has(p))) return 'bold';
+  for(const mood in INDUSTRY_MOOD_KEYWORDS){
+    if(INDUSTRY_MOOD_KEYWORDS[mood].some(kw => industry.includes(kw))) return mood;
+  }
+  return 'minimal'; // safe, refined, universal default — never an unstyled fallback
+}
+
+// Meters between repeated rhythm elements (panels/fins/dividers/columns/geometry repeats),
+// scaled to booth size the same way decorativeDensity below scales decoration to size — a Tiny
+// Booth repeating a motif every 3m would barely repeat at all; a Flagship Pavilion repeating one
+// every 1m would look busy rather than rhythmic.
+const RHYTHM_SPACING_BY_SIZE_CLASS = {
+  'Tiny Booth': 1, 'Compact Booth': 1.2, 'Small Booth': 1.5, 'Medium Booth': 2, 'Large Booth': 2.5, 'Flagship Pavilion': 3,
+};
+
+function buildArchitecturalDNA(designIntent, heroStrategy){
+  const archetypeInfo = (ARCHITECTURAL_LIBRARY.archetypes && ARCHITECTURAL_LIBRARY.archetypes[heroStrategy.archetype]) || {};
+  const geometry = ARCHETYPE_TO_GEOMETRY[heroStrategy.archetype] || 'Rounded Rectangle';
+  const structuralLanguage = STRUCTURAL_LANGUAGE_BY_ARCHETYPE[heroStrategy.archetype] || 'One continuous sculptural mass with clean, deliberate surfaces';
+  const lightingStrategy = GEOMETRY_TO_LIGHTING_STRATEGY[geometry] || 'Hidden perimeter lighting';
+  const furnitureLanguage = GEOMETRY_TO_FURNITURE_LANGUAGE[geometry] || 'Forms that echo the architecture\'s own geometry, never catalog furniture';
+  const personalities = designIntent.brandPersonalities || [];
+  const mood = classifyMaterialMood(designIntent.industry || '', personalities);
+  const materials = MATERIAL_PALETTE_LIBRARY[mood];
+  const rhythmSpacing = RHYTHM_SPACING_BY_SIZE_CLASS[designIntent.sizeClass] || 1.5;
+  const heroLandmark = `${heroStrategy.aspect === 'compact-tall' ? 'A vertical' : 'A horizontal'} ${geometry.toLowerCase()}-based hero structure — ${archetypeInfo.description || heroStrategy.archetype}`;
+  const detailLanguage = `Thin ${materials.accent} reveals repeated throughout, following the ${geometry.toLowerCase()} geometry's own lines`;
+  const rhythmLanguage = `Repeating ${geometry.toLowerCase()} elements every ${rhythmSpacing}m across the architecture — the same spacing discipline applied to panels, fins, dividers, and columns`;
+
+  return {
+    geometry, heroLandmark, structuralLanguage, materials,
+    lightingStrategy, lightingStrategyDescription: LIGHTING_STRATEGY_LIBRARY[lightingStrategy],
+    furnitureLanguage, detailLanguage, rhythmLanguage,
+    source: 'DNA-001 rule-based (deterministic) — derived from HSE-001\'s already-chosen hero archetype, so this never introduces a second, conflicting identity',
+  };
+}
+
+function buildArchitecturalDNAText(dna){
+  return [
+    'ARCHITECTURAL DNA (DNA-001) — HIGHEST PRIORITY, read this before every other section below. This is the ONE architectural identity for this entire project — every element described anywhere else in this brief (hero structure, walls, ceiling, reception, meeting rooms, kiosks, product displays, flooring, partitions, lighting details, and every piece of furniture) must inherit it exactly. Never introduce a different geometry, a different material, or a different lighting approach anywhere in this design, no matter how minor the element.',
+    '',
+    `Primary Geometry: ${dna.geometry}`,
+    `Hero Landmark: ${dna.heroLandmark}`,
+    `Structural Language: ${dna.structuralLanguage}`,
+    `Material Language: ${dna.materials.primary} (primary) + ${dna.materials.secondary} (secondary) + ${dna.materials.accent} (accent) — exactly these three materials, reused everywhere; no fourth material, no random additions.`,
+    `Lighting Language: ${dna.lightingStrategy} — ${dna.lightingStrategyDescription}. This is the ONLY lighting technique used anywhere in the design; never mix in a second lighting technique.`,
+    `Furniture Language: ${dna.furnitureLanguage}`,
+    `Detail Language: ${dna.detailLanguage}`,
+    `Architectural Rhythm: ${dna.rhythmLanguage}`,
+    '',
+    'ONE HERO RULE — the eye must immediately recognize exactly one dominant architectural icon (the Hero Landmark above). Never generate multiple competing towers, multiple hero structures, or competing ceiling features — anything that could read as a second focal point is a defect, not a bonus. Everything else exists to support this one hero. Hierarchy, strictly in this order: Hero Structure -> Secondary Architecture -> Furniture -> Decorative Elements. Nothing below the hero may compete with it for attention.',
+    `GEOMETRY CONSISTENCY — the Primary Geometry (${dna.geometry}) is repeated, without exception, in: the ceiling, the walls, the reception desk, meeting rooms, kiosks, product displays, flooring pattern/edge treatment, partitions, and every lighting detail. Never mix in an unrelated geometry family anywhere, even for a "minor" element — the booth must read as one architectural language throughout, never a mismatched catalog of unrelated forms.`,
+    'CEILING INTEGRATION — the ceiling must feel physically connected to the architecture, never a floating element disconnected from the walls or hero structure. Ceiling, hero structure, walls, and floor must read as one continuous architectural composition, built from the same Primary Geometry and Material Language stated above.',
+    'ARCHITECTURAL SIMPLICITY — one strong concept, repeated and refined, never a collection of unrelated architectural ideas layered on top of each other. Luxury comes from consistency, proportion, and repetition — not complexity.',
+    'BRAND INTEGRATION — the brand is expressed through the architectural forms, material choices, lighting, geometry, proportions, and detailing stated above, not only through the logo. The booth must still feel like this exact brand even with every logo removed.',
+    'PROFESSIONAL DESIGN STUDIO DISCIPLINE — the target is not to imitate the appearance of Rolex, BMW, or Red Bull\'s exhibition work, but their design discipline: one concept, one geometry, one rhythm, one material language, one lighting language, one architectural hierarchy — applied without exception, across every single element described in this brief.',
+  ].join('\n');
+}
+
 // studio's best-performing projects (Rolex, BMW, Red Bull), Designslab AI now behaves like a
 // senior exhibition design studio rather than a form generator: lighting type, material
 // selection, flooring finish, decorative elements, and architectural detailing are no longer
@@ -10622,8 +10783,11 @@ function solveLayoutNewEngine(functionalProgram, relationships, journey, openSid
 // designIntent.industry string) rather than inventing a second, competing taxonomy, and is
 // injected directly into the brief GPE-001 assembles below — since this app now sends that brief
 // straight to Gemini as the image_prompt with no LLM rewriting pass in between (see
-// isDirectToGeminiEngine's own comment), this text reaches the rendering model verbatim.
-function buildDesignslabSignatureStyleRules(designIntent){
+// isDirectToGeminiEngine's own comment), this text reaches the rendering model verbatim. Rules
+// 5/6/7 below now read their lighting technique / material trio / geometry directly from DNA-001
+// (architecturalDNA) above rather than deriving a second, potentially-conflicting answer of their
+// own — see buildArchitecturalDNA's own comment for why that reconciliation matters.
+function buildDesignslabSignatureStyleRules(designIntent, architecturalDNA){
   const industry = designIntent.industry || '';
   const lightingProfile = (typeof INDUSTRY_LIGHTING_PROFILES !== 'undefined' && INDUSTRY_LIGHTING_PROFILES[industry]) || 'a coherent, deliberately chosen color-temperature and accent palette appropriate to the brand';
   const materialAttributes = (typeof INDUSTRY_STYLE_ATTRIBUTES !== 'undefined' && INDUSTRY_STYLE_ATTRIBUTES[industry]) || 'materials appropriate to this brand and industry';
@@ -10651,9 +10815,9 @@ function buildDesignslabSignatureStyleRules(designIntent){
     'Rule 2 — ONE DOMINANT ARCHITECTURAL FOCAL POINT. Every booth, including Minimal Hero Mode, must create a memorable architectural identity — never a collection of unrelated features with no single point of focus.',
     'Rule 3 — FURNITURE IS SECONDARY. Furniture must never visually compete with the architecture; it supports the architectural concept, never distracts from it.',
     'Rule 4 — WALLS ARE ARCHITECTURAL ELEMENTS. Never generate a plain flat wall. Every wall receives deliberate architectural treatment through geometry, materials, lighting, graphics, depth, or texture — a wall with none of these is a defect, not a minimal design choice.',
-    `Rule 5 — LIGHTING IS LAYERED, AUTOMATICALLY. Every project includes a full professional layered lighting system decided here, not by the client: architectural lighting, ambient lighting, product lighting, brand lighting, hero lighting, hidden indirect lighting, and floor accent lighting where appropriate. Lighting always emphasizes the architecture before the products. For this industry (${industry || 'this client'}), commit to this exact lighting profile and never mix in an unrelated temperature or accent color: ${lightingProfile}. Lighting must never appear random — every fixture and technique serves this one deliberate scheme.`,
-    `Rule 6 — MATERIALS FOLLOW THE BRAND, AUTOMATICALLY. Material selection is fully automatic, chosen from brand, industry, budget, and architectural style — never a client checklist. Luxury brands receive refined materials; technology brands receive clean precision materials; industrial brands receive robust materials; lifestyle brands receive warmer materials. Never mix conflicting material languages. For this project: industry material direction is "${materialAttributes}"; the client's own brand personality traits (${personalities}) refine this further; and the budget tier (${designIntent.budgetTier}) sets the material quality bar at: ${budgetMaterialTier}. Material combinations stay coherent — typically 2-4 primary materials, paired the way a professional interior architect would pair them.`,
-    'Rule 7 — GEOMETRY MUST BE CONSISTENT. Furniture, reception, display units, meeting tables, storage, and digital elements all inherit the exact same design language as the architecture itself — never a mismatched catalog of unrelated forms.',
+    `Rule 5 — LIGHTING IS LAYERED, AUTOMATICALLY. Every project includes a full professional layered lighting system decided here, not by the client: architectural lighting, ambient lighting, product lighting, brand lighting, hero lighting, hidden indirect lighting, and floor accent lighting where appropriate. Lighting always emphasizes the architecture before the products. The lighting TECHNIQUE is the one stated in the Architectural DNA above — ${architecturalDNA.lightingStrategy} (${architecturalDNA.lightingStrategyDescription}) — combined with this industry's color temperature and accent palette: ${lightingProfile}. Never mix in a second lighting technique or an unrelated temperature/accent color. Lighting must never appear random — every fixture serves this one deliberate scheme.`,
+    `Rule 6 — MATERIALS FOLLOW THE BRAND, AUTOMATICALLY. Material selection is fully automatic, chosen from brand, industry, budget, and architectural style — never a client checklist. The exact material trio is the one stated in the Architectural DNA above — ${architecturalDNA.materials.primary} (primary), ${architecturalDNA.materials.secondary} (secondary), ${architecturalDNA.materials.accent} (accent) — and no other material is introduced anywhere in the design. For context, this project's industry material direction is "${materialAttributes}"; the client's own brand personality traits (${personalities}) refined the trio above further; and the budget tier (${designIntent.budgetTier}) sets the material quality bar at: ${budgetMaterialTier}. Exactly three materials, reused everywhere, paired the way a professional interior architect would pair them — never a fourth material, never a random addition.`,
+    `Rule 7 — GEOMETRY MUST BE CONSISTENT. The Primary Geometry is the one stated in the Architectural DNA above — ${architecturalDNA.geometry}. Furniture, reception, display units, meeting tables, storage, and digital elements all inherit this exact same geometry family and design language as the architecture itself — never a mismatched catalog of unrelated forms. Furniture specifically follows: ${architecturalDNA.furnitureLanguage}`,
     'Rule 8 — VISUAL HIERARCHY, IN THIS EXACT ORDER: 1. Hero Architecture 2. Brand 3. Products 4. Visitor Experience 5. Furniture 6. Decorative Elements. Nothing below this order may compete with the hero architecture for visual attention.',
     `Rule 9 — NO EMPTY ARCHITECTURE. Avoid large empty walls, dead corners, and unused ceiling areas. Every architectural element must have a purpose. Decorative elements, feature walls, architectural fins, wall articulation, and ceiling detailing are all decided automatically here, at a density appropriate to this exact booth: ${decorativeDensity}. Never decoration for its own sake, and never a booth that reads as unfinished or under-designed.`,
     'Rule 10 — PROFESSIONAL LIGHTING BALANCE. Never an overly dark booth, an overexposed booth, colorful RGB overload, or inconsistent lighting temperatures within the same design. Lighting must always read as professionally designed, committed to the one industry lighting profile stated in Rule 5.',
@@ -10678,7 +10842,13 @@ function assembleNewEngineBrief(designIntent, functionalProgram, relationships, 
   lines.push(`Industry: ${designIntent.industry || 'not specified'} | Size class: ${designIntent.sizeClass} | Budget signal: ${designIntent.budgetTier} | Brand importance: ${designIntent.brandImportance}`);
   lines.push(`Open sides: ${designIntent.openSides.join(', ') || 'none'} | Style preference: ${designIntent.architecturalStylePreference || 'not specified'}`);
   lines.push('');
-  lines.push(buildDesignslabSignatureStyleRules(designIntent));
+  // DNA-001 computed once, here, from designIntent + the already-chosen heroStrategy (HSE-001) —
+  // before DSS-001 below, so DSS-001's Rules 5/6/7 can read the exact same geometry/material/
+  // lighting choices back out of it rather than deriving a second, potentially-conflicting answer.
+  const architecturalDNA = buildArchitecturalDNA(designIntent, heroStrategy);
+  lines.push(buildArchitecturalDNAText(architecturalDNA));
+  lines.push('');
+  lines.push(buildDesignslabSignatureStyleRules(designIntent, architecturalDNA));
   lines.push('');
   lines.push('FUNCTIONAL PROGRAM (FPE-001) — spaces defined before any furniture; furniture lives inside its space, never listed as the program itself');
   functionalProgram.zones.forEach(z => lines.push(`- ${z.name} [${z.category}, tier ${z.priorityTier}]${z.required ? ' (required)' : ''}`));
