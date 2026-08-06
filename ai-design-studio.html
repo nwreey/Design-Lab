@@ -7327,7 +7327,12 @@ function bpProductDrop(e, brandId, targetProductId){
 // a short placeholder string so the model can match "reference image 3" back to "Philips ->
 // MRI Scanner" while reading this structure.
 function buildBrandPortfolioData(){
-  const mainColors = Array.from(document.querySelectorAll('.color-hex'))
+  // Scoped to #colorRows specifically — .color-hex is also the class on the (hidden, per DSS-001)
+  // carpet/rigging-fabric/ceiling-fabric color pickers, which still exist in the DOM with their
+  // own stale default hex values even though they're invisible. An unscoped query here would
+  // silently mix those unrelated defaults into "the brand's main colors" — a real bug, not a
+  // hypothetical one (see BIE-001/DIE-001's own comment on the same fix).
+  const mainColors = Array.from(document.querySelectorAll('#colorRows .color-hex'))
     .map(i => String(i.value).trim())
     .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   return {
@@ -10200,6 +10205,17 @@ function buildDesignIntent(widthM, depthM, boothHeightM){
   const industry = industryEl ? industryEl.value : '';
   const personalities = (typeof selectedBrandPersonalities !== 'undefined' && selectedBrandPersonalities) ? selectedBrandPersonalities : [];
 
+  // Brand Identity Engine (per an explicit client priority fix — Brand Identity/Personality/Colors
+  // must outrank Industry when the design decides its materials; see buildArchitecturalDNA's own
+  // comment) — the client's own name and actual brand colors, so DNA-001 can derive materials FROM
+  // the brand instead of from the industry. Scoped to #colorRows specifically — see
+  // buildBrandPortfolioData's own comment on why an unscoped '.color-hex' query is wrong.
+  const nameEl = document.getElementById('f_name');
+  const brandName = nameEl ? String(nameEl.value).trim() : '';
+  const brandColorHexes = Array.from(document.querySelectorAll('#colorRows .color-hex'))
+    .map(i => String(i.value).trim())
+    .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
+
   const HIGH_IMPORTANCE_TRAITS = new Set(['Bold', 'Dynamic', 'Energetic', 'Futuristic', 'Innovative', 'Exclusive', 'Luxury', 'Immersive']);
   const PREMIUM_TRAITS = new Set(['Premium', 'Luxury', 'Exclusive', 'Elegant', 'Timeless']);
   const brandImportance = personalities.some(p => HIGH_IMPORTANCE_TRAITS.has(p)) ? 'high' : 'medium';
@@ -10221,6 +10237,7 @@ function buildDesignIntent(widthM, depthM, boothHeightM){
     openSides: [...openSidesSet],
     totalAreaSqm, widthM, depthM, boothHeightM: boothHeightM || 0,
     brandPersonalities: personalities.slice(),
+    brandName, brandColorHexes,
   };
 }
 
@@ -10685,40 +10702,158 @@ const GEOMETRY_TO_FURNITURE_LANGUAGE = {
   Fold: 'Origami-like folded surfaces with crisp angular creases, echoing the architecture\'s own folds',
 };
 
-// Exactly three named materials per mood (primary/secondary/accent) — DSS-001's Rule 6 used to
-// say "typically 2-4 primary materials" in the abstract; DNA-001 replaces that with three named,
-// concrete materials repeated everywhere, per the client's explicit "no random material
-// additions" rule. Six moods, not one per industry — reusing INDUSTRY_STYLE_ATTRIBUTES' existing
-// 42-industry taxonomy at the mood-keyword level below keeps this from becoming a second,
-// competing 42-entry table that could drift out of sync with it.
-const MATERIAL_PALETTE_LIBRARY = {
-  luxury: { primary: 'Travertine', secondary: 'Walnut Wood Veneer', accent: 'Champagne Aluminum' },
-  technology: { primary: 'Matte White Composite Panel', secondary: 'Brushed Aluminum', accent: 'Illuminated Acrylic' },
-  industrial: { primary: 'Blackened Steel', secondary: 'Raw Concrete-effect Panel', accent: 'Exposed Copper' },
-  natural: { primary: 'Light Oak Wood', secondary: 'Linen-textured Fabric Panel', accent: 'Matte Bronze' },
-  minimal: { primary: 'Matte White Panel', secondary: 'Frosted Glass', accent: 'Brushed Steel' },
-  bold: { primary: 'Gloss Black Composite', secondary: 'Anodized Aluminum', accent: 'RGB-lit Acrylic Edge' },
-};
-const INDUSTRY_MOOD_KEYWORDS = {
-  luxury: ['Luxury', 'Fashion', 'Jewelry', 'Watches', 'Beauty', 'Cosmetics', 'Hospitality', 'Tourism'],
-  technology: ['Technology', 'Artificial Intelligence', 'Software', 'SaaS', 'Cybersecurity', 'Data Centers', 'Cloud Computing', 'Robotics', 'Electronics', 'FinTech', 'Telecommunications', 'Smart Cities'],
-  industrial: ['Oil & Gas', 'Manufacturing', 'Construction', 'Energy', 'Marine', 'Security & Defense', 'Logistics'],
-  natural: ['Food & Beverage', 'Furniture & Home', 'Agriculture', 'Non-Profit', 'Sustainability'],
-  minimal: ['Banking', 'Healthcare', 'Pharmaceutical', 'Government', 'Education', 'Finance', 'Insurance', 'Architecture & Interior Design'],
-  bold: ['Automotive', 'Aviation', 'Aerospace', 'Gaming', 'Sports', 'Entertainment', 'Media'],
-};
-// Brand personality overrides industry when the client picked a strong personal trait — same
-// precedence BRAND_PERSONALITY_ATTRIBUTES already gets elsewhere (a client's explicit brand
-// personality choice always refines/overrides an industry-only default).
-function classifyMaterialMood(industry, personalities){
-  const LUXURY_TRAITS = new Set(['Luxury', 'Elegant', 'Premium', 'Timeless', 'Exclusive']);
-  const BOLD_TRAITS = new Set(['Bold', 'Dynamic', 'Energetic', 'Futuristic', 'Innovative']);
-  if(personalities.some(p => LUXURY_TRAITS.has(p))) return 'luxury';
-  if(personalities.some(p => BOLD_TRAITS.has(p))) return 'bold';
-  for(const mood in INDUSTRY_MOOD_KEYWORDS){
-    if(INDUSTRY_MOOD_KEYWORDS[mood].some(kw => industry.includes(kw))) return mood;
+// --- Brand Identity Engine — replaces the old industry-first material system entirely, per an
+// explicit client bug report: the pipeline was choosing architectural materials from the
+// INDUSTRY first (e.g. Banking -> travertine/walnut/champagne, a "luxury hospitality" mood) and
+// only applying the brand's own colors afterward, so a bank with bold blue branding rendered as a
+// generic hotel lobby instead of looking like that bank. The corrected priority order, per the
+// client's own spec, is: Brand Identity (name/logo, already known) -> Brand Personality -> Brand
+// Colors -> Architectural Style -> Industry -> Material Selection. Concretely, that means colors
+// are decided FIRST (from the client's own brand color pickers, never guessed), and materials are
+// chosen ONLY to express those colors — industry is demoted to a tiebreaker between 2-4 valid
+// material finishes that already express the right color, never a say in which color/family gets
+// used at all.
+
+// Converts a brand's own hex color into a human color name via HSL bucketing, so "the brand's
+// actual color" (not an industry mood) is what names the DNA's Material Language. Deterministic —
+// the same hex always classifies the same way.
+function hexToHsl(hex){
+  const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if(max !== min){
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch(max){
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
   }
-  return 'minimal'; // safe, refined, universal default — never an unstyled fallback
+  return { h: h * 360, s: s * 100, l: l * 100 };
+}
+function classifyColorName(hex){
+  if(!hex || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return 'Neutral Gray';
+  const { h, s, l } = hexToHsl(hex);
+  if(l >= 92) return 'White';
+  if(l <= 10) return 'Black';
+  if(s <= 12) return l >= 70 ? 'Light Gray' : (l >= 40 ? 'Gray' : 'Charcoal');
+  if(s <= 25 && l >= 55 && h >= 20 && h <= 55) return 'Champagne / Beige';
+  if(h < 15 || h >= 345) return l >= 55 ? 'Pink' : 'Red';
+  if(h < 45) return l >= 55 ? 'Gold' : 'Bronze';
+  if(h < 65) return 'Yellow';
+  if(h < 90) return 'Lime';
+  if(h < 150) return 'Green';
+  if(h < 195) return 'Teal';
+  if(h < 250) return l <= 30 ? 'Navy Blue' : 'Blue';
+  if(h < 290) return 'Purple';
+  if(h < 345) return 'Magenta';
+  return 'Gray';
+}
+
+// 3-4 concrete material finishes per color family — this is what "materials support the colors"
+// actually means in practice: every option here already visually reads as its color family, so no
+// matter which one industry picks as a tiebreaker below, the brand color stays dominant. Matches
+// the client's own worked example exactly (White -> engineered stone/architectural paint/solid
+// surface/aluminum; Blue -> glass/lacquer; a metal accent like Champagne Aluminum standing in for
+// the accent slot when the brand only supplies two real colors, same as their ANB example).
+const MATERIAL_FINISHES_BY_COLOR_FAMILY = {
+  White: ['{color} engineered stone', '{color} architectural paint', '{color} solid surface', '{color} aluminum panel'],
+  Black: ['{color} lacquer', '{color} composite panel', '{color} powder-coated aluminum', '{color} glass'],
+  'Light Gray': ['{color} engineered stone', '{color} powder-coated panel', '{color} brushed aluminum'],
+  Gray: ['{color} powder-coated aluminum', '{color} composite panel', '{color} brushed steel'],
+  Charcoal: ['{color} powder-coated steel', '{color} composite panel', '{color} lacquer'],
+  'Navy Blue': ['{color} glass', '{color} lacquer', '{color} powder-coated aluminum'],
+  Blue: ['{color} glass', '{color} lacquer', '{color} acrylic backlit panel'],
+  Teal: ['{color} glass', '{color} lacquer'],
+  Green: ['{color} lacquer', '{color} glass', '{color} powder-coated panel'],
+  Red: ['{color} lacquer', '{color} glass', '{color} powder-coated panel'],
+  Pink: ['{color} lacquer', '{color} glass'],
+  Gold: ['{color} brushed metal', '{color} anodized aluminum', '{color} metallic paint'],
+  'Champagne / Beige': ['{color} brushed aluminum', '{color} anodized metal', '{color} engineered stone'],
+  Bronze: ['{color} brushed metal', '{color} anodized aluminum'],
+  Yellow: ['{color} lacquer', '{color} powder-coated panel'],
+  Purple: ['{color} lacquer', '{color} glass'],
+  Magenta: ['{color} lacquer', '{color} glass'],
+  Lime: ['{color} lacquer', '{color} acrylic panel'],
+  'Neutral Gray': ['{color} powder-coated aluminum', '{color} composite panel'],
+};
+
+// Industry's ONLY remaining role in material selection: picking between 2-4 already-on-color
+// finishes for the same color family — never choosing the color/family itself. A tech brand's
+// white gets rendered in glass/lacquer/acrylic (glossy/precision); a luxury/hospitality brand's
+// white gets rendered in stone/solid-surface (premium); an industrial brand's white gets rendered
+// in powder-coated/composite (robust) — same White, three different but equally valid finishes.
+function pickMaterialForColor(colorName, industry){
+  const options = MATERIAL_FINISHES_BY_COLOR_FAMILY[colorName] || MATERIAL_FINISHES_BY_COLOR_FAMILY['Neutral Gray'];
+  const industryLower = (industry || '').toLowerCase();
+  let chosen = options[0];
+  if(/luxury|fashion|jewelry|hospitality|banking|finance|government|watches|beauty/.test(industryLower)){
+    chosen = options.find(o => /stone|solid surface/.test(o)) || options[0];
+  }else if(/technology|software|electronics|robotics|artificial intelligence|data|cloud|cyber|telecom|saas|fintech/.test(industryLower)){
+    chosen = options.find(o => /glass|lacquer|acrylic/.test(o)) || options[0];
+  }else if(/oil|gas|manufacturing|industrial|construction|energy|logistics|security|defense|marine/.test(industryLower)){
+    chosen = options.find(o => /powder-coated|composite|steel/.test(o)) || options[0];
+  }
+  return chosen.replace('{color}', colorName);
+}
+
+// Derives the brand's own Primary/Secondary/Accent VISUAL COLOR straight from the client's real
+// brand color pickers (designIntent.brandColorHexes, added by DIE-001) — never from industry. A
+// brand supplying only 2 colors (the common case) gets a neutral metal accent (Champagne
+// Aluminum) rather than a 3rd invented color, matching the client's own ANB worked example.
+function deriveBrandVisualPalette(designIntent){
+  const hexes = (designIntent.brandColorHexes || []).filter(h => /^#[0-9A-Fa-f]{6}$/.test(h));
+  const primaryHex = hexes[0] || '#FFFFFF';
+  const secondaryHex = hexes[1] || null;
+  const accentHex = hexes[2] || null;
+  return {
+    primaryHex, secondaryHex, accentHex,
+    primaryName: classifyColorName(primaryHex),
+    secondaryName: secondaryHex ? classifyColorName(secondaryHex) : 'Champagne / Beige',
+    accentName: accentHex ? classifyColorName(accentHex) : null, // null -> accent is a neutral metal, not a 3rd brand color
+  };
+}
+
+// Material Distribution Engine — a project's material balance must always keep the brand's own
+// colors visually dominant. Defaults sit at the midpoint of each client-specified range; wood and
+// stone are hard-capped as SUPPORTING materials only, never the dominant surface.
+const MATERIAL_DISTRIBUTION_DEFAULT = Object.freeze({
+  primaryBrandColorPercent: 70,  // range 65-75
+  secondaryBrandColorPercent: 20, // range 15-25
+  accentMaterialPercent: 8,       // range 5-10
+  naturalWoodMaxPercent: 10,
+  stoneMaxPercent: 15,
+});
+
+// Architectural Validation Rule — runs before the distribution is ever turned into prompt text.
+// Real deterministic checks, not just a written instruction: if wood or stone would outweigh the
+// combined brand-color share, or the brand colors together fall under a hard dominance floor, the
+// distribution is rebalanced right here in code. Given MATERIAL_DISTRIBUTION_DEFAULT's own numbers
+// are already constructed to satisfy every rule (90% combined brand color vs. 10%/15% caps), this
+// should never actually need to rebalance anything in practice — it exists as a real safety net
+// against a future edit accidentally breaking that invariant, exactly as the client's spec
+// describes: "reject" the bad distribution and "automatically rebalance" before generating.
+function validateAndRebalanceMaterialDistribution(distribution){
+  const d = { ...distribution };
+  const issues = [];
+  const brandColorTotal = () => d.primaryBrandColorPercent + d.secondaryBrandColorPercent;
+  if(d.naturalWoodMaxPercent > brandColorTotal()){
+    issues.push(`Wood (${d.naturalWoodMaxPercent}%) exceeded combined brand color (${brandColorTotal()}%) — rebalanced down.`);
+    d.naturalWoodMaxPercent = Math.min(d.naturalWoodMaxPercent, MATERIAL_DISTRIBUTION_DEFAULT.naturalWoodMaxPercent);
+  }
+  if(d.stoneMaxPercent > brandColorTotal()){
+    issues.push(`Stone (${d.stoneMaxPercent}%) exceeded combined brand color (${brandColorTotal()}%) — rebalanced down.`);
+    d.stoneMaxPercent = Math.min(d.stoneMaxPercent, MATERIAL_DISTRIBUTION_DEFAULT.stoneMaxPercent);
+  }
+  const DOMINANCE_FLOOR = 60; // brand colors must clearly read as dominant, never a minority share
+  if(brandColorTotal() < DOMINANCE_FLOOR){
+    issues.push(`Combined brand color (${brandColorTotal()}%) was below the ${DOMINANCE_FLOOR}% dominance floor — primary color share increased to compensate.`);
+    d.primaryBrandColorPercent += (DOMINANCE_FLOOR - brandColorTotal());
+  }
+  return { distribution: d, rebalanced: issues.length > 0, issues };
 }
 
 // Meters between repeated rhythm elements (panels/fins/dividers/columns/geometry repeats),
@@ -10735,19 +10870,28 @@ function buildArchitecturalDNA(designIntent, heroStrategy){
   const structuralLanguage = STRUCTURAL_LANGUAGE_BY_ARCHETYPE[heroStrategy.archetype] || 'One continuous sculptural mass with clean, deliberate surfaces';
   const lightingStrategy = GEOMETRY_TO_LIGHTING_STRATEGY[geometry] || 'Hidden perimeter lighting';
   const furnitureLanguage = GEOMETRY_TO_FURNITURE_LANGUAGE[geometry] || 'Forms that echo the architecture\'s own geometry, never catalog furniture';
-  const personalities = designIntent.brandPersonalities || [];
-  const mood = classifyMaterialMood(designIntent.industry || '', personalities);
-  const materials = MATERIAL_PALETTE_LIBRARY[mood];
   const rhythmSpacing = RHYTHM_SPACING_BY_SIZE_CLASS[designIntent.sizeClass] || 1.5;
+
+  // Brand Identity Engine — colors decided first (from the real brand colors, never industry),
+  // then materials chosen only to express them; industry is a tiebreaker between finishes within
+  // the same color family, never a say in the color itself. See this block's own header comment.
+  const visualPalette = deriveBrandVisualPalette(designIntent);
+  const industry = designIntent.industry || '';
+  const primaryMaterial = pickMaterialForColor(visualPalette.primaryName, industry);
+  const secondaryMaterial = pickMaterialForColor(visualPalette.secondaryName, industry);
+  const accentMaterial = visualPalette.accentName ? pickMaterialForColor(visualPalette.accentName, industry) : 'Champagne Aluminum';
+  const materials = { primary: primaryMaterial, secondary: secondaryMaterial, accent: accentMaterial };
+  const { distribution, rebalanced, issues } = validateAndRebalanceMaterialDistribution(MATERIAL_DISTRIBUTION_DEFAULT);
+
   const heroLandmark = `${heroStrategy.aspect === 'compact-tall' ? 'A vertical' : 'A horizontal'} ${geometry.toLowerCase()}-based hero structure — ${archetypeInfo.description || heroStrategy.archetype}`;
   const detailLanguage = `Thin ${materials.accent} reveals repeated throughout, following the ${geometry.toLowerCase()} geometry's own lines`;
   const rhythmLanguage = `Repeating ${geometry.toLowerCase()} elements every ${rhythmSpacing}m across the architecture — the same spacing discipline applied to panels, fins, dividers, and columns`;
 
   return {
-    geometry, heroLandmark, structuralLanguage, materials,
+    geometry, heroLandmark, structuralLanguage, materials, visualPalette, distribution, distributionRebalanced: rebalanced, distributionIssues: issues,
     lightingStrategy, lightingStrategyDescription: LIGHTING_STRATEGY_LIBRARY[lightingStrategy],
     furnitureLanguage, detailLanguage, rhythmLanguage,
-    source: 'DNA-001 rule-based (deterministic) — derived from HSE-001\'s already-chosen hero archetype, so this never introduces a second, conflicting identity',
+    source: 'DNA-001 rule-based (deterministic) — geometry from HSE-001\'s already-chosen hero archetype, colors/materials from the Brand Identity Engine (brand colors first, industry only as a material-finish tiebreaker)',
   };
 }
 
@@ -13205,7 +13349,8 @@ function getMissingRequirements(m){
   const levels = document.getElementById('f_levels').value;
   const upperDeckPurposeCount = document.querySelectorAll('.upperdeck-purpose-cb:checked').length;
   const industryStyle = document.getElementById('f_industryStyle').value;
-  const colorHexes = Array.from(document.querySelectorAll('.color-hex'))
+  // Scoped to #colorRows — see buildBrandPortfolioData's own comment on the same fix.
+  const colorHexes = Array.from(document.querySelectorAll('#colorRows .color-hex'))
     .map(i => String(i.value).trim())
     .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   const hasPosters = document.getElementById('f_hasPosters').value;
@@ -13784,7 +13929,8 @@ function buildEventThemeBoardBriefData(){
   const eventBrandValues = Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value);
   const keyActivities = Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value);
   const specialRequirements = Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value);
-  const colorHexes = Array.from(document.querySelectorAll('.color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
+  // Scoped to #colorRows — see buildBrandPortfolioData's own comment on the same fix.
+  const colorHexes = Array.from(document.querySelectorAll('#colorRows .color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   const brandPersonality = selectedBrandPersonalities.slice(); // ranked array, primary first (see BPE-001)
   const areaPlanningData = buildAreaPlanningData();
   const requiredAreas = areaPlanningData.areas.map(a => a.name).filter(Boolean);
@@ -14231,7 +14377,11 @@ async function generateDesign(){
   const hasPosters = document.getElementById('f_hasPosters').value;
   const posterCount = document.getElementById('f_posterCount').value.trim();
 
-  const colorHexes = Array.from(document.querySelectorAll('.color-hex'))
+  // Scoped to #colorRows — see buildBrandPortfolioData's own comment on the same fix. This one in
+  // particular feeds "Required brand colors" directly into the live Gemini prompt (see below), so
+  // the unscoped bug meant every booth's material/color instructions were silently diluted with
+  // whatever hex values the hidden carpet/rigging-fabric/ceiling-fabric pickers happened to have.
+  const colorHexes = Array.from(document.querySelectorAll('#colorRows .color-hex'))
     .map(i => i.value.trim())
     .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
 
@@ -19272,7 +19422,11 @@ function collectFormSnapshot(){
     f_upperFloor: document.getElementById('f_upperFloor').value,
     f_hasPosters: document.getElementById('f_hasPosters').value,
     f_posterCount: document.getElementById('f_posterCount').value,
-    colorHexes: Array.from(document.querySelectorAll('.color-hex')).map(i => i.value)
+    // Scoped to #colorRows — see buildBrandPortfolioData's own comment on the same fix. Before
+    // this fix, reloading a saved project could dump the hidden carpet/rigging/ceiling color
+    // pickers' own hex values into #colorRows as if they were brand colors, since restoreFormSnapshot
+    // below rebuilds #colorRows from exactly this array.
+    colorHexes: Array.from(document.querySelectorAll('#colorRows .color-hex')).map(i => i.value)
   };
 }
 
