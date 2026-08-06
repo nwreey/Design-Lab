@@ -28,9 +28,18 @@ function getCaller(req) {
 }
 
 // Gemini's aspectRatio strings (e.g. "16:9", "4:3", "3:4") don't map onto OpenAI's image
-// endpoints, which only accept one of three fixed sizes — this picks whichever fixed size
-// best matches the requested orientation so the two engines are at least comparing a
-// similarly-shaped frame, not a wide Gemini render against a square OpenAI one.
+// endpoints — this picks whichever OpenAI size best matches the requested orientation, so the
+// two engines are at least comparing a similarly-shaped frame, not a wide Gemini render against
+// a square OpenAI one.
+//
+// gpt-image-2 supports arbitrary WIDTHxHEIGHT strings (width/height both divisible by 16, aspect
+// ratio between 1:3 and 3:1) rather than only a few fixed presets — used here to request a
+// genuinely smaller render, not just the old three largest-available presets (1536x1024/
+// 1024x1536/1024x1024). Per explicit client feedback that OpenAI's output resolution was "too
+// high", these are roughly 40% of the old pixel count per image at the same aspect ratio (e.g.
+// landscape: 960x640 vs the old 1536x1024 — both still exactly 3:2), which is both a smaller
+// download and less work for the model to render. If this now reads too soft, the old values are
+// 1536x1024 / 1024x1536 / 1024x1024.
 function sizeFromAspectRatio(aspectRatio) {
   if (!aspectRatio || typeof aspectRatio !== 'string' || !aspectRatio.includes(':')) return 'auto';
   const [wStr, hStr] = aspectRatio.split(':');
@@ -38,9 +47,9 @@ function sizeFromAspectRatio(aspectRatio) {
   const h = parseFloat(hStr);
   if (!w || !h) return 'auto';
   const ratio = w / h;
-  if (ratio > 1.1) return '1536x1024';
-  if (ratio < 0.9) return '1024x1536';
-  return '1024x1024';
+  if (ratio > 1.1) return '960x640';
+  if (ratio < 0.9) return '640x960';
+  return '768x768';
 }
 
 function extFromMime(mime) {
