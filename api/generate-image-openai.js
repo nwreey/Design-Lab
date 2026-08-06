@@ -35,11 +35,16 @@ function getCaller(req) {
 // gpt-image-2 supports arbitrary WIDTHxHEIGHT strings (width/height both divisible by 16, aspect
 // ratio between 1:3 and 3:1) rather than only a few fixed presets — used here to request a
 // genuinely smaller render, not just the old three largest-available presets (1536x1024/
-// 1024x1536/1024x1024). Per explicit client feedback that OpenAI's output resolution was "too
-// high", these are roughly 40% of the old pixel count per image at the same aspect ratio (e.g.
-// landscape: 960x640 vs the old 1536x1024 — both still exactly 3:2), which is both a smaller
-// download and less work for the model to render. If this now reads too soft, the old values are
-// 1536x1024 / 1024x1536 / 1024x1024.
+// 1024x1536/1024x1024).
+//
+// First attempt at this (960x640/640x960/768x768) was rejected outright by the live API — HTTP
+// error "Requested resolution is below the current minimum pixel budget." gpt-image-2 enforces a
+// hard floor of 655,360 total pixels (in addition to the divisible-by-16/aspect-ratio rules
+// above); those three sizes were all just under it (614,400/614,400/589,824). These values clear
+// that floor with a small safety margin while still being meaningfully smaller than the old
+// defaults — landscape/portrait at ~44% of the old pixel count, square at ~66% — per the original
+// client feedback that OpenAI's output resolution was too high. If this now reads too soft, the
+// old values were 1536x1024 / 1024x1536 / 1024x1024.
 function sizeFromAspectRatio(aspectRatio) {
   if (!aspectRatio || typeof aspectRatio !== 'string' || !aspectRatio.includes(':')) return 'auto';
   const [wStr, hStr] = aspectRatio.split(':');
@@ -47,9 +52,9 @@ function sizeFromAspectRatio(aspectRatio) {
   const h = parseFloat(hStr);
   if (!w || !h) return 'auto';
   const ratio = w / h;
-  if (ratio > 1.1) return '960x640';
-  if (ratio < 0.9) return '640x960';
-  return '768x768';
+  if (ratio > 1.1) return '1024x672';
+  if (ratio < 0.9) return '672x1024';
+  return '832x832';
 }
 
 function extFromMime(mime) {
