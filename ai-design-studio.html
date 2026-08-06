@@ -12078,13 +12078,16 @@ function computeCameraApproachCorner(openSidesSet){
 // zoomed" to an explicit corner-to-corner full-visibility requirement instead.
 function buildCameraApproachText(isBoothMode){
   if(!isBoothMode){
-    return 'Camera: Photorealistic 3D perspective view. Camera angle: 35-45 degrees above the design (never directly overhead), approached from a front corner that keeps every structural element clearly and solidly in view. Framing: the entire design — every corner, the complete floor, and the full structure — must be visible within the frame, corner to corner; never crop, cut off, or push any part of the design (including the floor nearest the camera and the far corner) outside the frame.';
+    return 'Camera: Photorealistic 3D perspective view. Camera angle: exactly 45 degrees above the design, measured from the floor (never directly overhead, never a low/eye-level angle), approached from a front corner that keeps every structural element clearly and solidly in view. Framing: the entire design — every corner, the complete floor, and the full structure — must be visible within the frame, corner to corner; never crop, cut off, or push any part of the design (including the floor nearest the camera and the far corner) outside the frame.';
   }
   const c = computeCameraApproachCorner(getBoothOpenSidesSet());
   const wallNote = c.closedSidesOpposite.length
     ? ` This corner is chosen deliberately, per the client's mandatory visibility requirement: the camera stands on the side(s) opposite this booth's ${c.closedSidesOpposite.join('/')} STRUCTURAL WALL side(s) (per BSE-001/EPS-016) and looks across the booth toward ${c.closedSidesOpposite.length > 1 ? 'them' : 'it'} — never crowded up against a closed wall — so the entire design is visible in one frame, not just the portion nearest the camera.`
     : ' This booth is open on all four sides (island), so there is no closed wall to position opposite of — this corner is simply a neutral, consistent default.';
-  return `Camera: Photorealistic 3D perspective view (not top-down, not a flat plan). Camera angle: 35-45 degrees above the booth (never directly overhead), positioned above the ${c.corner} corner looking toward the ${c.lookToward} corner.${wallNote} Framing — MANDATORY, corner to corner: the entire booth must be visible within the frame — every one of its corners, the complete raised floor from edge to edge, and the full structure (walls, hero structure, ceiling if present) all clearly and completely in view. Never crop, cut off, zoom past, or push any part of the booth — including the floor nearest the camera and the far corner opposite it — outside the frame. Pull the camera back as far as needed to keep the whole booth inside the shot rather than tightly zooming in on any one portion of it; a small amount of surrounding exhibition hall visible at the edges is preferable to losing any part of the booth itself.`;
+  // Camera angle pinned to exactly 45 degrees (was a 35-45 degree range) per an explicit client
+  // spec: every "Generate" render should read as a fixed top-down-45 perspective, not a range the
+  // model is free to interpret anywhere within.
+  return `Camera: Photorealistic 3D perspective view (not top-down, not a flat plan). Camera angle: exactly 45 degrees above the booth, measured from the floor (never directly overhead, never a low/eye-level angle), positioned above the ${c.corner} corner looking toward the ${c.lookToward} corner.${wallNote} Framing — MANDATORY, corner to corner: the entire booth must be visible within the frame — every one of its corners, the complete raised floor from edge to edge, and the full structure (walls, hero structure, ceiling if present) all clearly and completely in view. Never crop, cut off, zoom past, or push any part of the booth — including the floor nearest the camera and the far corner opposite it — outside the frame. Pull the camera back as far as needed to keep the whole booth inside the shot rather than tightly zooming in on any one portion of it; a small amount of surrounding exhibition hall visible at the edges is preferable to losing any part of the booth itself.`;
 }
 
 // Fixes a real, concrete contributor to "the booth's dimensions don't read correctly" reports:
@@ -15725,9 +15728,29 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
   // Computed once per render session, from this booth's own real footprint — never the fixed
   // 16:9 default that used to apply regardless of the booth's actual shape (see
   // computeBoothAspectRatio's comment for why that was a real contributor to scale complaints).
+  // Overridden immediately below for a genuine fresh "Generate" click — see A4_LANDSCAPE_ASPECT_
+  // RATIO's own comment — but kept as the fallback for isUserInitiatedEdit calls into this same
+  // function (Quick Style Change), which must keep whatever frame shape the design already has
+  // rather than silently changing it mid-project.
   const renderAspectRatio = mode === 'booth'
     ? computeBoothAspectRatio(parseFloat(document.getElementById('f_width').value), parseFloat(document.getElementById('f_depth').value))
     : '16:9';
+
+  // Per an explicit client spec, the image produced by a genuine "Generate" click (a fresh
+  // design, not an edit to one that already exists — isUserInitiatedEdit is false here, exactly
+  // the same condition MRE-001/isFirstTestEngineBoothRender above uses to mean "this is the very
+  // first render") should always come back as A4 Horizontal (landscape), not the booth-shape-
+  // matched ratio computeBoothAspectRatio picks. True A4 landscape is 297:210 mm — a ratio of
+  // 1.4142:1 — which isn't one of Gemini's fixed named aspect ratios (1:1, 3:2, 2:3, 3:4, 4:3,
+  // 4:5, 5:4, 9:16, 16:9, 21:9 — ai.google.dev/gemini-api/docs/image-generation); '3:2' (1.5) is
+  // the closest supported value on either side (4:3 at 1.333 is arithmetically only marginally
+  // farther) and reads as the more natural landscape-photograph shape for an exhibition booth
+  // hero image, so it's used here as A4's stand-in. Other option/Modify Design/Quick Style
+  // Change are all untouched — they still keep whatever aspect ratio the design was originally
+  // generated at, per the existing "never silently switch frame shape mid-project" rule.
+  const A4_LANDSCAPE_ASPECT_RATIO = '3:2';
+  const isGenuineFreshGenerateClick = mode === 'booth' && !isUserInitiatedEdit;
+  const effectiveRenderAspectRatio = isGenuineFreshGenerateClick ? A4_LANDSCAPE_ASPECT_RATIO : renderAspectRatio;
 
   // Test Engine is retired (see useTestEngine's own comment in generateDesign()) — renderEngineMode
   // is hardcoded 'special' for everyone, including admins, rather than read from a selector that no
@@ -15777,7 +15800,7 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
   // This still applies regardless of which engine the admin picked above — the choice only changes
   // which endpoint renders the sheet, not whether it's a 4-quadrant sheet at all.
   const isMultiViewSheetTE = isFirstTestEngineBoothRender;
-  const finalRenderAspectRatio = isMultiViewSheetTE ? '4:3' : renderAspectRatio;
+  const finalRenderAspectRatio = isMultiViewSheetTE ? '4:3' : effectiveRenderAspectRatio;
 
   // PBG-001 — when the parametric 3D engine actually produced all three elevation images this
   // run (see generateDesign()'s call to buildParametricElevationViews_TE), the 4-quadrant sheet
