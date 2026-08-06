@@ -105,18 +105,16 @@ module.exports = async (req, res) => {
     const SUPPORTED_ASPECT_RATIOS = new Set(['1:1', '3:2', '2:3', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
     const resolvedAspectRatio = SUPPORTED_ASPECT_RATIOS.has(aspectRatio) ? aspectRatio : '16:9';
 
-    // Always 512 now, for every caller — admin panel and user panel both, no branching by role.
-    // Went 2K -> 1K -> (briefly, invalid) '0.5K' -> 1K -> 512 over several rounds of the same
-    // "generation still takes too long" request. '0.5K' is how Google's own docs describe this
-    // tier in prose, but the live API actually rejects that exact string with HTTP 400
-    // ("Unsupported image_size '0.5K'. Supported values are: 1K, 2K, 4K, 512, 512P, 512PX") — '512'
-    // is the real, confirmed-working enum value for gemini-3.1-flash-image's smallest/fastest size,
-    // used here for that reason. Whatever resolution comes back still gets compressed down to a
-    // ~195KB budget on the client anyway (see compressDataUrlToTarget), so little of the resolution
-    // above 512 was ever actually being kept. engineMode is still accepted on the request body
-    // (older/cached clients may still send it) but no longer has any effect — kept only so a stray
-    // 'test' value can never throw here.
-    const resolvedImageSize = '512';
+    // Always 1K now, for every caller — admin panel and user panel both, no branching by role.
+    // Went 2K -> 1K -> (briefly, invalid) '0.5K' -> 1K -> 512 -> back to 1K, across several rounds
+    // of the same speed-vs-quality tension: 512 made generation faster but the actual image quality
+    // dropped too far (real client feedback: "too low resolution"), so this settled back on 1K —
+    // gemini-3.1-flash-image's own documented default — as the working middle ground between the
+    // original slow 2K and the too-soft 512. If it's still too slow, the next step down is 512
+    // (confirmed-working value, unlike the invalid '0.5K'); if it's still too soft, the next step up
+    // is 2K. engineMode is still accepted on the request body (older/cached clients may still send
+    // it) but no longer has any effect — kept only so a stray 'test' value can never throw here.
+    const resolvedImageSize = '1K';
 
     // The very first modification on a freshly generated design doesn't count against the
     // modify quota at all — occasionally the initial render needs a quick correction, and
