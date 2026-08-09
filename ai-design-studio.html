@@ -1821,6 +1821,13 @@ Replace only the materials and graphics."></textarea>
       <div class="hint" id="aiAutofillMainHint">Tell DesignsLab AI the Goal of the booth and your company website, and it will read everything already entered in Booth Details, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.</div>
 
       <div id="aiAutofillPanel" style="display:none;margin-top:14px;padding:16px;border:1px solid var(--line, #333);border-radius:10px;">
+        <div class="field" id="aiAutofillScenarioField">
+          <label>Test scenario <span style="font-weight:400;">(optional)</span></label>
+          <select id="f_autofillScenario">
+            <option value="" selected>Not sure — use my Goal &amp; Website below</option>
+          </select>
+          <div class="hint">Picking a scenario seeds the brief with a realistic project of that type instead of your own Goal/Website — useful for testing the Auto Fill engine itself. Every value is still generated fresh each run, never a fixed template.</div>
+        </div>
         <div class="field" id="aiAutofillGoalField">
           <label id="aiAutofillGoalLabel">Goal of the booth</label>
           <textarea id="f_autofillGoal" placeholder="e.g. Generate qualified leads and showcase our new product line to enterprise buyers" rows="2"></textarea>
@@ -9682,6 +9689,8 @@ function updateModeDependentLabels(){
       ? "Click below and DesignsLab AI will read everything already entered in Event Details (including your Website in the Upload section above, if provided), then suggest the visitor experience, mood, brand values, activities, and creative direction below based on the event you've already described — no extra questions needed. Everything it fills in stays fully editable before you generate."
       : "Tell DesignsLab AI the Goal of the booth and your company website, and it will read everything already entered in Booth Details, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.";
   }
+  const autofillScenarioField = document.getElementById('aiAutofillScenarioField');
+  if(autofillScenarioField) autofillScenarioField.style.display = mode === 'event' ? 'none' : 'block';
   const autofillGoalField = document.getElementById('aiAutofillGoalField');
   if(autofillGoalField) autofillGoalField.style.display = mode === 'event' ? 'none' : 'block';
   const autofillWebsiteField = document.getElementById('aiAutofillWebsiteField');
@@ -12135,7 +12144,7 @@ function setAiAutofillPromptFieldsOpen(open){
   // Goal/Website/Rigging are all booth-only (see updateModeDependentLabels — Event mode asks no
   // questions at all) — kept out of a generic loop so reopening this panel in Event mode can
   // never re-reveal any of them.
-  ['aiAutofillGoalField', 'aiAutofillWebsiteField', 'aiAutofillRiggingField'].forEach(id => {
+  ['aiAutofillScenarioField', 'aiAutofillGoalField', 'aiAutofillWebsiteField', 'aiAutofillRiggingField'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = (open && mode !== 'event') ? '' : 'none';
   });
@@ -12155,13 +12164,44 @@ function toggleAiAutofillPanel(cb){
 const AUTOFILL_EXCLUDED_IDS = new Set([
   'f_country', 'f_city', 'f_venue', 'f_attendees',
   'f_modularWallLayout', 'f_referenceImage', 'f_posterFiles', 'f_logo',
-  'f_needsAiHelp', 'f_autofillGoal', 'f_autofillWebsite', 'f_autofillWantsRigging',
+  'f_needsAiHelp', 'f_autofillGoal', 'f_autofillWebsite', 'f_autofillWantsRigging', 'f_autofillScenario',
   'f_apVenueName', 'f_apCity', 'f_apCountry',
   // "Do you already have poster designs?" is a client decision, never something the AI should
   // guess or overwrite — it's left exactly as the client set it (default "No"). f_posterCount
   // (how many posters) stays autofillable since that's a space-driven design choice.
   'f_hasPosters',
 ]);
+
+// Auto Fill Engine — Test Scenario presets (booth mode only). These are NOT hardcoded answer
+// sets — each is just a category label used to seed the prompt (see runAiAutofill's own comment
+// and buildBoothAutofillPrompt's SCENARIO SEED block); the model still generates every value
+// fresh, every run, for a plausible fictional company invented specifically for that category.
+// Kept as one flat array (not duplicated into the <select> markup) so this list is the single
+// source of truth — populateAutofillScenarioOptions() below builds the dropdown from it.
+const AUTOFILL_TEST_SCENARIOS = [
+  'Luxury Watch Brand',
+  'Premium Automotive',
+  'Technology Startup',
+  'Medical Equipment',
+  'Pharmaceutical Company',
+  'Industrial Machinery',
+  'Oil & Gas',
+  'Telecommunications',
+  'Consumer Electronics',
+  'Multi-Brand Distributor',
+];
+
+function populateAutofillScenarioOptions(){
+  const sel = document.getElementById('f_autofillScenario');
+  if(!sel || sel.dataset.populated) return;
+  AUTOFILL_TEST_SCENARIOS.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  sel.dataset.populated = '1';
+}
 
 function labelTextFor(el){
   const field = el.closest('.field');
@@ -12189,7 +12229,19 @@ function collectRequirementCategoryIds(categoryNames){
   let currentCategory = null;
   Array.from(grid.children).forEach(child => {
     if(child.classList.contains('subarea-label')){
-      currentCategory = child.textContent.trim();
+      // Real, previously-undiscovered bug fixed here: initReqCategoryAccordion() (which always
+      // runs once at page load) rewrites each label's innerHTML into
+      // `<span class="req-cat-title">Name</span><span class="req-cat-meta">...▾</span>`, so by
+      // the time ANY caller of this function runs post-load, child.textContent is no longer just
+      // the category name — it's "Name" + the live "N selected" count text + the "▾" chevron
+      // glyph, which never matches a plain category name in `wanted` again. That silently made
+      // every category resolve to zero ids for every caller (buildBoothAutofillPrompt's own
+      // REQUIREMENT CATEGORIES block included) the entire time the accordion feature has existed.
+      // Reading the inner .req-cat-title span (post-init) when present, falling back to the
+      // label's own textContent (pre-init, e.g. before initReqCategoryAccordion has run yet),
+      // fixes this for every caller at once.
+      const titleSpan = child.querySelector('.req-cat-title');
+      currentCategory = (titleSpan ? titleSpan.textContent : child.textContent).trim();
       return;
     }
     if(!currentCategory || !wanted.has(currentCategory)) return;
@@ -12345,6 +12397,58 @@ function applyAutofillResult(result){
     }
   }
 
+  // Brand Portfolio (booth mode only) — see buildBoothAutofillPrompt's own "brandPortfolio" rule:
+  // the model is instructed to only ever propose entries when the client hadn't added any of
+  // their own yet, but this is enforced here too, defensively, the same "instruct AND
+  // defensively enforce" pattern used throughout this file (see e.g. f_ceilingRigging above) —
+  // never overwrite or append to brands the client entered by hand. Each proposed entry is
+  // handed straight to the real bpCreateBrand()/bpCreateProduct() data model, then rendered with
+  // the existing renderBrandPortfolio(), so it's fully editable exactly like a manually-added
+  // brand — no separate "AI-generated" state that behaves differently.
+  if(mode === 'booth' && brandPortfolio.length === 0 && Array.isArray(result.brandPortfolio) && result.brandPortfolio.length){
+    result.brandPortfolio.slice(0, 6).forEach(b => {
+      if(!b || typeof b !== 'object' || !String(b.name || '').trim()) return;
+      const brand = bpCreateBrand();
+      brand.name = String(b.name).trim();
+      if(BP_PRIORITY_OPTIONS.includes(b.priority)) brand.priority = b.priority;
+      if(BP_DISPLAY_PREFERENCE_OPTIONS.includes(b.displayPreference)) brand.displayPreference = b.displayPreference;
+      if(BP_DISPLAY_SIZE_OPTIONS.includes(b.displaySize)) brand.displaySize = b.displaySize;
+      if(typeof b.notes === 'string') brand.notes = b.notes;
+      (Array.isArray(b.products) ? b.products.slice(0, 6) : []).forEach(p => {
+        if(!p || typeof p !== 'object' || !String(p.name || '').trim()) return;
+        const product = bpCreateProduct();
+        product.name = String(p.name).trim();
+        if(BP_PRODUCT_DISPLAY_TYPE_OPTIONS.includes(p.displayType)) product.displayType = p.displayType;
+        if(typeof p.notes === 'string') product.notes = p.notes;
+        brand.products.push(product);
+      });
+      brandPortfolio.push(brand);
+    });
+    renderBrandPortfolio();
+  }
+
+  // Area Planning (event mode only) — same "never overwrite what the client already entered"
+  // enforcement as brandPortfolio above, mirroring apCreateArea()'s own field shape so each
+  // proposed area is a fully editable real area card, not a separate read-only AI suggestion.
+  if(mode === 'event' && areaPlanningList.length === 0 && Array.isArray(result.areaPlanning) && result.areaPlanning.length){
+    result.areaPlanning.slice(0, 12).forEach(a => {
+      if(!a || typeof a !== 'object' || !String(a.name || '').trim()) return;
+      const area = apCreateArea();
+      area.name = String(a.name).trim();
+      area.purpose = typeof a.purpose === 'string' ? a.purpose : '';
+      area.sizeMode = 'percentage';
+      const pct = Number(a.percentage);
+      area.percentage = Number.isFinite(pct) && pct > 0 ? String(Math.min(100, Math.round(pct))) : '';
+      if(AP_PRIORITY_OPTIONS.includes(a.priority)) area.priority = a.priority;
+      area.capacity = typeof a.capacity === 'string' ? a.capacity : '';
+      area.equipment = (Array.isArray(a.equipment) ? a.equipment : []).filter(v => AP_EQUIPMENT_OPTIONS.includes(v));
+      if(AP_PREFERRED_LOCATION_OPTIONS.includes(a.preferredLocation)) area.preferredLocation = a.preferredLocation;
+      area.specialRequirements = typeof a.specialRequirements === 'string' ? a.specialRequirements : '';
+      areaPlanningList.push(area);
+    });
+    renderAreaPlanningList();
+  }
+
   // Brand personality — ranked array (Primary/Secondary/Accent), applied directly to the
   // module-level array the checkbox grid already renders from (see updateBrandPersonalityHint).
   if(Array.isArray(result.brandPersonality) && result.brandPersonality.length){
@@ -12436,10 +12540,279 @@ function applyAutofillResult(result){
   if(typeof updateReqCategoryCounts === 'function') updateReqCategoryCounts();
 }
 
+// Snapshot of which addreq_* Requirements were ALREADY checked before this Auto Fill run — taken
+// right before applyAutofillResult() runs, so enforceRequirementsFitAfterAutofill below can tell
+// "the AI just checked this" apart from "the client had already checked this themselves" and only
+// ever trim the former. Never touching a client's own pre-existing selection, even when the
+// booth genuinely can't fit everything, is deliberate — the AI's own new suggestions are what
+// caused the overflow, so they're what gets pared back first.
+function snapshotCheckedRequirementIds(){
+  return new Set(ADDREQ_ALL_CHECKBOX_IDS.filter(id => {
+    const el = document.getElementById(id);
+    return el && el.checked;
+  }));
+}
+
+// Least-essential-first order for automatic trimming — mirrors the exact mandatory/optional split
+// buildBoothAutofillPrompt's own Requirements rule already uses (Art & Brand is explicitly
+// optional there; Product Display and Functional Spaces are core to almost any booth, so they're
+// only ever touched as an absolute last resort).
+const REQUIREMENTS_TRIM_ORDER_CATEGORIES = ['Art & Brand', 'Decorative Elements', 'Lighting Features', 'Digital & Technology', 'Lighting', 'Product Display', 'Functional Spaces'];
+
+// The client's own explicit rule: "Never select requirements that cannot physically fit the
+// booth... Ensure all selected areas fit within the total booth area." Rather than trust the
+// model's own internal consistency check alone, this re-runs the exact same deterministic
+// feasibility check the Generate button itself uses (detectSpatialConflicts — see its own
+// comment) AFTER the AI's checkboxes have been applied to the real form, and if the program
+// genuinely doesn't fit, automatically unchecks the AI's own newly-added Requirements — never a
+// requirement the client had already picked — starting from the least essential category, one at
+// a time, re-checking after each, until it fits or nothing safe-to-drop remains.
+function enforceRequirementsFitAfterAutofill(previouslyCheckedIds, widthM, depthM, heightM){
+  if(!(widthM > 0 && depthM > 0 && heightM > 0)) return { trimmed: [], stillImpossible: false };
+  const trimmed = [];
+  const categoryIds = collectRequirementCategoryIds(REQUIREMENTS_TRIM_ORDER_CATEGORIES);
+  let guard = 0;
+  let conflict = detectSpatialConflicts(widthM, depthM, heightM);
+  while(conflict.isImpossible && guard < 20){
+    guard++;
+    let removedOne = false;
+    for(const category of REQUIREMENTS_TRIM_ORDER_CATEGORIES){
+      const ids = categoryIds[category] || [];
+      const aiAddedId = ids.find(id => {
+        const el = document.getElementById(id);
+        return el && el.checked && !previouslyCheckedIds.has(id);
+      });
+      if(aiAddedId){
+        const el = document.getElementById(aiAddedId);
+        el.checked = false;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        trimmed.push(aiAddedId);
+        removedOne = true;
+        break;
+      }
+    }
+    if(!removedOne) break; // nothing left this function is allowed to trim — stop rather than loop forever
+    conflict = detectSpatialConflicts(widthM, depthM, heightM);
+  }
+  if(trimmed.length && typeof updateReqCategoryCounts === 'function') updateReqCategoryCounts();
+  return { trimmed, stillImpossible: conflict.isImpossible };
+}
+
+// Event mode's equivalent of the fit-check above, operating directly on the in-memory
+// areaPlanningList array (there's no per-area DOM checkbox the way Requirements has — see
+// apCreateArea's own field shape). Only ever runs when every current area was just proposed by
+// the AI this run (areaPlanningList was empty before — see applyAutofillResult's own
+// "never overwrite existing client data" rule for areaPlanning), so there's never a question of
+// which entries are safe to drop. Trims lowest-priority areas first until the percentages
+// realistically sum to 100 or less, per the client's own "verify the total required area is
+// physically realistic" rule.
+const AP_PRIORITY_TRIM_ORDER = ['Low', 'Medium', 'High', 'Critical'];
+function enforceAreaPlanningFit(wasEmptyBeforeAutofill){
+  if(!wasEmptyBeforeAutofill) return { trimmed: [] };
+  const trimmed = [];
+  let guard = 0;
+  const sumPercent = () => areaPlanningList.reduce((s, a) => s + (parseFloat(a.percentage) || 0), 0);
+  while(sumPercent() > 100 && areaPlanningList.length > 1 && guard < 30){
+    guard++;
+    let removedOne = false;
+    for(const priority of AP_PRIORITY_TRIM_ORDER){
+      const idx = areaPlanningList.findIndex(a => a.priority === priority);
+      if(idx !== -1){
+        trimmed.push(areaPlanningList[idx].name || 'Untitled Area');
+        areaPlanningList.splice(idx, 1);
+        removedOne = true;
+        break;
+      }
+    }
+    if(!removedOne) break;
+  }
+  if(trimmed.length) renderAreaPlanningList();
+  return { trimmed };
+}
+
+/* ================= Auto Fill Engine v2 — expert-consultant persona, Structured Outputs, and a
+   reusable JSON-Schema builder =================
+   Per an explicit client spec: the Auto Fill button must behave like a real exhibition design
+   consultant (not a generic chatbot), call OpenAI through the server (never the API key in
+   frontend JS — already true, see callAutofillApi below), return a response constrained by a
+   real strict JSON Schema (OpenAI's Structured Outputs via the Responses API, not just a "please
+   return JSON" instruction), understand dependencies between fields (industry+products,
+   double-deck, multi-brand), and use every uploaded image, not only the logo. The whole point of
+   keeping the schema BUILT FROM collectAutofillFieldDescriptors() at call time (never a hardcoded
+   field list) is the client's own "form schema must remain the single source of truth... a new
+   field should automatically be included" requirement — add a field to the HTML form and both the
+   prompt's FIELD SCHEMA text and this real JSON Schema pick it up on the very next Auto Fill run,
+   no code change needed here at all. */
+
+// One descriptor -> one JSON Schema property. OpenAI Structured Outputs' strict mode has a real,
+// documented restriction this must respect: every property has to appear in the object's
+// "required" array (there's no such thing as a genuinely optional property in strict mode) —
+// "this field doesn't apply / leave it blank" is instead expressed by including "null" in that
+// property's own `type` array, never by omission. Only the keywords OpenAI's strict mode actually
+// supports are used here (type/enum/description/items/properties/required/additionalProperties) —
+// no pattern/minLength/minimum, which strict mode does NOT support; those constraints stay in the
+// prompt's own prose rules instead (e.g. "a hex string like #RRGGBB"), backed up by the exact same
+// defensive regex checks applyAutofillResult already runs before writing any value into the DOM.
+function autofillDescriptorToSchemaProperty(desc){
+  if(desc.kind === 'checkbox') return { type: 'boolean', description: desc.label };
+  if(desc.kind === 'select'){
+    return { type: ['string', 'null'], enum: [...(desc.options || []), null], description: desc.label + ' — must be exactly one of the given options, or null if this genuinely doesn\'t apply.' };
+  }
+  if(desc.kind === 'number') return { type: ['number', 'null'], description: desc.label + ' — a plain integer, sized realistically to the space.' };
+  if(desc.kind === 'color') return { type: ['string', 'null'], description: desc.label + ' — a hex color string like #RRGGBB.' };
+  return { type: ['string', 'null'], description: desc.label };
+}
+
+// Builds the strict-mode "fields" object schema straight from the live descriptor list — see this
+// block's own header comment for why this, not a hand-maintained list, is what keeps the schema
+// in sync with the actual HTML form.
+function buildAutofillFieldsSchema(descriptors){
+  const properties = {};
+  descriptors.forEach(d => { properties[d.id] = autofillDescriptorToSchemaProperty(d); });
+  return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
+}
+
+// A represented brand + its products, for the optional brandPortfolio proposal (booth mode only,
+// and only ever proposed when the client hasn't already added any brands themselves — see
+// runAiAutofill's own comment on why existing client data is never overwritten). Field names and
+// option lists mirror bpCreateBrand()/bpCreateProduct()/BP_*_OPTIONS exactly, so applyAutofillResult
+// can hand each generated entry straight to those same real data-model functions.
+function buildAutofillBrandPortfolioSchema(){
+  const productSchema = {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Product name.' },
+      displayType: { type: 'string', enum: BP_PRODUCT_DISPLAY_TYPE_OPTIONS, description: 'How this product is physically displayed.' },
+      notes: { type: 'string', description: 'Short placement/technical notes for this product, or an empty string.' },
+    },
+    required: ['name', 'displayType', 'notes'],
+    additionalProperties: false,
+  };
+  const brandSchema = {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Represented brand name.' },
+      priority: { type: 'string', enum: BP_PRIORITY_OPTIONS, description: 'How prominent this brand\'s display should be relative to the other represented brands.' },
+      displayPreference: { type: 'string', enum: BP_DISPLAY_PREFERENCE_OPTIONS, description: 'Hero Display = main attraction. Dedicated Display Area = independent brand zone. Mixed With Other Products = shared product area. Feature Wall = brand visibility without a full floor area.' },
+      displaySize: { type: 'string', enum: BP_DISPLAY_SIZE_OPTIONS, description: 'Relative footprint this brand\'s display should occupy.' },
+      notes: { type: 'string', description: 'Short special instructions for this brand, or an empty string.' },
+      products: { type: 'array', items: productSchema, description: 'This brand\'s products on display — 1 to 4, sized to the booth.' },
+    },
+    required: ['name', 'priority', 'displayPreference', 'displaySize', 'notes', 'products'],
+    additionalProperties: false,
+  };
+  return { type: 'array', items: brandSchema, description: 'ONLY populate this if the scenario is genuinely a distributor/dealer representing multiple outside brands (e.g. the Multi-Brand Distributor scenario) — otherwise return an empty array. Each entry becomes a full represented-brand record with its own products.' };
+}
+
+// One planned area, for the optional areaPlanning proposal (event mode only, and only ever
+// proposed when the client hasn't already planned any areas themselves — same "never overwrite
+// existing client data" rule as brandPortfolio above). Field names mirror apCreateArea() exactly.
+function buildAutofillAreaPlanningSchema(){
+  const areaSchema = {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Area name, e.g. "VIP Lounge".' },
+      purpose: { type: 'string', description: 'What this area is for.' },
+      percentage: { type: 'number', description: 'This area\'s share of the total event footprint, as a whole number percent (all areas together should stay at or under 100).' },
+      priority: { type: 'string', enum: AP_PRIORITY_OPTIONS, description: 'How essential this area is to the event.' },
+      capacity: { type: 'string', description: 'Approximate people capacity, as a short string (e.g. "20-30"), or an empty string.' },
+      equipment: { type: 'array', items: { type: 'string', enum: AP_EQUIPMENT_OPTIONS }, description: 'Equipment this area needs.' },
+      preferredLocation: { type: 'string', enum: AP_PREFERRED_LOCATION_OPTIONS, description: 'Where in the event footprint this area should sit.' },
+      specialRequirements: { type: 'string', description: 'Any other special requirement for this area, or an empty string.' },
+    },
+    required: ['name', 'purpose', 'percentage', 'priority', 'capacity', 'equipment', 'preferredLocation', 'specialRequirements'],
+    additionalProperties: false,
+  };
+  return { type: 'array', items: areaSchema, description: 'ONLY populate this if the client has not already planned any areas themselves (see AREAS ALREADY PLANNED below) — otherwise return an empty array. Every area\'s "percentage" together should realistically sum to at or under 100.' };
+}
+
+// The client's own system-role spec, verbatim — this is the persona for BOTH booth and event
+// prompts (and, per the "reusable Auto Fill Engine" requirement, for any future project type this
+// same engine is pointed at — pavilion, conference, retail activation, experience center — since
+// nothing in this text is booth- or event-specific).
+const AUTOFILL_EXPERT_PERSONA = `You are an expert exhibition booth designer, exhibition consultant, architect, space planner, event production specialist, and brand experience strategist. You have extensive practical knowledge of international exhibitions, premium exhibition booths, double-decker structures, automotive exhibitions, medical exhibitions, technology exhibitions, luxury brands, industrial exhibitions, hospitality areas, visitor flow, product display, lighting, flooring, rigging, construction feasibility, and exhibition regulations. Your responsibility is to complete the form logically and professionally. Do not randomly select values. Every selected field must support the overall design concept.
+
+This is NOT a generic chatbot request. You are not writing a conversational reply — you are making the same professional judgment calls a real exhibition consultant would make while preparing a client's project requirements before handing them to a 3D designer, filling in every value your own strict output schema asks for.`;
+
+// Dependency-aware design intelligence — the client's own worked examples, kept general enough
+// to apply across industries/scenarios rather than a hardcoded branch per industry name. This is
+// deliberately a prompting instruction, not procedural JS: reading "Industry = Automotive and
+// Products = Vehicles, therefore consider vehicle circulation/turntable/hero vehicle..." is
+// exactly the kind of contextual judgment call a language model is well suited for and hardcoded
+// if/else branching is not (it would need one branch per industry x product combination, forever
+// incomplete). The deterministic side of this app (booth physical fit, area totals) is still
+// enforced separately and in code — see enforceRequirementsFitAfterAutofill/enforceAreaPlanningFit.
+const AUTOFILL_DEPENDENCY_RULES = `IMPORTANT — UNDERSTAND DEPENDENCIES BETWEEN FIELDS, DO NOT FILL THEM INDEPENDENTLY:
+Every field you choose must cohere with every other field, as part of one real project scenario — never fill fields independently of each other. For example (these are illustrations of the KIND of reasoning required, not an exhaustive list):
+- If the industry and any stated products point to vehicles (automotive, motorsport, etc.), think through: vehicle display zones and circulation, a hero vehicle, vehicle lighting, open sightlines, a possible turntable, a customer lounge, meeting areas, storage, and a charging/demo area if relevant — and let the Requirements you check and the quantities you give reflect that.
+- If Number of Levels is 2 (double-deck), think through: the staircase, upper-floor requirements, structural considerations, glass balustrade, ground-floor circulation, VIP/meeting spaces upstairs, and an appropriate ceiling height — the upper deck's own purpose/capacity/privacy/staircase-position facts given to you below must stay consistent with everything else you choose.
+- If this is a distributor or dealer representing outside brands (multiple brands, not one single product line), that calls for a genuine brand-portfolio scenario — see the brandPortfolio field below — with each brand connected to its own products, never a single flat product list with no brand structure.
+Balance branding, visitor experience, product visibility, space utilization, circulation, hospitality, meeting requirements, storage, staff requirements, technology, lighting, construction feasibility, budget, safety, and the booth's actual dimensions — think like a real consultant weighing all of these together for ONE coherent project, not a checklist filled one line at a time.`;
+
+// Gathers every uploaded image Auto Fill is allowed to see, each labeled with exactly what it
+// is, so the model can use real visual information anywhere it's genuinely relevant — not just
+// the old logo-only brandColors fallback. Per the client's own spec: "If the form contains
+// uploaded images such as Company logo, Brand logos, Product images, Reference images, allow the
+// AI to analyze those images when Auto Fill is executed... use the visual information from
+// uploaded assets to improve the generated form values." Booth mode only (event mode has no
+// reference image, brand portfolio, or poster fields) — event mode still gets the logo alone via
+// buildEventAutofillPrompt below, unchanged. Capped at a handful of images total (logo + reference
+// + up to 2 posters + up to 6 existing brand/product photos) to keep the request a reasonable size.
+async function collectAutofillImageParts(){
+  const parts = [];
+  const labels = [];
+  if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+    parts.push({ type: 'image', source: { type: 'base64', media_type: logoMediaType, data: logoDataUrl.split(',')[1] } });
+    labels.push('the client\'s Company Logo — use its real colors for brandColors whenever you don\'t already have reliable knowledge of this company\'s actual published brand color, and use its style/typography as a soft signal for brandPersonality and architecturalStyle.');
+  }
+  if(referenceImageDataUrl && visionCompatibleTypes.includes(referenceImageMediaType)){
+    parts.push({ type: 'image', source: { type: 'base64', media_type: referenceImageMediaType, data: referenceImageDataUrl.split(',')[1] } });
+    labels.push('a client-supplied Reference Image showing a style, mood, or booth they like — let it inform architecturalStyle, brandPersonality, and any relevant Requirements, but never treat it as a fact about the company itself.');
+  }
+  // posterFiles carries the raw File object (see collectFormSnapshot/restoreFormSnapshot's own
+  // comments on why this one field isn't pre-converted to a data URL like the others) — read on
+  // demand here the same way buildPosterAssetProvider (BIE-001) already does.
+  for(const [i, pf] of posterFiles.slice(0, 2).entries()){
+    if(pf.file && visionCompatibleTypes.includes(pf.type)){
+      try{
+        const dataUrl = await readFileAsDataURL(pf.file);
+        parts.push({ type: 'image', source: { type: 'base64', media_type: pf.type, data: dataUrl.split(',')[1] } });
+        labels.push(`an existing poster/graphic the client already has (${i + 1}) — use it only as a soft signal for brand tone, never as a fact you must match exactly.`);
+      }catch(e){ console.error('Could not read poster file for Auto Fill:', pf.name, e); }
+    }
+  }
+  let remainingBudget = 6;
+  for(const brand of brandPortfolio){
+    if(remainingBudget <= 0) break;
+    if(brand.logoDataUrl && visionCompatibleTypes.includes(brand.logoMediaType)){
+      parts.push({ type: 'image', source: { type: 'base64', media_type: brand.logoMediaType, data: brand.logoDataUrl.split(',')[1] } });
+      labels.push(`the represented brand "${brand.name.trim() || 'Unnamed brand'}"'s own logo — never confuse this with the Main Company's own logo above.`);
+      remainingBudget--;
+    }
+    for(const product of brand.products){
+      if(remainingBudget <= 0) break;
+      const img = product.images[0];
+      if(img && img.dataUrl && visionCompatibleTypes.includes(img.mediaType)){
+        parts.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.dataUrl.split(',')[1] } });
+        labels.push(`a real photo of "${brand.name.trim() || 'Unnamed brand'}"'s product "${product.name.trim() || 'Unnamed product'}" — let it inform that product's own displayType and notes if you're proposing brandPortfolio, and inform the overall brief's product-display Requirements either way.`);
+        remainingBudget--;
+      }
+    }
+  }
+  if(!parts.length) return { imageParts: [], imageNote: '' };
+  const noteLines = labels.map((l, i) => `Attached image ${i + 1} is ${l}`);
+  return {
+    imageParts: parts,
+    imageNote: '\n\nATTACHED IMAGES (in this exact order) — use only where genuinely relevant, per each one\'s own note; never fabricate a fact an image doesn\'t actually show:\n' + noteLines.join('\n'),
+  };
+}
+
 // Booth mode's system prompt + content parts — unchanged from before the Event mode branch was
 // added, just lifted out of runAiAutofill() into its own function so that function can dispatch
-// to either this or buildEventAutofillPrompt below based on the active mode.
-function buildBoothAutofillPrompt(goal, website, websiteText, websiteWarning, wantsRigging){
+// to either this or buildEventAutofillPrompt below based on the active mode. `scenario` is an
+// optional AUTOFILL_TEST_SCENARIOS label (see runAiAutofill) that seeds the brief instead of the
+// client's own goal/website when the client picked a test scenario from the dropdown.
+async function buildBoothAutofillPrompt(goal, website, websiteText, websiteWarning, wantsRigging, scenario){
   // Every fact already provided in the Booth Details section above, filled before this
   // helper — sent as fixed context the AI must never contradict, never something it's asked
   // to change. Includes the full upper-deck configuration when this is a double-deck booth.
@@ -12497,21 +12870,22 @@ function buildBoothAutofillPrompt(goal, website, websiteText, websiteWarning, wa
   const OPTIONAL_REQUIREMENT_CATEGORIES = ['Art & Brand'];
   const requirementCategoryIds = collectRequirementCategoryIds([...MANDATORY_REQUIREMENT_CATEGORIES, ...OPTIONAL_REQUIREMENT_CATEGORIES]);
 
+  const hasExistingBrandPortfolio = brandPortfolio.length > 0;
+  const brandPortfolioSchema = buildAutofillBrandPortfolioSchema();
+
+  const scenarioBlock = scenario
+    ? `\n\nSCENARIO SEED — the client picked the test scenario "${scenario}" instead of typing their own goal/website. Invent a plausible, realistic, professionally distinct fictional company and project in this category and design a full coherent brief around it — never a generic placeholder, never the same values you'd give any other scenario. Every field below must still come from your own fresh reasoning about THIS invented company, exactly as if a real client had briefed you.`
+    : '';
+
   const system = `SYSTEM
 
-You are helping fill out an exhibition booth design brief on behalf of a client, based on their stated goal, their company website, and every fact already entered about the booth itself (its Booth Details). You are NOT designing the booth yourself — you are choosing sensible values for a fixed list of form fields, the same way a thoughtful account manager would fill in a client intake form for them.
+${AUTOFILL_EXPERT_PERSONA}
 
-Ground every choice in the ACTUAL SPACE available (given below as fixed facts you must never contradict) — never suggest requirements or a scale of finish that wouldn't realistically fit a booth of this size. A 9 sqm booth should get a lean, focused set of requirements; a 200 sqm booth can support many more. If a double-deck upper deck configuration is given, keep every suggestion consistent with its stated purpose, capacity, and privacy level too.
+You are helping fill out an exhibition booth design brief on behalf of a client, based on their stated goal, their company website, every fact already entered about the booth itself (its Booth Details), and any attached images. You are choosing sensible, professional values for a fixed list of form fields, the same way an experienced exhibition consultant would prepare a client's project requirements before handing them to a 3D designer.
 
-Return STRICT JSON only, no explanation outside the JSON, in exactly this shape:
-{
-  "brandColors": ["#RRGGBB", "#RRGGBB"],
-  "brandPersonality": ["Name1", "Name2", "Name3"],
-  "floorFeatures": ["OptionalFloorFeature1", ...],
-  "integratedElements": ["IntegratedElement1", ...],
-  "riggingLighting": ["LightingOption1", ...],
-  "fields": { "<field id>": <value>, ... }
-}
+${AUTOFILL_DEPENDENCY_RULES}
+
+Ground every choice in the ACTUAL SPACE available (given below as fixed facts you must never contradict) — never suggest requirements, brand-portfolio entries, or a scale of finish that wouldn't realistically fit a booth of this size, and never select more than could physically coexist in the space. A 9 sqm booth should get a lean, focused set of requirements; a 200 sqm booth can support many more. If a double-deck upper deck configuration is given, keep every suggestion consistent with its stated purpose, capacity, and privacy level too. Your response is already constrained to a strict JSON Schema — focus entirely on making every value the most professionally appropriate one, not a placeholder, and perform your own internal consistency check (dimensions realistic, nothing contradictory, nothing that can't physically fit) before finalizing.
 
 Rules:
 - "brandColors": 2–4 hex colors for this brand, chosen in this exact priority order — always include this:
@@ -12526,12 +12900,13 @@ Rules:
 - "fields.f_ceilingRigging" (Ceiling & Rigging): the client's STATED RIGGING PREFERENCE given below with the other facts overrides your own judgment — if it says "no", you MUST set f_ceilingRigging to exactly "No overhead structure", and "integratedElements"/"riggingLighting" must both be empty arrays; if it says "yes", set f_ceilingRigging to any value other than "No overhead structure" that genuinely suits this brief; if it says "unspecified", decide freely as you would for any other field.
 - Requirements — MANDATORY category rule: REQUIREMENT CATEGORIES below lists the "addreq_*" field ids grouped under their real category names from the form. You MUST check (set to true) at least one item from AT LEAST TWO different categories among these six: Product Display, Digital & Technology, Functional Spaces, Lighting, Decorative Elements, Lighting Features — choose whichever specific items and however many categories genuinely suit this brand, goal, and the available floor area (a 9 sqm booth should stay lean; a 200 sqm booth can support items from more categories). "Art & Brand" is different — it is entirely OPTIONAL, check something from it only if it would genuinely help this specific design (e.g. a heritage brand with real history to tell), never as default filler just to hit a count. Every other Requirements checkbox outside these seven categories (Visitor Experience, industry-specific categories, Landscape, etc.) stays entirely your own judgment call, with no minimum.
 - "fields": for every field in the FIELD SCHEMA below, include a value keyed by its exact "id".
-  - kind "select": the value MUST be exactly one of that field's "options", copied verbatim.
+  - kind "select": the value MUST be exactly one of that field's "options", copied verbatim, or null only where the field genuinely doesn't apply.
   - kind "checkbox": true or false only, following the MANDATORY category rule above for anything in REQUIREMENT CATEGORIES; for every other checkbox, true only where it genuinely fits this brand, goal, and space. Every requirement you check has a paired quantity/capacity field elsewhere in the FIELD SCHEMA where one exists (e.g. "addreq_reception_count" for "addreq_reception") — always give that paired field a sensible number sized to the space too, never leave it at an unconsidered default.
   - kind "number": a plain integer as a number, sized to the space (e.g. never suggest 6 reception counters in a 9 sqm booth). This also covers "f_posterCount" (how many posters) — note there is no field here for whether the client already has poster designs; that choice is fixed by the client and is never yours to set, only how many posters is.
   - kind "color": a hex string like "#RRGGBB".
   - kind "text"/"textarea": a short, concrete value in the same spirit as the field's label.
-- Never invent facts about the company that aren't supported by the goal or website — where information is missing, make a reasonable, clearly generic choice appropriate to the stated industry instead of fabricating specifics.
+- "brandPortfolio": ${hasExistingBrandPortfolio ? 'the client has ALREADY added ' + brandPortfolio.length + ' brand(s) themselves (see EXISTING BRAND PORTFOLIO below) — you MUST return an empty array here; never propose additional or duplicate brands on top of what the client already entered.' : 'the client has not added any brands themselves yet. Only propose entries here if this is genuinely a distributor/dealer/multi-brand scenario (see the dependency rules above) — a normal single-brand booth should return an empty array. When you do propose brands, invent realistic represented-brand names and products consistent with the main company\'s own industry, each with its own priority/displayPreference/displaySize and 1-4 products.'}
+- Never invent facts about the company that aren't supported by the goal, website, or attached images — where information is missing, make a reasonable, clearly generic choice appropriate to the stated industry instead of fabricating specifics.
 
 REQUIREMENT CATEGORIES (six mandatory — see the rule above — plus Art & Brand, optional):
 ${JSON.stringify(requirementCategoryIds, null, 2)}
@@ -12540,17 +12915,28 @@ FIELD SCHEMA:
 ${JSON.stringify(fieldSchema, null, 2)}`;
 
   const contentParts = [
-    { type: 'text', text: `BOOTH'S FIXED PHYSICAL FACTS FROM BOOTH DETAILS (never contradict these):\n${JSON.stringify(boothFacts, null, 2)}\n\nSTATED GOAL OF THE BOOTH:\n${goal || '(not provided)'}\n\nCLIENT'S STATED RIGGING PREFERENCE (see the f_ceilingRigging rule — this overrides your own judgment):\n${wantsRigging}\n\nCOMPANY WEBSITE TEXT (may be empty if unreadable):\n${websiteText || '(not provided' + (websiteWarning ? ' — ' + websiteWarning : '') + ')'}` }
+    { type: 'text', text: `BOOTH'S FIXED PHYSICAL FACTS FROM BOOTH DETAILS (never contradict these):\n${JSON.stringify(boothFacts, null, 2)}\n\nSTATED GOAL OF THE BOOTH:\n${goal || '(not provided)'}\n\nCLIENT'S STATED RIGGING PREFERENCE (see the f_ceilingRigging rule — this overrides your own judgment):\n${wantsRigging}\n\nCOMPANY WEBSITE TEXT (may be empty if unreadable):\n${websiteText || '(not provided' + (websiteWarning ? ' — ' + websiteWarning : '') + ')'}${hasExistingBrandPortfolio ? `\n\nEXISTING BRAND PORTFOLIO (already entered by the client — never duplicate, never overwrite):\n${JSON.stringify(brandPortfolio.map(b => ({ name: b.name, priority: b.priority, products: b.products.map(p => p.name) })), null, 2)}` : ''}${scenarioBlock}` }
   ];
-  // Attached only as the "brandColors" rule's step-2 fallback (a known-brand lookup always
-  // comes first) — not sent at all when there's no usable logo yet, or when it's an SVG,
-  // which the vision endpoint can't read directly.
-  if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
-    contentParts.push({ type: 'text', text: 'The client\'s uploaded logo is attached below — only use it for brandColors, and only as the fallback described in that rule (step 2), never as a fact about anything else in this brief.' });
-    contentParts.push({ type: 'image', source: { type: 'base64', media_type: logoMediaType, data: logoDataUrl.split(',')[1] } });
-  }
+  const { imageParts, imageNote } = await collectAutofillImageParts();
+  if(imageNote) contentParts[0].text += imageNote;
+  contentParts.push(...imageParts);
 
-  return { system, contentParts };
+  const schema = {
+    type: 'object',
+    properties: {
+      brandColors: { type: 'array', items: { type: 'string' }, description: '2-4 hex colors, see the brandColors rule.' },
+      brandPersonality: { type: 'array', items: { type: 'string', enum: BRAND_PERSONALITY_ORDER }, description: 'Exactly 3 names, Primary/Secondary/Accent order.' },
+      floorFeatures: { type: 'array', items: { type: 'string', enum: floorFeatureOptions } },
+      integratedElements: { type: 'array', items: { type: 'string', enum: integratedElementOptions } },
+      riggingLighting: { type: 'array', items: { type: 'string', enum: riggingLightingOptions } },
+      fields: buildAutofillFieldsSchema(descriptors.filter(d => d.id !== 'f_desc')),
+      brandPortfolio: brandPortfolioSchema,
+    },
+    required: ['brandColors', 'brandPersonality', 'floorFeatures', 'integratedElements', 'riggingLighting', 'fields', 'brandPortfolio'],
+    additionalProperties: false,
+  };
+
+  return { system, contentParts, schema, schemaName: 'booth_autofill_result' };
 }
 
 // Event mode's system prompt + content parts. Mirrors buildBoothAutofillPrompt's structure and
@@ -12558,7 +12944,7 @@ ${JSON.stringify(fieldSchema, null, 2)}`;
 // collectAutofillFieldDescriptors' event-mode ranges, and each id-less checkbox group pulled in
 // by class as its own top-level JSON key) but scoped to Events Concept instead of Booth Theme/
 // Requirements — there's no floor, rigging, or Requirements accordion in an event brief.
-function buildEventAutofillPrompt(goal, website, websiteText, websiteWarning){
+async function buildEventAutofillPrompt(goal, website, websiteText, websiteWarning){
   // Everything already entered in Event Details above, filled before this helper — sent as
   // fixed context the AI must never contradict, never something it's asked to change. Mirrors
   // boothFacts' role in buildBoothAutofillPrompt above.
@@ -12608,24 +12994,18 @@ function buildEventAutofillPrompt(goal, website, websiteText, websiteWarning){
   const eventSpecialReqOptions = Array.from(document.querySelectorAll('.event-special-req-cb')).map(cb => cb.value);
   const successMetricsOptions = Array.from(document.querySelectorAll('.success-metrics-cb')).map(cb => cb.value);
 
+  const hasExistingAreaPlanning = areaPlanningList.length > 0;
+  const areaPlanningSchema = buildAutofillAreaPlanningSchema();
+
   const system = `SYSTEM
 
-You are helping fill out an event design brief on behalf of a client, based on their stated goal, their company website, and every fact already entered about the event itself (its Event Details, including the event story they've already written in their own words). You are NOT designing the event yourself — you are choosing sensible values for a fixed list of form fields, the same way a thoughtful account manager would fill in a client intake form for them.
+${AUTOFILL_EXPERT_PERSONA}
 
-Ground every choice in the ACTUAL EVENT described (given below as fixed facts you must never contradict) — its stated type, objective, target audience, venue, and story. Never suggest an activity, mood, or scale of production that wouldn't realistically suit this specific event (e.g. a formal government summit shouldn't get "Entertainment"/"Family-Friendly" mood tags; a product launch for a consumer brand can).
+You are helping fill out an event design brief on behalf of a client, based on their stated goal, their company website, every fact already entered about the event itself (its Event Details, including the event story they've already written in their own words), and any attached images. You are choosing sensible, professional values for a fixed list of form fields, the same way an experienced event production specialist would prepare a client's project requirements.
 
-Return STRICT JSON only, no explanation outside the JSON, in exactly this shape:
-{
-  "brandColors": ["#RRGGBB", "#RRGGBB"],
-  "brandPersonality": ["Name1", "Name2", "Name3"],
-  "visitorExperience": ["Option1", ...],
-  "eventMood": ["Option1", ...],
-  "eventBrandValues": ["Option1", ...],
-  "keyActivities": ["Option1", ...],
-  "eventSpecialRequirements": ["Option1", ...],
-  "successMetrics": ["Option1", ...],
-  "fields": { "<field id>": <value>, ... }
-}
+${AUTOFILL_DEPENDENCY_RULES}
+
+Ground every choice in the ACTUAL EVENT described (given below as fixed facts you must never contradict) — its stated type, objective, target audience, venue, and story. Never suggest an activity, mood, area, or scale of production that wouldn't realistically suit this specific event or fit its footprint (e.g. a formal government summit shouldn't get "Entertainment"/"Family-Friendly" mood tags; a product launch for a consumer brand can). Your response is already constrained to a strict JSON Schema — focus entirely on making every value the most professionally appropriate one, and perform your own internal consistency check before finalizing.
 
 Rules:
 - "brandColors": 2–4 hex colors for this brand/event, chosen in this exact priority order — always include this:
@@ -12641,9 +13021,10 @@ Rules:
 - "eventSpecialRequirements": choose only what's genuinely implied by the event's facts and story (e.g. a government summit likely needs "High Security"; a broadcast-worthy keynote likely needs "Media Coverage") — never as default filler, from this exact list: ${eventSpecialReqOptions.join(', ')}. Return an empty array if nothing is clearly implied.
 - "successMetrics": choose whichever metrics genuinely fit the stated Event Objective, from this exact list: ${successMetricsOptions.join(', ')}.
 - "fields": for every field in the FIELD SCHEMA below, include a value keyed by its exact "id".
-  - kind "select": the value MUST be exactly one of that field's "options", copied verbatim. If FIELD SCHEMA includes "f_visitorJourneyCustom", only give it a real value when "fields.f_visitorJourney" is "Custom" — otherwise leave it as an empty string.
+  - kind "select": the value MUST be exactly one of that field's "options", copied verbatim, or null only where the field genuinely doesn't apply. If FIELD SCHEMA includes "f_visitorJourneyCustom", only give it a real value when "fields.f_visitorJourney" is "Custom" — otherwise leave it as an empty string.
   - kind "text"/"textarea": a short, concrete value in the same spirit as the field's label.
-- Never invent facts about the company or event that aren't supported by the goal, website, or event story already provided — where information is missing, make a reasonable, clearly generic choice appropriate to the stated event type and industry instead of fabricating specifics.
+- "areaPlanning": ${hasExistingAreaPlanning ? 'the client has ALREADY planned ' + areaPlanningList.length + ' area(s) themselves (see AREAS ALREADY PLANNED below) — you MUST return an empty array here; never propose additional or duplicate areas on top of what the client already entered.' : 'the client has not planned any areas themselves yet. Propose a coherent set of areas for this event (e.g. main stage, registration, networking lounge, VIP area, catering — whichever genuinely suit THIS event\'s type/objective/journey), each with a realistic "percentage" of the total footprint; all percentages together should stay at or under 100.'}
+- Never invent facts about the company or event that aren't supported by the goal, website, event story, or attached images already provided — where information is missing, make a reasonable, clearly generic choice appropriate to the stated event type and industry instead of fabricating specifics.
 
 FIELD SCHEMA:
 ${JSON.stringify(fieldSchema, null, 2)}`;
@@ -12657,7 +13038,25 @@ ${JSON.stringify(fieldSchema, null, 2)}`;
     contentParts.push({ type: 'image', source: { type: 'base64', media_type: logoMediaType, data: logoDataUrl.split(',')[1] } });
   }
 
-  return { system, contentParts };
+  const schema = {
+    type: 'object',
+    properties: {
+      brandColors: { type: 'array', items: { type: 'string' }, description: '2-4 hex colors, see the brandColors rule.' },
+      brandPersonality: { type: 'array', items: { type: 'string', enum: BRAND_PERSONALITY_ORDER }, description: 'Exactly 3 names, Primary/Secondary/Accent order.' },
+      visitorExperience: { type: 'array', items: { type: 'string', enum: visitorExperienceOptions } },
+      eventMood: { type: 'array', items: { type: 'string', enum: eventMoodOptions }, description: 'Up to 3.' },
+      eventBrandValues: { type: 'array', items: { type: 'string', enum: eventBrandValuesOptions }, description: 'Up to 5.' },
+      keyActivities: { type: 'array', items: { type: 'string', enum: keyActivitiesOptions } },
+      eventSpecialRequirements: { type: 'array', items: { type: 'string', enum: eventSpecialReqOptions } },
+      successMetrics: { type: 'array', items: { type: 'string', enum: successMetricsOptions } },
+      fields: buildAutofillFieldsSchema(descriptors),
+      areaPlanning: areaPlanningSchema,
+    },
+    required: ['brandColors', 'brandPersonality', 'visitorExperience', 'eventMood', 'eventBrandValues', 'keyActivities', 'eventSpecialRequirements', 'successMetrics', 'fields', 'areaPlanning'],
+    additionalProperties: false,
+  };
+
+  return { system, contentParts, schema, schemaName: 'event_autofill_result' };
 }
 
 async function runAiAutofill(){
@@ -12675,19 +13074,27 @@ async function runAiAutofill(){
   // Only meaningful in Booth mode — the rigging sub-field is hidden entirely for Event mode
   // (see updateModeDependentLabels), so this just reads its untouched default there.
   const wantsRigging = document.getElementById('f_autofillWantsRigging').value; // 'unspecified' | 'yes' | 'no'
+  // Test scenario preset (booth mode only — see AUTOFILL_TEST_SCENARIOS/populateAutofillScenarioOptions).
+  // An empty string means "not picked", i.e. use the client's own goal/website as before.
+  const scenarioEl = document.getElementById('f_autofillScenario');
+  const scenario = (mode !== 'event' && scenarioEl) ? scenarioEl.value : '';
 
-  // Booth mode needs at least a Goal or Website to have anything to work from. Event mode never
-  // asks either question in this panel — it always has Event Details already filled in to work
-  // from, so the button runs immediately with no gate at all.
-  if(mode !== 'event' && !goal && !website){
-    status.textContent = 'Add at least a goal or a company website first.';
+  // Booth mode needs at least a Goal, Website, or a picked Test Scenario to have anything to work
+  // from. Event mode never asks either question in this panel — it always has Event Details
+  // already filled in to work from, so the button runs immediately with no gate at all.
+  if(mode !== 'event' && !goal && !website && !scenario){
+    status.textContent = 'Add at least a goal, a company website, or pick a test scenario first.';
     return;
   }
 
   // Lock the whole form for the duration of the AI call — the fields it's about to fill are
   // still visible underneath but shouldn't be hand-edited mid-flight, since anything the user
-  // changes right now would just get overwritten a moment later by applyAutofillResult().
-  // Same lockForm()/unlockForm() pair the main Generate Design flow already uses.
+  // changes right now would just get overwritten a moment later by applyAutofillResult(). Per
+  // the client's own explicit rule ("Never lock AI-generated fields"), this lock is ONLY ever
+  // active while the AI call is actually in flight — unlockForm() always runs in the `finally`
+  // block below, so every field (AI-filled or not) is fully editable again the instant this
+  // finishes, success or failure. Same lockForm()/unlockForm() pair the main Generate Design
+  // flow already uses.
   btn.disabled = true;
   lockForm();
   if(loadingBar) loadingBar.classList.add('active');
@@ -12697,13 +13104,20 @@ async function runAiAutofill(){
   // generating regardless of exactly when they glance back at this panel.
   if(reviewNote) reviewNote.style.display = 'block';
   status.style.color = ''; // clear any red left over from a previous failed run
-  status.textContent = mode === 'event' ? 'Reading the event details...' : 'Reading the booth details...';
+  status.textContent = 'AI is preparing your exhibition brief...';
+
+  // Snapshots taken BEFORE anything is applied — used by the post-generation fit checks below to
+  // tell "the AI just added this" apart from "the client already had this", and to know whether
+  // areaPlanning/brandPortfolio proposals are even allowed to run at all (see applyAutofillResult's
+  // own "never overwrite existing client data" rule for both).
+  const previouslyCheckedRequirementIds = mode === 'booth' ? snapshotCheckedRequirementIds() : new Set();
+  const areaPlanningWasEmpty = areaPlanningList.length === 0;
 
   try{
+    status.textContent = 'Analyzing project...';
     let websiteText = '';
     let websiteWarning = '';
     if(website){
-      status.textContent = 'Reading the company website...';
       try{
         const siteResp = await fetchWithTimeout('/api/fetch-website-text', {
           method: 'POST',
@@ -12725,13 +13139,19 @@ async function runAiAutofill(){
       }
     }
 
-    status.textContent = 'Thinking through the brief...';
-    const { system, contentParts } = mode === 'event'
-      ? buildEventAutofillPrompt(goal, website, websiteText, websiteWarning)
-      : buildBoothAutofillPrompt(goal, website, websiteText, websiteWarning, wantsRigging);
+    status.textContent = 'Planning spaces...';
+    const { system, contentParts, schema, schemaName } = mode === 'event'
+      ? await buildEventAutofillPrompt(goal, website, websiteText, websiteWarning)
+      : await buildBoothAutofillPrompt(goal, website, websiteText, websiteWarning, wantsRigging, scenario);
 
-    status.textContent = 'Filling in the brief...';
-    const result = await callPromptWriterApi(system, contentParts);
+    status.textContent = 'Analyzing brands...';
+    // (Image gathering for brands/products already happened inside the prompt builders above —
+    // this stage and "Planning products..." below are shown around the actual network call, which
+    // is where the model does that same brand/product reasoning server-side.)
+    status.textContent = 'Planning products...';
+    const result = await callAutofillApi(system, contentParts, schema, schemaName);
+
+    status.textContent = 'Checking requirements...';
     applyAutofillResult(result);
 
     // The "Describe what you want in detail" field (f_desc) is left completely untouched by
@@ -12760,7 +13180,30 @@ async function runAiAutofill(){
       }
     }
 
-    status.textContent = 'Done — review the fields below and adjust anything before generating.' + (websiteWarning ? ' (' + websiteWarning + ')' : '');
+    // The client's own explicit validation rule: never leave the form in a state where the
+    // AI's own selections don't physically fit — see enforceRequirementsFitAfterAutofill/
+    // enforceAreaPlanningFit's own comments for exactly what each one checks and trims.
+    let trimNote = '';
+    if(mode === 'booth'){
+      const width = parseFloat(document.getElementById('f_width').value);
+      const depth = parseFloat(document.getElementById('f_depth').value);
+      const height = parseFloat(document.getElementById('f_totalHeight').value);
+      const { trimmed, stillImpossible } = enforceRequirementsFitAfterAutofill(previouslyCheckedRequirementIds, width, depth, height);
+      if(trimmed.length){
+        trimNote = ` (removed ${trimmed.length} AI-suggested requirement${trimmed.length > 1 ? 's' : ''} that didn't fit this booth's size)`;
+      }
+      if(stillImpossible){
+        trimNote += ' — this booth may still be tight for everything selected; consider a larger size or fewer Requirements.';
+      }
+    }else{
+      const { trimmed } = enforceAreaPlanningFit(areaPlanningWasEmpty);
+      if(trimmed.length){
+        trimNote = ` (removed ${trimmed.length} AI-suggested area${trimmed.length > 1 ? 's' : ''} whose combined size didn't realistically fit)`;
+      }
+    }
+
+    status.textContent = 'Finalizing brief...';
+    status.textContent = 'AI-generated brief completed. Please review the information before continuing.' + trimNote + (websiteWarning ? ' (' + websiteWarning + ')' : '');
     // Goal / Company website / the run button have done their job — collapse them so the panel
     // just shows the completed status. toggleAiAutofillPanel() brings them back if the checkbox
     // is unchecked and rechecked to run it again.
@@ -13337,6 +13780,36 @@ function selectAnalysisRefusalError(err, spatialPlan){
     return new Error('The elements and requirements you\'ve selected don\'t fully fit in this booth\'s size — some had to be automatically reduced to make the rest fit, and the design step declined to proceed as a result. Please increase the booth size, or select fewer Requirements or Areas, then try Generate again.');
   }
   return err;
+}
+
+// Auto Fill Engine v2's own transport — deliberately separate from callPromptWriterApi below
+// (the older two-stage booth/event design pipeline's Chat Completions caller). Posts to
+// /api/autofill (Responses API + Structured Outputs strict mode — see that file's own header
+// comment), so a successful response is guaranteed to already be a real object matching the
+// schema, not free-form text that still needs cleanup/repair/retry logic the way
+// callPromptWriterApi needs for the older pipeline. Reuses AiRefusalError so runAiAutofill's own
+// admin/non-admin error handling (already wired to that class) doesn't need to change at all.
+async function callAutofillApi(system, contentParts, schema, schemaName){
+  const response = await fetch('/api/autofill', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system, content: contentParts, schema, schemaName }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if(!response.ok){
+    const apiMsg = (data && data.error && data.error.message) ? data.error.message : JSON.stringify(data);
+    throw new Error(`API request failed (HTTP ${response.status}): ${apiMsg}`);
+  }
+
+  if(data.refusal){
+    throw new AiRefusalError('The AI declined to generate a response for this request, most likely because something in your brief, goal, or an uploaded image triggered its content safety filters. Please review those for anything sensitive, adjust or remove it, and try Auto Fill again.');
+  }
+  if(!data.result || typeof data.result !== 'object'){
+    throw new Error('The API returned an empty or malformed response.');
+  }
+  return data.result;
 }
 
 async function callPromptWriterApi(system, content, isRetryAfterParseFailure){
@@ -19727,6 +20200,7 @@ initCheckboxMaxGroup('.event-mood-cb', 3, 'eventMoodCountHint');
 initCheckboxMaxGroup('.event-brand-values-cb', 5, 'brandValuesCountHint');
 renderProjectSidebar();
 adminCheckPromise = checkAdminAccess();
+populateAutofillScenarioOptions();
 initLanguage(); // must run before setMode() below so the very first render already reflects the saved/default language instead of flashing English first
 setMode('booth'); // must run once on load — otherwise every element whose correct visibility depends on setMode() (the new section headlines included) stays at its raw HTML default until a tab is actually clicked
 updateUploadExistingButtonState(); // covers browser autofill restoring these fields before any oninput fires
