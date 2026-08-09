@@ -1706,9 +1706,8 @@ Replace only the materials and graphics."></textarea>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Meeting Tables"> Meeting Tables</label>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Private Booths"> Private Booths</label>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Lockable Storage"> Lockable Storage</label>
-            <!-- DSS-001: automatic now, not a client checklist item. -->
-            <label style="display:none;"><input type="checkbox" class="upperdeck-feature-cb" value="Planters"> Planters</label>
-            <label style="display:none;"><input type="checkbox" class="upperdeck-feature-cb" value="Decorative Lighting"> Decorative Lighting</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Planters"> Planters</label>
+            <label><input type="checkbox" class="upperdeck-feature-cb" value="Decorative Lighting"> Decorative Lighting</label>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Glass Railings"> Glass Railings</label>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Feature Ceiling"> Feature Ceiling</label>
             <label><input type="checkbox" class="upperdeck-feature-cb" value="Hanging Branding"> Hanging Branding</label>
@@ -2128,12 +2127,6 @@ Replace only the materials and graphics."></textarea>
         <input type="text" id="f_raisedFloorHeightCustom" placeholder="e.g. 200mm" style="display:none;margin-top:8px;">
       </div>
 
-      <!-- Designslab Signature Style (DSS-001) — floor material/finish is no longer a client
-           choice; DSS-001 determines it from brand/industry/budget/style, the same as every other
-           material decision. Kept in the DOM, hidden, with its existing default values intact
-           (Exhibition Carpet / Straight Edge / etc.) so nothing that reads these ids elsewhere
-           (project snapshot save/load, EPS-XXX brief text) has to change. -->
-      <div style="display:none;">
       <div class="field" id="floorFinishField">
         <label>Floor Finish <span class="required-mark">*</span></label>
         <select id="f_floorFinish" onchange="updateFloorFinishSections(this)">
@@ -2260,15 +2253,13 @@ Replace only the materials and graphics."></textarea>
         </select>
         <div class="hint">How the raised floor's visible perimeter edge is finished — irrelevant when Floor Type is Venue Floor (no platform edge exists).</div>
       </div>
-      </div>
 
       <div class="field" id="floorFeaturesField">
         <label>Optional Floor Features</label>
         <div class="requirements-grid">
-          <!-- DSS-001: floor lighting treatments are automatic now, not a client checklist item. -->
-          <label class="check-item-compact" style="display:none;"><input type="checkbox" class="floor-feature-cb" value="Hidden LED Strip"> Hidden LED Strip</label>
-          <label class="check-item-compact" style="display:none;"><input type="checkbox" class="floor-feature-cb" value="Underfloor RGB Lighting"> Underfloor RGB Lighting</label>
-          <label class="check-item-compact" style="display:none;"><input type="checkbox" class="floor-feature-cb" value="Illuminated Glass Inserts"> Illuminated Glass Inserts</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Hidden LED Strip"> Hidden LED Strip</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Underfloor RGB Lighting"> Underfloor RGB Lighting</label>
+          <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Illuminated Glass Inserts"> Illuminated Glass Inserts</label>
           <label class="check-item-compact"><input type="checkbox" class="floor-feature-cb" value="Cable Management System"> Cable Management System</label>
           <label class="check-item-compact"><input type="checkbox" id="floorfeat_integratedservices" onchange="toggleFloorFeatureSubsection(this.checked)"> Integrated Floor Services</label>
           <div id="floorfeat_integratedservices_body" style="display:none;margin:0 0 16px 22px;">
@@ -2303,25 +2294,8 @@ Replace only the materials and graphics."></textarea>
         <div class="hint">Most booths are self-supporting with no overhead structure (per EPS-012) — only choose rigging or a suspended structure if the venue explicitly permits it and it's genuinely wanted for this design.</div>
       </div>
 
-      <!-- DSS-001 — Rigging Shape/Width/Depth/Height/Finish/Integrated Elements/Brand Visibility
-           are no longer client choices, per an explicit product decision: the AI designs the
-           rigging/suspended structure itself, as one cohesive, beautiful piece of architecture
-           with the rest of the booth, the same way it already decides lighting and materials.
-           Kept in the DOM, hidden, with their existing defaults intact, so collectCeilingRigging
-           Specification (which now delegates this whole block to DSS-001 — see its own comment)
-           and every id-based lookup elsewhere stay valid without further changes. -->
       <div id="riggingDetailsFields" style="display:none;">
-        <!-- DSS-001 — Rigging Shape/Width/Depth/Height/Finish/Integrated Elements/Brand
-             Visibility are no longer client choices, per an explicit product decision: the AI
-             designs the rigging/suspended structure itself, as one cohesive, beautiful piece of
-             architecture with the rest of the booth. Every field below is force-hidden with its
-             own inline style (not just via the shared riggingDetailsFields wrapper, since
-             toggleRiggingSubfields() still legitimately shows that wrapper whenever the client
-             picks a rigging option) so they stay hidden regardless of that selection. Kept in the
-             DOM with their existing defaults intact so collectCeilingRiggingSpecification (which
-             now delegates this whole block to DSS-001 — see its own comment) and every id-based
-             lookup elsewhere stay valid without further changes. -->
-        <div class="field" id="riggingShapeField" style="display:none;">
+        <div class="field" id="riggingShapeField">
           <label>Rigging Shape</label>
           <select id="f_riggingShape" onchange="toggleRiggingShapeCustom(this)">
             <option value="Circular" selected>Circular</option>
@@ -2336,7 +2310,7 @@ Replace only the materials and graphics."></textarea>
           <input type="text" id="f_riggingShapeCustom" placeholder="Describe the custom rigging shape" style="display:none;margin-top:8px;">
         </div>
 
-        <div class="row2" style="display:none;">
+        <div class="row2">
           <div class="field">
             <label>Rigging Width (m)</label>
             <input type="number" min="0.1" step="0.1" id="f_riggingWidth" placeholder="e.g. 4">
@@ -2346,12 +2320,12 @@ Replace only the materials and graphics."></textarea>
             <input type="number" min="0.1" step="0.1" id="f_riggingDepth" placeholder="e.g. 4">
           </div>
         </div>
-        <div class="field" style="display:none;">
+        <div class="field">
           <label>Rigging Height from floor (m)</label>
           <input type="number" min="0.1" step="0.1" id="f_riggingHeightFromFloor" placeholder="e.g. 4.5">
         </div>
 
-        <div class="field" id="riggingFinishField" style="display:none;">
+        <div class="field" id="riggingFinishField">
           <label>Rigging Finish</label>
           <select id="f_riggingFinish" onchange="toggleRiggingFabricColor(this)">
             <option value="Aluminum Truss" selected>Aluminum Truss</option>
@@ -2375,7 +2349,7 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">The color of the backlit fabric panel itself.</div>
         </div>
 
-        <div class="field" id="riggingElementsField" style="display:none;">
+        <div class="field" id="riggingElementsField">
           <label>Integrated Elements</label>
           <div class="requirements-grid">
             <label class="check-item-compact"><input type="checkbox" class="rigging-element-cb" value="Logo"> Logo</label>
@@ -2392,8 +2366,7 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">Optional — select any elements integrated directly into the rigging/suspended structure itself.</div>
         </div>
 
-        <!-- DSS-001: rigging lighting treatment is automatic now, not a client checklist item. -->
-        <div class="field" id="riggingLightingField" style="display:none;">
+        <div class="field" id="riggingLightingField">
           <label>Rigging Lighting</label>
           <div class="requirements-grid">
             <label class="check-item-compact"><input type="checkbox" class="rigging-lighting-cb" value="Spotlights"> Spotlights</label>
@@ -2405,7 +2378,7 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">Optional — lighting integrated specifically into the rigging/suspended structure, separate from the booth's general lighting.</div>
         </div>
 
-        <div class="field" id="riggingBrandVisibilityField" style="display:none;">
+        <div class="field" id="riggingBrandVisibilityField">
           <label>Brand Visibility</label>
           <select id="f_riggingBrandVisibility">
             <option value="Logo on all sides" selected>Logo on all sides</option>
@@ -2419,13 +2392,7 @@ Replace only the materials and graphics."></textarea>
       </div>
 
       <div id="selfSupportedCeilingFields" style="display:none;">
-        <!-- DSS-001 — same reasoning as riggingDetailsFields above: Ceiling Shape/Width/Depth/
-             Height/Finish/Integrated Elements/Brand Visibility are no longer client choices, force-
-             hidden individually since selfSupportedCeilingFields' own wrapper still legitimately
-             shows whenever "Self-supported ceiling feature" is picked. Architectural Purpose stays
-             a real client choice (a strategic driver DSS-001 should honor as an input, not
-             override), so it's the one field in this section left untouched. -->
-        <div class="field" id="ceilingShapeField" style="display:none;">
+        <div class="field" id="ceilingShapeField">
           <label>Ceiling Shape</label>
           <select id="f_ceilingShape" onchange="toggleCeilingShapeCustom(this)">
             <option value="Rectangle" selected>Rectangle</option>
@@ -2449,7 +2416,7 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">The physical shape of the self-supported ceiling feature itself.</div>
         </div>
 
-        <div class="row2" style="display:none;">
+        <div class="row2">
           <div class="field">
             <label>Ceiling Width (m)</label>
             <input type="number" min="0.1" step="0.1" id="f_ceilingWidth" placeholder="e.g. 4">
@@ -2459,12 +2426,12 @@ Replace only the materials and graphics."></textarea>
             <input type="number" min="0.1" step="0.1" id="f_ceilingDepth" placeholder="e.g. 4">
           </div>
         </div>
-        <div class="field" style="display:none;">
+        <div class="field">
           <label>Ceiling Height from floor (m)</label>
           <input type="number" min="0.1" step="0.1" id="f_ceilingHeightFromFloor" placeholder="e.g. 4.5">
         </div>
 
-        <div class="field" id="ceilingFinishField" style="display:none;">
+        <div class="field" id="ceilingFinishField">
           <label>Ceiling Finish</label>
           <select id="f_ceilingFinish" onchange="toggleCeilingFabricColor(this);toggleCeilingFinishCustom(this)">
             <option value="Matte White" selected>Matte White</option>
@@ -2513,7 +2480,7 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">The color of the backlit fabric panel itself.</div>
         </div>
 
-        <div class="field" id="ceilingElementsField" style="display:none;">
+        <div class="field" id="ceilingElementsField">
           <label>Integrated Elements</label>
           <div class="requirements-grid">
             <label class="check-item-compact"><input type="checkbox" class="ceiling-element-cb" value="Logo"> Logo</label>
@@ -2530,8 +2497,7 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">Optional — select any elements integrated directly into the self-supported ceiling feature itself.</div>
         </div>
 
-        <!-- DSS-001: ceiling lighting treatment is automatic now, not a client checklist item. -->
-        <div class="field" id="ceilingLightingField" style="display:none;">
+        <div class="field" id="ceilingLightingField">
           <label>Ceiling Lighting</label>
           <div class="requirements-grid">
             <label class="check-item-compact"><input type="checkbox" class="ceiling-lighting-cb" value="Spotlights"> Spotlights</label>
@@ -2543,7 +2509,7 @@ Replace only the materials and graphics."></textarea>
           <div class="hint">Optional — lighting integrated specifically into the self-supported ceiling feature, separate from the booth's general lighting.</div>
         </div>
 
-        <div class="field" id="ceilingBrandVisibilityField" style="display:none;">
+        <div class="field" id="ceilingBrandVisibilityField">
           <label>Brand Visibility</label>
           <select id="f_ceilingBrandVisibility">
             <option value="Logo on all sides" selected>Logo on all sides</option>
@@ -2977,16 +2943,6 @@ Replace only the materials and graphics."></textarea>
         <label class="check-item-compact"><input type="checkbox" id="addreq_lockablecabinet"> Lockable Cabinet</label>
         <label class="check-item-compact"><input type="checkbox" id="addreq_hiddenstorage"> Hidden Storage</label>
 
-        <!-- Designslab Signature Style (DSS-001) — lighting, decorative elements, and landscape/
-             feature-wall treatments are no longer client-facing choices; a senior exhibition
-             designer decides these, not a checklist. These four subareas are kept in the DOM,
-             hidden and permanently unchecked, purely so nothing downstream that still reads their
-             ids (simpleGroups below, autofill's range scan, project snapshot save/load) has to be
-             touched — every one of them always sees these as unchecked/absent now, which is exactly
-             the "don't ask the user" outcome DSS-001 calls for. DSS-001 itself (see its own system
-             prompt block) supplies the automatic layered-lighting and decorative-treatment
-             reasoning that used to depend on these checkboxes. -->
-        <div style="display:none;">
         <div class="subarea-label" style="margin-top:8px;">Lighting</div>
 
         <label class="check-item-compact"><input type="checkbox" id="addreq_ambientlighting"> Ambient Lighting</label>
@@ -3043,7 +2999,6 @@ Replace only the materials and graphics."></textarea>
         <label class="check-item-compact"><input type="checkbox" id="addreq_backlitpanels"> Backlit Panels</label>
         <label class="check-item-compact"><input type="checkbox" id="addreq_neonfeature"> Neon Feature</label>
         <label class="check-item-compact"><input type="checkbox" id="addreq_architecturallightfeature"> Architectural Light Feature</label>
-        </div>
 
         <div class="subarea-label" style="margin-top:8px;">Art &amp; Brand</div>
 
@@ -3429,23 +3384,6 @@ Replace only the materials and graphics."></textarea>
         <button class="primary" style="flex:1;" onclick="__resolveEngineChoice('openai')">OpenAI</button>
       </div>
       <button class="ghost" style="width:100%;margin-top:10px;" onclick="__resolveEngineChoice(null)">Cancel</button>
-    </div>
-  </div>
-
-  <!-- Admin-only: shows the exact final "Other option" rendering prompt before it's sent to the
-       image engine, editable, with Approve/Cancel — same purpose as the #promptReview screen on
-       the main Generate flow, just for this action instead. Regular users never see this; their
-       "Other option" click goes straight through to generation as before. -->
-  <div class="gen-notice-overlay" id="otherOptionPromptReviewOverlay">
-    <div class="gen-notice-card" style="max-width:640px;width:92vw;">
-      <div class="gen-notice-eyebrow">Other Option — Review Prompt (Admin Only)</div>
-      <h3 style="margin-top:2px;">This is the prompt that will be sent</h3>
-      <p style="font-size:13px;color:var(--ink);opacity:.75;margin:0 0 12px;">Edit it directly if needed, then approve to generate — or cancel to leave everything untouched.</p>
-      <textarea id="otherOptionPromptReviewText" style="width:100%;min-height:260px;font-family:inherit;font-size:12.5px;line-height:1.5;padding:10px;border:1px solid var(--line);border-radius:4px;resize:vertical;"></textarea>
-      <div style="display:flex;gap:10px;margin-top:14px;">
-        <button class="ghost" style="flex:1;" onclick="__resolveOtherOptionPromptReview(false)">Cancel</button>
-        <button class="primary" style="flex:1;" onclick="__resolveOtherOptionPromptReview(true)">Approve &amp; generate</button>
-      </div>
     </div>
   </div>
 
@@ -7327,12 +7265,7 @@ function bpProductDrop(e, brandId, targetProductId){
 // a short placeholder string so the model can match "reference image 3" back to "Philips ->
 // MRI Scanner" while reading this structure.
 function buildBrandPortfolioData(){
-  // Scoped to #colorRows specifically — .color-hex is also the class on the (hidden, per DSS-001)
-  // carpet/rigging-fabric/ceiling-fabric color pickers, which still exist in the DOM with their
-  // own stale default hex values even though they're invisible. An unscoped query here would
-  // silently mix those unrelated defaults into "the brand's main colors" — a real bug, not a
-  // hypothetical one (see BIE-001/DIE-001's own comment on the same fix).
-  const mainColors = Array.from(document.querySelectorAll('#colorRows .color-hex'))
+  const mainColors = Array.from(document.querySelectorAll('.color-hex'))
     .map(i => String(i.value).trim())
     .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   return {
@@ -8963,23 +8896,36 @@ function collectFlooringSpecification(){
   const floorTypeRaw = document.getElementById('f_floorType').value;
   const floorType = floorTypeRaw === 'Custom' ? (document.getElementById('f_floorTypeCustom').value.trim() || 'Custom') : floorTypeRaw;
 
-  const lines = [`Floor Type: ${floorType}.`];
+  const floorFinishRaw = document.getElementById('f_floorFinish').value;
+  const floorFinish = floorFinishRaw === 'Custom Finish' ? (document.getElementById('f_floorFinishCustom').value.trim() || 'Custom Finish') : floorFinishRaw;
 
-  // DSS-001 + explicit flooring material rule (both per an explicit product decision) — Floor
-  // Finish/Carpet/Wood/Marble/Epoxy sub-fields are no longer client checklist choices (hidden,
-  // not deleted — see floorFinishField's own comment), so f_floorFinish's own value (a leftover
-  // default, "Exhibition Carpet") must never be read here as if the client actually chose it —
-  // that was the bug this comment block replaces. The explicit rule: NEVER a full carpet floor.
-  // Default to wooden melamine flooring (glossy or matte, whichever best suits this brand and
-  // architectural style) — unless the client's own written description explicitly names a
-  // different flooring material, in which case follow exactly what the client asked for instead.
-  lines.push('Floor Finish: not a client checklist choice. DEFAULT (when the client\'s own written description below does not name a specific flooring material): wooden melamine flooring, glossy or matte finish — whichever best suits this brand, industry, and architectural style, decided per DESIGNSLAB SIGNATURE STYLE (DSS-001). NEVER use a full carpet floor finish under this default. EXCEPTION: if the client\'s own written description explicitly requests a specific flooring material (carpet or otherwise), follow exactly what the client asked for instead of this default — the client\'s own explicit request always overrides this rule.');
+  const lines = [`Floor Type: ${floorType}.`, `Floor Finish: ${floorFinish}.`];
+
+  if(CARPET_FLOOR_FINISHES.includes(floorFinishRaw)){
+    lines.push(`Carpet Type: ${document.getElementById('f_carpetType').value}.`);
+    lines.push(`Carpet Color: ${document.getElementById('f_carpetColorHex').value} — coordinate this color with the booth's brand color palette unless a different specific color is clearly intended.`);
+  }
+
+  if(WOOD_FLOOR_FINISHES.includes(floorFinishRaw)){
+    lines.push(`Wood Type: ${document.getElementById('f_woodType').value}.`);
+    lines.push(`Wood Finish: ${document.getElementById('f_woodFinish').value}.`);
+  }
+
+  if(MARBLE_FLOOR_FINISHES.includes(floorFinishRaw)){
+    const marbleColorRaw = document.getElementById('f_marbleColor').value;
+    const marbleColor = marbleColorRaw === 'Custom' ? (document.getElementById('f_marbleColorCustom').value.trim() || 'a custom color') : marbleColorRaw;
+    lines.push(`Marble Color: ${marbleColor}.`);
+  }
+
+  if(EPOXY_FLOOR_FINISHES.includes(floorFinishRaw)){
+    lines.push(`Epoxy Finish: ${document.getElementById('f_epoxyFinish').value}.`);
+  }
 
   if(floorTypeRaw === 'Raised Floor' || floorTypeRaw === 'Double Raised Floor'){
     const heightRaw = document.getElementById('f_raisedFloorHeight').value;
     const height = heightRaw === 'Custom' ? (document.getElementById('f_raisedFloorHeightCustom').value.trim() || 'a custom height') : heightRaw;
     lines.push(`Raised Floor Height: ${height} above the venue floor.`);
-    lines.push('Floor Edge Finish: not specified by the client — design this automatically per DESIGNSLAB SIGNATURE STYLE (DSS-001), matching the flooring material and the rest of the booth\'s architectural language.');
+    lines.push(`Floor Edge Finish: ${document.getElementById('f_floorEdgeFinish').value} — this is the visible finish of the raised floor's perimeter edge, where it meets the venue floor.`);
   }
 
   const floorFeatures = Array.from(document.querySelectorAll('.floor-feature-cb:checked')).map(cb => cb.value);
@@ -9009,23 +8955,73 @@ function collectCeilingRiggingSpecification(){
 
   const needsDetails = ceilingRigging === 'Hanging rigging / truss' || ceilingRigging === 'Full suspended architectural structure';
   if(needsDetails){
-    // DSS-001 — per an explicit product decision, Rigging Shape/Width/Depth/Height/Finish/
-    // Integrated Elements/Brand Visibility are no longer client-specified facts (their fields
-    // are hidden now, not deleted — see riggingDetailsFields' own comment). The AI designs this
-    // rigging/suspended structure itself, exactly like it already designs lighting and materials
-    // — one delegation line here rather than restating DSS-001's own rules a second time.
-    lines.push('Rigging Shape, Size, Finish, Integrated Elements, and Brand Visibility: not specified by the client — design these automatically per DESIGNSLAB SIGNATURE STYLE (DSS-001), so this rigging/suspended structure reads as one cohesive, beautiful piece of architecture with the rest of the booth, using the exact same architectural language, material hierarchy, and lighting philosophy already established there.');
+    const shapeRaw = document.getElementById('f_riggingShape').value;
+    const shape = shapeRaw === 'Custom' ? (document.getElementById('f_riggingShapeCustom').value.trim() || 'Custom') : shapeRaw;
+    lines.push(`Rigging Shape: ${shape}.`);
+
+    const width = document.getElementById('f_riggingWidth').value.trim();
+    const depth = document.getElementById('f_riggingDepth').value.trim();
+    const heightFromFloor = document.getElementById('f_riggingHeightFromFloor').value.trim();
+    const sizeParts = [];
+    if(width) sizeParts.push(`Width ${width}m`);
+    if(depth) sizeParts.push(`Depth ${depth}m`);
+    if(heightFromFloor) sizeParts.push(`Height from floor ${heightFromFloor}m`);
+    lines.push(sizeParts.length ? `Rigging Size: ${sizeParts.join(', ')}.` : 'Rigging Size: not specified — estimate a size proportionate to the booth footprint.');
+
+    const riggingFinish = document.getElementById('f_riggingFinish').value;
+    lines.push(`Rigging Finish: ${riggingFinish}.`);
+    if(riggingFinish === 'Fabric Lightbox'){
+      lines.push(`Fabric Lightbox Color: ${document.getElementById('f_riggingFabricColorHex').value}.`);
+    }
+
+    const riggingElements = Array.from(document.querySelectorAll('.rigging-element-cb:checked')).map(cb => cb.value);
+    lines.push(riggingElements.length
+      ? `Integrated Elements — EXPLICITLY REQUESTED BY THE CLIENT: ${riggingElements.join(', ')}.`
+      : 'Integrated Elements: none requested.');
+
+    const riggingLighting = Array.from(document.querySelectorAll('.rigging-lighting-cb:checked')).map(cb => cb.value);
+    lines.push(riggingLighting.length
+      ? `Rigging Lighting — EXPLICITLY REQUESTED BY THE CLIENT: ${riggingLighting.join(', ')}.`
+      : 'Rigging Lighting: none requested.');
+
+    lines.push(`Brand Visibility: ${document.getElementById('f_riggingBrandVisibility').value}.`);
   }
 
   // Per DIR-010/DIR-011, "Self-supported ceiling feature" gets its own configuration —
   // Ceiling Shape, Ceiling Size, Ceiling Finish, and Architectural Purpose — mirroring the
   // same pattern used for the rigging sub-fields above.
   if(ceilingRigging === 'Self-supported ceiling feature'){
-    // DSS-001 — same delegation as the rigging branch above: Ceiling Shape/Width/Depth/Height/
-    // Finish/Integrated Elements/Brand Visibility are no longer client-specified facts. Ceiling
-    // Purpose (below) is kept as a real client input — it's a strategic driver, not a physical
-    // design detail, so DSS-001 designs around it rather than replacing it.
-    lines.push('Ceiling Shape, Size, Finish, Integrated Elements, and Brand Visibility: not specified by the client — design these automatically per DESIGNSLAB SIGNATURE STYLE (DSS-001), so this ceiling feature reads as one cohesive, beautiful piece of architecture with the rest of the booth, using the exact same architectural language, material hierarchy, and lighting philosophy already established there.');
+    const ceilingShapeRaw = document.getElementById('f_ceilingShape').value;
+    const ceilingShape = ceilingShapeRaw === 'Custom Shape' ? (document.getElementById('f_ceilingShapeCustom').value.trim() || 'Custom Shape') : ceilingShapeRaw;
+    lines.push(`Ceiling Shape: ${ceilingShape}.`);
+
+    const ceilingWidth = document.getElementById('f_ceilingWidth').value.trim();
+    const ceilingDepth = document.getElementById('f_ceilingDepth').value.trim();
+    const ceilingHeightFromFloor = document.getElementById('f_ceilingHeightFromFloor').value.trim();
+    const ceilingSizeParts = [];
+    if(ceilingWidth) ceilingSizeParts.push(`Width ${ceilingWidth}m`);
+    if(ceilingDepth) ceilingSizeParts.push(`Depth ${ceilingDepth}m`);
+    if(ceilingHeightFromFloor) ceilingSizeParts.push(`Height from floor ${ceilingHeightFromFloor}m`);
+    lines.push(ceilingSizeParts.length ? `Ceiling Size: ${ceilingSizeParts.join(', ')}.` : 'Ceiling Size: not specified — estimate a size proportionate to the booth footprint.');
+
+    const ceilingFinishRaw = document.getElementById('f_ceilingFinish').value;
+    const ceilingFinish = ceilingFinishRaw === 'Custom' ? (document.getElementById('f_ceilingFinishCustom').value.trim() || 'Custom') : ceilingFinishRaw;
+    lines.push(`Ceiling Finish: ${ceilingFinish}.`);
+    if(ceilingFinishRaw === 'LED Diffuser Panel'){
+      lines.push(`LED Diffuser Panel Color: ${document.getElementById('f_ceilingFabricColorHex').value}.`);
+    }
+
+    const ceilingElements = Array.from(document.querySelectorAll('.ceiling-element-cb:checked')).map(cb => cb.value);
+    lines.push(ceilingElements.length
+      ? `Integrated Elements — EXPLICITLY REQUESTED BY THE CLIENT: ${ceilingElements.join(', ')}.`
+      : 'Integrated Elements: none requested.');
+
+    const ceilingLighting = Array.from(document.querySelectorAll('.ceiling-lighting-cb:checked')).map(cb => cb.value);
+    lines.push(ceilingLighting.length
+      ? `Ceiling Lighting — EXPLICITLY REQUESTED BY THE CLIENT: ${ceilingLighting.join(', ')}.`
+      : 'Ceiling Lighting: none requested.');
+
+    lines.push(`Brand Visibility: ${document.getElementById('f_ceilingBrandVisibility').value}.`);
 
     const ceilingPurposeRaw = document.getElementById('f_ceilingPurpose').value;
     const ceilingPurpose = ceilingPurposeRaw === 'Custom Purpose' ? (document.getElementById('f_ceilingPurposeCustom').value.trim() || 'Custom Purpose') : ceilingPurposeRaw;
@@ -10205,17 +10201,6 @@ function buildDesignIntent(widthM, depthM, boothHeightM){
   const industry = industryEl ? industryEl.value : '';
   const personalities = (typeof selectedBrandPersonalities !== 'undefined' && selectedBrandPersonalities) ? selectedBrandPersonalities : [];
 
-  // Brand Identity Engine (per an explicit client priority fix — Brand Identity/Personality/Colors
-  // must outrank Industry when the design decides its materials; see buildArchitecturalDNA's own
-  // comment) — the client's own name and actual brand colors, so DNA-001 can derive materials FROM
-  // the brand instead of from the industry. Scoped to #colorRows specifically — see
-  // buildBrandPortfolioData's own comment on why an unscoped '.color-hex' query is wrong.
-  const nameEl = document.getElementById('f_name');
-  const brandName = nameEl ? String(nameEl.value).trim() : '';
-  const brandColorHexes = Array.from(document.querySelectorAll('#colorRows .color-hex'))
-    .map(i => String(i.value).trim())
-    .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
-
   const HIGH_IMPORTANCE_TRAITS = new Set(['Bold', 'Dynamic', 'Energetic', 'Futuristic', 'Innovative', 'Exclusive', 'Luxury', 'Immersive']);
   const PREMIUM_TRAITS = new Set(['Premium', 'Luxury', 'Exclusive', 'Elegant', 'Timeless']);
   const brandImportance = personalities.some(p => HIGH_IMPORTANCE_TRAITS.has(p)) ? 'high' : 'medium';
@@ -10237,7 +10222,6 @@ function buildDesignIntent(widthM, depthM, boothHeightM){
     openSides: [...openSidesSet],
     totalAreaSqm, widthM, depthM, boothHeightM: boothHeightM || 0,
     brandPersonalities: personalities.slice(),
-    brandName, brandColorHexes,
   };
 }
 
@@ -10628,351 +10612,6 @@ function solveLayoutNewEngine(functionalProgram, relationships, journey, openSid
   return functionalProgram;
 }
 
-// --- DSS-001 — Designslab Signature Style. Per an explicit product decision, after reviewing the
-// --- DNA-001 — Architectural DNA System. HIGHEST PRIORITY per an explicit client decision: the
-// generated booths were "technically good" but not yet at the architectural quality of the
-// studio's best projects (Rolex, BMW, Red Bull) — the diagnosis was that DSS-001's rules below,
-// while correct in principle, are abstract ("materials follow the brand", "lighting is layered")
-// and left too much room for each section of the brief to make its own separate, sometimes
-// inconsistent, concrete choice. DNA-001 fixes that by deciding ONE concrete architectural
-// identity — one geometry family, one hero landmark, one structural language, one material trio
-// (primary/secondary/accent, never more), one lighting technique, one furniture language, one
-// detail language, one repetition rhythm — before anything else is written, so every other section
-// of the brief (including DSS-001's own Rules 5/6/7 just below, which now read directly from this
-// object instead of re-deriving their own answer) inherits the exact same identity. Built
-// entirely from designIntent + heroStrategy (HSE-001, already deterministic and already chosen by
-// the time this runs) — never a second, independently-guessed identity that could contradict the
-// hero archetype HSE-001 already committed to.
-const GEOMETRY_FAMILIES = ['Rectangle', 'Rounded Rectangle', 'Circle', 'Arch', 'Ribbon', 'Wave', 'Diamond', 'Hexagon', 'Fold'];
-
-// One geometry family per HSE-001 archetype — deterministic, not randomized, so the SAME booth
-// always gets the SAME geometry, and the geometry always reads as a natural expression of the
-// hero structure HSE-001 already chose (e.g. Portal, a walk-through frame, naturally reads as an
-// Arch; Tower, a vertical mass, naturally reads as Rectangle).
-const ARCHETYPE_TO_GEOMETRY = {
-  Portal: 'Arch',
-  Tower: 'Rectangle',
-  'Floating Frame': 'Ribbon',
-  'Feature Wall': 'Rounded Rectangle',
-  'Sculptural Element': 'Wave',
-  'LED Gateway': 'Fold',
-};
-
-const STRUCTURAL_LANGUAGE_BY_ARCHETYPE = {
-  Portal: 'A single monumental frame with clean continuous surfaces and no visible seams at eye level',
-  Tower: 'A vertical sculptural mass built from continuous tapering surfaces, treating height as one unbroken gesture',
-  'Floating Frame': 'A lightweight suspended structure that appears to hover, slim continuous surfaces with no visible support at eye level',
-  'Feature Wall': 'One dominant wall mass with deep continuous relief — never a flat plane',
-  'Sculptural Element': 'One iconic sculptural mass with continuous flowing surfaces, self-supporting and freestanding',
-  'LED Gateway': 'An illuminated structural frame fusing screen and architecture into one continuous surface',
-};
-
-// Five named lighting TECHNIQUES (placement/behavior of the light itself) — deliberately a
-// separate axis from INDUSTRY_LIGHTING_PROFILES' color-temperature/accent-color palette below;
-// DSS-001's Rule 5 combines both (one technique from here + one palette from there) rather than
-// treating them as competing systems.
-const LIGHTING_STRATEGY_LIBRARY = {
-  'Hidden perimeter lighting': 'a continuous warm glow concealed along the architecture\'s own edges — the fixture itself is never visible, only its effect',
-  'Halo lighting': 'a soft luminous ring or edge-glow outlining the hero form\'s silhouette from behind or beneath it',
-  'Floating edge lighting': 'a thin line of light along the underside/edge of forms, making them read as if hovering above the floor or wall',
-  'Vertical light fins': 'slim vertical light elements repeated as their own architectural rhythm, echoing the structure\'s geometry',
-  'Continuous ribbon lighting': 'one unbroken line of light running through the architecture like a drawn line, tying separate elements into a single continuous form',
-};
-const GEOMETRY_TO_LIGHTING_STRATEGY = {
-  Rectangle: 'Hidden perimeter lighting',
-  'Rounded Rectangle': 'Floating edge lighting',
-  Circle: 'Halo lighting',
-  Arch: 'Hidden perimeter lighting',
-  Ribbon: 'Continuous ribbon lighting',
-  Wave: 'Floating edge lighting',
-  Diamond: 'Vertical light fins',
-  Hexagon: 'Vertical light fins',
-  Fold: 'Floating edge lighting',
-};
-
-const GEOMETRY_TO_FURNITURE_LANGUAGE = {
-  Rectangle: 'Sharp clean edges with exposed structural joints, matching the architecture\'s own geometry',
-  'Rounded Rectangle': 'Softened rectangular forms with rounded corners and continuous surfaces, no sharp edges',
-  Circle: 'Circular and cylindrical forms throughout, echoing the architecture\'s own curvature',
-  Arch: 'Rounded edges with floating illuminated bases, echoing the arch\'s own curve',
-  Ribbon: 'Flowing continuous forms with no hard corners, as if cut from the same ribbon as the architecture',
-  Wave: 'Undulating continuous surfaces with no flat planes, echoing the wave form throughout',
-  Diamond: 'Faceted angular forms with crisp diagonal edges, echoing the diamond geometry',
-  Hexagon: 'Faceted modular forms built on a hexagonal grid, repeated consistently',
-  Fold: 'Origami-like folded surfaces with crisp angular creases, echoing the architecture\'s own folds',
-};
-
-// --- Brand Identity Engine — replaces the old industry-first material system entirely, per an
-// explicit client bug report: the pipeline was choosing architectural materials from the
-// INDUSTRY first (e.g. Banking -> travertine/walnut/champagne, a "luxury hospitality" mood) and
-// only applying the brand's own colors afterward, so a bank with bold blue branding rendered as a
-// generic hotel lobby instead of looking like that bank. The corrected priority order, per the
-// client's own spec, is: Brand Identity (name/logo, already known) -> Brand Personality -> Brand
-// Colors -> Architectural Style -> Industry -> Material Selection. Concretely, that means colors
-// are decided FIRST (from the client's own brand color pickers, never guessed), and materials are
-// chosen ONLY to express those colors — industry is demoted to a tiebreaker between 2-4 valid
-// material finishes that already express the right color, never a say in which color/family gets
-// used at all.
-
-// Converts a brand's own hex color into a human color name via HSL bucketing, so "the brand's
-// actual color" (not an industry mood) is what names the DNA's Material Language. Deterministic —
-// the same hex always classifies the same way.
-function hexToHsl(hex){
-  const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0;
-  const l = (max + min) / 2;
-  if(max !== min){
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch(max){
-      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-      case g: h = (b - r) / d + 2; break;
-      case b: h = (r - g) / d + 4; break;
-    }
-    h /= 6;
-  }
-  return { h: h * 360, s: s * 100, l: l * 100 };
-}
-function classifyColorName(hex){
-  if(!hex || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return 'Neutral Gray';
-  const { h, s, l } = hexToHsl(hex);
-  if(l >= 92) return 'White';
-  if(l <= 10) return 'Black';
-  if(s <= 12) return l >= 70 ? 'Light Gray' : (l >= 40 ? 'Gray' : 'Charcoal');
-  if(s <= 25 && l >= 55 && h >= 20 && h <= 55) return 'Champagne / Beige';
-  if(h < 15 || h >= 345) return l >= 55 ? 'Pink' : 'Red';
-  if(h < 45) return l >= 55 ? 'Gold' : 'Bronze';
-  if(h < 65) return 'Yellow';
-  if(h < 90) return 'Lime';
-  if(h < 150) return 'Green';
-  if(h < 195) return 'Teal';
-  if(h < 250) return l <= 30 ? 'Navy Blue' : 'Blue';
-  if(h < 290) return 'Purple';
-  if(h < 345) return 'Magenta';
-  return 'Gray';
-}
-
-// 3-4 concrete material finishes per color family — this is what "materials support the colors"
-// actually means in practice: every option here already visually reads as its color family, so no
-// matter which one industry picks as a tiebreaker below, the brand color stays dominant. Matches
-// the client's own worked example exactly (White -> engineered stone/architectural paint/solid
-// surface/aluminum; Blue -> glass/lacquer; a metal accent like Champagne Aluminum standing in for
-// the accent slot when the brand only supplies two real colors, same as their ANB example).
-const MATERIAL_FINISHES_BY_COLOR_FAMILY = {
-  White: ['{color} engineered stone', '{color} architectural paint', '{color} solid surface', '{color} aluminum panel'],
-  Black: ['{color} lacquer', '{color} composite panel', '{color} powder-coated aluminum', '{color} glass'],
-  'Light Gray': ['{color} engineered stone', '{color} powder-coated panel', '{color} brushed aluminum'],
-  Gray: ['{color} powder-coated aluminum', '{color} composite panel', '{color} brushed steel'],
-  Charcoal: ['{color} powder-coated steel', '{color} composite panel', '{color} lacquer'],
-  'Navy Blue': ['{color} glass', '{color} lacquer', '{color} powder-coated aluminum'],
-  Blue: ['{color} glass', '{color} lacquer', '{color} acrylic backlit panel'],
-  Teal: ['{color} glass', '{color} lacquer'],
-  Green: ['{color} lacquer', '{color} glass', '{color} powder-coated panel'],
-  Red: ['{color} lacquer', '{color} glass', '{color} powder-coated panel'],
-  Pink: ['{color} lacquer', '{color} glass'],
-  Gold: ['{color} brushed metal', '{color} anodized aluminum', '{color} metallic paint'],
-  'Champagne / Beige': ['{color} brushed aluminum', '{color} anodized metal', '{color} engineered stone'],
-  Bronze: ['{color} brushed metal', '{color} anodized aluminum'],
-  Yellow: ['{color} lacquer', '{color} powder-coated panel'],
-  Purple: ['{color} lacquer', '{color} glass'],
-  Magenta: ['{color} lacquer', '{color} glass'],
-  Lime: ['{color} lacquer', '{color} acrylic panel'],
-  'Neutral Gray': ['{color} powder-coated aluminum', '{color} composite panel'],
-};
-
-// Industry's ONLY remaining role in material selection: picking between 2-4 already-on-color
-// finishes for the same color family — never choosing the color/family itself. A tech brand's
-// white gets rendered in glass/lacquer/acrylic (glossy/precision); a luxury/hospitality brand's
-// white gets rendered in stone/solid-surface (premium); an industrial brand's white gets rendered
-// in powder-coated/composite (robust) — same White, three different but equally valid finishes.
-function pickMaterialForColor(colorName, industry){
-  const options = MATERIAL_FINISHES_BY_COLOR_FAMILY[colorName] || MATERIAL_FINISHES_BY_COLOR_FAMILY['Neutral Gray'];
-  const industryLower = (industry || '').toLowerCase();
-  let chosen = options[0];
-  if(/luxury|fashion|jewelry|hospitality|banking|finance|government|watches|beauty/.test(industryLower)){
-    chosen = options.find(o => /stone|solid surface/.test(o)) || options[0];
-  }else if(/technology|software|electronics|robotics|artificial intelligence|data|cloud|cyber|telecom|saas|fintech/.test(industryLower)){
-    chosen = options.find(o => /glass|lacquer|acrylic/.test(o)) || options[0];
-  }else if(/oil|gas|manufacturing|industrial|construction|energy|logistics|security|defense|marine/.test(industryLower)){
-    chosen = options.find(o => /powder-coated|composite|steel/.test(o)) || options[0];
-  }
-  return chosen.replace('{color}', colorName);
-}
-
-// Derives the brand's own Primary/Secondary/Accent VISUAL COLOR straight from the client's real
-// brand color pickers (designIntent.brandColorHexes, added by DIE-001) — never from industry. A
-// brand supplying only 2 colors (the common case) gets a neutral metal accent (Champagne
-// Aluminum) rather than a 3rd invented color, matching the client's own ANB worked example.
-function deriveBrandVisualPalette(designIntent){
-  const hexes = (designIntent.brandColorHexes || []).filter(h => /^#[0-9A-Fa-f]{6}$/.test(h));
-  const primaryHex = hexes[0] || '#FFFFFF';
-  const secondaryHex = hexes[1] || null;
-  const accentHex = hexes[2] || null;
-  return {
-    primaryHex, secondaryHex, accentHex,
-    primaryName: classifyColorName(primaryHex),
-    secondaryName: secondaryHex ? classifyColorName(secondaryHex) : 'Champagne / Beige',
-    accentName: accentHex ? classifyColorName(accentHex) : null, // null -> accent is a neutral metal, not a 3rd brand color
-  };
-}
-
-// Material Distribution Engine — a project's material balance must always keep the brand's own
-// colors visually dominant. Defaults sit at the midpoint of each client-specified range; wood and
-// stone are hard-capped as SUPPORTING materials only, never the dominant surface.
-const MATERIAL_DISTRIBUTION_DEFAULT = Object.freeze({
-  primaryBrandColorPercent: 70,  // range 65-75
-  secondaryBrandColorPercent: 20, // range 15-25
-  accentMaterialPercent: 8,       // range 5-10
-  naturalWoodMaxPercent: 10,
-  stoneMaxPercent: 15,
-});
-
-// Architectural Validation Rule — runs before the distribution is ever turned into prompt text.
-// Real deterministic checks, not just a written instruction: if wood or stone would outweigh the
-// combined brand-color share, or the brand colors together fall under a hard dominance floor, the
-// distribution is rebalanced right here in code. Given MATERIAL_DISTRIBUTION_DEFAULT's own numbers
-// are already constructed to satisfy every rule (90% combined brand color vs. 10%/15% caps), this
-// should never actually need to rebalance anything in practice — it exists as a real safety net
-// against a future edit accidentally breaking that invariant, exactly as the client's spec
-// describes: "reject" the bad distribution and "automatically rebalance" before generating.
-function validateAndRebalanceMaterialDistribution(distribution){
-  const d = { ...distribution };
-  const issues = [];
-  const brandColorTotal = () => d.primaryBrandColorPercent + d.secondaryBrandColorPercent;
-  if(d.naturalWoodMaxPercent > brandColorTotal()){
-    issues.push(`Wood (${d.naturalWoodMaxPercent}%) exceeded combined brand color (${brandColorTotal()}%) — rebalanced down.`);
-    d.naturalWoodMaxPercent = Math.min(d.naturalWoodMaxPercent, MATERIAL_DISTRIBUTION_DEFAULT.naturalWoodMaxPercent);
-  }
-  if(d.stoneMaxPercent > brandColorTotal()){
-    issues.push(`Stone (${d.stoneMaxPercent}%) exceeded combined brand color (${brandColorTotal()}%) — rebalanced down.`);
-    d.stoneMaxPercent = Math.min(d.stoneMaxPercent, MATERIAL_DISTRIBUTION_DEFAULT.stoneMaxPercent);
-  }
-  const DOMINANCE_FLOOR = 60; // brand colors must clearly read as dominant, never a minority share
-  if(brandColorTotal() < DOMINANCE_FLOOR){
-    issues.push(`Combined brand color (${brandColorTotal()}%) was below the ${DOMINANCE_FLOOR}% dominance floor — primary color share increased to compensate.`);
-    d.primaryBrandColorPercent += (DOMINANCE_FLOOR - brandColorTotal());
-  }
-  return { distribution: d, rebalanced: issues.length > 0, issues };
-}
-
-// Meters between repeated rhythm elements (panels/fins/dividers/columns/geometry repeats),
-// scaled to booth size the same way decorativeDensity below scales decoration to size — a Tiny
-// Booth repeating a motif every 3m would barely repeat at all; a Flagship Pavilion repeating one
-// every 1m would look busy rather than rhythmic.
-const RHYTHM_SPACING_BY_SIZE_CLASS = {
-  'Tiny Booth': 1, 'Compact Booth': 1.2, 'Small Booth': 1.5, 'Medium Booth': 2, 'Large Booth': 2.5, 'Flagship Pavilion': 3,
-};
-
-function buildArchitecturalDNA(designIntent, heroStrategy){
-  const archetypeInfo = (ARCHITECTURAL_LIBRARY.archetypes && ARCHITECTURAL_LIBRARY.archetypes[heroStrategy.archetype]) || {};
-  const geometry = ARCHETYPE_TO_GEOMETRY[heroStrategy.archetype] || 'Rounded Rectangle';
-  const structuralLanguage = STRUCTURAL_LANGUAGE_BY_ARCHETYPE[heroStrategy.archetype] || 'One continuous sculptural mass with clean, deliberate surfaces';
-  const lightingStrategy = GEOMETRY_TO_LIGHTING_STRATEGY[geometry] || 'Hidden perimeter lighting';
-  const furnitureLanguage = GEOMETRY_TO_FURNITURE_LANGUAGE[geometry] || 'Forms that echo the architecture\'s own geometry, never catalog furniture';
-  const rhythmSpacing = RHYTHM_SPACING_BY_SIZE_CLASS[designIntent.sizeClass] || 1.5;
-
-  // Brand Identity Engine — colors decided first (from the real brand colors, never industry),
-  // then materials chosen only to express them; industry is a tiebreaker between finishes within
-  // the same color family, never a say in the color itself. See this block's own header comment.
-  const visualPalette = deriveBrandVisualPalette(designIntent);
-  const industry = designIntent.industry || '';
-  const primaryMaterial = pickMaterialForColor(visualPalette.primaryName, industry);
-  const secondaryMaterial = pickMaterialForColor(visualPalette.secondaryName, industry);
-  const accentMaterial = visualPalette.accentName ? pickMaterialForColor(visualPalette.accentName, industry) : 'Champagne Aluminum';
-  const materials = { primary: primaryMaterial, secondary: secondaryMaterial, accent: accentMaterial };
-  const { distribution, rebalanced, issues } = validateAndRebalanceMaterialDistribution(MATERIAL_DISTRIBUTION_DEFAULT);
-
-  const heroLandmark = `${heroStrategy.aspect === 'compact-tall' ? 'A vertical' : 'A horizontal'} ${geometry.toLowerCase()}-based hero structure — ${archetypeInfo.description || heroStrategy.archetype}`;
-  const detailLanguage = `Thin ${materials.accent} reveals repeated throughout, following the ${geometry.toLowerCase()} geometry's own lines`;
-  const rhythmLanguage = `Repeating ${geometry.toLowerCase()} elements every ${rhythmSpacing}m across the architecture — the same spacing discipline applied to panels, fins, dividers, and columns`;
-
-  return {
-    geometry, heroLandmark, structuralLanguage, materials, visualPalette, distribution, distributionRebalanced: rebalanced, distributionIssues: issues,
-    lightingStrategy, lightingStrategyDescription: LIGHTING_STRATEGY_LIBRARY[lightingStrategy],
-    furnitureLanguage, detailLanguage, rhythmLanguage,
-    source: 'DNA-001 rule-based (deterministic) — geometry from HSE-001\'s already-chosen hero archetype, colors/materials from the Brand Identity Engine (brand colors first, industry only as a material-finish tiebreaker)',
-  };
-}
-
-function buildArchitecturalDNAText(dna){
-  return [
-    'ARCHITECTURAL DNA (DNA-001) — HIGHEST PRIORITY, read this before every other section below. This is the ONE architectural identity for this entire project — every element described anywhere else in this brief (hero structure, walls, ceiling, reception, meeting rooms, kiosks, product displays, flooring, partitions, lighting details, and every piece of furniture) must inherit it exactly. Never introduce a different geometry, a different material, or a different lighting approach anywhere in this design, no matter how minor the element.',
-    '',
-    `Primary Geometry: ${dna.geometry}`,
-    `Hero Landmark: ${dna.heroLandmark}`,
-    `Structural Language: ${dna.structuralLanguage}`,
-    `Material Language: ${dna.materials.primary} (primary) + ${dna.materials.secondary} (secondary) + ${dna.materials.accent} (accent) — exactly these three materials, reused everywhere; no fourth material, no random additions.`,
-    `Lighting Language: ${dna.lightingStrategy} — ${dna.lightingStrategyDescription}. This is the ONLY lighting technique used anywhere in the design; never mix in a second lighting technique.`,
-    `Furniture Language: ${dna.furnitureLanguage}`,
-    `Detail Language: ${dna.detailLanguage}`,
-    `Architectural Rhythm: ${dna.rhythmLanguage}`,
-    '',
-    'ONE HERO RULE — the eye must immediately recognize exactly one dominant architectural icon (the Hero Landmark above). Never generate multiple competing towers, multiple hero structures, or competing ceiling features — anything that could read as a second focal point is a defect, not a bonus. Everything else exists to support this one hero. Hierarchy, strictly in this order: Hero Structure -> Secondary Architecture -> Furniture -> Decorative Elements. Nothing below the hero may compete with it for attention.',
-    `GEOMETRY CONSISTENCY — the Primary Geometry (${dna.geometry}) is repeated, without exception, in: the ceiling, the walls, the reception desk, meeting rooms, kiosks, product displays, flooring pattern/edge treatment, partitions, and every lighting detail. Never mix in an unrelated geometry family anywhere, even for a "minor" element — the booth must read as one architectural language throughout, never a mismatched catalog of unrelated forms.`,
-    'CEILING INTEGRATION — the ceiling must feel physically connected to the architecture, never a floating element disconnected from the walls or hero structure. Ceiling, hero structure, walls, and floor must read as one continuous architectural composition, built from the same Primary Geometry and Material Language stated above.',
-    'ARCHITECTURAL SIMPLICITY — one strong concept, repeated and refined, never a collection of unrelated architectural ideas layered on top of each other. Luxury comes from consistency, proportion, and repetition — not complexity.',
-    'BRAND INTEGRATION — the brand is expressed through the architectural forms, material choices, lighting, geometry, proportions, and detailing stated above, not only through the logo. The booth must still feel like this exact brand even with every logo removed.',
-    'PROFESSIONAL DESIGN STUDIO DISCIPLINE — the target is not to imitate the appearance of Rolex, BMW, or Red Bull\'s exhibition work, but their design discipline: one concept, one geometry, one rhythm, one material language, one lighting language, one architectural hierarchy — applied without exception, across every single element described in this brief.',
-  ].join('\n');
-}
-
-// studio's best-performing projects (Rolex, BMW, Red Bull), Designslab AI now behaves like a
-// senior exhibition design studio rather than a form generator: lighting type, material
-// selection, flooring finish, decorative elements, and architectural detailing are no longer
-// client-facing choices (their old form checkboxes are hidden — see each field's own "DSS-001"
-// comment) — this function is what decides them instead, automatically, from brand + industry +
-// budget + architectural style, every single run, for every booth regardless of size. It reuses
-// INDUSTRY_LIGHTING_PROFILES and INDUSTRY_STYLE_ATTRIBUTES (already keyed by the exact same
-// designIntent.industry string) rather than inventing a second, competing taxonomy, and is
-// injected directly into the brief GPE-001 assembles below — since this app now sends that brief
-// straight to Gemini as the image_prompt with no LLM rewriting pass in between (see
-// isDirectToGeminiEngine's own comment), this text reaches the rendering model verbatim. Rules
-// 5/6/7 below now read their lighting technique / material trio / geometry directly from DNA-001
-// (architecturalDNA) above rather than deriving a second, potentially-conflicting answer of their
-// own — see buildArchitecturalDNA's own comment for why that reconciliation matters.
-function buildDesignslabSignatureStyleRules(designIntent, architecturalDNA){
-  const industry = designIntent.industry || '';
-  const lightingProfile = (typeof INDUSTRY_LIGHTING_PROFILES !== 'undefined' && INDUSTRY_LIGHTING_PROFILES[industry]) || 'a coherent, deliberately chosen color-temperature and accent palette appropriate to the brand';
-  const materialAttributes = (typeof INDUSTRY_STYLE_ATTRIBUTES !== 'undefined' && INDUSTRY_STYLE_ATTRIBUTES[industry]) || 'materials appropriate to this brand and industry';
-  const personalities = designIntent.brandPersonalities && designIntent.brandPersonalities.length ? designIntent.brandPersonalities.join(', ') : 'not specified';
-  const budgetMaterialTier = {
-    economy: 'efficient, well-detailed materials — never cheap-looking, but restrained rather than lavish',
-    standard: 'solid mid-tier materials with one or two genuine premium accents',
-    premium: 'refined premium materials throughout, confidently detailed',
-    flagship: 'the studio\'s highest material tier — bespoke-feeling finishes, no visible compromise anywhere',
-  }[designIntent.budgetTier] || 'materials appropriate to this project\'s scale';
-  const decorativeDensity = {
-    'Tiny Booth': 'extremely restrained — one or two purposeful accents at most, never decoration for its own sake',
-    'Compact Booth': 'restrained — a small number of purposeful accents',
-    'Small Booth': 'moderate, still disciplined — nothing filler',
-    'Medium Booth': 'a fuller but still coherent decorative layer',
-    'Large Booth': 'a rich, confident decorative layer across multiple zones',
-    'Flagship Pavilion': 'the fullest decorative expression the design supports, still never random or excessive',
-  }[designIntent.sizeClass] || 'a decorative density proportionate to this booth\'s own size';
-
-  return [
-    'DESIGNSLAB SIGNATURE STYLE (DSS-001) — house design language, applied automatically to every project regardless of size or budget',
-    `Designslab AI behaves like a senior exhibition design studio, not a form generator, for this exact reason: after reviewing the studio's best-performing projects (Rolex, BMW, Red Bull), the same architectural language, lighting philosophy, material hierarchy, and design discipline was found across all of them, and that discipline is now the default for every project. The client only specified requirements (dimensions, open/closed sides, construction style, hero mode, budget, brand, industry, design style, functional zones, products, and any special requirements) — every professional design detail below is this engine's own decision, never left to chance and never asked of the client. Lighting type, material selection, flooring finish, decorative elements, and architectural detailing are DELIBERATELY ABSENT from the client brief above for this reason — their absence is not missing information, it is this rule set taking over. This booth must be capable of standing alongside CES, GITEX, MWC, ISE, Arab Health, Automechanika, Expo, and Milan Design Week caliber work — regardless of booth size, it must read as professionally designed.`,
-    '',
-    'Rule 1 — ARCHITECTURE IS ALWAYS THE HERO. Architecture must dominate the visual composition. Target ratio: 70% architecture, 30% exhibition elements (furniture, products, graphics combined).',
-    'Rule 2 — ONE DOMINANT ARCHITECTURAL FOCAL POINT. Every booth, including Minimal Hero Mode, must create a memorable architectural identity — never a collection of unrelated features with no single point of focus.',
-    'Rule 3 — FURNITURE IS SECONDARY. Furniture must never visually compete with the architecture; it supports the architectural concept, never distracts from it.',
-    'Rule 4 — WALLS ARE ARCHITECTURAL ELEMENTS. Never generate a plain flat wall. Every wall receives deliberate architectural treatment through geometry, materials, lighting, graphics, depth, or texture — a wall with none of these is a defect, not a minimal design choice.',
-    `Rule 5 — LIGHTING IS LAYERED, AUTOMATICALLY. Every project includes a full professional layered lighting system decided here, not by the client: architectural lighting, ambient lighting, product lighting, brand lighting, hero lighting, hidden indirect lighting, and floor accent lighting where appropriate. Lighting always emphasizes the architecture before the products. The lighting TECHNIQUE is the one stated in the Architectural DNA above — ${architecturalDNA.lightingStrategy} (${architecturalDNA.lightingStrategyDescription}) — combined with this industry's color temperature and accent palette: ${lightingProfile}. Never mix in a second lighting technique or an unrelated temperature/accent color. Lighting must never appear random — every fixture serves this one deliberate scheme.`,
-    `Rule 6 — MATERIALS FOLLOW THE BRAND, AUTOMATICALLY. Material selection is fully automatic, chosen from brand, industry, budget, and architectural style — never a client checklist. The exact material trio is the one stated in the Architectural DNA above — ${architecturalDNA.materials.primary} (primary), ${architecturalDNA.materials.secondary} (secondary), ${architecturalDNA.materials.accent} (accent) — and no other material is introduced anywhere in the design. For context, this project's industry material direction is "${materialAttributes}"; the client's own brand personality traits (${personalities}) refined the trio above further; and the budget tier (${designIntent.budgetTier}) sets the material quality bar at: ${budgetMaterialTier}. Exactly three materials, reused everywhere, paired the way a professional interior architect would pair them — never a fourth material, never a random addition.`,
-    `Rule 7 — GEOMETRY MUST BE CONSISTENT. The Primary Geometry is the one stated in the Architectural DNA above — ${architecturalDNA.geometry}. Furniture, reception, display units, meeting tables, storage, and digital elements all inherit this exact same geometry family and design language as the architecture itself — never a mismatched catalog of unrelated forms. Furniture specifically follows: ${architecturalDNA.furnitureLanguage}`,
-    'Rule 8 — VISUAL HIERARCHY, IN THIS EXACT ORDER: 1. Hero Architecture 2. Brand 3. Products 4. Visitor Experience 5. Furniture 6. Decorative Elements. Nothing below this order may compete with the hero architecture for visual attention.',
-    `Rule 9 — NO EMPTY ARCHITECTURE. Avoid large empty walls, dead corners, and unused ceiling areas. Every architectural element must have a purpose. Decorative elements, feature walls, architectural fins, wall articulation, and ceiling detailing are all decided automatically here, at a density appropriate to this exact booth: ${decorativeDensity}. Never decoration for its own sake, and never a booth that reads as unfinished or under-designed.`,
-    'Rule 10 — PROFESSIONAL LIGHTING BALANCE. Never an overly dark booth, an overexposed booth, colorful RGB overload, or inconsistent lighting temperatures within the same design. Lighting must always read as professionally designed, committed to the one industry lighting profile stated in Rule 5.',
-    `Rule 11 — BRAND CONSISTENCY. The architecture itself must communicate this brand before the logo is even read. This exact brand's architectural language must be distinctly its own — never generic, and never resembling how a different brand in a different industry would be designed (a luxury watch brand and an energy-drink brand must never share the same architectural language). Ground this distinction in the client's own brand personality (${personalities}) and architectural style preference (${designIntent.architecturalStylePreference || 'inferred from industry and brand personality'}).`,
-    'Rule 12 — HUMAN SCALE. All architecture maintains realistic proportions. Never shrink or exaggerate furniture, never generate unrealistic ceiling heights, never create impossible structures.',
-    'Rule 13 — INTERNATIONAL EXHIBITION QUALITY. Every booth must be capable of winning a design competition — the quality target matches leading international exhibition design studios, not a generic rendering.',
-    'STRUCTURAL RHYTHM — repeated architectural elements (panels, fins, dividers, columns) follow a consistent, deliberate spacing rhythm rather than irregular or random placement, the same discipline Modular Wall Layout enforces when explicitly requested, applied here as the studio\'s own default design instinct.',
-    'Flooring finish, texture, edge treatment, and material transitions are likewise decided automatically per this same rule set — never left generic, never contradicting the material direction stated in Rule 6.',
-  ].join('\n');
-}
-
 // --- GPE-001 — Gemini Prompt Engine: assembles the pipeline's output into the labeled brief
 // block that becomes spatialPlanText (the old formula-first formatter this replaced has been
 // deleted entirely). Ends with the exact same per-zone Width/Depth/Height lines and
@@ -10985,14 +10624,6 @@ function assembleNewEngineBrief(designIntent, functionalProgram, relationships, 
   lines.push('DESIGN INTENT (DIE-001)');
   lines.push(`Industry: ${designIntent.industry || 'not specified'} | Size class: ${designIntent.sizeClass} | Budget signal: ${designIntent.budgetTier} | Brand importance: ${designIntent.brandImportance}`);
   lines.push(`Open sides: ${designIntent.openSides.join(', ') || 'none'} | Style preference: ${designIntent.architecturalStylePreference || 'not specified'}`);
-  lines.push('');
-  // DNA-001 computed once, here, from designIntent + the already-chosen heroStrategy (HSE-001) —
-  // before DSS-001 below, so DSS-001's Rules 5/6/7 can read the exact same geometry/material/
-  // lighting choices back out of it rather than deriving a second, potentially-conflicting answer.
-  const architecturalDNA = buildArchitecturalDNA(designIntent, heroStrategy);
-  lines.push(buildArchitecturalDNAText(architecturalDNA));
-  lines.push('');
-  lines.push(buildDesignslabSignatureStyleRules(designIntent, architecturalDNA));
   lines.push('');
   lines.push('FUNCTIONAL PROGRAM (FPE-001) — spaces defined before any furniture; furniture lives inside its space, never listed as the program itself');
   functionalProgram.zones.forEach(z => lines.push(`- ${z.name} [${z.category}, tier ${z.priorityTier}]${z.required ? ' (required)' : ''}`));
@@ -11042,9 +10673,6 @@ function assembleNewEngineBrief(designIntent, functionalProgram, relationships, 
     });
     lines.push('');
   });
-  lines.push('CAMERA & VIEW (DIR-007) — read this last, applies to the final render only');
-  lines.push(buildCameraApproachText(true));
-  lines.push('');
   return lines.join('\n');
 }
 /* ================= END SPECIAL SPATIAL PLANNING ENGINE (now the ONLY pipeline, for every role — see useTestEngine's comment in generateDesign()) ================= */
@@ -12382,26 +12010,16 @@ function computeCameraApproachCorner(openSidesSet){
 
 // Builds the one deterministic CAMERA ANGLE sentence used in every render (booth or event),
 // per DIR-007 — orientation-aware so the camera always ends up opposite this booth's actual
-// STRUCTURAL WALL side(s), per the mandatory requirement above. Also wired directly into the
-// live Spatial Planning Engine brief now (see assembleNewEngineBrief's own CAMERA & VIEW
-// section) — this function used to only be reachable through the old two-stage Claude/OpenAI
-// prompt-writer pipeline (callPromptWriterApi), which the Direct-to-Gemini Special Engine never
-// calls for booth mode, so its careful orientation-aware corner logic was silently never
-// reaching the actual render at all. Per an explicit product decision (client report: generated
-// views were cropping out parts of the booth), framing was changed from "tightly cropped and
-// zoomed" to an explicit corner-to-corner full-visibility requirement instead.
+// STRUCTURAL WALL side(s), per the mandatory requirement above.
 function buildCameraApproachText(isBoothMode){
   if(!isBoothMode){
-    return 'Camera: Photorealistic 3D perspective view. Camera angle: exactly 45 degrees above the design, measured from the floor (never directly overhead, never a low/eye-level angle), approached from a front corner that keeps every structural element clearly and solidly in view. Framing: the entire design — every corner, the complete floor, and the full structure — must be visible within the frame, corner to corner; never crop, cut off, or push any part of the design (including the floor nearest the camera and the far corner) outside the frame.';
+    return 'Camera: Photorealistic 3D aerial perspective. Camera angle: 35-45 degrees above the design (never directly overhead), approached from a front corner that keeps every structural element clearly and solidly in view. Framing: tightly cropped and zoomed so the design occupies approximately 90-95% of the frame, with no more than 5-10% of the composition showing the surrounding environment.';
   }
   const c = computeCameraApproachCorner(getBoothOpenSidesSet());
   const wallNote = c.closedSidesOpposite.length
     ? ` This corner is chosen deliberately, per the client's mandatory visibility requirement: the camera stands on the side(s) opposite this booth's ${c.closedSidesOpposite.join('/')} STRUCTURAL WALL side(s) (per BSE-001/EPS-016) and looks across the booth toward ${c.closedSidesOpposite.length > 1 ? 'them' : 'it'} — never crowded up against a closed wall — so the entire design is visible in one frame, not just the portion nearest the camera.`
     : ' This booth is open on all four sides (island), so there is no closed wall to position opposite of — this corner is simply a neutral, consistent default.';
-  // Camera angle pinned to exactly 45 degrees (was a 35-45 degree range) per an explicit client
-  // spec: every "Generate" render should read as a fixed top-down-45 perspective, not a range the
-  // model is free to interpret anywhere within.
-  return `Camera: Photorealistic 3D perspective view (not top-down, not a flat plan). Camera angle: exactly 45 degrees above the booth, measured from the floor (never directly overhead, never a low/eye-level angle), positioned above the ${c.corner} corner looking toward the ${c.lookToward} corner.${wallNote} Framing — MANDATORY, corner to corner: the entire booth must be visible within the frame — every one of its corners, the complete raised floor from edge to edge, and the full structure (walls, hero structure, ceiling if present) all clearly and completely in view. Never crop, cut off, zoom past, or push any part of the booth — including the floor nearest the camera and the far corner opposite it — outside the frame. Pull the camera back as far as needed to keep the whole booth inside the shot rather than tightly zooming in on any one portion of it; a small amount of surrounding exhibition hall visible at the edges is preferable to losing any part of the booth itself.`;
+  return `Camera: Photorealistic 3D aerial perspective. Camera angle: 35-45 degrees above the booth (never directly overhead), positioned above the ${c.corner} corner looking toward the ${c.lookToward} corner.${wallNote} Framing: tightly cropped and zoomed so the booth occupies approximately 90-95% of the frame, with no more than 5-10% of the composition showing the surrounding exhibition hall as environmental context.`;
 }
 
 // Fixes a real, concrete contributor to "the booth's dimensions don't read correctly" reports:
@@ -12543,28 +12161,6 @@ const AUTOFILL_EXCLUDED_IDS = new Set([
   // guess or overwrite — it's left exactly as the client set it (default "No"). f_posterCount
   // (how many posters) stays autofillable since that's a space-driven design choice.
   'f_hasPosters',
-  // DSS-001 (Designslab Signature Style) — lighting type, floor material/finish, and decorative
-  // elements are no longer any human's choice, including the AI Autofill Helper's — DSS-001
-  // decides these itself, automatically, from brand/industry/budget/style, every run. These ids
-  // still physically exist in the DOM (hidden, not deleted — see each field's own comment) so
-  // collectAutofillDescriptorsInRange would otherwise still offer them to the autofill model;
-  // excluding them here is what actually stops that.
-  'f_floorFinish', 'f_floorFinishCustom', 'f_carpetType', 'f_carpetColorPicker', 'f_carpetColorHex',
-  'f_woodType', 'f_woodFinish', 'f_marbleColor', 'f_marbleColorCustom', 'f_epoxyFinish', 'f_floorEdgeFinish',
-  'addreq_ambientlighting', 'addreq_spotlights', 'addreq_hiddenledlighting', 'addreq_covelighting', 'addreq_accentlighting', 'addreq_decorativelighting',
-  'addreq_planters', 'addreq_greenwall', 'addreq_decorativepanels', 'addreq_brandgraphics', 'addreq_hangingdecor', 'addreq_sculpture',
-  'addreq_featurewall', 'addreq_graphicwall', 'addreq_mediawall', 'addreq_ledfeaturewall', 'addreq_tooldisplaywall', 'addreq_productdisplaywall',
-  'addreq_displayshelving', 'addreq_displayniches', 'addreq_floatingshelves', 'addreq_decorativeceilingpanels', 'addreq_hangingelements', 'addreq_hanginggraphics',
-  'addreq_architecturalfins', 'addreq_verticalslats', 'addreq_decorativescreens', 'addreq_featureportal', 'addreq_entrancefeature', 'addreq_featurearch', 'addreq_digitalartwall',
-  'addreq_minimalplanters', 'addreq_premiumplanters', 'addreq_livingwall', 'addreq_indoortrees', 'addreq_artificialplants', 'addreq_mosswall', 'addreq_waterfeature', 'addreq_stonefeature',
-  'addreq_decorativelightboxes', 'addreq_illuminatedlogo', 'addreq_edgelighting', 'addreq_backlitpanels', 'addreq_neonfeature', 'addreq_architecturallightfeature',
-  // DSS-001 — Rigging/Ceiling Shape/Width/Depth/Height/Finish/Brand Visibility: the AI designs
-  // the rigging/suspended structure and self-supported ceiling feature itself now, the same as
-  // it already designs lighting and materials (see collectCeilingRiggingSpecification's own
-  // comment). f_ceilingPurpose stays autofillable — it's a strategic driver, not a physical
-  // design detail.
-  'f_riggingShape', 'f_riggingShapeCustom', 'f_riggingWidth', 'f_riggingDepth', 'f_riggingHeightFromFloor', 'f_riggingFinish', 'f_riggingFabricColorPicker', 'f_riggingFabricColorHex', 'f_riggingBrandVisibility',
-  'f_ceilingShape', 'f_ceilingShapeCustom', 'f_ceilingWidth', 'f_ceilingDepth', 'f_ceilingHeightFromFloor', 'f_ceilingFinish', 'f_ceilingFinishCustom', 'f_ceilingFabricColorPicker', 'f_ceilingFabricColorHex', 'f_ceilingBrandVisibility',
 ]);
 
 function labelTextFor(el){
@@ -12888,41 +12484,16 @@ function buildBoothAutofillPrompt(goal, website, websiteText, websiteWarning, wa
   // Ceiling Lighting) have no [id] at all — see applyCheckboxGroupByValue's own comment —
   // so they're pulled in here by class instead and handled as their own top-level JSON keys,
   // the same pattern already used for brandColors/brandPersonality above.
-  // DSS-001 — filtered to skip options whose <label> is hidden (display:none), which is how
-  // lighting/decorative values within these otherwise-still-live groups are now retired: the
-  // group itself (e.g. Optional Floor Features, Integrated Elements) still has legitimate
-  // functional options left in it, so only the specific lighting/decorative values are hidden,
-  // not the whole group — see each hidden <label>'s own DSS-001 comment.
-  // DSS-001 — walks every ancestor (not just the immediate <label>) looking for an inline
-  // display:none, since some retired options are hidden on their own <label> (e.g. the three
-  // lighting Floor Features) while others are hidden on a whole containing field div instead
-  // (e.g. all of Rigging Lighting) — a single closest('label') check misses the second case.
-  function isVisibleAutofillOption(cb){
-    let el = cb;
-    while(el){
-      if(el.style && el.style.display === 'none') return false;
-      el = el.parentElement;
-    }
-    return true;
-  }
-  const floorFeatureOptions = Array.from(document.querySelectorAll('.floor-feature-cb')).filter(isVisibleAutofillOption).map(cb => cb.value);
+  const floorFeatureOptions = Array.from(document.querySelectorAll('.floor-feature-cb')).map(cb => cb.value);
   // Integrated Elements and Rigging/Ceiling Lighting share the exact same value set whether
   // "Ceiling & Rigging" ends up as real rigging or a self-supported ceiling feature — only
   // one of the two id-less groups is ever visible at a time, so one option list covers both.
-  const integratedElementOptions = Array.from(document.querySelectorAll('.rigging-element-cb')).filter(isVisibleAutofillOption).map(cb => cb.value);
-  // Rigging/Ceiling Lighting is retired in full (DSS-001 decides lighting, always) — the whole
-  // field is hidden now (see riggingLightingField/ceilingLightingField's own comment), so this
-  // always resolves to an empty list, which is exactly what keeps "riggingLighting" empty below.
-  const riggingLightingOptions = Array.from(document.querySelectorAll('.rigging-lighting-cb')).filter(isVisibleAutofillOption).map(cb => cb.value);
+  const integratedElementOptions = Array.from(document.querySelectorAll('.rigging-element-cb')).map(cb => cb.value);
+  const riggingLightingOptions = Array.from(document.querySelectorAll('.rigging-lighting-cb')).map(cb => cb.value);
 
   // Mandatory-category rule below needs to know which addreq_* ids fall under each of these
-  // named Requirements categories — see collectRequirementCategoryIds' own comment. Lighting,
-  // Decorative Elements, and Lighting Features are retired per DSS-001 (their subarea-label
-  // groups are now nested inside a hidden wrapper, so collectRequirementCategoryIds can no
-  // longer find them as direct children of the grid either — removed here explicitly too, so
-  // the system prompt text below stays accurate rather than instructing the model to pick from
-  // categories that no longer resolve to anything).
-  const MANDATORY_REQUIREMENT_CATEGORIES = ['Product Display', 'Digital & Technology', 'Functional Spaces'];
+  // named Requirements categories — see collectRequirementCategoryIds' own comment.
+  const MANDATORY_REQUIREMENT_CATEGORIES = ['Product Display', 'Digital & Technology', 'Functional Spaces', 'Lighting', 'Decorative Elements', 'Lighting Features'];
   const OPTIONAL_REQUIREMENT_CATEGORIES = ['Art & Brand'];
   const requirementCategoryIds = collectRequirementCategoryIds([...MANDATORY_REQUIREMENT_CATEGORIES, ...OPTIONAL_REQUIREMENT_CATEGORIES]);
 
@@ -12953,7 +12524,7 @@ Rules:
 - "integratedElements": only relevant if "fields" sets f_ceilingRigging to anything other than "No overhead structure" — choose Integrated Elements that suit that overhead structure, from this exact list: ${integratedElementOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
 - "riggingLighting": same condition as "integratedElements" — if there is any overhead structure (real rigging OR a self-supported ceiling feature), choose its lighting from this exact list: ${riggingLightingOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
 - "fields.f_ceilingRigging" (Ceiling & Rigging): the client's STATED RIGGING PREFERENCE given below with the other facts overrides your own judgment — if it says "no", you MUST set f_ceilingRigging to exactly "No overhead structure", and "integratedElements"/"riggingLighting" must both be empty arrays; if it says "yes", set f_ceilingRigging to any value other than "No overhead structure" that genuinely suits this brief; if it says "unspecified", decide freely as you would for any other field.
-- Requirements — MANDATORY category rule: REQUIREMENT CATEGORIES below lists the "addreq_*" field ids grouped under their real category names from the form. You MUST check (set to true) at least one item from AT LEAST TWO different categories among these three: Product Display, Digital & Technology, Functional Spaces — choose whichever specific items and however many categories genuinely suit this brand, goal, and the available floor area (a 9 sqm booth should stay lean; a 200 sqm booth can support items from more categories). "Art & Brand" is different — it is entirely OPTIONAL, check something from it only if it would genuinely help this specific design (e.g. a heritage brand with real history to tell), never as default filler just to hit a count. Lighting, Decorative Elements, and Lighting Features are retired per Designslab Signature Style (DSS-001) — never suggest or check anything from those categories; DSS-001 decides lighting and decorative treatment automatically, outside this helper entirely. Every other Requirements checkbox outside these four categories (Visitor Experience, industry-specific categories, Landscape, etc.) stays entirely your own judgment call, with no minimum.
+- Requirements — MANDATORY category rule: REQUIREMENT CATEGORIES below lists the "addreq_*" field ids grouped under their real category names from the form. You MUST check (set to true) at least one item from AT LEAST TWO different categories among these six: Product Display, Digital & Technology, Functional Spaces, Lighting, Decorative Elements, Lighting Features — choose whichever specific items and however many categories genuinely suit this brand, goal, and the available floor area (a 9 sqm booth should stay lean; a 200 sqm booth can support items from more categories). "Art & Brand" is different — it is entirely OPTIONAL, check something from it only if it would genuinely help this specific design (e.g. a heritage brand with real history to tell), never as default filler just to hit a count. Every other Requirements checkbox outside these seven categories (Visitor Experience, industry-specific categories, Landscape, etc.) stays entirely your own judgment call, with no minimum.
 - "fields": for every field in the FIELD SCHEMA below, include a value keyed by its exact "id".
   - kind "select": the value MUST be exactly one of that field's "options", copied verbatim.
   - kind "checkbox": true or false only, following the MANDATORY category rule above for anything in REQUIREMENT CATEGORIES; for every other checkbox, true only where it genuinely fits this brand, goal, and space. Every requirement you check has a paired quantity/capacity field elsewhere in the FIELD SCHEMA where one exists (e.g. "addreq_reception_count" for "addreq_reception") — always give that paired field a sensible number sized to the space too, never leave it at an unconsidered default.
@@ -13349,8 +12920,7 @@ function getMissingRequirements(m){
   const levels = document.getElementById('f_levels').value;
   const upperDeckPurposeCount = document.querySelectorAll('.upperdeck-purpose-cb:checked').length;
   const industryStyle = document.getElementById('f_industryStyle').value;
-  // Scoped to #colorRows — see buildBrandPortfolioData's own comment on the same fix.
-  const colorHexes = Array.from(document.querySelectorAll('#colorRows .color-hex'))
+  const colorHexes = Array.from(document.querySelectorAll('.color-hex'))
     .map(i => String(i.value).trim())
     .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   const hasPosters = document.getElementById('f_hasPosters').value;
@@ -13929,8 +13499,7 @@ function buildEventThemeBoardBriefData(){
   const eventBrandValues = Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value);
   const keyActivities = Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value);
   const specialRequirements = Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value);
-  // Scoped to #colorRows — see buildBrandPortfolioData's own comment on the same fix.
-  const colorHexes = Array.from(document.querySelectorAll('#colorRows .color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
+  const colorHexes = Array.from(document.querySelectorAll('.color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   const brandPersonality = selectedBrandPersonalities.slice(); // ranked array, primary first (see BPE-001)
   const areaPlanningData = buildAreaPlanningData();
   const requiredAreas = areaPlanningData.areas.map(a => a.name).filter(Boolean);
@@ -14377,11 +13946,7 @@ async function generateDesign(){
   const hasPosters = document.getElementById('f_hasPosters').value;
   const posterCount = document.getElementById('f_posterCount').value.trim();
 
-  // Scoped to #colorRows — see buildBrandPortfolioData's own comment on the same fix. This one in
-  // particular feeds "Required brand colors" directly into the live Gemini prompt (see below), so
-  // the unscoped bug meant every booth's material/color instructions were silently diluted with
-  // whatever hex values the hidden carpet/rigging-fabric/ceiling-fabric pickers happened to have.
-  const colorHexes = Array.from(document.querySelectorAll('#colorRows .color-hex'))
+  const colorHexes = Array.from(document.querySelectorAll('.color-hex'))
     .map(i => i.value.trim())
     .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
 
@@ -15448,26 +15013,6 @@ function __resolveEngineChoice(engine){
   }
 }
 
-// Admin-only: shows the exact final "Other option" rendering prompt before it's sent, editable,
-// with Approve/Cancel — same promise-based pattern as chooseImageEngine above. Resolves to the
-// (possibly edited) prompt text on Approve, or null on Cancel. Called only from
-// confirmRegenerateOtherOption(), only when isAdminUser is true; regular users never see this.
-let __otherOptionPromptReviewResolve = null;
-function reviewOtherOptionPrompt(promptText){
-  return new Promise(resolve => {
-    __otherOptionPromptReviewResolve = resolve;
-    document.getElementById('otherOptionPromptReviewText').value = promptText || '';
-    document.getElementById('otherOptionPromptReviewOverlay').style.display = 'flex';
-  });
-}
-
-function __resolveOtherOptionPromptReview(approved){
-  document.getElementById('otherOptionPromptReviewOverlay').style.display = 'none';
-  const resolve = __otherOptionPromptReviewResolve;
-  __otherOptionPromptReviewResolve = null;
-  if(resolve) resolve(approved ? document.getElementById('otherOptionPromptReviewText').value : null);
-}
-
 /* ---------- prompt review step: edit/approve before rendering ---------- */
 
 let pendingPromptResult = null;
@@ -16048,29 +15593,9 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
   // Computed once per render session, from this booth's own real footprint — never the fixed
   // 16:9 default that used to apply regardless of the booth's actual shape (see
   // computeBoothAspectRatio's comment for why that was a real contributor to scale complaints).
-  // Overridden immediately below for a genuine fresh "Generate" click — see A4_LANDSCAPE_ASPECT_
-  // RATIO's own comment — but kept as the fallback for isUserInitiatedEdit calls into this same
-  // function (Quick Style Change), which must keep whatever frame shape the design already has
-  // rather than silently changing it mid-project.
   const renderAspectRatio = mode === 'booth'
     ? computeBoothAspectRatio(parseFloat(document.getElementById('f_width').value), parseFloat(document.getElementById('f_depth').value))
     : '16:9';
-
-  // Per an explicit client spec, the image produced by a genuine "Generate" click (a fresh
-  // design, not an edit to one that already exists — isUserInitiatedEdit is false here, exactly
-  // the same condition MRE-001/isFirstTestEngineBoothRender above uses to mean "this is the very
-  // first render") should always come back as A4 Horizontal (landscape), not the booth-shape-
-  // matched ratio computeBoothAspectRatio picks. True A4 landscape is 297:210 mm — a ratio of
-  // 1.4142:1 — which isn't one of Gemini's fixed named aspect ratios (1:1, 3:2, 2:3, 3:4, 4:3,
-  // 4:5, 5:4, 9:16, 16:9, 21:9 — ai.google.dev/gemini-api/docs/image-generation); '3:2' (1.5) is
-  // the closest supported value on either side (4:3 at 1.333 is arithmetically only marginally
-  // farther) and reads as the more natural landscape-photograph shape for an exhibition booth
-  // hero image, so it's used here as A4's stand-in. Other option/Modify Design/Quick Style
-  // Change are all untouched — they still keep whatever aspect ratio the design was originally
-  // generated at, per the existing "never silently switch frame shape mid-project" rule.
-  const A4_LANDSCAPE_ASPECT_RATIO = '3:2';
-  const isGenuineFreshGenerateClick = mode === 'booth' && !isUserInitiatedEdit;
-  const effectiveRenderAspectRatio = isGenuineFreshGenerateClick ? A4_LANDSCAPE_ASPECT_RATIO : renderAspectRatio;
 
   // Test Engine is retired (see useTestEngine's own comment in generateDesign()) — renderEngineMode
   // is hardcoded 'special' for everyone, including admins, rather than read from a selector that no
@@ -16120,7 +15645,7 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
   // This still applies regardless of which engine the admin picked above — the choice only changes
   // which endpoint renders the sheet, not whether it's a 4-quadrant sheet at all.
   const isMultiViewSheetTE = isFirstTestEngineBoothRender;
-  const finalRenderAspectRatio = isMultiViewSheetTE ? '4:3' : effectiveRenderAspectRatio;
+  const finalRenderAspectRatio = isMultiViewSheetTE ? '4:3' : renderAspectRatio;
 
   // PBG-001 — when the parametric 3D engine actually produced all three elevation images this
   // run (see generateDesign()'s call to buildParametricElevationViews_TE), the 4-quadrant sheet
@@ -16750,27 +16275,17 @@ function compressDataUrl(dataUrl, maxDim, quality){
 
 /* Every image returned from Gemini/OpenAI is displayed, downloaded, and saved into
    IndexedDB with the project — at ~2MB per image that adds up fast and slows everything
-   down. This compresses any result image down to a hard byte-size budget (default ~195KB,
-   per an explicit product decision to keep every result under 200KB — see
-   compressDataUrlToTarget's own comment) by iteratively stepping down quality and, if still
-   too big, resolution too. */
+   down. This compresses any result image down to a hard byte-size budget (default 800KB)
+   by iteratively stepping down quality and, if still too big, resolution too. */
 function estimateDataUrlBytes(dataUrl){
   const base64 = dataUrl.split(',')[1] || '';
   return Math.floor(base64.length * 0.75);
 }
 
-// Default budget dropped from 800KB to ~195KB (a hair under the 200KB ceiling) per an explicit
-// product decision: large result images were the main contributor to how long "Generate" felt
-// like it was taking end-to-end (multi-MB downloads/decodes/canvas work on top of the actual AI
-// render time), so every result — hero render, Other option, Modify Design — now gets pushed
-// down to this same small budget by default. The dims/qualities ladder gained one smaller final
-// rung (640px / 0.3 quality) so a genuinely complex/busy image still has a real shot at landing
-// under budget instead of exiting the loop early on the old smallest rung (832px / 0.4). Callers
-// that pass their own maxBytes (event mood board, camera views, etc.) are untouched.
 async function compressDataUrlToTarget(dataUrl, maxBytes){
-  const budget = maxBytes || 195 * 1024;
-  const dims = [1536, 1280, 1024, 832, 640];
-  const qualities = [0.85, 0.72, 0.6, 0.5, 0.4, 0.3];
+  const budget = maxBytes || 800 * 1024;
+  const dims = [1536, 1280, 1024, 832];
+  const qualities = [0.85, 0.72, 0.6, 0.5, 0.4];
   let best = null;
   for(const dim of dims){
     for(const q of qualities){
@@ -16841,70 +16356,6 @@ async function confirmRegenerateOtherOption(){
   const statusEl = document.getElementById('actionStatus');
   const isFreeFirstModification = !opt.usedFreeModification;
 
-  // Build the exact request body up front — including the admin-only prompt review step below —
-  // before touching any lock/progress-bar UI state, so cancelling either dialog leaves the screen
-  // completely untouched, same guarantee the engine-choice dialog above already gives.
-
-  // Same booth-shape-matched aspect ratio as the original render (see computeBoothAspectRatio)
-  // — regenerating "Other option" should never silently switch frame shape mid-project.
-  const otherOptionAspectRatio = mode === 'booth'
-    ? computeBoothAspectRatio(parseFloat(document.getElementById('f_width').value), parseFloat(document.getElementById('f_depth').value))
-    : '16:9';
-  const otherOptionBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: true, isFreeFirstModification, aspectRatio: otherOptionAspectRatio };
-  if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
-    otherOptionBody.referenceImage = logoDataUrl.split(',')[1];
-    otherOptionBody.referenceMimeType = logoMediaType;
-    otherOptionBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
-  }
-  // Same fix as startRenderSession's own brandAssets wiring (see buildBrandPortfolioRenderAssets'
-  // comment) — "Other option" used to build its request body entirely on its own, skipping this
-  // attachment step, so it never actually saw the represented brands' real logo/product pixels
-  // and only ever had BIE-001's after-the-fact correction pass to fall back on. Real reported
-  // case: a user's Brand Portfolio & Products were correctly used on the initial Generate, but
-  // ignored on every "Other option" click afterward. Attached the same way here, per option.
-  const otherOptionBrandAssets = await buildBrandPortfolioRenderAssets();
-  if(otherOptionBrandAssets.images.length){
-    otherOptionBody.additionalReferenceImages = otherOptionBrandAssets.images;
-    otherOptionBody.prompt += otherOptionBrandAssets.note;
-  }
-  // CAD Floor Plan Reference (Test Engine only) — same gap, same fix as the two blocks above:
-  // this call built its reference-image list entirely on its own and never re-attached the
-  // actual CAD floor plan image that startRenderSession's original Generate Design call sent
-  // (see that call's own comment). opt.image_prompt's text already assumes/references that
-  // geometry image (it was written by OpenAI while that image was attached to the original
-  // brief), so leaving the real file out of every "Other option" click let the design quietly
-  // drift from the exact reference geometry over time — a real reported case. lastWhiteBoxModelImage
-  // stays '' for Special Engine projects, so this is a no-op there, exactly like the original.
-  if(lastWhiteBoxModelImage){
-    const otherOptionGeomParts = dataUrlParts(lastWhiteBoxModelImage);
-    otherOptionBody.additionalReferenceImages = (otherOptionBody.additionalReferenceImages || []).concat([{ data: otherOptionGeomParts.base64, mimeType: otherOptionGeomParts.mime }]);
-  }
-  // The very first render (Generate Design) always stays on Gemini. Admins picked an exact
-  // engine for this click via the dialog at the top of this function (forcedEngine); every
-  // other user instead gets automatic alternation — 1st Other option -> OpenAI, 2nd ->
-  // Gemini, 3rd -> OpenAI, and so on — so the two engines still end up compared directly
-  // against each other across a design's option history. Counted from this option's own
-  // gallery (each prior "Other option" click already pushed one 'Other option' entry onto
-  // it), so the sequence survives page refreshes/project reopens rather than resetting to
-  // "always OpenAI first" every time.
-  const otherOptionUsesOpenAi = forcedEngine
-    ? forcedEngine === 'openai'
-    : (opt.gallery.filter(g => g.label === 'Other option').length + 1) % 2 === 1;
-  const otherOptionEndpoint = otherOptionUsesOpenAi ? '/api/generate-image-openai' : '/api/generate-image-gemini';
-  // See capOpenAiPromptLength's own comment — OpenAI hard-rejects prompts over 32,000 chars.
-  // A no-op whenever otherOptionBody.prompt is already under the limit, which is most cases.
-  if(otherOptionUsesOpenAi) otherOptionBody.prompt = capOpenAiPromptLength(otherOptionBody.prompt);
-
-  // Admin-only: show the exact final prompt about to be sent — editable — before anything
-  // actually renders. Same "debuggability without exposing this to every user" principle as
-  // showPromptReview() on the main Generate flow; regular users never see this, their click goes
-  // straight through to generation exactly as before.
-  if(isAdminUser){
-    const reviewedPrompt = await reviewOtherOptionPrompt(otherOptionBody.prompt);
-    if(reviewedPrompt === null) return; // cancelled — nothing was touched yet, so nothing to undo
-    otherOptionBody.prompt = reviewedPrompt;
-  }
-
   const btn = document.getElementById('otherOptionBtn');
   const approveBtn = document.getElementById('approveDesignBtn');
   const modifyBtn = document.querySelector('.action-bar button[onclick="openModifyDesignPanel()"]');
@@ -16928,6 +16379,55 @@ async function confirmRegenerateOtherOption(){
   }
 
   try{
+    // Same booth-shape-matched aspect ratio as the original render (see computeBoothAspectRatio)
+    // — regenerating "Other option" should never silently switch frame shape mid-project.
+    const otherOptionAspectRatio = mode === 'booth'
+      ? computeBoothAspectRatio(parseFloat(document.getElementById('f_width').value), parseFloat(document.getElementById('f_depth').value))
+      : '16:9';
+    const otherOptionBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX, isUserInitiatedEdit: true, isFreeFirstModification, aspectRatio: otherOptionAspectRatio };
+    if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+      otherOptionBody.referenceImage = logoDataUrl.split(',')[1];
+      otherOptionBody.referenceMimeType = logoMediaType;
+      otherOptionBody.prompt += '\n\nThe attached image is the exact company logo that must appear in this design — reproduce it pixel-for-pixel exactly as shown wherever the logo appears in the booth, with no redesign, restyling, recoloring, or reinterpretation of any kind.';
+    }
+    // Same fix as startRenderSession's own brandAssets wiring (see buildBrandPortfolioRenderAssets'
+    // comment) — "Other option" used to build its request body entirely on its own, skipping this
+    // attachment step, so it never actually saw the represented brands' real logo/product pixels
+    // and only ever had BIE-001's after-the-fact correction pass to fall back on. Real reported
+    // case: a user's Brand Portfolio & Products were correctly used on the initial Generate, but
+    // ignored on every "Other option" click afterward. Attached the same way here, per option.
+    const otherOptionBrandAssets = await buildBrandPortfolioRenderAssets();
+    if(otherOptionBrandAssets.images.length){
+      otherOptionBody.additionalReferenceImages = otherOptionBrandAssets.images;
+      otherOptionBody.prompt += otherOptionBrandAssets.note;
+    }
+    // CAD Floor Plan Reference (Test Engine only) — same gap, same fix as the two blocks above:
+    // this call built its reference-image list entirely on its own and never re-attached the
+    // actual CAD floor plan image that startRenderSession's original Generate Design call sent
+    // (see that call's own comment). opt.image_prompt's text already assumes/references that
+    // geometry image (it was written by OpenAI while that image was attached to the original
+    // brief), so leaving the real file out of every "Other option" click let the design quietly
+    // drift from the exact reference geometry over time — a real reported case. lastWhiteBoxModelImage
+    // stays '' for Special Engine projects, so this is a no-op there, exactly like the original.
+    if(lastWhiteBoxModelImage){
+      const otherOptionGeomParts = dataUrlParts(lastWhiteBoxModelImage);
+      otherOptionBody.additionalReferenceImages = (otherOptionBody.additionalReferenceImages || []).concat([{ data: otherOptionGeomParts.base64, mimeType: otherOptionGeomParts.mime }]);
+    }
+    // The very first render (Generate Design) always stays on Gemini. Admins picked an exact
+    // engine for this click via the dialog at the top of this function (forcedEngine); every
+    // other user instead gets automatic alternation — 1st Other option -> OpenAI, 2nd ->
+    // Gemini, 3rd -> OpenAI, and so on — so the two engines still end up compared directly
+    // against each other across a design's option history. Counted from this option's own
+    // gallery (each prior "Other option" click already pushed one 'Other option' entry onto
+    // it), so the sequence survives page refreshes/project reopens rather than resetting to
+    // "always OpenAI first" every time.
+    const otherOptionUsesOpenAi = forcedEngine
+      ? forcedEngine === 'openai'
+      : (opt.gallery.filter(g => g.label === 'Other option').length + 1) % 2 === 1;
+    const otherOptionEndpoint = otherOptionUsesOpenAi ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+    // See capOpenAiPromptLength's own comment — OpenAI hard-rejects prompts over 32,000 chars.
+    // A no-op whenever otherOptionBody.prompt is already under the limit, which is most cases.
+    if(otherOptionUsesOpenAi) otherOptionBody.prompt = capOpenAiPromptLength(otherOptionBody.prompt);
     // Same 190s allowance as the main Generate Design call above — OpenAI's gpt-image-2 needs
     // more headroom than the old 100s default gave it (see that comment for the full reasoning).
     const response = await fetchWithTimeout(otherOptionEndpoint, {
@@ -19422,11 +18922,7 @@ function collectFormSnapshot(){
     f_upperFloor: document.getElementById('f_upperFloor').value,
     f_hasPosters: document.getElementById('f_hasPosters').value,
     f_posterCount: document.getElementById('f_posterCount').value,
-    // Scoped to #colorRows — see buildBrandPortfolioData's own comment on the same fix. Before
-    // this fix, reloading a saved project could dump the hidden carpet/rigging/ceiling color
-    // pickers' own hex values into #colorRows as if they were brand colors, since restoreFormSnapshot
-    // below rebuilds #colorRows from exactly this array.
-    colorHexes: Array.from(document.querySelectorAll('#colorRows .color-hex')).map(i => i.value)
+    colorHexes: Array.from(document.querySelectorAll('.color-hex')).map(i => i.value)
   };
 }
 
