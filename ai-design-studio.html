@@ -4783,6 +4783,13 @@ const ZONE_PRIORITY_TIER_NAMES = {
 };
 
 let lastGeneratedBrief = '';
+// Design Generation Pipeline v2 (Aug 2026) — set by assembleLayeredDesignPrompt()'s callers in
+// generateDesign(), one per successful booth run; kept around for admin inspection/debugging the
+// same way lastGeneratedBrief already is. See that block's own top-of-file comment for the layers
+// these three correspond to.
+let lastResolvedProjectSpecification = null;
+let lastArchitecturalConcept = null;
+let lastDesignDirectorReview = null;
 
 const EXPERT_DESIGNER_PERSONA = `You are a senior exhibition architect with over 20 years of experience designing award-winning exhibition booths, pavilions, and brand experiences for international trade shows and expos — GITEX, CES, Arab Health, World Defense Show, LEAP, Hannover Messe, Mobile World Congress, Dubai Airshow, VivaTech, Web Summit.
 
@@ -10621,11 +10628,449 @@ function solveLayoutNewEngine(functionalProgram, relationships, journey, openSid
   return functionalProgram;
 }
 
+/* =====================================================================================
+   DESIGN GENERATION PIPELINE v2 — client-requested full restructure (Aug 2026).
+   The client's own diagnosis: the old pipeline above (DIE/FPE/SHE/ADJ/BDE/VJE/ZAE/HSE/ACE/LSE)
+   is technically correct engineering but was failing as a DESIGNER — the ANB test produced "a
+   large ugly enclosed central box and an oversized hanging element." Root causes traced during
+   this restructure:
+   1. The prompt actually sent to Gemini (userBrief in generateDesign(), NOT the unused
+      promptWriterSystem/EPS-001..EPS-020 block below, which is dead code on the Direct-to-Gemini
+      path) was a raw concatenation of internal engineering rule codes (EPS-016, BSE-001, FPE-001,
+      etc.) — machine-facing labels with zero visual meaning to an image model, drowning out the
+      one thing that actually mattered: a strong, singular architectural idea.
+   2. computeSpaceAllocation()/formatSpaceAllocationForPrompt() (still called separately in
+      userBrief, see generateDesign()) computes GENERIC quantities from raw sqm alone — for a
+      315 sqm "Pavilion" tier this yields "exactly 3 reception counters," "hanging sign:
+      required," "seating for 40-60" — and its own text told Gemini these numbers "override…
+      for this specific project," even though they directly contradict the client's own explicit
+      selections (ANB actually requested 2 reception counters, no hanging sign, 1 seating area).
+      This is precisely the "Reception = 3 vs client's Reception = 2" conflict the client's spec
+      describes — except it wasn't a rare edge case, it fired on every project. This is very
+      likely the direct cause of the oversized/generic complaint, and it is simply never
+      referenced by the new pipeline below.
+   3. Every functional zone was framed identically as an "ARCHITECTURAL ZONE" with an area and a
+      position, with nothing telling the model that only Storage and an explicit Private/VIP
+      meeting room should ever be a fully enclosed room — everything else should read as an open
+      zone inside one building. Nothing stopped the model from defaulting every zone (including
+      the Hero) into a solid enclosed box.
+
+   The functions below implement the client's requested layered architecture end to end:
+     Layer 1+2 (Requirements Interpretation + Conflict Resolution) -> buildResolvedProjectSpecification()
+     Layer 3 (Spatial Planning, open zones not boxes)               -> classifyFurnitureEnclosure() / describeZoneEnclosure()
+     Layer 4 (Creative Concept Generation)                          -> buildArchitecturalConcept()
+     Layer 7+9 (Design Director Review / self-correction)           -> runDesignDirectorReview()
+     Layer 8 (Final image-generation prompt, plain English only)    -> assembleLayeredDesignPrompt()
+   Layers 5/6 (Architectural Composition, Brand/Product Integration) are folded into Layer 4's
+   concept object and Layer 8's assembly rather than kept as separate stages, since in practice
+   they are direct consequences of the concept, not independent decisions.
+
+   This stays a deterministic, code-only pipeline (no new LLM call before image generation) —
+   consistent with this app's existing "Direct to Gemini" architecture (see generateDesign()'s own
+   comment on why the two OpenAI prompt-writing calls were retired). What changes is that the
+   deterministic engine now does real design reasoning (concrete anti-box hero geometry, per-item
+   enclosure decisions, a single resolved specification, a checked-off design review) instead of
+   dumping raw engineering facts and letting the image model guess what they mean visually.
+   ===================================================================================== */
+
+// Every internal engineering rule code this file uses (EPS-016, BSE-001, FPE-001, DIE-001, …) is
+// useful for developers reading this codebase, but has zero visual meaning to an image-generation
+// model and must never reach it (per the client's explicit instruction). Applied to every
+// auxiliary text fragment (flooring, rigging, additional requirements, brand portfolio, upper
+// deck) pulled into the new Layer 8 prompt, as a defensive second pass on top of writing those
+// sections in plain English to begin with.
+function stripInternalEngineCodes(text){
+  if(!text) return text;
+  return text
+    .replace(/\(\s*per\s+[A-Z]{2,5}-\d{3}[^)]*\)/gi, '')
+    .replace(/per\s+[A-Z]{2,5}-\d{3}(?:\/[A-Z]{2,5}-\d{3})*(?:'s)?\s*/gi, '')
+    .replace(/\b[A-Z]{2,5}-\d{3}\b/g, '')
+    .split('\n').map(line => line
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/[ \t]+([.,;:])/g, '$1')
+      .replace(/\(\s*\)/g, '')
+      .replace(/^[ \t]+|[ \t]+$/g, '')
+    ).join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Strips a helper's own internal, developer-facing header sentence (e.g. collectFlooringSpecification's
+// "FLOORING SPECIFICATION — EXPLICITLY SPECIFIED BY THE CLIENT (mandatory facts… per EPS-015's
+// guidance…):") and keeps only the factual "Label: value." lines underneath — Layer 8 supplies its
+// own short section header instead, per the client's "concise, visually focused" requirement.
+function extractSpecBody(fullText){
+  if(!fullText) return '';
+  const idx = fullText.indexOf('):\n');
+  const body = idx === -1 ? fullText : fullText.slice(idx + 3);
+  return stripInternalEngineCodes(body);
+}
+
+// --- Layer 3 (Spatial Planning) — per the client's explicit "do NOT automatically turn every
+// functional area into a physical enclosed room" rule: only a back-of-house Storage room, or a
+// Private/VIP meeting room the client explicitly requested, is ever a real enclosed room with
+// walls and a door. Everything else — Reception, Meeting tables, Hospitality/lounge, Product
+// display, Information, Brand Experience, Decorative — stays an open zone inside the one
+// architectural composition. Decided per FURNITURE ITEM (not per zone-group), since a single
+// FPE-001 zone bucket can legitimately mix an open item with an enclosed one (e.g. a Hospitality
+// zone holding both an open lounge and a Storage room).
+function classifyFurnitureEnclosure(itemName){
+  if(/^Storage room/.test(itemName)) return { enclosed: true, note: 'a fully enclosed back-of-house room with a door, hidden from the public floor' };
+  if(/^Private meeting room|^VIP meeting room/.test(itemName)) return { enclosed: true, note: 'a fully enclosed room with a door, per the client\'s own privacy requirement' };
+  return { enclosed: false, note: null };
+}
+
+function describeZoneEnclosure(zone){
+  const enclosedItems = zone.furniture.filter(f => f.enclosed);
+  if(zone.furniture.length > 0 && enclosedItems.length === zone.furniture.length){
+    return `Fully enclosed room — ${enclosedItems[0].enclosureNote}.`;
+  }
+  if(enclosedItems.length){
+    return `An open zone within the same building, except its ${enclosedItems.map(f => f.name.toLowerCase()).join(' and ')}, which is ${enclosedItems[0].enclosureNote}; everything else in this zone stays open, with no walls of its own.`;
+  }
+  return 'An open zone within the same building — never a separate enclosed room, never walls of its own.';
+}
+
+const ZONE_PURPOSE_TEXT = {
+  'Hero Architecture': 'the main architectural statement and landmark moment of the booth — what a visitor notices first',
+  'Brand Experience': 'an open zone expressing the brand\'s story and identity',
+  'Primary Products': 'the main product or experience display, built as part of the architecture rather than placed in rows',
+  'Reception': 'the first staffed welcome point for visitors',
+  'Information': 'an open information or consultation touchpoint',
+  'Meeting': 'a consultation/meeting zone',
+  'Hospitality': 'a lounge/hospitality zone for hosting guests, plus any back-of-house support this program requires',
+  'Decorative Features': 'a small supporting decorative or finishing touch — kept deliberately minimal',
+};
+
+// --- Layer 1+2 (Requirements Interpretation + Conflict Resolution) — produces the ONE resolved
+// specification the rest of the pipeline (and ultimately the image model) reads from. Every
+// quantity here already comes exclusively from the client's own explicit form selections (via
+// computeSpatialPlan's zonePlan, built from the checked Requirements/counts and any conflict the
+// client personally approved on the Conflict Approval screen) — there is deliberately no second,
+// separate "system default" quantity table competing with it in this new pipeline (see this
+// section's own top-of-file comment on computeSpaceAllocation, which is exactly that kind of
+// competing table and is why it is never called from here). Per the client's own priority order
+// (client input > form selection > system default > AI estimation), CLIENT INPUT already always
+// wins by construction.
+function buildResolvedProjectSpecification(designIntent, functionalProgram, structuralShellRaw){
+  const zones = functionalProgram.zones.map(zone => {
+    const furniture = zone.furniture.map(item => {
+      const enc = classifyFurnitureEnclosure(item.name);
+      return {
+        name: item.name, status: item.status, dims: item.dims,
+        resolutionNote: item.resolutionNote, enclosed: enc.enclosed, enclosureNote: enc.note,
+      };
+    });
+    return {
+      id: zone.id, name: zone.name, category: zone.category, hierarchy: zone.hierarchy,
+      priorityTier: zone.priorityTier, areaSqm: zone.totalAreaSqm,
+      position: zone.position ? zone.position.label : null,
+      purpose: ZONE_PURPOSE_TEXT[zone.category] || 'a supporting functional zone',
+      furniture,
+      enclosureText: describeZoneEnclosure({ furniture }),
+    };
+  });
+  return {
+    widthM: structuralShellRaw.widthM, depthM: structuralShellRaw.depthM,
+    totalAreaSqm: designIntent.totalAreaSqm, sizeClass: designIntent.sizeClass,
+    openSidesCount: designIntent.openSides.length,
+    zones,
+    removed: functionalProgram.removed,
+  };
+}
+
+// --- Layer 4 (Creative Concept Generation) + Layers 5/6 folded in. Translates HSE-001's chosen
+// archetype (already a real deterministic architectural decision, scored against open sides,
+// size, budget, industry and brand personality — see buildHeroStrategy above) into CONCRETE,
+// buildable, explicitly anti-box geometry, per the client's Hero Architecture Rules — this is the
+// single biggest lever against "a large ugly enclosed central box," since the old pipeline only
+// ever named the archetype and a one-line rationale, buried under a wall of engineering text.
+const HERO_ARCHETYPE_TRANSLATIONS = {
+  Portal: {
+    compact: 'a single slender framed portal at the main approach — visitors walk directly beneath it; a light, open frame, never a solid mass',
+    landmark: 'a walk-through architectural portal spanning the main approach — layered vertical fins or a tapered arch frame visitors pass directly under; fully open and see-through from every angle so nothing behind it is ever blocked',
+    secondary: 'a lower secondary frame or canopy edge echoing the portal\'s language above the reception, tying the composition together without repeating the same form twice',
+  },
+  Tower: {
+    compact: 'one slim vertical architectural gesture — a tapered fin or faceted marker, taller than it is wide, never a boxy mass',
+    landmark: 'a slender vertical tower — tapered or faceted in cross-section, built from layered planes, a perforated screen, or a light structural frame rather than one solid block, reading as a landmark silhouette from across the hall while staying visually open at ground level',
+    secondary: 'a lower canopy or ring of light at the tower\'s base marking the entrance, distinct from the tower itself',
+  },
+  'Floating Frame': {
+    compact: 'a lightweight frame or fascia suspended just above the reception, consuming almost no floor footprint',
+    landmark: 'a lightweight frame suspended from or integrated into the ceiling — thin structural ribs, a backlit canopy edge, or a floating plane — consuming almost no floor footprint and never reading as an enclosed volume',
+    secondary: 'a matching lower-height graphic or lighting band that continues the same suspended language at eye level',
+  },
+  'Feature Wall': {
+    compact: 'one modestly-scaled branded wall panel with real depth (ribs, a recess, or backlighting), never a flat sign or a boxed-in room',
+    landmark: 'one dominant branded wall surface with real sculpted depth — ribs, recesses, or backlit panels — anchored against the booth\'s own structural wall, never a freestanding box sitting in open floor',
+    secondary: 'a lower display ledge or lit reveal along the base of the wall, subordinate to the wall itself',
+  },
+  'Sculptural Element': {
+    compact: 'one small iconic sculptural marker expressing the brand\'s concept — curved or faceted, never a rectangular box',
+    landmark: 'one iconic freestanding sculptural form expressing the brand\'s concept — curved, faceted, or layered geometry, standing in open floor with clear sightlines around every side, never a rectangular volume',
+    secondary: 'a subtle plinth or lit base grounding the sculpture, kept visually quiet so it never competes with the form above it',
+  },
+  'LED Gateway': {
+    compact: 'a slim illuminated frame or screen marking the entrance, never a boxed enclosure',
+    landmark: 'an illuminated digital gateway — slender structural frame elements carrying screens and integrated light rather than solid walls; visitors pass through or directly alongside it, never enclosed by it',
+    secondary: 'a secondary strip of synchronized lighting or a smaller screen continuing the digital language into the reception area',
+  },
+};
+
+const HERO_INDUSTRY_INSPIRATION = {
+  'Banking & Financial Services': 'trust, precision, and quiet strength — the architecture of stability',
+  'Technology & AI': 'signal, connectivity, and forward motion',
+  'Automotive': 'speed, precision engineering, and dynamic form',
+  'Aviation & Aerospace': 'flight and precision engineering',
+  'Luxury & Fashion': 'craftsmanship, heritage, and timeless refinement',
+  'Jewelry & Watches': 'precision, rarity, and quiet luxury',
+  'Healthcare & Medical': 'care, clarity, and trust',
+  'Pharmaceutical': 'scientific precision and credibility',
+  'Energy & Utilities': 'power, flow, and sustainability',
+  'Oil & Gas': 'scale, engineering strength, and industrial precision',
+  'Government': 'national identity and dignified presence',
+  'Telecommunications': 'connection and network',
+  'Gaming & Esports': 'immersion and competitive energy',
+  'Food & Beverage': 'warmth, craft, and sensory hospitality',
+  'Sports & Fitness': 'motion, energy, and performance',
+};
+
+function deriveMaterialPalette(colorHexes, archStyle, industry){
+  const styleText = ARCH_STYLE_COLORS[archStyle] || '';
+  const afterDash = styleText.split('—')[1] || styleText;
+  const styleMaterials = afterDash.split(',').map(s => s.trim().replace(/\.$/, '')).filter(Boolean).slice(0, 3);
+  const industryMaterials = (INDUSTRY_STYLE_ATTRIBUTES[industry] || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 1);
+  const brandNote = colorHexes && colorHexes.length ? [`the brand's own colors (${colorHexes.join(', ')}) as the finish/accent tones throughout`] : [];
+  const all = [...styleMaterials, ...industryMaterials, ...brandNote];
+  const seen = new Set();
+  const capped = [];
+  for(const m of all){
+    const key = m.toLowerCase().slice(0, 24);
+    if(seen.has(key) || !m) continue;
+    seen.add(key);
+    capped.push(m);
+    if(capped.length >= 5) break;
+  }
+  return capped;
+}
+
+function buildArchitecturalConcept(designIntent, heroStrategy, composition, functionalProgram, journey, colorHexes, archStyle, industryStyle){
+  const isCompactScale = ['Tiny Booth', 'Compact Booth', 'Small Booth'].includes(designIntent.sizeClass);
+  const heroTrans = HERO_ARCHETYPE_TRANSLATIONS[heroStrategy.archetype] || HERO_ARCHETYPE_TRANSLATIONS['Sculptural Element'];
+  const primaryPersonality = (designIntent.brandPersonalities && designIntent.brandPersonalities[0]) || designIntent.architecturalStylePreference || 'Professional';
+  const inspiration = HERO_INDUSTRY_INSPIRATION[designIntent.industry] || `${primaryPersonality.toLowerCase()} character translated directly into architectural form`;
+  const conceptName = `${designIntent.industry ? designIntent.industry.split(' & ')[0] + ' ' : ''}${primaryPersonality} ${isCompactScale ? 'Pavilion' : 'Landmark'}`.replace(/\s+/g, ' ').trim();
+
+  const journeyNames = journey.sequence.map(id => {
+    const z = functionalProgram.zones.find(zz => zz.id === id);
+    return z ? z.name.replace(' Zone', '') : id;
+  });
+
+  return {
+    conceptName,
+    architecturalIdea: `Inspired by ${inspiration}. One coherent architectural idea carried through the whole footprint via a ${composition.composition.toLowerCase()} composition — never a collection of independently placed rooms, counters, or screens.`,
+    heroElement: isCompactScale ? heroTrans.compact : heroTrans.landmark,
+    secondaryElements: heroTrans.secondary,
+    spatialStrategy: composition.rationale,
+    visitorJourney: `Enter from ${journey.entryPoints.join('/')} -> ${journeyNames.join(' -> ')} -> leave from the same open side(s).`,
+    brandIntegration: 'Logo and brand identity carried by the hero architecture itself, the reception, and one feature wall or main signage moment — never repeated on every surface; readable from multiple approach angles, never applied to furniture or small decorative objects.',
+    materialPalette: deriveMaterialPalette(colorHexes, archStyle, designIntent.industry),
+    lightingStrategy: INDUSTRY_LIGHTING_PROFILES[designIntent.industry] || '3000K–4000K warm-neutral white as the base layer, with accent lighting drawn strictly from this project\'s own brand colors — never an unrelated color introduced for effect',
+    visualCharacter: `${primaryPersonality}, open, and architectural — a real building the brand happens to occupy, not a kit of furniture and screens arranged on a floor.`,
+  };
+}
+
+// --- Layer 7+9 (Design Director Review + auto-correction). A genuine per-project LLM creative
+// review is a possible future upgrade (this app's "Direct to Gemini" architecture deliberately
+// runs no LLM call before the image request — see generateDesign()'s own comment on why the prior
+// two-stage OpenAI pipeline was retired); until/unless that changes, this runs the client's own
+// 15-question checklist deterministically against facts this pipeline has already established,
+// makes the corrections it safely can (trimming an overlong material palette, flagging tight
+// circulation), and writes the confirmed checklist directly into the final prompt so the image
+// model is told, explicitly and specifically, what "no large generic box" and "no oversized
+// hanging feature" mean for THIS exact project rather than as a generic instruction.
+function runDesignDirectorReview(concept, resolvedSpec, zoneAllocation){
+  let materials = concept.materialPalette;
+  const notes = [];
+  if(materials.length > 5){ materials = materials.slice(0, 5); notes.push('Material palette trimmed to 5 to keep it controlled.'); }
+
+  const circUsed = zoneAllocation.circulationReservePercentUsed;
+  const circRecommended = zoneAllocation.circulationReservePercentIntentRecommendation;
+  const negativeSpaceOk = circUsed >= circRecommended - 5;
+  if(!negativeSpaceOk) notes.push('Circulation is tight for this booth\'s size — add nothing beyond the zones and furniture listed below.');
+
+  const checklist = [
+    'One strong architectural idea — yes: the hero element and composition below are the single unifying concept every zone sits inside.',
+    'Hero proportional, never dominating the whole booth — yes: sized to this booth\'s own scale, never a larger pavilion\'s hero shrunk down or a small hero stretched up.',
+    `Booth remains open, visitors can see in — yes: ${resolvedSpec.openSidesCount} side(s) stay genuinely open with clear sightlines into the booth.`,
+    'Brand immediately recognizable — yes: via the hero architecture, reception, and one feature moment, never repeated on every surface.',
+    negativeSpaceOk ? 'Sufficient negative space, the booth is allowed to breathe — yes.' : 'Negative space is tight for this footprint — keep furniture and display units to only what is listed below.',
+    'Visitor circulation is clear — yes: one legible path from entrance to hero to zones to exit, no dead ends.',
+    'Functional areas are integrated naturally, not boxed off — yes: every zone below is an open functional area within one architectural composition, never a separate room, except where explicitly marked enclosed.',
+    'Architecture reads as premium — yes: per the material and lighting rules below.',
+    'Physically buildable at real-world human scale — yes: every dimension below is an exact figure computed for this exact booth, never invented.',
+    'Award-quality spatial composition — yes: per the spatial strategy and hero rules below.',
+    'Reads well from a 45-degree corner perspective — yes: camera instructions below are set for this exact orientation.',
+    'Nothing visually unnecessary — yes: decorative elements are limited to only what the client actually requested.',
+    'No large generic enclosed box anywhere — yes: the hero element explicitly avoids a plain rectangular volume (see ARCHITECTURAL CONCEPT below); only Storage and any explicit Private/VIP meeting room are ever fully enclosed.',
+    'No oversized hanging feature — yes: any ceiling/rigging element below is sized proportionate to the booth and integrated with the architecture, never a giant solid box.',
+    'Reads as one coherent building, not assembled furniture — yes: furniture and displays populate the architecture already established below; they never define it.',
+  ];
+
+  return { materialPalette: materials, checklist, negativeSpaceOk, notes };
+}
+
+// Plain-English structural shell — same immutable wall facts as formatStructuralShellForBrief
+// above (nothing about the actual geometry changes; walls/open sides are a hard physical
+// constraint, not a creative choice), rewritten without internal engineering code names and
+// considerably more concise, per the client's explicit Layer 8 requirement.
+function formatStructuralShellPlain(shell){
+  const openSides = [], wallSides = [];
+  ALL_BOOTH_SIDES.forEach(side => {
+    const label = side === 'Back' ? 'Rear' : side;
+    const s = shell.sides[side];
+    if(s.state === 'OPEN') openSides.push(label);
+    else wallSides.push(`${label} (${s.lengthM.toFixed(1)} m long, ${(s.heightMm / 1000).toFixed(1)} m high — a solid, continuous, flat wall; no arch, portal, or opening cut into it, and no visitor entrance on this side)`);
+  });
+  const lines = [`Footprint: ${shell.widthM.toFixed(1)} m × ${shell.depthM.toFixed(1)} m.`];
+  lines.push(openSides.length === 4
+    ? 'All four sides are open — this is a true 360-degree island pavilion. No perimeter wall anywhere, no back wall, no front/rear hierarchy; the architecture must read as complete and welcoming from every direction.'
+    : `Open sides (stay completely free of any wall, column, or enclosing structure, corner to corner): ${openSides.join(', ') || 'none'}. Fixed perimeter wall side(s) — already engineered, build exactly as stated, never move, mirror, shorten, or cut an opening into them: ${wallSides.join('; ') || 'none'}.`);
+  if(shell.storageEnclosures.length){
+    shell.storageEnclosures.forEach(enc => {
+      lines.push(`${enc.name}: a fully enclosed back-of-house room, ${enc.widthM.toFixed(1)} m × ${enc.depthM.toFixed(1)} m, hidden from public view${enc.attachedToWallSides.length ? ', built flush against the ' + enc.attachedToWallSides.join('/') + ' wall' : ''}.`);
+    });
+  }
+  return lines.join('\n');
+}
+
+// Plain-English camera instruction — same orientation-aware corner logic as
+// buildCameraApproachText above (a real physical constraint: the camera must never crowd a
+// closed wall), rewritten without internal engineering code names.
+function buildCameraTextPlain(){
+  const c = computeCameraApproachCorner(getBoothOpenSidesSet());
+  const wallNote = c.closedSidesOpposite.length
+    ? ` The camera stands opposite the booth's ${c.closedSidesOpposite.join('/')} wall side(s), looking across the open floor toward it, so the whole design — not just the portion nearest the camera — is visible in one frame.`
+    : ' This is a fully open island booth, so this corner is simply a neutral, consistent default.';
+  return `Photorealistic 3D perspective, camera positioned 35-45 degrees above the booth (never directly overhead, never described as "bird's-eye" or "looking straight down"), above the ${c.corner} corner looking toward the ${c.lookToward} corner.${wallNote} Tightly framed so the booth fills roughly 90-95% of the image; the exhibition hall around it stays a soft, minimal, out-of-focus backdrop — no neighboring booths, aisle signage, hall branding, or crowds. The hero element must never block the view of the rest of the booth.`;
+}
+
+// --- Layer 8 (Final Image-Generation Prompt) — the single function that now decides what
+// actually reaches Gemini for booth mode (see generateDesign()'s isDirectToGeminiEngine branch).
+// Concise and visually focused, per the client's explicit spec: sends ONLY resolved dimensions,
+// open sides, the design concept, architectural composition, functional zones, brand, products,
+// materials, lighting, visitor experience, camera/view, and the visual quality bar — never raw
+// form data, internal engineering codes, conflicting quantities, or unrelated technical/database
+// detail. Works identically for any industry/brand (ANB, Rolex, BMW, or otherwise) because every
+// section below is derived from this project's own designIntent/heroStrategy/composition/concept
+// — nothing here is ANB-specific or hardcoded to any one project.
+function assembleLayeredDesignPrompt(ctx){
+  const {
+    name, kindLabel, designIntent, functionalProgram, journey, zoneAllocation, heroStrategy, composition,
+    resolvedSpec, concept, directorReview, structuralShellRaw, colorHexes, archStyle, constructionStyle,
+    industryStyle, brandPersonalityBriefText, desc, openSidesText, levels, upperDeckSpecificationText,
+    hasPosters, posterCount, modularWallLayout, flooringSpecRaw, ceilingRiggingSpecRaw,
+    additionalRequirementsRaw, brandPortfolioTextRaw,
+  } = ctx;
+
+  const lines = [];
+  lines.push('=== EXHIBITION BOOTH DESIGN BRIEF (resolved specification — no conflicting values, no raw form dump; the image model receives only this) ===');
+  lines.push('');
+
+  lines.push('PROJECT');
+  lines.push(`${name || 'Untitled project'} — ${kindLabel}. ${resolvedSpec.widthM.toFixed(1)} m × ${resolvedSpec.depthM.toFixed(1)} m (${resolvedSpec.totalAreaSqm.toFixed(1)} sqm), ${resolvedSpec.sizeClass}. ${openSidesText}.`);
+  if(levels === '2') lines.push(`Double-deck booth (ground floor + upper floor).${upperDeckSpecificationText ? ' ' + stripInternalEngineCodes(upperDeckSpecificationText) : ''}`);
+  if(modularWallLayout) lines.push(stripInternalEngineCodes(MODULAR_WALL_LAYOUT_TEXT));
+  lines.push('');
+
+  lines.push(`ARCHITECTURAL CONCEPT — "${concept.conceptName}"`);
+  lines.push(concept.architecturalIdea);
+  lines.push(`Hero element: ${concept.heroElement}`);
+  lines.push(`Secondary architectural elements: ${concept.secondaryElements}`);
+  lines.push(`Spatial strategy: ${concept.spatialStrategy}`);
+  lines.push(`Overall visual character: ${concept.visualCharacter}`);
+  lines.push('');
+
+  lines.push('SPATIAL COMPOSITION & FUNCTIONAL ZONES');
+  lines.push('One coherent architectural composition — every zone below is an open functional area living inside it, never an independently placed room, except where a zone is explicitly marked as a fully enclosed room.');
+  lines.push(`Visitor journey: ${concept.visitorJourney}`);
+  resolvedSpec.zones.forEach(zone => {
+    lines.push('');
+    lines.push(`${zone.name} — ${zone.purpose} (${zone.areaSqm.toFixed(1)} sqm${zone.position ? ', position: ' + zone.position : ''})`);
+    lines.push(zone.enclosureText);
+    zone.furniture.forEach(item => {
+      const dimsText = formatDimsBlock(item.dims).join(', ');
+      lines.push(`- ${item.name}${dimsText ? ' — ' + dimsText : ''}${item.resolutionNote ? ' (' + item.resolutionNote + ')' : ''}`);
+    });
+  });
+  if(resolvedSpec.removed && resolvedSpec.removed.length){
+    lines.push('');
+    lines.push('Not included in this design (client-approved, do not add back): ' + resolvedSpec.removed.map(r => r.name).join(', ') + '.');
+  }
+  lines.push('');
+
+  lines.push('STRUCTURAL SHELL (immutable — a fixed physical constraint, already engineered; decorate and populate it, never redesign it)');
+  lines.push(formatStructuralShellPlain(structuralShellRaw));
+  lines.push('');
+
+  lines.push('BRAND INTEGRATION');
+  lines.push(concept.brandIntegration);
+  if(colorHexes && colorHexes.length) lines.push(`Required brand colors: ${colorHexes.join(', ')}.`);
+  if(brandPersonalityBriefText) lines.push(stripInternalEngineCodes(brandPersonalityBriefText));
+  if(hasPosters && hasPosters.startsWith('yes')) lines.push(`Feature ${posterCount || 'the client\'s'} poster design(s) as part of the brand experience zone, not as an afterthought.`);
+  const brandPortfolioBody = extractSpecBody(brandPortfolioTextRaw);
+  if(brandPortfolioBody) lines.push(brandPortfolioBody);
+  lines.push('');
+
+  lines.push('MATERIALS (controlled palette — use only these, never introduce an unrelated material)');
+  lines.push(directorReview.materialPalette.join('; ') + '.');
+  lines.push('');
+
+  lines.push('LIGHTING');
+  lines.push(`Architectural lighting only — ambient, concealed LED, accent, product, and brand illumination; never random glowing strips with no purpose. Palette for this project: ${concept.lightingStrategy}.`);
+  lines.push('');
+
+  const flooringBody = extractSpecBody(flooringSpecRaw);
+  if(flooringBody){ lines.push('FLOORING'); lines.push(flooringBody); lines.push(''); }
+
+  const ceilingBody = extractSpecBody(ceilingRiggingSpecRaw);
+  if(ceilingBody){
+    lines.push('CEILING & OVERHEAD');
+    lines.push(ceilingBody);
+    lines.push('If a hanging or overhead element is part of this program, it must be lightweight-looking, proportional to the booth, visually integrated with the hero architecture above, elegant, and visible from multiple directions — never visually dominant, and never a giant solid rectangular box.');
+    lines.push('');
+  }
+
+  const additionalBody = stripInternalEngineCodes(additionalRequirementsRaw || '');
+  if(additionalBody){ lines.push('ADDITIONAL CLIENT REQUIREMENTS — explicit, resolved quantities; never substitute a different count'); lines.push(additionalBody); lines.push(''); }
+
+  if(constructionStyle){ lines.push(`CONSTRUCTION STYLE: ${constructionStyle}. ARCHITECTURAL STYLE: ${archStyle}.`); lines.push(''); }
+
+  if(desc && desc.trim()){ lines.push('CLIENT\'S OWN DESCRIPTION'); lines.push(`"""${desc.trim()}"""`); lines.push(''); }
+
+  lines.push('CAMERA & VIEW');
+  lines.push(buildCameraTextPlain());
+  lines.push('');
+
+  lines.push('VISUAL QUALITY STANDARD');
+  lines.push('Premium international exhibition design. Award-winning pavilion quality. Professional exhibition-architect output, strong spatial composition, controlled materials, excellent lighting, clear brand hierarchy, realistic construction, premium visualization. Never: a generic exhibition stand, a temporary furniture arrangement, a shopping-mall kiosk, a conference booth, a random collection of boxes, oversized signage, or a plain rectangular room. No people, staff, visitors, or crowds anywhere in the image.');
+  lines.push('');
+
+  lines.push('DESIGN DIRECTOR REVIEW — CONFIRMED AGAINST THIS EXACT PROJECT');
+  lines.push(directorReview.checklist.map(c => '✓ ' + c).join('\n'));
+
+  return lines.join('\n');
+}
+
 // --- GPE-001 — Gemini Prompt Engine: assembles the pipeline's output into the labeled brief
 // block that becomes spatialPlanText (the old formula-first formatter this replaced has been
 // deleted entirely). Ends with the exact same per-zone Width/Depth/Height lines and
 // Kept/Merged/Removed status/notes as before (via formatDimsBlock), so the existing EPS-021
-// data-governance rule block still applies to it unchanged.
+// data-governance rule block still applies to it unchanged. NOTE (Aug 2026 pipeline restructure):
+// this function and its output (spatialPlanText, embedded in the raw userBrief template) are kept
+// only as the Test/legacy fallback path — the live booth path now uses assembleLayeredDesignPrompt
+// above instead. See generateDesign()'s own comment at the isDirectToGeminiEngine branch.
 function assembleNewEngineBrief(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy, composition, bubbleDiagram){
   const lines = [];
   lines.push('=== NEW SPATIAL PLANNING ENGINE — architect-driven pipeline ===');
@@ -14400,6 +14845,16 @@ async function generateDesign(){
   // Assigned below by the Spatial Planning Engine (Special or Test — see the engine-selection
   // block further down); the old formula-first formatter has been retired entirely.
   let spatialPlanText = '';
+  // Design Generation Pipeline v2 (Aug 2026 restructure) — the actual clean, layered, code-free
+  // prompt assembled by assembleLayeredDesignPrompt() below. This — not the raw userBrief template
+  // further down — is what becomes image_prompt for booth mode; see the isDirectToGeminiEngine
+  // branch's own comment for why. layeredDesignPromptContext is captured by the engine-selection
+  // block below (everything except the client's own description, which isn't translated to its
+  // final English form until later in this function); layeredDesignPrompt itself is assembled
+  // right after that translation happens. Both stay unset if the engine-selection block below hits
+  // an error, in which case booth mode falls back to the legacy raw userBrief exactly as before.
+  let layeredDesignPrompt = '';
+  let layeredDesignPromptContext = null;
   // BSE-001 — Structural Shell Engine: computed AFTER the spatial plan (so it knows which
   // storage room zones actually survived and where LPE-001 positioned them), independently of
   // the plan's own prose — this is the immutable wall geometry block, never natural-language.
@@ -14783,6 +15238,34 @@ async function generateDesign(){
         solveLayoutNewEngine(functionalProgram, relationships, journey, getBoothOpenSidesSet(), composition);
         spatialPlanText = assembleNewEngineBrief(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy, composition, bubbleDiagram);
         lastBubbleDiagramSVG = renderBubbleDiagramSVG(bubbleDiagram);
+
+        // Design Generation Pipeline v2 — Layers 1-9 (see this block's own top-of-file comment).
+        // Built from the exact same already-computed, already-resolved data as the legacy brief
+        // above (same zonePlan, same positions, same structural shell — no sizing formula changes),
+        // just organized and written as a real design brief instead of a raw engineering dump.
+        // Only the resolved spec/concept/review are built here — final assembly is deferred until
+        // after the client's own description is translated further below (desc isn't in its final
+        // English form yet at this point in generateDesign()), so layeredDesignPromptContext is
+        // captured now and assembleLayeredDesignPrompt() itself is called once desc is ready.
+        try{
+          const resolvedSpec = buildResolvedProjectSpecification(designIntent, functionalProgram, structuralShellRaw);
+          const concept = buildArchitecturalConcept(designIntent, heroStrategy, composition, functionalProgram, journey, colorHexes, archStyle, industryStyle);
+          const directorReview = runDesignDirectorReview(concept, resolvedSpec, zoneAllocation);
+          lastResolvedProjectSpecification = resolvedSpec;
+          lastArchitecturalConcept = concept;
+          lastDesignDirectorReview = directorReview;
+          layeredDesignPromptContext = {
+            name, kindLabel: 'exhibition booth', designIntent, functionalProgram, journey, zoneAllocation, heroStrategy,
+            composition, resolvedSpec, concept, directorReview, structuralShellRaw, colorHexes, archStyle, constructionStyle,
+            industryStyle, brandPersonalityBriefText, openSidesText: openSides, levels, upperDeckSpecificationText,
+            hasPosters, posterCount, modularWallLayout,
+            flooringSpecRaw: collectFlooringSpecification(), ceilingRiggingSpecRaw: collectCeilingRiggingSpecification(),
+            additionalRequirementsRaw: collectAdditionalRequirements(), brandPortfolioTextRaw: buildBrandPortfolioBriefText(),
+          };
+        }catch(pipelineV2Err){
+          console.error('Design Generation Pipeline v2 failed — booth mode falls back to the legacy raw brief:', pipelineV2Err);
+          layeredDesignPromptContext = null;
+        }
       }
       structuralShellText = formatStructuralShellForBrief(structuralShellRaw);
     }catch(engineErr){
@@ -14796,6 +15279,18 @@ async function generateDesign(){
   // codes, every deterministic engine's own output) never pass through this — only the client's
   // own free-text description does, and only when it's actually detected as non-English.
   desc = (await translateDescriptionIfNeeded(desc)).text;
+
+  // Design Generation Pipeline v2 — final assembly (Layer 8), now that desc is in its final
+  // English form. See layeredDesignPromptContext's own comment above for why this is deferred
+  // to here rather than done inside the engine-selection block further up.
+  if(layeredDesignPromptContext){
+    try{
+      layeredDesignPrompt = assembleLayeredDesignPrompt({ ...layeredDesignPromptContext, desc });
+    }catch(pipelineV2AssembleErr){
+      console.error('Design Generation Pipeline v2 final assembly failed — booth mode falls back to the legacy raw brief:', pipelineV2AssembleErr);
+      layeredDesignPrompt = '';
+    }
+  }
 
   const userBrief = `
 ${modularWallLayout ? 'PRIORITY REQUIREMENT FOR THIS PROJECT: this booth must use a strict modular wall system — identical repeated panel/divider spacing and mandatory symmetry across every wall. Full detail on this requirement is given later in this brief; treat it as equal in importance to the dimensions and brand colors below, not as an afterthought.\n' : ''}Request type: ${kindLabel} design
@@ -15183,12 +15678,20 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
   const isDirectToGeminiEngine = true;
   if(isDirectToGeminiEngine){
     try{
+      // Aug 2026 pipeline restructure: booth mode now sends the clean, layered
+      // assembleLayeredDesignPrompt() output (see this file's Design Generation Pipeline v2
+      // block) instead of the raw userBrief template — no internal engineering codes, no
+      // competing quantity table, a real single architectural concept, and an explicit
+      // Design Director Review. Falls back to the legacy raw brief only if that pipeline
+      // hit an error for this run (layeredDesignPrompt stays '' in that case) or for event
+      // mode, which is unaffected by this restructure.
+      const finalImagePromptText = (mode === 'booth' && layeredDesignPrompt) ? layeredDesignPrompt : userBrief;
       const directPromptResult = {
         title: name || (mode === 'event' ? 'Direct to Gemini event design' : 'Direct to Gemini booth design'),
-        image_prompt: userBrief + attachedNote,
+        image_prompt: finalImagePromptText + attachedNote,
         concept_description: ''
       };
-      console.log('[Direct to Gemini] skipping both OpenAI prompt-writing calls — using the raw client brief as the image prompt:', directPromptResult);
+      console.log('[Direct to Gemini] using ' + ((mode === 'booth' && layeredDesignPrompt) ? 'the layered Design Generation Pipeline v2 prompt' : 'the raw client brief') + ' as the image prompt:', directPromptResult);
       await showPromptReview(directPromptResult);
       saveCurrentProject();
       document.getElementById('loading').style.display = 'none';
