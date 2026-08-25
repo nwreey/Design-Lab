@@ -697,8 +697,8 @@
 
   <div class="tabs" id="modeTabs">
     <button class="tab active" id="tabBooth" onclick="setMode('booth')" data-i18n="tabs.booth">Exhibition Booth</button>
-    <button class="tab" id="tabEvent" onclick="setMode('event')" style="display:none;" data-i18n="tabs.event">Event Concept</button>
-    <button class="tab" id="tabDisplayStand" onclick="setMode('displaystand')" style="display:none;" data-i18n="tabs.displayStand">Display Stand</button>
+    <button class="tab" id="tabEvent" onclick="setMode('event')" data-i18n="tabs.event">Event Concept</button>
+    <button class="tab" id="tabDisplayStand" onclick="setMode('displaystand')" data-i18n="tabs.displayStand">Display Stand</button>
     <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')" style="display:none;" data-i18n="tabs.editDesign">Modify Design</button>
   </div>
 
@@ -9208,16 +9208,13 @@ async function checkAdminAccess(){
       isAdminUser = true;
       const link = document.getElementById('adminPanelLink');
       if(link) link.style.display = 'inline-block';
-      // Event Concept and Display Stand are still in testing — kept visible to admins only
-      // until each is finished and deliberately opened up to all users. Remove this reveal
-      // (and the style="display:none;" on the buttons themselves) when that happens.
+      // Event Concept and Display Stand tabs are now visible to ALL users (per explicit
+      // product decision for launch — the buttons no longer carry display:none), so the old
+      // admin-only reveal that used to live here is gone. Display Stand still shows its
+      // "not available yet" state on its own Generate button until that pipeline is built.
       // Modify Design (tabEditDesign) stays hidden from everyone, including admins, per that
       // same earlier product decision — left fully working under the hood (not removed) in case
       // it's needed again later; just not revealed here for any role.
-      ['tabEvent', 'tabDisplayStand'].forEach(id => {
-        const tab = document.getElementById(id);
-        if(tab) tab.style.display = '';
-      });
       // Test Engine selector reveal removed — Test Engine is retired, see newSpatialEngineField's
       // own comment. Its div stays hidden for every role now, including admins.
       // "Upload an existing design" (left sidebar, below the project list) — per explicit client
