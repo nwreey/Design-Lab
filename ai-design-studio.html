@@ -18500,19 +18500,19 @@ async function submitModifyDesign(){
   const noticeText = document.getElementById('modifyNoticeText');
   if(isAdminUser){
     noticeText.textContent = 'Submit this modification?';
-  }else if(currentUserModifyLimit == null){
-    noticeText.textContent = `This will use 1 of your modifications — you've used ${currentUserModifyCount != null ? currentUserModifyCount : 0} so far, with no set limit.`;
+  }else if(currentUserEditLimit == null){
+    noticeText.textContent = `This will use 1 of your edits — you've used ${currentUserEditCount != null ? currentUserEditCount : 0} so far, with no set limit.`;
   }else{
-    const remainingAfterThis = currentUserModifyLimit - currentUserModifyCount - 1;
-    noticeText.textContent = `This will use 1 of your allowed modifications — you'll have ${Math.max(0, remainingAfterThis)} remaining after this one.`;
+    const remainingAfterThis = currentUserEditLimit - currentUserEditCount - 1;
+    noticeText.textContent = `This will use 1 of your allowed edits — you'll have ${Math.max(0, remainingAfterThis)} remaining after this one.`;
   }
   document.getElementById('modifyNoticeOverlay').style.display = 'flex';
 }
 
 async function confirmSubmitModifyDesign(){
-  // The modification is charged the moment the user clicks OK (the server now
-  // increments before generating) — reflect that immediately in the sidebar.
-  if(!isAdminUser && currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
+  // Modify Design charges the EDIT quota (owner decision), spent the moment the user
+  // clicks OK (the server increments before generating) — reflect it immediately.
+  if(!isAdminUser && currentUserEditCount != null){ currentUserEditCount++; renderEditUsageIndicator(); }
   const opt = optionResults[activeOptionIndex];
   if(!opt) return;
   const idx = activeOptionIndex;
@@ -18616,7 +18616,7 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
     const response = await fetchWithTimeout(modifyEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: modifyPrompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: true, isFreeFirstModification, aspectRatio: modifyAspectRatio })
+      body: JSON.stringify({ prompt: modifyPrompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: true, quotaKind: 'edit', aspectRatio: modifyAspectRatio })
     });
     const rawText = await response.text();
     let data = {};

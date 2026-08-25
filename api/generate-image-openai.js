@@ -93,6 +93,34 @@ async function incrementModifyCount(caller) {
   }
 }
 
+/* Modify Design charges the EDIT quota (owner decision) while Other option keeps charging
+   the MODIFY quota — the client says which via quotaKind on the request body. Same shape
+   as api/edit-image-openai.js's own edit-quota gate. */
+async function checkEditQuota(caller) {
+  if (!caller || caller.role === 'admin') return null;
+  try {
+    const result = await sql`SELECT edit_limit, edit_count FROM users WHERE id = ${caller.userId};`;
+    if (result.rows.length === 0) return null;
+    const { edit_limit, edit_count } = result.rows[0];
+    if (edit_limit != null && edit_count >= edit_limit) {
+      return `You've reached your edit limit (${edit_limit}). Please contact your administrator to increase this limit.`;
+    }
+  } catch (err) {
+    console.error('Could not check edit quota:', err);
+  }
+  return null;
+}
+
+async function incrementEditCount(caller) {
+  if (!caller || caller.role === 'admin') return;
+  try {
+    await sql`UPDATE users SET edit_count = edit_count + 1 WHERE id = ${caller.userId};`;
+  } catch (err) {
+    console.error('Could not increment edit count:', err);
+  }
+}
+
+
 /* Sends the exact same final Stage 2 prompt that normally goes to api/generate-image-gemini.js
    to OpenAI's own image models instead. Two callers use this: (1) the admin-only "Image
    Engine" selector on the main form, for deliberately comparing Gemini vs. OpenAI design
@@ -128,22 +156,24 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, aspectRatio, isUserInitiatedEdit } = req.body || {};
+    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, aspectRatio, isUserInitiatedEdit, quotaKind } = req.body || {};
     if (!prompt || typeof prompt !== 'string') {
       res.status(400).json({ error: { message: 'Request body must include a "prompt" string.' } });
       return;
     }
 
     if (isUserInitiatedEdit) {
-      const quotaError = await checkModifyQuota(caller);
+      const chargesEditQuota = quotaKind === 'edit';
+      const quotaError = chargesEditQuota ? await checkEditQuota(caller) : await checkModifyQuota(caller);
       if (quotaError) {
         res.status(403).json({ error: { message: quotaError } });
         return;
       }
-      // Owner decision: the modification is spent the moment the user commits to it
-      // (clicks OK), not when the image finishes rendering — so charge it up front,
-      // before the model call, instead of after a successful generation.
-      await incrementModifyCount(caller);
+      // Owner decision: the credit is spent the moment the user commits (clicks OK),
+      // not when the image finishes rendering — so charge it up front, before the
+      // model call. Modify Design sends quotaKind 'edit' (edit quota); Other option
+      // sends nothing and stays on the modify quota.
+      if (chargesEditQuota) await incrementEditCount(caller); else await incrementModifyCount(caller);
     }
 
     const size = sizeFromAspectRatio(aspectRatio);
