@@ -15365,7 +15365,9 @@ async function generateEventConceptBoard(options){
     // Owner decision: the form goes STRAIGHT to Gemini — no intermediate analysis stage.
     const layoutPrompt = buildEventDirectGeminiPrompt(briefData);
     const genEndpoint = '/api/generate-image-gemini';
-    const eventGenBody = { prompt: layoutPrompt, isUserInitiatedEdit: false, aspectRatio: '4:3' };
+    // Initial Generate is covered by the project quota; Other Theme (inPlace) is a
+    // user-initiated modification and charges the modify quota server-side, upfront.
+    const eventGenBody = { prompt: layoutPrompt, isUserInitiatedEdit: inPlace, aspectRatio: '4:3' };
     // Attach the real company logo, same as the booth pipeline, so signage carries the
     // actual mark instead of a reinvented one.
     if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
@@ -15485,8 +15487,20 @@ function applyEventConceptBoardApprovalLock(){
   if(statusEl) statusEl.textContent = approved ? 'Approved — this theme is locked in.' : '';
 }
 
-function approveEventConceptBoard(){
+async function approveEventConceptBoard(){
   if(!eventConceptBoard) return;
+  // Every deduction is announced first (owner rule): approval renders one high-resolution
+  // picture per area, and each one costs 1 edit.
+  const approveAreas = (eventConceptBoard.areas && eventConceptBoard.areas.length) ? eventConceptBoard.areas : getSelectedEventAreas();
+  if(!isAdminUser && approveAreas.length){
+    const n = approveAreas.length;
+    const apMsg = 'Approving will generate ' + n + ' high-resolution area render' + (n === 1 ? '' : 's') + ' (one per selected area) and will use ' + n + ' of your edits'
+      + ((currentUserEditLimit != null && currentUserEditCount != null) ? ' — you have used ' + currentUserEditCount + ' of ' + currentUserEditLimit : '')
+      + '. Continue?';
+    const okAp = await customConfirm(apMsg, 'Approve', 'Approve');
+    if(!okAp) return;
+    if(currentUserEditCount != null){ currentUserEditCount += n; renderEditUsageIndicator(); }
+  }
   eventConceptBoard.approved = true;
   applyEventConceptBoardApprovalLock();
   saveCurrentProject();
@@ -15688,7 +15702,7 @@ async function generateApprovedAreaRenders(){
           const response = await fetchWithTimeout('/api/generate-image-gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, referenceImage: boardParts.base64, referenceMimeType: boardParts.mime, additionalReferenceImages: areaRenderExtraRefs, isUserInitiatedEdit: false, aspectRatio: '4:3', imageSize: size })
+            body: JSON.stringify({ prompt, referenceImage: boardParts.base64, referenceMimeType: boardParts.mime, additionalReferenceImages: areaRenderExtraRefs, isUserInitiatedEdit: size === '4K', quotaKind: 'edit', aspectRatio: '4:3', imageSize: size })
           }, 190000);
           const rawText = await response.text();
           let parsed = {};
@@ -15825,6 +15839,15 @@ function selectEcbGalleryEntry(i){
 
 async function regenerateEventConceptBoard(){
   if(blockIfGenerating()) return;
+  // Every deduction is announced first (owner rule): Other Theme costs 1 modification.
+  if(!isAdminUser){
+    const otMsg = (currentUserModifyLimit != null && currentUserModifyCount != null)
+      ? 'Generating another theme will use 1 of your modifications — you have used ' + currentUserModifyCount + ' of ' + currentUserModifyLimit + '. Continue?'
+      : 'Generating another theme will use 1 of your modifications. Continue?';
+    const okOt = await customConfirm(otMsg, 'Other Theme', 'Continue');
+    if(!okOt) return;
+    if(currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
+  }
   if(!isAdminUser) lockForm(); // admins stay writable for quick testing (owner request)
   projectSwitchLocked = true;
   // Owner decision: NO scroll to the top and NO full-page loading overlay — the previous
@@ -18815,6 +18838,16 @@ async function submitEdit(){
   if(!editDesc && !hasMarkup && !editCameraChoice){
     await customAlert('Describe the change, mark it up on the image, or pick a camera angle first.', 'Edit Image');
     return;
+  }
+
+  // Every deduction is announced first (owner rule): each picture edit costs 1 edit.
+  if(!isAdminUser){
+    const editQuotaMsg = (currentUserEditLimit != null && currentUserEditCount != null)
+      ? 'This edit will use 1 of your edits — you have used ' + currentUserEditCount + ' of ' + currentUserEditLimit + '. Continue?'
+      : 'This edit will use 1 of your edits. Continue?';
+    const okEdit = await customConfirm(editQuotaMsg, 'Edit Image', 'Continue');
+    if(!okEdit) return;
+    if(currentUserEditCount != null){ currentUserEditCount++; renderEditUsageIndicator(); }
   }
 
   const composite = document.createElement('canvas');
