@@ -1970,20 +1970,6 @@ Replace only the materials and graphics."></textarea>
       </div>
 
       <div class="field">
-        <label>Visitor Journey <span class="required-mark">*</span></label>
-        <div class="hint" style="margin-bottom:10px;">Choose the flow. This is extremely useful for AI — it directly shapes circulation and layout.</div>
-        <select id="f_visitorJourney" onchange="toggleVisitorJourneyCustom(this)">
-          <option value="" selected disabled>Choose the flow...</option>
-          <option value="Registration → Stage → Exhibition → Networking → Exit">Registration → Stage → Exhibition → Networking → Exit</option>
-          <option value="Reception → Demo Area → Meeting → Coffee → Exit">Reception → Demo Area → Meeting → Coffee → Exit</option>
-          <option value="Free Flow">Free Flow</option>
-          <option value="Guided Experience">Guided Experience</option>
-          <option value="Custom">Custom</option>
-        </select>
-        <input type="text" id="f_visitorJourneyCustom" placeholder="Describe the custom visitor flow" style="display:none;margin-top:8px;">
-      </div>
-
-      <div class="field">
         <label>Event Mood</label>
         <div class="hint" style="margin-bottom:10px;">Select up to 3.</div>
         <div class="checkbox-grid" id="eventMoodGrid">
@@ -10068,9 +10054,6 @@ function toggleEventObjectiveCustom(select){
   document.getElementById('f_eventObjectiveCustom').style.display = select.value === 'Other' ? 'block' : 'none';
 }
 
-function toggleVisitorJourneyCustom(select){
-  document.getElementById('f_visitorJourneyCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
-}
 
 // Generic "select up to N" enforcement for a checkbox-grid group — used by Event Mood (3) and
 // Brand Values (5). Once N are checked, every still-unchecked box in the group is disabled
@@ -14097,7 +14080,7 @@ Rules:
 - "eventSpecialRequirements": choose only what's genuinely implied by the event's facts and story (e.g. a government summit likely needs "High Security"; a broadcast-worthy keynote likely needs "Media Coverage") — never as default filler, from this exact list: ${eventSpecialReqOptions.join(', ')}. Return an empty array if nothing is clearly implied.
 - "successMetrics": choose whichever metrics genuinely fit the stated Event Objective, from this exact list: ${successMetricsOptions.join(', ')}.
 - "fields": for every field in the FIELD SCHEMA below, include a value keyed by its exact "id".
-  - kind "select": the value MUST be exactly one of that field's "options", copied verbatim, or null only where the field genuinely doesn't apply. If FIELD SCHEMA includes "f_visitorJourneyCustom", only give it a real value when "fields.f_visitorJourney" is "Custom" — otherwise leave it as an empty string.
+  - kind "select": the value MUST be exactly one of that field's "options", copied verbatim, or null only where the field genuinely doesn't apply.
   - kind "text"/"textarea": a short, concrete value in the same spirit as the field's label.
 - "areaPlanning": ${hasExistingAreaPlanning ? 'the client has ALREADY planned ' + areaPlanningList.length + ' area(s) themselves (see AREAS ALREADY PLANNED below) — you MUST return an empty array here; never propose additional or duplicate areas on top of what the client already entered.' : 'the client has not planned any areas themselves yet. Propose a coherent set of areas for this event (e.g. main stage, registration, networking lounge, VIP area, catering — whichever genuinely suit THIS event\'s type/objective/journey), each with a realistic "percentage" of the total footprint; all percentages together should stay at or under 100.'}
 - Never invent facts about the company or event that aren't supported by the goal, website, event story, or attached images already provided — where information is missing, make a reasonable, clearly generic choice appropriate to the stated event type and industry instead of fabricating specifics.
@@ -14484,10 +14467,6 @@ function getMissingRequirements(m){
     if(!eventObjective) addMissing('an Event Objective', 'f_eventObjective');
     else if(eventObjective === 'Other' && !eventObjectiveCustom) addMissing('a description for the custom Event Objective', 'f_eventObjectiveCustom');
     if(document.querySelectorAll('.target-audience-cb:checked').length === 0) addMissing('at least one Target Audience', { selector: '.target-audience-cb' });
-    const visitorJourney = document.getElementById('f_visitorJourney').value;
-    const visitorJourneyCustom = String(document.getElementById('f_visitorJourneyCustom').value).trim();
-    if(!visitorJourney) addMissing('a Visitor Journey', 'f_visitorJourney');
-    else if(visitorJourney === 'Custom' && !visitorJourneyCustom) addMissing('a description for the custom Visitor Journey', 'f_visitorJourneyCustom');
     if(needsIndoorSize || needsOutdoorSize){
       if(needsIndoorSize && !indoorSizeUnknown && (!indoorWidth || !indoorDepth)) addMissing('the indoor size (or check "I don\'t know the indoor size")', 'f_indoorWidth');
       if(needsOutdoorSize && !outdoorSizeUnknown && (!outdoorWidth || !outdoorDepth)) addMissing('the outdoor size (or check "I don\'t know the outdoor size")', 'f_outdoorWidth');
@@ -20585,8 +20564,6 @@ function collectFormSnapshot(){
     f_eventObjectiveCustom: document.getElementById('f_eventObjectiveCustom').value,
     f_targetAudience: Array.from(document.querySelectorAll('.target-audience-cb:checked')).map(cb => cb.value),
     f_visitorExperience: Array.from(document.querySelectorAll('.visitor-experience-cb:checked')).map(cb => cb.value),
-    f_visitorJourney: document.getElementById('f_visitorJourney').value,
-    f_visitorJourneyCustom: document.getElementById('f_visitorJourneyCustom').value,
     f_eventMood: Array.from(document.querySelectorAll('.event-mood-cb:checked')).map(cb => cb.value),
     f_eventBrandValues: Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value),
     f_keyActivities: Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value),
@@ -20703,9 +20680,6 @@ function restoreFormSnapshot(snap){
   document.querySelectorAll('.target-audience-cb').forEach(cb => { cb.checked = savedTargetAudience.has(cb.value); });
   const savedVisitorExperience = new Set(snap.f_visitorExperience || []);
   document.querySelectorAll('.visitor-experience-cb').forEach(cb => { cb.checked = savedVisitorExperience.has(cb.value); });
-  document.getElementById('f_visitorJourney').value = snap.f_visitorJourney || '';
-  document.getElementById('f_visitorJourneyCustom').value = snap.f_visitorJourneyCustom || '';
-  toggleVisitorJourneyCustom(document.getElementById('f_visitorJourney'));
   const savedEventMood = new Set(snap.f_eventMood || []);
   document.querySelectorAll('.event-mood-cb').forEach(cb => { cb.checked = savedEventMood.has(cb.value); });
   enforceCheckboxMax('.event-mood-cb', 3, 'eventMoodCountHint');
