@@ -15,6 +15,7 @@ const PUBLIC_PATHS = [
   // (GET/PATCH/DELETE) re-verify the admin token inside the endpoint itself, same
   // defense-in-depth pattern as api/admin-users.js.
   '/api/signup',
+  '/api/contact', // public POST — the Contact form; rate-limited + validated inside the endpoint
   '/api/login', '/api/logout',
   '/logo-white.png', '/logo-black-transparent.png',
   '/favicon.ico', '/favicon-16.png', '/favicon-32.png', '/favicon-48.png', '/favicon-192.png',

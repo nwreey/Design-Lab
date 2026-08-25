@@ -84,8 +84,9 @@
     border:1.5px solid var(--line); outline:none; transition:border-color .15s ease; resize:vertical;
   }
   .form-row input:focus, .form-row textarea:focus{ border-color:var(--ink); }
-  .form-status{ margin-top:16px; font-size:13.5px; font-weight:600; color:#1E8A4C; display:none; }
+  .form-status{ margin-top:16px; font-size:13.5px; font-weight:600; color:#1E8A4C; display:none; line-height:1.55; }
   .form-status.show{ display:block; }
+  .form-status.error{ color:#C0432B; }
   .form-note{ font-size:11.5px; color:var(--muted); margin-top:14px; line-height:1.5; }
 
   .contact-side-card{ background:#F7F7F7; border-radius:20px; padding:32px; }
@@ -169,7 +170,7 @@
         </div>
         <button type="submit" class="btn btn-primary">Send message</button>
         <div class="form-status" id="formStatus"></div>
-        <div class="form-note">This form doesn't yet connect to a live inbox — submitting it confirms your message locally rather than sending it anywhere. We're wiring up real delivery soon.</div>
+        <div class="form-note">Your message goes straight to our team at info@designslab.ai — we usually reply within one business day.</div>
       </form>
     </div>
 
@@ -251,13 +252,39 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 
 // Client-side-only confirmation — no backend wired up yet, so we never claim the message was actually delivered anywhere.
-document.getElementById('contactForm').addEventListener('submit', function(e){
+document.getElementById('contactForm').addEventListener('submit', async function(e){
   e.preventDefault();
-  const email = document.getElementById('cf-email').value;
+  const form = this;
   const status = document.getElementById('formStatus');
-  status.textContent = "Thanks — we've noted your message and will follow up at " + email + ".";
-  status.classList.add('show');
-  this.reset();
+  const btn = form.querySelector('button[type="submit"]');
+  status.className = 'form-status';
+  status.textContent = '';
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Sending…';
+  try{
+    const response = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: document.getElementById('cf-name').value.trim(),
+        email: document.getElementById('cf-email').value.trim(),
+        subject: document.getElementById('cf-subject').value.trim(),
+        message: document.getElementById('cf-message').value.trim(),
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not send your message — please email us directly at info@designslab.ai.');
+    status.className = 'form-status show';
+    status.textContent = "Thanks — your message has been sent to our team. We'll reply to you by email, usually within one business day.";
+    form.reset();
+  }catch(err){
+    status.className = 'form-status show error';
+    status.textContent = err.message || 'Could not send your message — please email us directly at info@designslab.ai.';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
 });
 
 if('IntersectionObserver' in window){
