@@ -1584,20 +1584,8 @@ Replace only the materials and graphics."></textarea>
          relate to each other. -->
     <div class="section-headline" id="areaPlanningHeadline" style="display:none;">Area Planning</div>
     <div id="areaPlanningFields" style="display:none;">
-      <div class="field">
-        <label>Project Type</label>
-        <select id="f_apProjectType">
-          <option value="Event" selected>Event</option>
-          <option value="Conference">Conference</option>
-          <option value="Forum">Forum</option>
-          <option value="Experience Center">Experience Center</option>
-          <option value="Roadshow">Roadshow</option>
-          <option value="Retail Activation">Retail Activation</option>
-          <option value="Other">Other</option>
-        </select>
-        <div class="hint">What kind of project this is — helps the AI apply the right planning conventions to the areas below.</div>
-      </div>
-
+      <!-- The "Project Type" select was removed — it duplicated the Event Type field the
+           form already asks; buildAreaPlanningData() now derives projectType from that. -->
       <div class="field">
         <div class="row2">
           <div>
@@ -8122,7 +8110,13 @@ function apUpdateSummary(){
 // already strips these) is silently dropped rather than emitted as broken.
 function buildAreaPlanningData(){
   return {
-    projectType: document.getElementById('f_apProjectType').value || null,
+    // Derived from the form's own Event Type field — the separate Area Planning
+    // "Project Type" select duplicated it and was removed.
+    projectType: (function(){
+      const raw = document.getElementById('f_eventType') ? document.getElementById('f_eventType').value : '';
+      const custom = document.getElementById('f_eventTypeCustom') ? document.getElementById('f_eventTypeCustom').value.trim() : '';
+      return raw === 'Custom' ? (custom || 'Custom') : (raw || null);
+    })(),
     venue: {
       type: document.getElementById('f_apVenueType').value || null,
       name: document.getElementById('f_apVenueName').value.trim() || null,
@@ -20505,7 +20499,6 @@ function collectFormSnapshot(){
     f_outdoorWidth: document.getElementById('f_outdoorWidth').value,
     f_outdoorDepth: document.getElementById('f_outdoorDepth').value,
     f_outdoorSizeUnknown: document.getElementById('f_outdoorSizeUnknown').checked,
-    f_apProjectType: document.getElementById('f_apProjectType').value,
     f_apVenueType: document.getElementById('f_apVenueType').value,
     f_apVenueName: document.getElementById('f_apVenueName').value,
     f_apCity: document.getElementById('f_apCity').value,
@@ -20634,7 +20627,6 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_outdoorSizeUnknown').checked = !!snap.f_outdoorSizeUnknown;
   toggleOutdoorSizeUnknown(document.getElementById('f_outdoorSizeUnknown'));
   updateEnvironmentSizeFields(document.getElementById('f_environment'));
-  document.getElementById('f_apProjectType').value = snap.f_apProjectType || 'Event';
   document.getElementById('f_apVenueType').value = snap.f_apVenueType || 'Exhibition Center';
   // Older saved projects carried venue/city/country in the removed standalone fields —
   // fold them into the Area Planning fields so nothing typed before the merge is lost.
