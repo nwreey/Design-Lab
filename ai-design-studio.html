@@ -1879,6 +1879,9 @@ Replace only the materials and graphics."></textarea>
          duplicated; Brand Guidelines and Website are new, event-only, both optional. -->
     <div id="eventUploadFields" style="display:none;">
       <div class="section-headline">Upload</div>
+      <!-- Brand colors sit here, BEFORE the company logo, in event mode (owner request:
+           same order as the exhibition section) — moved via the anchor pattern below. -->
+      <div id="colorsFieldEventAnchor"></div>
       <div id="logoFieldEventAnchor"></div>
 
       <div class="field" id="brandGuidelinesField">
@@ -2094,6 +2097,7 @@ Replace only the materials and graphics."></textarea>
 
     <div class="section-headline" id="boothThemeHeadline" style="display:none;" data-i18n="section.boothTheme">Booth Theme</div>
     <div id="boothThemeFieldsTop" style="display:none;">
+      <div id="colorsFieldBoothAnchor"></div>
       <div class="field" id="colorsField">
         <label><span data-i18n="field.brandColors">Brand colors</span> <span class="required-mark">*</span></label>
         <div id="colorRows">
@@ -10486,6 +10490,13 @@ function setMode(m){
     const logoAnchor = document.getElementById(m==='event' ? 'logoFieldEventAnchor' : 'logoFieldBoothAnchor');
     if(logoFieldEl && logoAnchor) logoAnchor.after(logoFieldEl);
     logoFieldEl.style.display = (m==='booth' || m==='event') ? 'block' : 'none';
+    // Brand colors: booth keeps them in Booth Theme; event shows them in the Upload
+    // section BEFORE the company logo (owner request — same order as the exhibition
+    // section). Same anchor-repositioning pattern as logoField just above.
+    const colorsFieldEl = document.getElementById('colorsField');
+    const colorsAnchor = document.getElementById(m==='event' ? 'colorsFieldEventAnchor' : 'colorsFieldBoothAnchor');
+    if(colorsFieldEl && colorsAnchor) colorsAnchor.after(colorsFieldEl);
+    if(colorsFieldEl) colorsFieldEl.style.display = (m==='booth' || m==='event') ? 'block' : 'none';
     const eventUploadEl = document.getElementById('eventUploadFields');
     if(eventUploadEl) eventUploadEl.style.display = m==='event' ? 'block' : 'none';
     const aiAutofillEl = document.getElementById('aiAutofillHelperField');
