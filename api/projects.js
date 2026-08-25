@@ -222,6 +222,32 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
+    // Single-image pre-upload (?uploadImage=1): the client uploads each large image in its
+    // own small request BEFORE the main project save, so the save's JSON body carries only
+    // tiny "blob:<url>" refs. Saving several fresh renders inside one request used to blow
+    // past the platform's request-size cap and lose the whole save.
+    if (req.query && req.query.uploadImage === '1') {
+      const { projectId, dataUrl } = req.body || {};
+      if (!projectId || typeof dataUrl !== 'string' || !DATA_URL_RE.test(dataUrl)) {
+        res.status(400).json({ error: { message: 'projectId and a data URL are required.' } });
+        return;
+      }
+      try {
+        const mimeMatch = dataUrl.match(/^data:([^;]+);base64,/);
+        const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+        const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+        const buffer = Buffer.from(base64, 'base64');
+        const ext = mime.includes('png') ? 'png' : mime.includes('jpeg') ? 'jpg' : mime.includes('webp') ? 'webp' : mime.includes('pdf') ? 'pdf' : mime.includes('svg') ? 'svg' : 'bin';
+        const pathname = `projects/${projectId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+        const blob = await put(pathname, buffer, { access: 'public', contentType: mime, addRandomSuffix: false });
+        res.status(200).json({ ref: 'blob:' + blob.url });
+      } catch (err) {
+        console.error('Single-image upload failed:', err);
+        res.status(500).json({ error: { message: 'Could not store the image.' } });
+      }
+      return;
+    }
+
     const project = req.body || {};
     if (!project.id || !project.name) {
       res.status(400).json({ error: { message: 'Project must include id and name.' } });
