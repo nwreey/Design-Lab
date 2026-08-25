@@ -2209,27 +2209,6 @@ Replace only the materials and graphics."></textarea>
       <div class="hint" id="brandPersonalityHint">Select up to 3, in order — the first you check is Primary (greatest influence), then Secondary, then Accent. Adds an emotional/brand layer on top of the styles above — never overrides them.</div>
     </div>
 
-    <!-- Event-only (toggled in updateModeDependentLabels): placed here right after Brand
-         personality per owner direction. -->
-      <div class="field" id="outputViewsField" style="display:none;">
-        <label>What should the output show?</label>
-        <div class="hint" style="margin-bottom:10px;">Select every space the generated concept image must clearly include.</div>
-        <div class="checkbox-grid">
-          <label><input type="checkbox" class="output-view-cb" value="Entrance Gate"> Entrance Gate</label>
-          <label><input type="checkbox" class="output-view-cb" value="Outdoor Area"> Outdoor Area</label>
-          <label><input type="checkbox" class="output-view-cb" value="Foyer / Pre-Function Area"> Foyer / Pre-Function Area</label>
-          <label><input type="checkbox" class="output-view-cb" value="Registration & Welcome"> Registration &amp; Welcome</label>
-          <label><input type="checkbox" class="output-view-cb" value="Exhibition Area"> Exhibition Area</label>
-          <label><input type="checkbox" class="output-view-cb" value="Conference / Main Hall"> Conference / Main Hall</label>
-          <label><input type="checkbox" class="output-view-cb" value="Main Stage"> Main Stage</label>
-          <label><input type="checkbox" class="output-view-cb" value="VIP Area / Lounge"> VIP Area / Lounge</label>
-          <label><input type="checkbox" class="output-view-cb" value="Networking Lounge"> Networking Lounge</label>
-          <label><input type="checkbox" class="output-view-cb" value="Catering / F&B Area"> Catering / F&amp;B Area</label>
-          <label><input type="checkbox" class="output-view-cb" value="Breakout Rooms"> Breakout Rooms</label>
-          <label><input type="checkbox" class="output-view-cb" value="Photo / Media Wall"> Photo / Media Wall</label>
-        </div>
-      </div>
-
 
     <div id="boothOnlyFields">
       <div class="field" id="postersField">
@@ -10403,8 +10382,6 @@ function updateModeDependentLabels(){
   // personality, and mood instead.
   const archStyleField = document.getElementById('archStyleField');
   if(archStyleField) archStyleField.style.display = mode === 'event' ? 'none' : 'block';
-  const outputViewsField = document.getElementById('outputViewsField');
-  if(outputViewsField) outputViewsField.style.display = mode === 'event' ? 'block' : 'none';
   const autofillScenarioField = document.getElementById('aiAutofillScenarioField');
   if(autofillScenarioField) autofillScenarioField.style.display = mode === 'event' ? 'none' : 'block';
   const autofillGoalField = document.getElementById('aiAutofillGoalField');
@@ -15132,7 +15109,6 @@ function buildEventThemeBoardBriefData(){
   const eventBrandValues = Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value);
   const keyActivities = Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value);
   const specialRequirements = Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value);
-  const outputViews = Array.from(document.querySelectorAll('.output-view-cb:checked')).map(cb => cb.value);
   const conferenceSeating = /conference/i.test(eventType || '') ? (document.getElementById('f_conferenceSeating').value || 'Theatre') : null;
   const colorHexes = Array.from(document.querySelectorAll('.color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   const brandPersonality = selectedBrandPersonalities.slice(); // ranked array, primary first (see BPE-001)
@@ -15158,7 +15134,9 @@ function buildEventThemeBoardBriefData(){
     brand_values: eventBrandValues,
     key_activities: keyActivities,
     special_requirements: specialRequirements,
-    output_views: outputViews,
+    // "What should the output show?" was removed (owner decision) — the selected Areas
+    // themselves define the concept-board panels.
+    output_views: requiredAreas,
     conference_seating: conferenceSeating,
     client_description: desc || null
   };
@@ -15257,7 +15235,7 @@ Hard constraints: no logos, no branding, no readable text or typography inside a
 function buildEventDirectGeminiPrompt(d){
   const lines = [];
   // DYNAMIC MULTI-AREA CONCEPT BOARD (owner rule): the panel count always equals the number
-  // of areas selected under "What should the output show?" — never a fixed grid, never one
+  // of areas selected under Area Planning — never a fixed grid, never one
   // venue crammed with every area.
   const panels = (d.output_views || []).slice();
   if(panels.length >= 2){
@@ -15276,7 +15254,7 @@ function buildEventDirectGeminiPrompt(d){
   if(d.environment) lines.push('- Environment: ' + d.environment + '.');
   if(d.attendees) lines.push('- Expected attendees: about ' + d.attendees + ' people — the venue scale, seating, and circulation space must credibly fit this number.');
   if(d.venue) lines.push('- Venue / space: ' + JSON.stringify(d.venue) + '.');
-  if(d.required_areas && d.required_areas.length){
+  if(d.required_areas && d.required_areas.length && panels.length < 2){
     lines.push('- REQUIRED FUNCTIONAL AREAS (each must physically exist in the design, matching its professional definition). IMPORTANT: these area names and definitions are INTERNAL PLANNING INSTRUCTIONS ONLY — never display area names, labels, annotations, arrows, dimensions, callouts, or any planning text inside the generated image; the areas must simply exist visually as real spaces:');
     d.required_areas.forEach(name => {
       const def = (typeof EVENT_AREA_MASTER !== 'undefined' && EVENT_AREA_MASTER[name]) || null;
@@ -15315,7 +15293,7 @@ function buildEventDirectGeminiPrompt(d){
     lines.push('- SEATING CONFIGURATION (client\'s choice, mandatory): ' + (d.conference_seating || 'Theatre') + ' style. Render the audience seating exactly in this configuration.');
     // Purity of the hall: the client's real complaint was booths and glass meeting pods
     // invading the conference hall. Anything beyond stage + seating must have been
-    // explicitly requested via "What should the output show?".
+    // explicitly selected under Area Planning.
     const conferenceExtras = (d.output_views || []).filter(v => !/stage|conference|vip/i.test(v));
     lines.push('- CONFERENCE HALL CONTENT (mandatory): the conference hall contains ONLY the stage and the audience seating area with its aisles' + (conferenceExtras.length ? ', plus ONLY these spaces the client explicitly requested: ' + conferenceExtras.join(', ') + ' (rendered as their own clearly separate zones, never mixed into the seating area)' : '') + '. NEVER add exhibition booths, meeting rooms, glass pods or partitions, workstations, lounge corners, or any other structures inside or around the seating area' + (conferenceExtras.length ? ' beyond the explicitly requested spaces' : '') + ' — an uninvited booth or meeting room in the hall is a hard failure.');
     lines.push('- STANDARD CONFERENCE SEATING RULES (mandatory, applied to whichever configuration is chosen): (1) LAYOUT — seats are arranged in straight, orderly rows or table groups facing the stage/screen; every seat in a row has equal spacing; rows have equal spacing between them; the whole seating block is centered on the stage unless the hall shape forces otherwise. (2) AISLES — keep a clear main central aisle and clear side aisles along the walls; never place a single chair inside an aisle; aisles run continuously from the entrance to the stage. (3) CAPACITY — the number of seats must be physically credible for the hall dimensions given the chair width, chair depth, row spacing, and the aisles; never overlap, shrink, or compress seats to force more capacity than realistically fits. (4) STAGE — every seat faces the stage; keep an appropriate clear zone between the first row and the stage edge; no seats behind the stage or outside the usable audience area. (5) VIP PLACEMENT — VIP chairs (the visibly premium armchair/sofa-style seats) are ALWAYS and ONLY in the first row(s) directly in front of the stage; NEVER place a VIP chair in the middle rows, at the back, or scattered anywhere else in the hall — behind the VIP front rows comes regular seating only.');
@@ -20709,7 +20687,6 @@ function collectFormSnapshot(){
     f_eventMood: Array.from(document.querySelectorAll('.event-mood-cb:checked')).map(cb => cb.value),
     f_eventBrandValues: Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value),
     f_keyActivities: Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value),
-    f_outputViews: Array.from(document.querySelectorAll('.output-view-cb:checked')).map(cb => cb.value),
     f_conferenceSeating: document.getElementById('f_conferenceSeating').value,
     f_eventSpecialRequirements: Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value),
     f_successMetrics: Array.from(document.querySelectorAll('.success-metrics-cb:checked')).map(cb => cb.value),
@@ -20831,8 +20808,6 @@ function restoreFormSnapshot(snap){
   enforceCheckboxMax('.event-brand-values-cb', 5, 'brandValuesCountHint');
   const savedKeyActivities = new Set(snap.f_keyActivities || []);
   document.querySelectorAll('.key-activities-cb').forEach(cb => { cb.checked = savedKeyActivities.has(cb.value); });
-  const savedOutputViews = new Set(snap.f_outputViews || []);
-  document.querySelectorAll('.output-view-cb').forEach(cb => { cb.checked = savedOutputViews.has(cb.value); });
   document.getElementById('f_conferenceSeating').value = snap.f_conferenceSeating || 'Theatre';
   toggleEventTypeCustom(document.getElementById('f_eventType'));
   const savedEventSpecialReq = new Set(snap.f_eventSpecialRequirements || []);
