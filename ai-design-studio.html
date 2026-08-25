@@ -15336,7 +15336,9 @@ function renderEventConceptBoardResult(skipScroll){
   if(!skipScroll) document.getElementById('eventConceptResult').scrollIntoView({behavior:'smooth', block:'start'});
   // A finished concept board locks the form, same as a finished booth render — covers both the
   // live-generation success path and reopening a saved project that already has one.
-  lockForm();
+  // Admin exception (owner request): the form stays writable so settings can be tweaked
+  // and regenerated quickly while testing.
+  if(!isAdminUser) lockForm(); else unlockForm();
   // Reflects eventConceptBoard.approved (restored from a saved project, or just-set by
   // approveEventConceptBoard) into the action bar's button visibility every time the board is
   // (re)rendered, so a reopened already-approved project comes back locked automatically.
@@ -15422,7 +15424,7 @@ function selectEcbGalleryEntry(i){
 
 async function regenerateEventConceptBoard(){
   if(blockIfGenerating()) return;
-  lockForm();
+  if(!isAdminUser) lockForm(); // admins stay writable for quick testing (owner request)
   projectSwitchLocked = true;
   // Owner decision: NO scroll to the top and NO full-page loading overlay — the previous
   // picture stays exactly where it is, a progress bar runs under it (same pattern as the
@@ -15907,7 +15909,9 @@ async function generateDesign(){
   // regenerating an existing event concept isn't wired to modify-quota billing. Every
   // unlockForm() call elsewhere in this flow (error paths, cancel, etc.) stays as-is; it's just
   // a harmless no-op here whenever the form was never locked to begin with.
-  if(mode === 'event') lockForm();
+  // Admins keep the form writable after generating (owner request: easier testing);
+  // real users get the normal post-generation lock.
+  if(mode === 'event' && !isAdminUser) lockForm();
   // Captured once, here, before Stage 1 runs (see this global's own comment) — read later by
   // approvePrompts() when it calls startRenderSession(), since isNewProject itself isn't in
   // scope there (approvePrompts is a separate top-level function, not nested inside this one).
