@@ -10323,7 +10323,7 @@ function showFormAndTabs(){
 // out and restore them on the way back in, so the two stay genuinely independent from the
 // person's point of view despite sharing the underlying fields.
 let boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
-let eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Standard Event Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
+let eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
 
 function captureModeSnapshot(){
   return {
@@ -10411,7 +10411,7 @@ function updateModeDependentLabels(){
 // exhibition-booth build tiers; Event's list describes event-production tiers, each with a short
 // "who it's for — what it includes" line shown live under the select as constructionStyleHint
 // takes over from the static translated hint whenever Event mode is active. Each list has its
-// own default/fallback value (Booth: 'Premium Custom Build', Event: 'Standard Event Build') —
+// shared default/fallback value: 'Premium Custom Build' in both modes (owner decision) —
 // see updateConstructionStyleOptions below for where that's applied.
 const BOOTH_CONSTRUCTION_STYLE_OPTIONS = [
   { value: 'Shell Scheme', label: 'Shell Scheme' },
@@ -10443,7 +10443,7 @@ function updateConstructionStyleOptions(m){
   const currentValue = select.value;
   select.innerHTML = options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
   const stillValid = options.some(o => o.value === currentValue);
-  select.value = stillValid ? currentValue : (m === 'event' ? 'Standard Event Build' : 'Premium Custom Build');
+  select.value = stillValid ? currentValue : 'Premium Custom Build'; // Premium Custom Build is the default in BOTH modes (owner decision)
   updateConstructionStyleHint(select, m);
 }
 
@@ -20847,7 +20847,7 @@ function restoreFormSnapshot(snap){
   updateArchStyleHint(document.getElementById('f_archStyle'));
   document.getElementById('f_industryStyle').value = snap.f_industryStyle || '';
   updateIndustryStyleHint(document.getElementById('f_industryStyle'));
-  document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || (mode === 'event' ? 'Standard Event Build' : 'Premium Custom Build');
+  document.getElementById('f_constructionStyle').value = snap.f_constructionStyle || 'Premium Custom Build';
   selectedBrandPersonalities = [...(snap.f_brandPersonalities || ['Elegant', 'Innovative', 'Creative'])];
   updateBrandPersonalityHint();
   document.getElementById('f_attendees').value = snap.f_attendees || '';
@@ -21403,7 +21403,7 @@ function openProject(id){
       // Reset AFTER restoreFormSnapshot, not before — see the identical comment in
       // startNewProject() for why the order matters here.
       boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
-      eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Standard Event Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
+      eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
       restoreLogoAndPosters(project);
       restoreResultsView(project);
       renderProjectSidebar();
@@ -21590,7 +21590,7 @@ function startNewProject(){
   // different-project) field values right back into the snapshot before this reset could
   // actually take effect.
   boothFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
-  eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Standard Event Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
+  eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
   logoDataUrl = null;
   logoMediaType = null;
   document.getElementById('logoPreview').style.display = 'none';
