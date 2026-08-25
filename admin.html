@@ -157,6 +157,24 @@
     </div>
 
     <div class="card">
+      <h2>Plan Purchase Requests</h2>
+      <div class="hint" style="margin-bottom:14px;">Purchase requests submitted by registered users from the public Pricing page. Activate the plan manually (adjust the user's limits under Users List), contact them, then mark the request handled.</div>
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Plan</th>
+            <th>Submitted</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="planRequestsBody"></tbody>
+      </table>
+      <div class="status-msg" id="planRequestsStatus"></div>
+    </div>
+
+    <div class="card">
       <h2>Users List</h2>
       <table>
         <thead>
@@ -286,10 +304,83 @@ async function init(){
     document.getElementById('adminContent').style.display = 'block';
     await loadUsers();
     await loadSignupRequests();
+    await loadPlanRequests();
     await loadLockouts();
     await loadRatings();
   }catch(err){
     showGate('Could not verify access: ' + (err.message || 'unknown error'));
+  }
+}
+
+/* ================= Plan Purchase Requests =================
+   Backed by /api/purchase — POST is what registered users hit from the Pricing page;
+   the GET/PATCH/DELETE verbs used here are admin-only (re-verified server-side). */
+async function loadPlanRequests(){
+  const statusEl = document.getElementById('planRequestsStatus');
+  statusEl.className = 'status-msg';
+  statusEl.textContent = 'Loading...';
+  try{
+    const response = await fetch('/api/purchase');
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load purchase requests.');
+    renderPlanRequestsTable(data.requests || []);
+    statusEl.textContent = '';
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Could not load purchase requests.';
+  }
+}
+
+function renderPlanRequestsTable(requests){
+  const body = document.getElementById('planRequestsBody');
+  if(requests.length === 0){
+    body.innerHTML = '<tr><td colspan="5" class="hint">No purchase requests yet.</td></tr>';
+    return;
+  }
+  body.innerHTML = requests.map(r => `
+    <tr style="${r.status === 'handled' ? 'opacity:.55;' : ''}">
+      <td>${escapeHtml(r.username)}</td>
+      <td><strong>${escapeHtml(r.plan)}</strong></td>
+      <td style="white-space:nowrap;">${new Date(r.created_at).toLocaleDateString()}</td>
+      <td>${r.status === 'handled' ? 'Handled' : '<strong>Pending</strong>'}</td>
+      <td style="white-space:nowrap;">
+        ${r.status === 'handled'
+          ? `<button class="ghost" onclick="setPlanRequestStatus('${r.id}', 'pending')">Reopen</button>`
+          : `<button class="ghost" onclick="setPlanRequestStatus('${r.id}', 'handled')">Mark handled</button>`}
+        <button class="ghost" onclick="deletePlanRequest('${r.id}')">Remove</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function setPlanRequestStatus(id, status){
+  const statusEl = document.getElementById('planRequestsStatus');
+  try{
+    const response = await fetch('/api/purchase', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not update the request.');
+    await loadPlanRequests();
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Could not update the request.';
+  }
+}
+
+async function deletePlanRequest(id){
+  if(!confirm('Remove this purchase request? This cannot be undone.')) return;
+  const statusEl = document.getElementById('planRequestsStatus');
+  try{
+    const response = await fetch('/api/purchase?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not delete the request.');
+    await loadPlanRequests();
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Could not delete the request.';
   }
 }
 

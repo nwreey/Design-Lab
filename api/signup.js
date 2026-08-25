@@ -162,7 +162,9 @@ export default async function handler(req, res) {
   }
 
   /* ---------- ADMIN: everything below requires a valid admin token ---------- */
-  const token = parseCookie(req.headers.cookie, 'site_auth');
+  // Cookie name matches api/login.js's Set-Cookie ('design_lab_auth') — originally written
+  // as 'site_auth' by mistake, which made every admin verb here 403 unconditionally.
+  const token = parseCookie(req.headers.cookie, 'design_lab_auth');
   const payload = await verifyTokenNode(token, signingSecret);
   if (!payload || payload.role !== 'admin') {
     res.status(403).json({ error: { message: 'Admin access required.' } });
