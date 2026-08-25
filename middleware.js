@@ -14,6 +14,9 @@ const PUBLIC_PATHS = [
   '/logo-white.png', '/logo-black-transparent.png',
   '/favicon.ico', '/favicon-16.png', '/favicon-32.png', '/favicon-48.png', '/favicon-192.png',
   '/favicon-512.png', '/apple-touch-icon.png',
+  // Case-study images on the News page — without these, a logged-out visitor's image
+  // requests get redirected to login and every picture on that page breaks.
+  '/case-bmw.jpg', '/case-rolex.jpg', '/case-redbull.jpg', '/case-natgeo.jpg',
 ];
 
 // Paths that require the admin role specifically, on top of just being logged in.
