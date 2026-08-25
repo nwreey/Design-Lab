@@ -100,6 +100,56 @@
   .acct-item.expanded .acct-caret{transform:rotate(180deg);}
   .acct-lang-check{margin-left:auto;font-weight:800;}
   /* Shared small modal (My information / Give feedback) */
+  .upgrade-open-btn{
+    width:100%;font-family:inherit;font-weight:700;font-size:12.5px;padding:9px 12px;
+    background:var(--navy);color:#fff;border:2px solid var(--navy);border-radius:3px;cursor:pointer;
+    transition:.15s ease;
+  }
+  .upgrade-open-btn:hover{background:#fff;color:var(--navy);}
+  /* Upgrade modal: the three plan cards, compact version of the pricing page's own cards */
+  .upgrade-modal{
+    background:#fff;border:1.5px solid var(--navy);border-radius:4px;max-width:860px;width:100%;
+    padding:30px 30px 26px;box-shadow:0 20px 60px rgba(11,12,16,.35);max-height:92vh;overflow-y:auto;
+  }
+  .upgrade-modal h3{margin:0 0 4px;font-size:19px;font-weight:800;color:var(--navy);}
+  .upgrade-modal .up-sub{font-size:12.5px;color:#777;margin:0 0 18px;line-height:1.5;}
+  .up-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media(max-width:760px){.up-grid{grid-template-columns:1fr;}}
+  .up-card{
+    border:2px solid var(--line);border-radius:10px;padding:18px 16px;cursor:pointer;
+    transition:border-color .15s ease, transform .15s ease;position:relative;background:#fff;text-align:left;
+    font-family:inherit;display:flex;flex-direction:column;
+  }
+  .up-card:hover{transform:translateY(-2px);}
+  .up-card.selected{border-color:var(--navy);box-shadow:0 8px 24px -12px rgba(11,12,16,.35);}
+  .up-card .up-badge{
+    position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+    background:var(--navy);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;padding:3px 10px;border-radius:999px;white-space:nowrap;
+  }
+  .up-card .up-name{font-size:15px;font-weight:800;color:var(--navy);}
+  .up-card .up-price{font-size:24px;font-weight:800;color:var(--navy);margin-top:6px;letter-spacing:-0.02em;}
+  .up-card .up-price .per{font-size:11.5px;font-weight:600;color:#888;}
+  .up-card ul{list-style:none;margin:12px 0 0;padding:10px 0 0;border-top:1px solid var(--line);font-size:11.5px;color:#555;line-height:1.9;flex:1;}
+  .up-card ul li::before{content:'✓  ';font-weight:800;color:var(--navy);}
+  .up-card .up-pick{
+    margin-top:12px;text-align:center;font-size:11.5px;font-weight:700;color:var(--navy);
+    border:1.5px solid var(--navy);border-radius:3px;padding:7px 8px;
+  }
+  .up-card.selected .up-pick{background:var(--navy);color:#fff;}
+  .up-footer{display:flex;gap:10px;align-items:center;margin-top:20px;flex-wrap:wrap;}
+  .up-footer .go{
+    flex:1;min-width:200px;font-family:inherit;font-weight:700;font-size:14px;padding:12px 18px;
+    background:var(--navy);color:#fff;border:2px solid var(--navy);border-radius:3px;cursor:pointer;transition:.15s ease;
+  }
+  .up-footer .go:hover{background:#fff;color:var(--navy);}
+  .up-footer .go:disabled{opacity:.5;cursor:default;background:var(--navy);color:#fff;}
+  .up-footer .no{font-family:inherit;font-weight:700;font-size:13px;padding:12px 18px;background:#fff;color:var(--navy);border:1.5px solid var(--navy);border-radius:3px;cursor:pointer;}
+  .up-status{font-size:12.5px;margin-top:12px;line-height:1.6;min-height:16px;}
+  .up-success{display:none;text-align:center;padding:26px 8px 12px;}
+  .up-success .big{font-size:42px;margin-bottom:12px;}
+  .up-success h4{font-size:17px;font-weight:800;color:var(--navy);margin:0 0 10px;}
+  .up-success p{font-size:13px;color:#666;line-height:1.65;max-width:420px;margin:0 auto;}
   .acct-modal-overlay{
     display:none;position:fixed;inset:0;background:rgba(11,12,16,0.55);z-index:9999;
     align-items:center;justify-content:center;padding:20px;
@@ -704,16 +754,8 @@
       </div>
 
       <div class="buy-more-prompt" id="buyMorePrompt" style="display:none;">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;" data-i18n="sidebar.upgradeTitle">Upgrade your plan</div>
-        <div id="upgradeControls">
-          <select id="upgradePlanSelect" style="width:100%;font-family:inherit;font-size:12px;padding:6px 8px;border:1.5px solid var(--line);border-radius:2px;background:#fff;color:var(--navy);">
-            <option value="Starter">Starter — $49/mo</option>
-            <option value="Studio" selected>Studio — $129/mo</option>
-            <option value="Enterprise">Enterprise — Custom</option>
-          </select>
-          <button class="ghost small" style="width:100%;margin-top:6px;" onclick="requestPlanUpgrade()" data-i18n="sidebar.upgradeBtn">Request upgrade</button>
-        </div>
-        <div id="upgradeStatus" style="font-size:11px;margin-top:6px;line-height:1.5;"></div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:7px;" data-i18n="sidebar.upgradeTitle">Upgrade your plan</div>
+        <button type="button" class="upgrade-open-btn" onclick="openUpgradeModal()" data-i18n="sidebar.upgradeBtn">⬆ Upgrade</button>
       </div>
 
       <div class="sidebar-account-section" id="sidebarAccountSection" style="display:none;">
@@ -723,9 +765,7 @@
             <div class="e" id="acctMenuEmail"></div>
           </div>
           <button type="button" class="acct-item" onclick="openAccountInfo()"><span class="ico">👤</span><span data-i18n="set.myInfo">My information</span></button>
-          <button type="button" class="acct-item" id="acctLangToggle" onclick="toggleAcctSub('acctLangSub', this)"><span class="ico">🌐</span><span data-i18n="set.language">Language</span><span class="acct-caret">▼</span></button>
-          <div class="acct-sub" id="acctLangSub"></div>
-          <button type="button" class="acct-item" onclick="goToPurchasePlan()"><span class="ico">◆</span><span data-i18n="set.purchasePlan">Purchase plan</span></button>
+          <button type="button" class="acct-item" onclick="openUpgradeModal()"><span class="ico">💳</span><span data-i18n="set.payment">Payment</span></button>
           <div class="acct-sep"></div>
           <a class="acct-item" href="/contact.html" target="_blank" rel="noopener"><span class="ico">?</span><span data-i18n="set.getHelp">Get help</span></a>
           <button type="button" class="acct-item" onclick="openFeedbackModal()"><span class="ico">✎</span><span data-i18n="set.feedback">Give feedback</span></button>
@@ -3679,6 +3719,15 @@ const I18N_EN = {
   'app.logout': 'Log out',
   'set.myInfo': 'My information',
   'set.language': 'Language',
+  'set.payment': 'Payment',
+  'up.title': 'Choose your plan',
+  'up.sub': 'Upgrade instantly. Your allowances are refreshed the moment your plan is active.',
+  'up.select': 'Select',
+  'up.popular': 'Most Popular',
+  'up.custom': 'Custom',
+  'up.continue': 'Continue to payment',
+  'up.reservedTitle': 'Your plan is reserved!',
+  'up.reservedText': 'Your {plan} plan is reserved. Online card payment is launching very soon; our team will contact you right away to complete the payment and activate your plan.',
   'set.purchasePlan': 'Purchase plan',
   'set.getHelp': 'Get help',
   'set.feedback': 'Give feedback',
@@ -3831,6 +3880,15 @@ const I18N_AR = {
   'app.logout': 'تسجيل الخروج',
   'set.myInfo': 'معلوماتي',
   'set.language': 'اللغة',
+  'set.payment': 'الدفع',
+  'up.title': 'اختر باقتك',
+  'up.sub': 'قم بالترقية فورًا. يتم تحديث حصصك بمجرد تفعيل باقتك.',
+  'up.select': 'اختيار',
+  'up.popular': 'الأكثر شيوعًا',
+  'up.custom': 'مخصص',
+  'up.continue': 'المتابعة إلى الدفع',
+  'up.reservedTitle': 'تم حجز باقتك!',
+  'up.reservedText': 'تم حجز باقة {plan} الخاصة بك. الدفع الإلكتروني بالبطاقة سيتوفر قريبًا جدًا؛ سيتواصل معك فريقنا فورًا لإتمام الدفع وتفعيل باقتك.',
   'set.purchasePlan': 'شراء باقة',
   'set.getHelp': 'الحصول على مساعدة',
   'set.feedback': 'إرسال ملاحظات',
@@ -3983,6 +4041,15 @@ const I18N_FR = {
   'app.logout': 'Déconnexion',
   'set.myInfo': 'Mes informations',
   'set.language': 'Langue',
+  'set.payment': 'Paiement',
+  'up.title': 'Choisissez votre forfait',
+  'up.sub': 'Passez au niveau supérieur instantanément. Vos quotas sont actualisés dès que votre forfait est actif.',
+  'up.select': 'Choisir',
+  'up.popular': 'Le plus populaire',
+  'up.custom': 'Sur mesure',
+  'up.continue': 'Continuer vers le paiement',
+  'up.reservedTitle': 'Votre forfait est réservé !',
+  'up.reservedText': 'Votre forfait {plan} est réservé. Le paiement par carte en ligne arrive très bientôt ; notre équipe vous contactera immédiatement pour finaliser le paiement et activer votre forfait.',
   'set.purchasePlan': 'Acheter un forfait',
   'set.getHelp': 'Obtenir de l\'aide',
   'set.feedback': 'Donner mon avis',
@@ -4135,6 +4202,15 @@ const I18N_DE = {
   'app.logout': 'Abmelden',
   'set.myInfo': 'Meine Informationen',
   'set.language': 'Sprache',
+  'set.payment': 'Zahlung',
+  'up.title': 'Wählen Sie Ihren Plan',
+  'up.sub': 'Sofort upgraden. Ihre Kontingente werden aktualisiert, sobald Ihr Plan aktiv ist.',
+  'up.select': 'Auswählen',
+  'up.popular': 'Am beliebtesten',
+  'up.custom': 'Individuell',
+  'up.continue': 'Weiter zur Zahlung',
+  'up.reservedTitle': 'Ihr Plan ist reserviert!',
+  'up.reservedText': 'Ihr {plan}-Plan ist reserviert. Die Online-Kartenzahlung startet in Kürze; unser Team meldet sich umgehend, um die Zahlung abzuschließen und Ihren Plan zu aktivieren.',
   'set.purchasePlan': 'Plan kaufen',
   'set.getHelp': 'Hilfe erhalten',
   'set.feedback': 'Feedback geben',
@@ -4287,6 +4363,15 @@ const I18N_ES = {
   'app.logout': 'Cerrar sesión',
   'set.myInfo': 'Mi información',
   'set.language': 'Idioma',
+  'set.payment': 'Pago',
+  'up.title': 'Elige tu plan',
+  'up.sub': 'Mejora al instante. Tus cupos se actualizan en cuanto tu plan esté activo.',
+  'up.select': 'Elegir',
+  'up.popular': 'Más popular',
+  'up.custom': 'A medida',
+  'up.continue': 'Continuar al pago',
+  'up.reservedTitle': '¡Tu plan está reservado!',
+  'up.reservedText': 'Tu plan {plan} está reservado. El pago con tarjeta en línea llegará muy pronto; nuestro equipo te contactará de inmediato para completar el pago y activar tu plan.',
   'set.purchasePlan': 'Comprar plan',
   'set.getHelp': 'Obtener ayuda',
   'set.feedback': 'Enviar comentarios',
@@ -4439,6 +4524,15 @@ const I18N_IT = {
   'app.logout': 'Esci',
   'set.myInfo': 'Le mie informazioni',
   'set.language': 'Lingua',
+  'set.payment': 'Pagamento',
+  'up.title': 'Scegli il tuo piano',
+  'up.sub': 'Aggiorna all\'istante. I tuoi crediti si aggiornano non appena il piano è attivo.',
+  'up.select': 'Scegli',
+  'up.popular': 'Più popolare',
+  'up.custom': 'Su misura',
+  'up.continue': 'Continua al pagamento',
+  'up.reservedTitle': 'Il tuo piano è riservato!',
+  'up.reservedText': 'Il tuo piano {plan} è riservato. Il pagamento online con carta arriverà molto presto; il nostro team ti contatterà subito per completare il pagamento e attivare il piano.',
   'set.purchasePlan': 'Acquista piano',
   'set.getHelp': 'Ottieni aiuto',
   'set.feedback': 'Invia feedback',
@@ -4591,6 +4685,15 @@ const I18N_ZH = {
   'app.logout': '退出登录',
   'set.myInfo': '我的信息',
   'set.language': '语言',
+  'set.payment': '支付',
+  'up.title': '选择您的套餐',
+  'up.sub': '即刻升级。套餐激活后，您的额度将立即刷新。',
+  'up.select': '选择',
+  'up.popular': '最受欢迎',
+  'up.custom': '定制',
+  'up.continue': '继续支付',
+  'up.reservedTitle': '您的套餐已预留！',
+  'up.reservedText': '您的 {plan} 套餐已预留。在线银行卡支付即将上线；我们的团队将立即与您联系以完成付款并激活套餐。',
   'set.purchasePlan': '购买套餐',
   'set.getHelp': '获取帮助',
   'set.feedback': '提交反馈',
@@ -4743,6 +4846,15 @@ const I18N_JA = {
   'app.logout': 'ログアウト',
   'set.myInfo': 'マイ情報',
   'set.language': '言語',
+  'set.payment': '支払い',
+  'up.title': 'プランを選択',
+  'up.sub': 'すぐにアップグレード。プランが有効になると同時に利用枠が更新されます。',
+  'up.select': '選択',
+  'up.popular': '一番人気',
+  'up.custom': 'カスタム',
+  'up.continue': '支払いへ進む',
+  'up.reservedTitle': 'プランを確保しました！',
+  'up.reservedText': '{plan}プランを確保しました。オンラインカード決済は近日開始予定です。お支払いの完了とプランの有効化のため、チームよりすぐにご連絡いたします。',
   'set.purchasePlan': 'プランを購入',
   'set.getHelp': 'ヘルプ',
   'set.feedback': 'フィードバックを送る',
@@ -9497,29 +9609,63 @@ let currentUserEditLimit = null;
 let currentUserEditCount = null;
 let adminCheckPromise = null;
 
-/* Plan upgrade request from the user's own control panel (sidebar) — per explicit
-   product decision the public pricing page is information-only, and THIS is the one
-   place a purchase actually happens. Reuses the existing /api/purchase plan-request
-   endpoint (admin activates manually + emails go out; see api/purchase.js). */
-async function requestPlanUpgrade(){
-  const statusEl = document.getElementById('upgradeStatus');
-  const plan = document.getElementById('upgradePlanSelect').value;
+/* ================= Upgrade plan modal =================
+   Per explicit product decision the sidebar Upgrade button opens a plan-cards popup
+   (same prices as the public pricing page); the user picks a plan and continues to
+   payment. PAYMENT GATEWAY NOT CONTRACTED YET (owner is negotiating the contract):
+   startCheckout() is the single swap-in point — today it reserves the plan through the
+   existing /api/purchase request flow (admin activates manually, confirmation email
+   goes out) and says so honestly; when the gateway credentials arrive, replace the
+   body of startCheckout() with the real checkout redirect/session and nothing else
+   in this flow needs to change. */
+let selectedUpgradePlan = 'Studio';
+
+function openUpgradeModal(){
+  const menu = document.getElementById('acctMenu');
+  if(menu) menu.classList.remove('open');
+  document.getElementById('upgradeChoose').style.display = 'block';
+  document.getElementById('upgradeSuccess').style.display = 'none';
+  document.getElementById('upgradeModalStatus').textContent = '';
+  const btn = document.getElementById('upgradeContinueBtn');
+  btn.disabled = false;
+  btn.textContent = t('up.continue');
+  document.getElementById('upgradeOverlay').classList.add('open');
+}
+
+function selectUpgradePlan(plan){
+  selectedUpgradePlan = plan;
+  document.querySelectorAll('#upgradeOverlay .up-card').forEach(card => {
+    card.classList.toggle('selected', card.getAttribute('data-plan') === plan);
+  });
+}
+
+async function startCheckout(){
+  /* >>> PAYMENT GATEWAY SWAP-IN POINT <<<
+     When the gateway contract is signed, replace everything below with the real
+     checkout (create a payment session server-side for selectedUpgradePlan, then
+     redirect/open the gateway's payment page). Until then: reserve the plan. */
+  const statusEl = document.getElementById('upgradeModalStatus');
+  const btn = document.getElementById('upgradeContinueBtn');
+  btn.disabled = true;
+  btn.textContent = '…';
   statusEl.style.color = '';
-  statusEl.textContent = '…';
+  statusEl.textContent = '';
   try{
     const response = await fetch('/api/purchase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan }),
+      body: JSON.stringify({ plan: selectedUpgradePlan }),
     });
     const data = await response.json().catch(() => ({}));
-    if(!response.ok || !data.ok) throw new Error((data.error && data.error.message) || 'Could not submit your request. Please try again.');
-    document.getElementById('upgradeControls').style.display = 'none';
-    statusEl.style.color = '#1E7A3C';
-    statusEl.textContent = t('sidebar.upgradeDone');
+    if(!response.ok || !data.ok) throw new Error((data.error && data.error.message) || 'Could not process your upgrade. Please try again.');
+    document.getElementById('upgradeChoose').style.display = 'none';
+    document.getElementById('upgradeSuccessText').textContent = t('up.reservedText').replace('{plan}', selectedUpgradePlan);
+    document.getElementById('upgradeSuccess').style.display = 'block';
   }catch(err){
-    statusEl.style.color = '#C0432B';
-    statusEl.textContent = err.message || 'Could not submit your request. Please try again.';
+    statusEl.style.color = '#c0432b';
+    statusEl.textContent = err.message || 'Could not process your upgrade. Please try again.';
+    btn.disabled = false;
+    btn.textContent = t('up.continue');
   }
 }
 
@@ -9592,9 +9738,7 @@ function renderSidebarAccountSection(data){
 function toggleAccountMenu(event){
   if(event) event.stopPropagation();
   const menu = document.getElementById('acctMenu');
-  const opening = !menu.classList.contains('open');
-  menu.classList.toggle('open', opening);
-  if(opening) renderAcctLanguageSub();
+  menu.classList.toggle('open', !menu.classList.contains('open'));
 }
 // Any click outside the menu closes it — standard popover behavior.
 document.addEventListener('click', (e) => {
@@ -9609,27 +9753,7 @@ function toggleAcctSub(id, btn){
   if(btn) btn.classList.toggle('expanded', opening);
 }
 
-const ACCT_LANG_NAMES = { en:'English', ar:'العربية', fr:'Français', de:'Deutsch', es:'Español', it:'Italiano', zh:'中文', ja:'日本語' };
-function renderAcctLanguageSub(){
-  const sub = document.getElementById('acctLangSub');
-  if(!sub) return;
-  sub.innerHTML = Object.entries(ACCT_LANG_NAMES).map(([code, name]) =>
-    '<button type="button" class="acct-item" onclick="setLanguage(\'' + code + '\');renderAcctLanguageSub();">' + name +
-    (currentLanguage === code ? '<span class="acct-lang-check">✓</span>' : '') + '</button>'
-  ).join('');
-}
 
-function goToPurchasePlan(){
-  document.getElementById('acctMenu').classList.remove('open');
-  const widget = document.getElementById('buyMorePrompt');
-  if(widget && widget.style.display !== 'none'){
-    widget.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    widget.style.outline = '2px solid var(--gold)';
-    setTimeout(() => { widget.style.outline = ''; }, 2200);
-  }else{
-    window.open('/pricing.html', '_blank', 'noopener');
-  }
-}
 
 function openAccountInfo(){
   document.getElementById('acctMenu').classList.remove('open');
@@ -21156,6 +21280,71 @@ if(typeof document.addEventListener === 'function'){
   document.addEventListener('change', updateGenerateButtonState);
 }
 </script>
+  <!-- Upgrade plan modal: choose a plan, then continue to payment. The checkout step is
+       a deliberate stub (startCheckout) until the payment-gateway contract is signed —
+       today it reserves the plan via /api/purchase; swapping in the real gateway later
+       touches only that one function. -->
+  <div class="acct-modal-overlay" id="upgradeOverlay" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="upgrade-modal">
+      <div id="upgradeChoose">
+        <h3 data-i18n="up.title">Choose your plan</h3>
+        <p class="up-sub" data-i18n="up.sub">Upgrade instantly. Your allowances are refreshed the moment your plan is active.</p>
+        <div class="up-grid">
+          <button type="button" class="up-card" data-plan="Starter" onclick="selectUpgradePlan('Starter')">
+            <span class="up-name">Starter</span>
+            <span class="up-price">$49 <span class="per">/ month</span></span>
+            <ul>
+              <li>4 projects per month</li>
+              <li>5 design modifications</li>
+              <li>6 image edits</li>
+              <li>12 camera views per design</li>
+              <li>High-resolution downloads</li>
+            </ul>
+            <span class="up-pick" data-i18n="up.select">Select</span>
+          </button>
+          <button type="button" class="up-card selected" data-plan="Studio" onclick="selectUpgradePlan('Studio')">
+            <span class="up-badge" data-i18n="up.popular">Most Popular</span>
+            <span class="up-name">Studio</span>
+            <span class="up-price">$129 <span class="per">/ month</span></span>
+            <ul>
+              <li>15 projects per month</li>
+              <li>20 design modifications</li>
+              <li>25 image edits</li>
+              <li>12 camera views per design</li>
+              <li>Team accounts</li>
+            </ul>
+            <span class="up-pick" data-i18n="up.select">Select</span>
+          </button>
+          <button type="button" class="up-card" data-plan="Enterprise" onclick="selectUpgradePlan('Enterprise')">
+            <span class="up-name">Enterprise</span>
+            <span class="up-price" data-i18n="up.custom">Custom</span>
+            <ul>
+              <li>Unlimited projects</li>
+              <li>Custom limits</li>
+              <li>Dedicated support</li>
+              <li>Admin control panel</li>
+              <li>Priority activation</li>
+            </ul>
+            <span class="up-pick" data-i18n="up.select">Select</span>
+          </button>
+        </div>
+        <div class="up-footer">
+          <button type="button" class="no" onclick="document.getElementById('upgradeOverlay').classList.remove('open')" data-i18n="set.cancel">Cancel</button>
+          <button type="button" class="go" id="upgradeContinueBtn" onclick="startCheckout()" data-i18n="up.continue">Continue to payment</button>
+        </div>
+        <div class="up-status" id="upgradeModalStatus"></div>
+      </div>
+      <div class="up-success" id="upgradeSuccess">
+        <div class="big">🎉</div>
+        <h4 data-i18n="up.reservedTitle">Your plan is reserved!</h4>
+        <p id="upgradeSuccessText"></p>
+        <div class="up-footer" style="justify-content:center;">
+          <button type="button" class="no" onclick="document.getElementById('upgradeOverlay').classList.remove('open')" data-i18n="set.close">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Account settings: My information -->
   <div class="acct-modal-overlay" id="acctInfoOverlay" onclick="if(event.target===this) this.classList.remove('open')">
     <div class="acct-modal">
