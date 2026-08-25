@@ -3293,7 +3293,7 @@ Replace only the materials and graphics."></textarea>
          themed from the approved board (owner request). -->
     <div id="ecbAreaRenders" style="display:none;margin-top:26px;">
       <div class="eyebrow">Approved Area Renders</div>
-      <div id="ecbAreaRendersGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:12px;"></div>
+      <div id="ecbAreaRendersGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:12px;"></div>
     </div>
     <div class="approve-progress" id="ecbProgress" style="display:none;">
       <div class="approve-progress-header">
@@ -15509,9 +15509,12 @@ function renderEcbAreaRenders(inProgressArea){
             ? '<img src="' + done.image + '" alt="' + area + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openImageLightbox(this.src)">'
             : '<div style="color:#9AA0AC;font-size:12px;padding:14px;text-align:center;">' + (active ? 'Generating high-resolution render...' : (done === undefined && (done || '') === '' && (renders.someError && renders.someError[area]) ? '' : 'Waiting...')) + '</div>'}
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;flex-wrap:wrap;">
           <div style="font-size:12.5px;font-weight:700;">${area}</div>
-          ${done ? '<button class="ghost small" onclick="downloadEcbAreaRender(\'' + area.replace(/'/g, "\\'") + '\')">Download</button>' : ''}
+          ${done ? '<div style="display:flex;gap:6px;">'
+              + '<button class="ghost small" onclick="downloadEcbAreaRender(\'' + area.replace(/'/g, "\\'") + '\')">Download</button>'
+              + '<button class="ghost small" onclick="openEditPanel(\'ecbArea:' + area.replace(/'/g, "\\'") + '\')">Edit</button>'
+              + '</div>' : ''}
         </div>
       </div>
     `;
@@ -18523,6 +18526,14 @@ function openEditPanel(camId, isStandalone){
     if(!hist) return;
     sourceImage = hist.images[hist.activeIndex];
     editTarget = { type: 'standalone' };
+  }else if(typeof camId === 'string' && camId.indexOf('ecbArea:') === 0){
+    // Approved event-area render (same Edit panel as the exhibition section's view cards).
+    const area = camId.slice(8);
+    const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === area);
+    if(!r) return;
+    sourceImage = r.image;
+    editTarget = { type: 'ecbArea', area };
+    downloadLabel = area;
   }else if(camId){
     const card = document.getElementById('genCard-' + camId);
     const cardImg = card ? card.querySelector('img') : null;
@@ -18642,7 +18653,7 @@ function canvasHasMarkup(canvas){
 async function submitEdit(){
   const idx = activeOptionIndex;
   const opt = optionResults[idx];
-  if(!opt && (!editTarget || editTarget.type !== 'standalone')) return;
+  if(!opt && (!editTarget || (editTarget.type !== 'standalone' && editTarget.type !== 'ecbArea'))) return;
 
   const editDesc = document.getElementById('editText').value.trim();
   const canvas = document.getElementById('markupCanvas');
@@ -18663,7 +18674,10 @@ async function submitEdit(){
   const compositeDataUrl = composite.toDataURL('image/png');
 
   let promptText;
-  const EDIT_DESIGNER_FRAMING = `You are the same world-class exhibition stand designer — 20+ years of experience designing booths for international trade shows such as GITEX, CES, Arab Health, Hannover Messe, and Mobile World Congress — who created this approved booth design. When making this edit, apply that same professional judgment, not just literal instruction-following: correct human-scale proportions for anything you add or resize, premium material and finish choices consistent with the rest of the booth, clean and uncluttered composition, and full design-language consistency (materials, color palette, architectural style, lighting approach) with everything already established in this design. This is a real professional exhibition stand — every change must hold up to that same premium standard.
+  // Event-area edits use event framing (and skip the booth-only approved-decisions block).
+  const EDIT_DESIGNER_FRAMING = editTarget.type === 'ecbArea'
+    ? 'You are the same world-class event designer who created this approved event area render. When making this edit, apply that same professional judgment, not just literal instruction-following: correct human-scale proportions for anything you add or resize, premium material and finish choices consistent with the rest of the design, clean uncluttered composition, and full design-language consistency (materials, brand color palette, architectural language, lighting approach) with everything already established. Never introduce any color outside the established brand palette and neutrals.\n'
+    : `You are the same world-class exhibition stand designer — 20+ years of experience designing booths for international trade shows such as GITEX, CES, Arab Health, Hannover Messe, and Mobile World Congress — who created this approved booth design. When making this edit, apply that same professional judgment, not just literal instruction-following: correct human-scale proportions for anything you add or resize, premium material and finish choices consistent with the rest of the booth, clean and uncluttered composition, and full design-language consistency (materials, color palette, architectural style, lighting approach) with everything already established in this design. This is a real professional exhibition stand — every change must hold up to that same premium standard.
 ${buildApprovedDecisionsText()}
 `;
   const colorsUsedList = Array.from(markupColorsUsed).map(c => MARKUP_COLOR_NAMES[c] || c);
@@ -18683,9 +18697,10 @@ ${buildApprovedDecisionsText()}
     promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for this booth design.`;
   }
 
-  const statusEl = document.getElementById('actionStatus');
+  const statusEl = editTarget.type === 'ecbArea' ? document.getElementById('ecbActionStatus') : document.getElementById('actionStatus');
   statusEl.textContent = 'Preparing your edit...';
   closeEditPanel();
+  if(editTarget.type === 'ecbArea') statusEl.textContent = 'Applying your edit to "' + editTarget.area + '"...';
 
   // Show progress directly on the specific picture being edited, not only as a page-top
   // status line — with several views in the grid, that top-level text alone gave no visual
@@ -18762,7 +18777,12 @@ ${buildApprovedDecisionsText()}
       renderEditUsageIndicator();
     }
 
-    if(editTarget.type === 'camview'){
+    if(editTarget.type === 'ecbArea'){
+      const target = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === editTarget.area);
+      if(target) target.image = compressedResult;
+      renderEcbAreaRenders(null);
+      statusEl.textContent = '';
+    }else if(editTarget.type === 'camview'){
       pushCardHistory(editTarget.camId, compressedResult, editDesc);
       renderGeneratedViewCard(editTarget.camId, 'done', compressedResult);
       statusEl.textContent = '';
