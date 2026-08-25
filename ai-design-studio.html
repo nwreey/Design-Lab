@@ -15526,6 +15526,48 @@ function showEcbGoodLuckAndRating(freshRating){
 }
 
 let ecbAreaRendersInProgress = false;
+// Which area render is currently being edited (Edit panel submit in flight) — its card
+// keeps showing the ORIGINAL picture with a progress bar overlaid inside the image box.
+let ecbAreaEditing = null; // { area, stop } | null
+
+function startEcbAreaEditProgress(area){
+  ecbAreaEditing = { area, stop: null };
+  renderEcbAreaRenders(null);
+  let elapsed = 0;
+  const stepMs = 400;
+  const timer = setInterval(() => {
+    elapsed += stepMs;
+    const t = elapsed / 45000;
+    const eased = 1 - Math.exp(-t * 2.2);
+    const fill = document.getElementById('ecbAreaEditFill');
+    const pct = document.getElementById('ecbAreaEditPercent');
+    const clamped = Math.round(10 + 82 * eased);
+    if(fill) fill.style.width = clamped + '%';
+    if(pct) pct.textContent = clamped + '%';
+  }, stepMs);
+  ecbAreaEditing.stop = function(){ clearInterval(timer); };
+}
+
+function stopEcbAreaEditProgress(){
+  if(ecbAreaEditing && ecbAreaEditing.stop) ecbAreaEditing.stop();
+  ecbAreaEditing = null;
+  renderEcbAreaRenders(null);
+}
+
+function ecbAreaCurrentImage(r){
+  return (r.images && r.images.length) ? r.images[r.activeIndex != null ? r.activeIndex : r.images.length - 1] : r.image;
+}
+
+function ecbAreaNav(area, delta){
+  if(ecbAreaRendersInProgress || ecbAreaEditing) return;
+  const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === area);
+  if(!r || !r.images || r.images.length < 2) return;
+  const next = Math.max(0, Math.min(r.images.length - 1, (r.activeIndex != null ? r.activeIndex : r.images.length - 1) + delta));
+  r.activeIndex = next;
+  r.image = r.images[next]; // keep the legacy field in sync for downloads/theme refs
+  renderEcbAreaRenders(null);
+  saveCurrentProject();
+}
 
 function renderEcbAreaRenders(inProgressArea){
   const wrap = document.getElementById('ecbAreaRenders');
@@ -15538,18 +15580,35 @@ function renderEcbAreaRenders(inProgressArea){
   grid.innerHTML = areas.map(area => {
     const done = renders.find(r => r.area === area);
     const active = inProgressArea === area;
+    const editing = ecbAreaEditing && ecbAreaEditing.area === area;
+    const esc = area.replace(/'/g, "\\'");
+    const shown = done ? ecbAreaCurrentImage(done) : null;
+    const versions = done && done.images ? done.images.length : 1;
+    const vIndex = done && done.images ? (done.activeIndex != null ? done.activeIndex : versions - 1) : 0;
+    // The edit runs with the ORIGINAL still visible; the progress bar sits INSIDE the box.
+    const editOverlay = editing ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(11,12,16,.82);padding:10px 12px;z-index:2;">'
+      + '<div class="approve-progress-header"><span class="approve-progress-message" style="color:#EAEAEA;">Applying your edit...</span><span class="approve-progress-percent" id="ecbAreaEditPercent" style="color:#EAEAEA;">10%</span></div>'
+      + '<div class="approve-progress-track"><div class="approve-progress-fill" id="ecbAreaEditFill" style="width:10%;"></div></div>'
+      + '</div>' : '';
+    const navRow = (done && versions > 1 && !editing && !ecbAreaRendersInProgress)
+      ? '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;">'
+        + '<button class="ghost small" ' + (vIndex === 0 ? 'disabled' : '') + ' onclick="ecbAreaNav(\'' + esc + '\', -1)">&lsaquo; Back</button>'
+        + '<span style="font-size:11px;opacity:.6;">' + (vIndex + 1) + ' / ' + versions + '</span>'
+        + '<button class="ghost small" ' + (vIndex === versions - 1 ? 'disabled' : '') + ' onclick="ecbAreaNav(\'' + esc + '\', 1)">Forward &rsaquo;</button>'
+        + '</div>' : '';
     return `
       <div style="border:1.5px solid var(--line);border-radius:2px;overflow:hidden;background:#fff;">
         <div style="background:#0B0C10;aspect-ratio:297/210;display:flex;align-items:center;justify-content:center;position:relative;">
           ${done
-            ? '<img src="' + done.image + '" alt="' + area + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openImageLightbox(this.src)">'
-            : '<div style="color:#9AA0AC;font-size:12px;padding:14px;text-align:center;">' + (active ? 'Generating high-resolution render...' : (done === undefined && (done || '') === '' && (renders.someError && renders.someError[area]) ? '' : 'Waiting...')) + '</div>'}
+            ? '<img src="' + shown + '" alt="' + area + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openImageLightbox(this.src)">' + editOverlay
+            : '<div style="color:#9AA0AC;font-size:12px;padding:14px;text-align:center;">' + (active ? 'Generating high-resolution render...' : 'Waiting...') + '</div>'}
         </div>
         <div style="padding:10px 12px;">
           <div style="font-size:12.5px;font-weight:700;">${area}</div>
-          ${(done && !ecbAreaRendersInProgress) ? '<div style="display:flex;gap:6px;margin-top:8px;">'
-              + '<button class="ghost small" onclick="downloadEcbAreaRender(\'' + area.replace(/'/g, "\\'") + '\')">Download</button>'
-              + '<button class="ghost small" onclick="openEditPanel(\'ecbArea:' + area.replace(/'/g, "\\'") + '\')">Edit</button>'
+          ${navRow}
+          ${(done && !ecbAreaRendersInProgress && !editing) ? '<div style="display:flex;gap:6px;margin-top:8px;">'
+              + '<button class="ghost small" onclick="downloadEcbAreaRender(\'' + esc + '\')">Download</button>'
+              + '<button class="ghost small" onclick="openEditPanel(\'ecbArea:' + esc + '\')">Edit</button>'
               + '</div>' : ''}
         </div>
       </div>
@@ -15585,7 +15644,7 @@ function downloadEcbAreaRender(area){
   const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === area);
   if(!r) return;
   const name = (document.getElementById('f_name').value.trim() || 'event') + ' - ' + area;
-  forceDownloadImage(r.image, name.replace(/[^\w\- ]+/g, '').trim() + '.png');
+  forceDownloadImage(ecbAreaCurrentImage(r), name.replace(/[^\w\- ]+/g, '').trim() + '.png');
 }
 
 async function generateApprovedAreaRenders(){
@@ -18626,7 +18685,7 @@ function openEditPanel(camId, isStandalone){
     const area = camId.slice(8);
     const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === area);
     if(!r) return;
-    sourceImage = r.image;
+    sourceImage = ecbAreaCurrentImage(r);
     editTarget = { type: 'ecbArea', area };
     downloadLabel = area;
   }else if(camId){
@@ -18807,6 +18866,9 @@ ${buildApprovedDecisionsText()}
     const hist = viewCardHistories[editTarget.camId];
     originalCardImage = hist ? hist.images[hist.activeIndex] : null;
     renderGeneratedViewCard(editTarget.camId, 'pending', null);
+  }else if(editTarget.type === 'ecbArea'){
+    // Original stays visible; the progress bar runs inside that card's image box.
+    startEcbAreaEditProgress(editTarget.area);
   }
   // Same protection as every other generation flow — an edit in flight is just as much "a
   // design being generated" as the initial render or the camera views, so closing the tab,
@@ -18874,8 +18936,15 @@ ${buildApprovedDecisionsText()}
 
     if(editTarget.type === 'ecbArea'){
       const target = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === editTarget.area);
-      if(target) target.image = compressedResult;
-      renderEcbAreaRenders(null);
+      if(target){
+        // Version history, exhibition-style: the original is always kept; Back/Forward
+        // walk the versions on the card.
+        target.images = (target.images && target.images.length) ? target.images : [target.image];
+        target.images.push(compressedResult);
+        target.activeIndex = target.images.length - 1;
+        target.image = compressedResult;
+      }
+      stopEcbAreaEditProgress();
       statusEl.textContent = '';
     }else if(editTarget.type === 'camview'){
       pushCardHistory(editTarget.camId, compressedResult, editDesc);
@@ -18902,6 +18971,7 @@ ${buildApprovedDecisionsText()}
     if(editTarget.type === 'camview' && originalCardImage){
       renderGeneratedViewCard(editTarget.camId, 'done', originalCardImage);
     }
+    if(editTarget.type === 'ecbArea') stopEcbAreaEditProgress(); // original untouched, bar removed
     if(activeOptionIndex === idx){
       setStatusError(statusEl, 'Could not apply that edit: ' + (err.message || 'unknown error'));
     }
