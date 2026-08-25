@@ -15190,6 +15190,12 @@ function buildEventDirectGeminiPrompt(d){
   if(d.client_description) lines.push('- Client\'s own description of the event (highest priority creative direction): "' + d.client_description.replace(/"/g, "'") + '".');
   lines.push('');
   lines.push('RENDERING RULES:');
+  // Conference composition rule (owner decision): a conference render is ALWAYS framed
+  // from inside the hall toward the stage, with the front rows and the VIP seating as
+  // the recognizable foreground — never a generic aerial or lobby shot.
+  if(d.event_type && /conference/i.test(d.event_type)){
+    lines.push('- MANDATORY CAMERA COMPOSITION FOR THIS CONFERENCE: frame the image from inside the main hall facing the stage. The stage — with its backdrop, screens, and lectern — is the clear focal point of the composition. The first rows of seated attendees are visible in the foreground, and the VIP seating area (premium front-row seating, visibly more luxurious than the regular seating) is clearly recognizable closest to the stage. The view should read exactly like a professional photograph taken from the audience area toward the stage during the event.');
+  }
   lines.push('- One single unified image of the event environment — never a collage, grid, split frame, or multiple panels.');
   lines.push('- Photorealistic professional visualization quality: realistic materials, physically plausible lighting, correct human scale, believable staging and AV production.');
   lines.push('- Include people naturally using the space at a density that matches the stated attendance, so the scale reads correctly.');
