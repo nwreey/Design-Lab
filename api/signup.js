@@ -61,10 +61,16 @@ async function ensureSchema() {
   `;
 }
 
+/* TEMPORARY — RATE LIMIT DISABLED FOR OWNER TESTING (set back to false to re-enable).
+   Per explicit owner request during pre-launch testing; the submission rate limit below
+   is fully implemented and re-arms the moment this flag is false again. */
+const RATE_LIMIT_DISABLED = true;
+
 /* Simple per-IP rate limit on submissions, reusing the same table-based approach as
    login's lockouts (no external store on serverless): max 5 requests per IP per hour.
    Deliberately quiet — an over-limit caller gets the same friendly 429 either way. */
 async function checkSubmitRateLimit(ip) {
+  if (RATE_LIMIT_DISABLED) return true;
   await sql`
     CREATE TABLE IF NOT EXISTS signup_rate (
       ip TEXT PRIMARY KEY,

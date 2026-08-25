@@ -20,7 +20,12 @@ const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 const CONTACT_INBOX = 'info@designslab.ai';
 
+/* TEMPORARY — RATE LIMIT DISABLED FOR OWNER TESTING (set back to false to re-enable).
+   Same flag/reason as api/signup.js. */
+const RATE_LIMIT_DISABLED = true;
+
 async function checkSubmitRateLimit(ip) {
+  if (RATE_LIMIT_DISABLED) return true;
   await sql`
     CREATE TABLE IF NOT EXISTS contact_rate (
       ip TEXT PRIMARY KEY,
