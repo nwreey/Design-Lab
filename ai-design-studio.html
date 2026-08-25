@@ -18899,9 +18899,10 @@ ${buildApprovedDecisionsText()}
   }
 
   const statusEl = editTarget.type === 'ecbArea' ? document.getElementById('ecbActionStatus') : document.getElementById('actionStatus');
-  statusEl.textContent = 'Preparing your edit...';
+  // For area-render edits the progress lives INSIDE the picture box (startEcbAreaEditProgress)
+  // — no duplicate message in the board's status line under the Download bar.
+  statusEl.textContent = editTarget.type === 'ecbArea' ? '' : 'Preparing your edit...';
   closeEditPanel();
-  if(editTarget.type === 'ecbArea') statusEl.textContent = 'Applying your edit to "' + editTarget.area + '"...';
 
   // Show progress directly on the specific picture being edited, not only as a page-top
   // status line — with several views in the grid, that top-level text alone gave no visual
