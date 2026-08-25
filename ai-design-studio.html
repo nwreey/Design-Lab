@@ -15557,14 +15557,35 @@ function renderEcbAreaRenders(inProgressArea){
   }).join('');
 }
 
+/* Cross-origin images (projects restored from server blob storage) make the browser
+   IGNORE the download attribute and open the picture instead. This fetches the image
+   into a local blob first so the save dialog always appears. */
+async function forceDownloadImage(src, filename){
+  try{
+    let url = src;
+    let revokeUrl = null;
+    if(src && !src.startsWith('data:')){
+      const resp = await fetch(src);
+      const blob = await resp.blob();
+      url = URL.createObjectURL(blob);
+      revokeUrl = url;
+    }
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'designslab-image.jpg';
+    document.body.appendChild(a); a.click(); a.remove();
+    if(revokeUrl) setTimeout(() => URL.revokeObjectURL(revokeUrl), 5000);
+  }catch(e){
+    console.error('Download failed, opening instead:', e);
+    window.open(src, '_blank');
+  }
+}
+
 function downloadEcbAreaRender(area){
   const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === area);
   if(!r) return;
   const name = (document.getElementById('f_name').value.trim() || 'event') + ' - ' + area;
-  const a = document.createElement('a');
-  a.href = r.image;
-  a.download = name.replace(/[^\w\- ]+/g, '').trim() + '.png';
-  document.body.appendChild(a); a.click(); a.remove();
+  forceDownloadImage(r.image, name.replace(/[^\w\- ]+/g, '').trim() + '.png');
 }
 
 async function generateApprovedAreaRenders(){
@@ -15762,12 +15783,7 @@ async function downloadEventConceptBoardImage(){
   if(!eventConceptBoard || !eventConceptBoard.image) return;
   const name = document.getElementById('f_name').value.trim() || 'event-concept';
   const safeTitle = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 40);
-  const a = document.createElement('a');
-  a.href = eventConceptBoard.image;
-  a.download = `${safeTitle}-concept-board.png`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  forceDownloadImage(eventConceptBoard.image, safeTitle + '-concept-board.png');
 }
 
 // The six secondary style arrays (lighting/materials/furniture/stageStyle/entrance/networking/
@@ -18634,8 +18650,8 @@ function openEditPanel(camId, isStandalone){
   // grid card behind this panel.
   const editDownloadBtn = document.getElementById('editDownloadBtn');
   if(editDownloadBtn){
-    editDownloadBtn.href = sourceImage;
-    editDownloadBtn.setAttribute('download', cameraViewFilename(downloadLabel) + '.jpg');
+    editDownloadBtn.removeAttribute('href');
+    editDownloadBtn.onclick = function(e){ if(e) e.preventDefault(); forceDownloadImage(sourceImage, cameraViewFilename(downloadLabel) + '.jpg'); };
   }
 
   document.getElementById('editText').value = '';
@@ -20427,7 +20443,7 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
     <img src="${imageOrMsg}" onclick="openImageLightbox('${imageOrMsg}')">
     ${historyNav}
     <div class="viewer3d-generated-card-actions">
-      <a href="${imageOrMsg}" download="${cameraViewFilename(label)}.jpg" class="ghost small">Download</a>
+      <button class="ghost small" onclick="forceDownloadImage(document.querySelector('#genCard-${camId} img').src, '${cameraViewFilename(label)}.jpg')">Download</button>
       <button class="ghost small" onclick="openEditPanel('${camId}')">Edit</button>
     </div>
   `;
