@@ -3290,12 +3290,6 @@ Replace only the materials and graphics."></textarea>
       </div>
     </div>
     <div id="ecbGalleryStrip" class="gallery-strip"></div>
-    <!-- Approve: one separate high-resolution A4-landscape render per selected area,
-         themed from the approved board (owner request). -->
-    <div id="ecbAreaRenders" style="display:none;margin-top:26px;">
-      <div class="eyebrow">Approved Area Renders</div>
-      <div id="ecbAreaRendersGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:12px;"></div>
-    </div>
     <div class="approve-progress" id="ecbProgress" style="display:none;">
       <div class="approve-progress-header">
         <span class="approve-progress-message" id="ecbProgressMessage"></span>
@@ -3312,6 +3306,14 @@ Replace only the materials and graphics."></textarea>
       <button class="ghost small" id="ecbOtherThemeBtn" onclick="regenerateEventConceptBoard()" style="margin-left:auto;">Other Theme</button>
     </div>
     <div class="action-status" id="ecbActionStatus"></div>
+
+    <!-- Approve: one separate high-resolution A4-landscape render per selected area,
+         themed from the approved board (owner request). -->
+    <div id="ecbAreaRenders" style="display:none;margin-top:26px;">
+      <div class="eyebrow">Approved Area Renders</div>
+      <div id="ecbAreaRendersGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:12px;"></div>
+    </div>
+
 
     <!-- The six creative-copy sections used to render directly under the image as
          always-visible boxes; they now live only inside the Modify Theme panel
