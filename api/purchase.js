@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
+import { sendTransactionalEmail, buildPurchaseRequestEmail } from '../lib/email.js';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* ================= Plan Purchase Request endpoint =================
@@ -105,7 +106,23 @@ export default async function handler(req, res) {
       res.status(500).json({ error: { message: 'Could not submit your purchase request right now. Please try again later.' } });
       return;
     }
-    res.status(200).json({ ok: true, plan });
+    // Confirmation email — the users table only carries an email if the admin filled one
+    // in when creating the account (users.email is optional, added by api/admin-users.js's
+    // schema), so this looks it up defensively and silently skips when absent or when the
+    // column doesn't exist yet on an older deployment. Never blocks the purchase itself.
+    let emailResult = { sent: false };
+    try {
+      const userRows = await sql`SELECT email FROM users WHERE id = ${String(payload.userId)};`;
+      const userEmail = userRows.rows.length > 0 ? userRows.rows[0].email : null;
+      if (userEmail) {
+        const emailContent = buildPurchaseRequestEmail({ username: String(username), plan });
+        emailResult = await sendTransactionalEmail({ toEmail: userEmail, toName: String(username), subject: emailContent.subject, html: emailContent.html });
+      }
+    } catch (err) {
+      console.error('purchase: could not send confirmation email (continuing):', err);
+    }
+
+    res.status(200).json({ ok: true, plan, emailSent: emailResult.sent });
     return;
   }
 

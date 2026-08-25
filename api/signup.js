@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
+import { sendTransactionalEmail, buildAccessRequestReceivedEmail, buildAccessApprovedEmail } from '../lib/email.js';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* ================= Access Request endpoint (Early Access Program) =================
@@ -157,7 +158,12 @@ export default async function handler(req, res) {
       return;
     }
 
-    res.status(200).json({ ok: true });
+    // Confirmation email to the requester — a courtesy on top of the stored request;
+    // sendTransactionalEmail never throws, so a mail outage can never fail the signup.
+    const emailContent = buildAccessRequestReceivedEmail({ name });
+    const emailResult = await sendTransactionalEmail({ toEmail: email, toName: name, subject: emailContent.subject, html: emailContent.html });
+
+    res.status(200).json({ ok: true, emailSent: emailResult.sent });
     return;
   }
 
@@ -183,14 +189,24 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { id, status } = req.body || {};
+    const { id, status, notify } = req.body || {};
     if (!id || !['pending', 'reviewed'].includes(status)) {
       res.status(400).json({ error: { message: 'Provide a request id and a status of "pending" or "reviewed".' } });
       return;
     }
     try {
+      // Approval email (admin clicked "Approve & email") — sent to the request's own
+      // address, before the status flips, so a DB failure never emails without recording.
+      let emailResult = { sent: false };
+      if (notify && status === 'reviewed') {
+        const rows = await sql`SELECT name, email FROM signup_requests WHERE id = ${id};`;
+        if (rows.rows.length > 0) {
+          const emailContent = buildAccessApprovedEmail({ name: rows.rows[0].name });
+          emailResult = await sendTransactionalEmail({ toEmail: rows.rows[0].email, toName: rows.rows[0].name, subject: emailContent.subject, html: emailContent.html });
+        }
+      }
       await sql`UPDATE signup_requests SET status = ${status} WHERE id = ${id};`;
-      res.status(200).json({ ok: true });
+      res.status(200).json({ ok: true, emailSent: emailResult.sent });
     } catch (err) {
       console.error('signup: could not update request:', err);
       res.status(500).json({ error: { message: 'Could not update the request.' } });

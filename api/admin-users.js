@@ -70,6 +70,9 @@ async function ensureSchema() {
   // adds new columns on its own — this deployment already has a live users table from
   // earlier, so modify_limit/modify_count need their own explicit, idempotent migration.
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS modify_limit INTEGER;`;
+  // Optional contact email per user — used by transactional notifications (e.g. the plan
+  // purchase confirmation in api/purchase.js). Blank for accounts created before this.
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS modify_count INTEGER NOT NULL DEFAULT 0;`;
 
   // project_count is a PERMANENT, increment-only consumption counter — unlike the project
@@ -123,7 +126,7 @@ export default async function handler(req, res) {
     // reflects how many projects actually count against this user's limit, which is not
     // necessarily the same as how many they currently have saved if any were deleted.
     const result = await sql`
-      SELECT id, username, role, project_limit, project_count, edit_limit, edit_count, modify_limit, modify_count, created_at
+      SELECT id, username, email, role, project_limit, project_count, edit_limit, edit_count, modify_limit, modify_count, created_at
       FROM users
       ORDER BY created_at ASC;
     `;
@@ -132,7 +135,8 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { username, password, role, projectLimit, editLimit, modifyLimit } = req.body || {};
+    const { username, password, email, role, projectLimit, editLimit, modifyLimit } = req.body || {};
+    const cleanEmail = (typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) ? email.trim().slice(0, 200) : null;
     if (!username || !password) {
       res.status(400).json({ error: { message: 'Username and password are required.' } });
       return;
@@ -147,8 +151,8 @@ export default async function handler(req, res) {
 
     try {
       await sql`
-        INSERT INTO users (id, username, password_hash, role, project_limit, edit_limit, modify_limit)
-        VALUES (${id}, ${username}, ${passwordHash}, ${finalRole},
+        INSERT INTO users (id, username, password_hash, email, role, project_limit, edit_limit, modify_limit)
+        VALUES (${id}, ${username}, ${passwordHash}, ${cleanEmail}, ${finalRole},
                 ${projectLimit != null ? projectLimit : null}, ${editLimit != null ? editLimit : null}, ${modifyLimit != null ? modifyLimit : null});
       `;
     } catch (err) {

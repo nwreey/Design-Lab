@@ -118,6 +118,10 @@
           <input type="password" id="newPassword" placeholder="min. 6 characters">
         </div>
         <div class="field">
+          <label for="newEmail">Email <span style="font-weight:400;opacity:.6;">(for notifications)</span></label>
+          <input type="text" id="newEmail" placeholder="e.g. sara@company.com">
+        </div>
+        <div class="field">
           <label for="newProjectLimit">Project Limit</label>
           <input type="number" id="newProjectLimit" placeholder="blank = unlimited" min="0">
         </div>
@@ -137,7 +141,7 @@
 
     <div class="card">
       <h2>Signup Requests</h2>
-      <div class="hint" style="margin-bottom:14px;">Access requests submitted through the public signup page (Early Access Program). Review each request, create the account via "Add a team member" above, then mark the request reviewed. Marking reviewed doesn't create an account by itself.</div>
+      <div class="hint" style="margin-bottom:14px;">Access requests submitted through the public signup page (Early Access Program). Review each request, create the account via "Add a team member" above (fill in their email so they also get purchase notifications), then click "Approve &amp; email" — this marks the request reviewed and sends the applicant a branded approval email from notification@designslab.ai. It doesn't create an account by itself.</div>
       <table>
         <thead>
           <tr>
@@ -421,24 +425,30 @@ function renderSignupRequestsTable(requests){
       <td style="white-space:nowrap;">
         ${r.status === 'reviewed'
           ? `<button class="ghost" onclick="setSignupRequestStatus('${r.id}', 'pending')">Reopen</button>`
-          : `<button class="ghost" onclick="setSignupRequestStatus('${r.id}', 'reviewed')">Mark reviewed</button>`}
+          : `<button class="ghost" onclick="setSignupRequestStatus('${r.id}', 'reviewed', true)">Approve &amp; email</button>`}
         <button class="ghost" onclick="deleteSignupRequest('${r.id}')">Remove</button>
       </td>
     </tr>
   `).join('');
 }
 
-async function setSignupRequestStatus(id, status){
+async function setSignupRequestStatus(id, status, notify){
   const statusEl = document.getElementById('signupRequestsStatus');
   try{
     const response = await fetch('/api/signup', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ id, status, notify: !!notify }),
     });
     const data = await response.json().catch(() => ({}));
     if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not update the request.');
     await loadSignupRequests();
+    if(notify){
+      statusEl.className = data.emailSent ? 'status-msg ok' : 'status-msg error';
+      statusEl.textContent = data.emailSent
+        ? 'Approved — the applicant has been emailed that their account is ready.'
+        : 'Approved and marked reviewed, but the approval email could not be sent (check MANDRILL_API_KEY / Mandrill domain setup in the Vercel logs).';
+    }
   }catch(err){
     statusEl.className = 'status-msg error';
     statusEl.textContent = err.message || 'Could not update the request.';
@@ -496,7 +506,7 @@ function renderUsersTable(){
     const modifyOver = u.modify_limit != null && u.modify_count >= u.modify_limit;
     return `
       <tr>
-        <td>${escapeHtml(u.username)}</td>
+        <td>${escapeHtml(u.username)}${u.email ? '<br><span style="font-size:11px;color:#888;">' + escapeHtml(u.email) + '</span>' : ''}</td>
         <td><span class="role-badge ${u.role === 'admin' ? 'admin' : ''}">${u.role}</span></td>
         <td class="usage ${projOver ? 'over' : ''}">${projLimitText}</td>
         <td class="usage ${editOver ? 'over' : ''}">${editLimitText}</td>
@@ -521,6 +531,7 @@ function escapeHtml(s){
 async function addUser(){
   const username = document.getElementById('newUsername').value.trim();
   const password = document.getElementById('newPassword').value;
+  const email = document.getElementById('newEmail').value.trim();
   const projectLimitRaw = document.getElementById('newProjectLimit').value;
   const editLimitRaw = document.getElementById('newEditLimit').value;
   const modifyLimitRaw = document.getElementById('newModifyLimit').value;
@@ -542,7 +553,7 @@ async function addUser(){
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username, password,
+        username, password, email: email || null,
         projectLimit: projectLimitRaw === '' ? null : parseInt(projectLimitRaw, 10),
         editLimit: editLimitRaw === '' ? null : parseInt(editLimitRaw, 10),
         modifyLimit: modifyLimitRaw === '' ? null : parseInt(modifyLimitRaw, 10)
@@ -553,6 +564,7 @@ async function addUser(){
 
     document.getElementById('newUsername').value = '';
     document.getElementById('newPassword').value = '';
+    document.getElementById('newEmail').value = '';
     document.getElementById('newProjectLimit').value = '';
     document.getElementById('newEditLimit').value = '';
     document.getElementById('newModifyLimit').value = '';
