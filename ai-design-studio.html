@@ -2090,24 +2090,6 @@ Replace only the materials and graphics."></textarea>
         </select>
       </div>
 
-      <div class="field" id="outputViewsField">
-        <label>What should the output show?</label>
-        <div class="hint" style="margin-bottom:10px;">Select every space the generated concept image must clearly include.</div>
-        <div class="checkbox-grid">
-          <label><input type="checkbox" class="output-view-cb" value="Entrance Gate"> Entrance Gate</label>
-          <label><input type="checkbox" class="output-view-cb" value="Outdoor Area"> Outdoor Area</label>
-          <label><input type="checkbox" class="output-view-cb" value="Foyer / Pre-Function Area"> Foyer / Pre-Function Area</label>
-          <label><input type="checkbox" class="output-view-cb" value="Registration & Welcome"> Registration &amp; Welcome</label>
-          <label><input type="checkbox" class="output-view-cb" value="Exhibition Area"> Exhibition Area</label>
-          <label><input type="checkbox" class="output-view-cb" value="Conference / Main Hall"> Conference / Main Hall</label>
-          <label><input type="checkbox" class="output-view-cb" value="Main Stage"> Main Stage</label>
-          <label><input type="checkbox" class="output-view-cb" value="VIP Area / Lounge"> VIP Area / Lounge</label>
-          <label><input type="checkbox" class="output-view-cb" value="Networking Lounge"> Networking Lounge</label>
-          <label><input type="checkbox" class="output-view-cb" value="Catering / F&B Area"> Catering / F&amp;B Area</label>
-          <label><input type="checkbox" class="output-view-cb" value="Breakout Rooms"> Breakout Rooms</label>
-          <label><input type="checkbox" class="output-view-cb" value="Photo / Media Wall"> Photo / Media Wall</label>
-        </div>
-      </div>
     </div>
 
     <div class="section-headline" id="boothThemeHeadline" style="display:none;" data-i18n="section.boothTheme">Booth Theme</div>
@@ -2179,6 +2161,28 @@ Replace only the materials and graphics."></textarea>
       <div class="requirements-grid" id="brandPersonalityGrid"></div>
       <div class="hint" id="brandPersonalityHint">Select up to 3, in order — the first you check is Primary (greatest influence), then Secondary, then Accent. Adds an emotional/brand layer on top of the styles above — never overrides them.</div>
     </div>
+
+    <!-- Event-only (toggled in updateModeDependentLabels): placed here right after Brand
+         personality per owner direction. -->
+      <div class="field" id="outputViewsField" style="display:none;">
+        <label>What should the output show?</label>
+        <div class="hint" style="margin-bottom:10px;">Select every space the generated concept image must clearly include.</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="output-view-cb" value="Entrance Gate"> Entrance Gate</label>
+          <label><input type="checkbox" class="output-view-cb" value="Outdoor Area"> Outdoor Area</label>
+          <label><input type="checkbox" class="output-view-cb" value="Foyer / Pre-Function Area"> Foyer / Pre-Function Area</label>
+          <label><input type="checkbox" class="output-view-cb" value="Registration & Welcome"> Registration &amp; Welcome</label>
+          <label><input type="checkbox" class="output-view-cb" value="Exhibition Area"> Exhibition Area</label>
+          <label><input type="checkbox" class="output-view-cb" value="Conference / Main Hall"> Conference / Main Hall</label>
+          <label><input type="checkbox" class="output-view-cb" value="Main Stage"> Main Stage</label>
+          <label><input type="checkbox" class="output-view-cb" value="VIP Area / Lounge"> VIP Area / Lounge</label>
+          <label><input type="checkbox" class="output-view-cb" value="Networking Lounge"> Networking Lounge</label>
+          <label><input type="checkbox" class="output-view-cb" value="Catering / F&B Area"> Catering / F&amp;B Area</label>
+          <label><input type="checkbox" class="output-view-cb" value="Breakout Rooms"> Breakout Rooms</label>
+          <label><input type="checkbox" class="output-view-cb" value="Photo / Media Wall"> Photo / Media Wall</label>
+        </div>
+      </div>
+
 
     <div id="boothOnlyFields">
       <div class="field" id="postersField">
@@ -10319,6 +10323,8 @@ function updateModeDependentLabels(){
   // personality, and mood instead.
   const archStyleField = document.getElementById('archStyleField');
   if(archStyleField) archStyleField.style.display = mode === 'event' ? 'none' : 'block';
+  const outputViewsField = document.getElementById('outputViewsField');
+  if(outputViewsField) outputViewsField.style.display = mode === 'event' ? 'block' : 'none';
   const autofillScenarioField = document.getElementById('aiAutofillScenarioField');
   if(autofillScenarioField) autofillScenarioField.style.display = mode === 'event' ? 'none' : 'block';
   const autofillGoalField = document.getElementById('aiAutofillGoalField');
