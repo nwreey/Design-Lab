@@ -136,6 +136,27 @@
     </div>
 
     <div class="card">
+      <h2>Signup Requests</h2>
+      <div class="hint" style="margin-bottom:14px;">Access requests submitted through the public signup page (Early Access Program). Review each request, create the account via "Add a team member" above, then mark the request reviewed. Marking reviewed doesn't create an account by itself.</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Company</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Use case</th>
+            <th>Submitted</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="signupRequestsBody"></tbody>
+      </table>
+      <div class="status-msg" id="signupRequestsStatus"></div>
+    </div>
+
+    <div class="card">
       <h2>Users List</h2>
       <table>
         <thead>
@@ -264,10 +285,86 @@ async function init(){
     }
     document.getElementById('adminContent').style.display = 'block';
     await loadUsers();
+    await loadSignupRequests();
     await loadLockouts();
     await loadRatings();
   }catch(err){
     showGate('Could not verify access: ' + (err.message || 'unknown error'));
+  }
+}
+
+/* ================= Signup Requests (Early Access Program) =================
+   Backed by /api/signup — POST is the public submission endpoint used by signup.html;
+   the GET/PATCH/DELETE verbs used here are admin-only (re-verified server-side). */
+async function loadSignupRequests(){
+  const statusEl = document.getElementById('signupRequestsStatus');
+  statusEl.className = 'status-msg';
+  statusEl.textContent = 'Loading...';
+  try{
+    const response = await fetch('/api/signup');
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load signup requests.');
+    renderSignupRequestsTable(data.requests || []);
+    statusEl.textContent = '';
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Could not load signup requests.';
+  }
+}
+
+function renderSignupRequestsTable(requests){
+  const body = document.getElementById('signupRequestsBody');
+  if(requests.length === 0){
+    body.innerHTML = '<tr><td colspan="8" class="hint">No signup requests yet.</td></tr>';
+    return;
+  }
+  body.innerHTML = requests.map(r => `
+    <tr style="${r.status === 'reviewed' ? 'opacity:.55;' : ''}">
+      <td>${escapeHtml(r.name)}</td>
+      <td>${escapeHtml(r.company)}</td>
+      <td><a href="mailto:${escapeHtml(r.email)}">${escapeHtml(r.email)}</a>${r.phone ? '<br><span style="font-size:11.5px;color:#888;">' + escapeHtml(r.phone) + '</span>' : ''}</td>
+      <td>${escapeHtml(r.role || '—')}</td>
+      <td style="max-width:260px;white-space:normal;font-size:12.5px;line-height:1.5;">${escapeHtml(r.use_case)}</td>
+      <td style="white-space:nowrap;">${new Date(r.created_at).toLocaleDateString()}</td>
+      <td>${r.status === 'reviewed' ? 'Reviewed' : '<strong>Pending</strong>'}</td>
+      <td style="white-space:nowrap;">
+        ${r.status === 'reviewed'
+          ? `<button class="ghost" onclick="setSignupRequestStatus('${r.id}', 'pending')">Reopen</button>`
+          : `<button class="ghost" onclick="setSignupRequestStatus('${r.id}', 'reviewed')">Mark reviewed</button>`}
+        <button class="ghost" onclick="deleteSignupRequest('${r.id}')">Remove</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function setSignupRequestStatus(id, status){
+  const statusEl = document.getElementById('signupRequestsStatus');
+  try{
+    const response = await fetch('/api/signup', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not update the request.');
+    await loadSignupRequests();
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Could not update the request.';
+  }
+}
+
+async function deleteSignupRequest(id){
+  if(!confirm('Remove this signup request? This cannot be undone.')) return;
+  const statusEl = document.getElementById('signupRequestsStatus');
+  try{
+    const response = await fetch('/api/signup?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not delete the request.');
+    await loadSignupRequests();
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Could not delete the request.';
   }
 }
 

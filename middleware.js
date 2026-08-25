@@ -10,6 +10,11 @@ export const config = {
 const PUBLIC_PATHS = [
   '/', '/homepage.html', '/product.html', '/pricing.html', '/enterprise.html', '/news.html',
   '/contact.html', '/terms.html', '/privacy.html', '/cookie-policy.html', '/login.html',
+  '/signup.html',
+  // /api/signup is public for POST (submitting an access request); its admin-only verbs
+  // (GET/PATCH/DELETE) re-verify the admin token inside the endpoint itself, same
+  // defense-in-depth pattern as api/admin-users.js.
+  '/api/signup',
   '/api/login', '/api/logout',
   '/logo-white.png', '/logo-black-transparent.png',
   '/favicon.ico', '/favicon-16.png', '/favicon-32.png', '/favicon-48.png', '/favicon-192.png',

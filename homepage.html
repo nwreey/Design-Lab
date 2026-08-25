@@ -107,6 +107,12 @@
     text-decoration:none; white-space:nowrap; transition:background .15s ease, transform .15s ease;
   }
   .nav-signin:hover{ background:#F7F7F7; transform:translateY(-1px); }
+  .nav-signup{
+    font-family:'Inter',sans-serif; font-size:13.5px; font-weight:700; color:#fff;
+    background:var(--ink); padding:9px 18px; border-radius:10px; border:2px solid var(--ink);
+    text-decoration:none; white-space:nowrap; transition:opacity .15s ease, transform .15s ease;
+  }
+  .nav-signup:hover{ opacity:.85; transform:translateY(-1px); }
   .nav-menu-toggle{
     display:none; background:none; border:1.5px solid var(--line); border-radius:8px;
     width:36px; height:36px; font-size:16px; cursor:pointer; color:var(--ink);
@@ -328,6 +334,7 @@
       <div class="site-header-actions">
         <div class="lang-switcher"><span aria-hidden="true">🌐</span><select id="languageSelector" onchange="setLanguage(this.value)" aria-label="Language / اللغة / Langue / Sprache / Idioma / Lingua / 语言 / 言語"></select></div>
         <a href="/login.html" class="nav-signin" data-i18n="nav.signin">Sign in</a>
+        <a href="/signup.html" class="nav-signup" data-i18n="nav.signup">Sign up</a>
         <button type="button" class="nav-menu-toggle" id="navMenuToggle" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
       </div>
     </div>
@@ -337,6 +344,7 @@
       <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
       <a href="/news.html" data-i18n="nav.news">News</a>
       <a href="/login.html" data-i18n="nav.signin">Sign in</a>
+      <a href="/signup.html" data-i18n="nav.signup">Sign up</a>
     </nav>
   </header>
 
@@ -498,7 +506,7 @@
         <div class="eyebrow" data-i18n="hp.trialEyebrow">Trial Version</div>
         <h2 data-i18n="hp.trialHeading">Early Access Program</h2>
         <p data-i18n="hp.trialText">DesignsLab AI is currently available as a trial version. Access is granted after account review to ensure the platform is used by professionals in the events and exhibition industry.</p>
-        <a href="#" class="btn btn-primary" data-i18n="hp.trialBtn">Request Access</a>
+        <a href="/signup.html" class="btn btn-primary" data-i18n="hp.trialBtn">Request Access</a>
       </div>
     </div>
   </section>
@@ -560,6 +568,7 @@ const I18N_EN = {
   'nav.enterprise': 'Enterprise',
   'nav.news': 'News',
   'nav.signin': 'Sign in',
+  'nav.signup': 'Sign up',
   'nav.contact': 'Contact us',
   'hp.heroTitle': 'AI Design Studio for Events & Exhibition Professionals',
   'hp.sub1': 'Create exhibition booths, event concepts, display stands, and presentation-ready visuals in minutes using AI.',
@@ -622,6 +631,7 @@ const I18N_AR = {
   'nav.enterprise': 'الشركات',
   'nav.news': 'الأخبار',
   'nav.signin': 'تسجيل الدخول',
+  'nav.signup': 'إنشاء حساب',
   'nav.contact': 'تواصل معنا',
   'hp.heroTitle': 'استوديو تصميم بالذكاء الاصطناعي لمحترفي الفعاليات والمعارض',
   'hp.sub1': 'أنشئ أجنحة معارض ومفاهيم فعاليات وستاندات عرض ومرئيات جاهزة للعرض التقديمي في دقائق باستخدام الذكاء الاصطناعي.',
@@ -684,6 +694,7 @@ const I18N_FR = {
   'nav.enterprise': 'Entreprise',
   'nav.news': 'Actualités',
   'nav.signin': 'Connexion',
+  'nav.signup': "S'inscrire",
   'nav.contact': 'Nous contacter',
   'hp.heroTitle': 'Studio de design IA pour les professionnels des événements et des salons',
   'hp.sub1': "Créez des stands d'exposition, des concepts d'événements, des présentoirs et des visuels prêts pour la présentation en quelques minutes grâce à l'IA.",
@@ -746,6 +757,7 @@ const I18N_DE = {
   'nav.enterprise': 'Unternehmen',
   'nav.news': 'News',
   'nav.signin': 'Anmelden',
+  'nav.signup': 'Registrieren',
   'nav.contact': 'Kontakt',
   'hp.heroTitle': 'KI-Design-Studio für Veranstaltungs- und Messeprofis',
   'hp.sub1': 'Erstellen Sie Messestände, Veranstaltungskonzepte, Verkaufsständer und präsentationsreife Visualisierungen in Minuten mit KI.',
@@ -808,6 +820,7 @@ const I18N_ES = {
   'nav.enterprise': 'Empresas',
   'nav.news': 'Noticias',
   'nav.signin': 'Iniciar sesión',
+  'nav.signup': 'Regístrate',
   'nav.contact': 'Contáctanos',
   'hp.heroTitle': 'Estudio de diseño con IA para profesionales de eventos y exposiciones',
   'hp.sub1': 'Cree stands de exposición, conceptos de eventos, expositores y visuales listos para presentar en minutos usando IA.',
@@ -870,6 +883,7 @@ const I18N_IT = {
   'nav.enterprise': 'Aziende',
   'nav.news': 'Novità',
   'nav.signin': 'Accedi',
+  'nav.signup': 'Registrati',
   'nav.contact': 'Contattaci',
   'hp.heroTitle': 'Studio di design IA per professionisti di eventi e fiere',
   'hp.sub1': "Crea stand espositivi, concept di eventi, espositori e visual pronti per la presentazione in pochi minuti con l'IA.",
@@ -932,6 +946,7 @@ const I18N_ZH = {
   'nav.enterprise': '企业版',
   'nav.news': '新闻',
   'nav.signin': '登录',
+  'nav.signup': '注册',
   'nav.contact': '联系我们',
   'hp.heroTitle': '面向活动与展览专业人士的 AI 设计工作室',
   'hp.sub1': '使用 AI 在几分钟内创建展览展位、活动概念、展示架和可用于展示的视觉效果。',
@@ -994,6 +1009,7 @@ const I18N_JA = {
   'nav.enterprise': '法人向け',
   'nav.news': 'ニュース',
   'nav.signin': 'ログイン',
+  'nav.signup': '登録',
   'nav.contact': 'お問い合わせ',
   'hp.heroTitle': 'イベント・展示会のプロフェッショナルのためのAIデザインスタジオ',
   'hp.sub1': 'AIを使って、展示ブース、イベントコンセプト、ディスプレイスタンド、プレゼンテーション用ビジュアルを数分で作成できます。',

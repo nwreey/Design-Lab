@@ -54,6 +54,12 @@
     text-decoration:none; white-space:nowrap; transition:background .15s ease, transform .15s ease;
   }
   .nav-signin:hover{ background:#F7F7F7; transform:translateY(-1px); }
+  .nav-signup{
+    font-family:'Inter',sans-serif; font-size:13.5px; font-weight:700; color:#fff;
+    background:var(--ink); padding:9px 18px; border-radius:10px; border:2px solid var(--ink);
+    text-decoration:none; white-space:nowrap; transition:opacity .15s ease, transform .15s ease;
+  }
+  .nav-signup:hover{ opacity:.85; transform:translateY(-1px); }
   .nav-menu-toggle{ display:none; background:none; border:1.5px solid var(--line); border-radius:8px; width:36px; height:36px; font-size:16px; cursor:pointer; color:var(--ink); }
   .mobile-nav{ display:none; flex-direction:column; gap:2px; padding:6px 32px 16px; border-top:1px solid var(--line); }
   .mobile-nav a{ padding:11px 4px; font-size:14.5px; font-weight:600; color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line); }
@@ -117,6 +123,7 @@
       </nav>
       <div class="site-header-actions">
         <a href="/login.html" class="nav-signin" data-i18n="nav.signin">Sign in</a>
+        <a href="/signup.html" class="nav-signup" data-i18n="nav.signup">Sign up</a>
         <button type="button" class="nav-menu-toggle" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
       </div>
     </div>
@@ -126,6 +133,7 @@
       <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
       <a href="/news.html" data-i18n="nav.news">News</a>
       <a href="/login.html" data-i18n="nav.signin">Sign in</a>
+      <a href="/signup.html" data-i18n="nav.signup">Sign up</a>
     </nav>
   </header>
 
@@ -226,14 +234,14 @@ const LANGUAGE_OPTIONS = [
   { code: 'de', dir: 'ltr' }, { code: 'es', dir: 'ltr' }, { code: 'it', dir: 'ltr' },
   { code: 'zh', dir: 'ltr' }, { code: 'ja', dir: 'ltr' },
 ];
-const I18N_EN = { 'nav.product':'Product','nav.pricing':'Pricing','nav.enterprise':'Enterprise','nav.news':'News','nav.signin':'Sign in','nav.contact':'Contact us' };
-const I18N_AR = { 'nav.product':'المنتج','nav.pricing':'الأسعار','nav.enterprise':'الشركات','nav.news':'الأخبار','nav.signin':'تسجيل الدخول','nav.contact':'تواصل معنا' };
-const I18N_FR = { 'nav.product':'Produit','nav.pricing':'Tarifs','nav.enterprise':'Entreprise','nav.news':'Actualités','nav.signin':'Connexion','nav.contact':'Nous contacter' };
-const I18N_DE = { 'nav.product':'Produkt','nav.pricing':'Preise','nav.enterprise':'Unternehmen','nav.news':'News','nav.signin':'Anmelden','nav.contact':'Kontakt' };
-const I18N_ES = { 'nav.product':'Producto','nav.pricing':'Precios','nav.enterprise':'Empresas','nav.news':'Noticias','nav.signin':'Iniciar sesión','nav.contact':'Contáctanos' };
-const I18N_IT = { 'nav.product':'Prodotto','nav.pricing':'Prezzi','nav.enterprise':'Aziende','nav.news':'Novità','nav.signin':'Accedi','nav.contact':'Contattaci' };
-const I18N_ZH = { 'nav.product':'产品','nav.pricing':'价格','nav.enterprise':'企业版','nav.news':'新闻','nav.signin':'登录','nav.contact':'联系我们' };
-const I18N_JA = { 'nav.product':'製品','nav.pricing':'料金','nav.enterprise':'法人向け','nav.news':'ニュース','nav.signin':'ログイン','nav.contact':'お問い合わせ' };
+const I18N_EN = { 'nav.product':'Product','nav.pricing':'Pricing','nav.enterprise':'Enterprise','nav.news':'News','nav.signin':'Sign in','nav.signup':'Sign up','nav.contact':'Contact us' };
+const I18N_AR = { 'nav.product':'المنتج','nav.pricing':'الأسعار','nav.enterprise':'الشركات','nav.news':'الأخبار','nav.signin':'تسجيل الدخول','nav.signup':'إنشاء حساب','nav.contact':'تواصل معنا' };
+const I18N_FR = { 'nav.product':'Produit','nav.pricing':'Tarifs','nav.enterprise':'Entreprise','nav.news':'Actualités','nav.signin':'Connexion','nav.signup':"S'inscrire",'nav.contact':'Nous contacter' };
+const I18N_DE = { 'nav.product':'Produkt','nav.pricing':'Preise','nav.enterprise':'Unternehmen','nav.news':'News','nav.signin':'Anmelden','nav.signup':'Registrieren','nav.contact':'Kontakt' };
+const I18N_ES = { 'nav.product':'Producto','nav.pricing':'Precios','nav.enterprise':'Empresas','nav.news':'Noticias','nav.signin':'Iniciar sesión','nav.signup':'Regístrate','nav.contact':'Contáctanos' };
+const I18N_IT = { 'nav.product':'Prodotto','nav.pricing':'Prezzi','nav.enterprise':'Aziende','nav.news':'Novità','nav.signin':'Accedi','nav.signup':'Registrati','nav.contact':'Contattaci' };
+const I18N_ZH = { 'nav.product':'产品','nav.pricing':'价格','nav.enterprise':'企业版','nav.news':'新闻','nav.signin':'登录','nav.signup':'注册','nav.contact':'联系我们' };
+const I18N_JA = { 'nav.product':'製品','nav.pricing':'料金','nav.enterprise':'法人向け','nav.news':'ニュース','nav.signin':'ログイン','nav.signup':'登録','nav.contact':'お問い合わせ' };
 const I18N_DICTIONARIES = { en: I18N_EN, ar: I18N_AR, fr: I18N_FR, de: I18N_DE, es: I18N_ES, it: I18N_IT, zh: I18N_ZH, ja: I18N_JA };
 let currentLanguage = 'en';
 function t(key){ const d = I18N_DICTIONARIES[currentLanguage] || I18N_EN; return d[key] != null ? d[key] : (I18N_EN[key] != null ? I18N_EN[key] : key); }

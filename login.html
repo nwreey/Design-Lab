@@ -152,6 +152,9 @@
   .status-msg.error{ color:var(--error); }
   .status-msg.info{ color:var(--muted-light); }
 
+  .signup-note{ margin-top:18px; font-size:13px; color:var(--muted-light, #666); }
+  .signup-note a{ font-weight:700; color:inherit; }
+
   .footer-note{
     margin-top:40px;
     font-family:'IBM Plex Mono',monospace;
@@ -275,6 +278,7 @@
 
           <button type="submit" class="submit" id="submitBtn" data-i18n="lg.submit">Sign In</button>
           <div class="status-msg" id="statusMsg"></div>
+          <div class="signup-note"><span data-i18n="lg.noAccount">Don't have an account?</span> <a href="/signup.html" data-i18n="lg.requestAccess">Request access</a></div>
         </form>
       </div>
     </div>
@@ -320,6 +324,8 @@ const I18N_EN = {
   'lg.hidePw': 'HIDE',
   'lg.remember': 'Remember me for 30 days',
   'lg.submit': 'Sign In',
+  'lg.noAccount': "Don't have an account?",
+  'lg.requestAccess': 'Request access',
   'lg.statusSigningIn': 'Signing in...',
   'lg.statusSuccess': 'Success — redirecting...',
   'lg.statusDefaultError': 'Incorrect username or password.',
@@ -341,6 +347,8 @@ const I18N_AR = {
   'lg.hidePw': 'إخفاء',
   'lg.remember': 'تذكرني لمدة 30 يومًا',
   'lg.submit': 'تسجيل الدخول',
+  'lg.noAccount': 'ليس لديك حساب؟',
+  'lg.requestAccess': 'اطلب حساباً',
   'lg.statusSigningIn': 'جارٍ تسجيل الدخول...',
   'lg.statusSuccess': 'تم بنجاح — جارٍ إعادة التوجيه...',
   'lg.statusDefaultError': 'اسم المستخدم أو كلمة المرور غير صحيحة.',
@@ -362,6 +370,8 @@ const I18N_FR = {
   'lg.hidePw': 'MASQUER',
   'lg.remember': 'Se souvenir de moi pendant 30 jours',
   'lg.submit': 'Se connecter',
+  'lg.noAccount': "Vous n'avez pas de compte ?",
+  'lg.requestAccess': "Demander l'accès",
   'lg.statusSigningIn': 'Connexion en cours...',
   'lg.statusSuccess': 'Succès — redirection en cours...',
   'lg.statusDefaultError': "Nom d'utilisateur ou mot de passe incorrect.",
@@ -383,6 +393,8 @@ const I18N_DE = {
   'lg.hidePw': 'VERBERGEN',
   'lg.remember': '30 Tage angemeldet bleiben',
   'lg.submit': 'Anmelden',
+  'lg.noAccount': 'Noch kein Konto?',
+  'lg.requestAccess': 'Zugang anfragen',
   'lg.statusSigningIn': 'Anmeldung läuft...',
   'lg.statusSuccess': 'Erfolgreich — Weiterleitung läuft...',
   'lg.statusDefaultError': 'Falscher Benutzername oder falsches Passwort.',
@@ -404,6 +416,8 @@ const I18N_ES = {
   'lg.hidePw': 'OCULTAR',
   'lg.remember': 'Recordarme durante 30 días',
   'lg.submit': 'Iniciar sesión',
+  'lg.noAccount': '¿No tienes una cuenta?',
+  'lg.requestAccess': 'Solicitar acceso',
   'lg.statusSigningIn': 'Iniciando sesión...',
   'lg.statusSuccess': 'Éxito — redirigiendo...',
   'lg.statusDefaultError': 'Nombre de usuario o contraseña incorrectos.',
@@ -425,6 +439,8 @@ const I18N_IT = {
   'lg.hidePw': 'NASCONDI',
   'lg.remember': 'Ricordami per 30 giorni',
   'lg.submit': 'Accedi',
+  'lg.noAccount': 'Non hai un account?',
+  'lg.requestAccess': 'Richiedi accesso',
   'lg.statusSigningIn': 'Accesso in corso...',
   'lg.statusSuccess': 'Riuscito — reindirizzamento in corso...',
   'lg.statusDefaultError': 'Nome utente o password errati.',
@@ -446,6 +462,8 @@ const I18N_ZH = {
   'lg.hidePw': '隐藏',
   'lg.remember': '记住我 30 天',
   'lg.submit': '登录',
+  'lg.noAccount': '还没有账户？',
+  'lg.requestAccess': '申请访问',
   'lg.statusSigningIn': '正在登录...',
   'lg.statusSuccess': '登录成功 — 正在跳转...',
   'lg.statusDefaultError': '用户名或密码不正确。',
@@ -467,6 +485,8 @@ const I18N_JA = {
   'lg.hidePw': '非表示',
   'lg.remember': '30日間ログイン状態を保持する',
   'lg.submit': 'サインイン',
+  'lg.noAccount': 'アカウントをお持ちでないですか？',
+  'lg.requestAccess': 'アクセスをリクエスト',
   'lg.statusSigningIn': 'サインイン中...',
   'lg.statusSuccess': '成功しました — リダイレクト中...',
   'lg.statusDefaultError': 'ユーザー名またはパスワードが正しくありません。',
