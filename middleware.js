@@ -4,7 +4,17 @@ export const config = {
 
 // Paths that must always be reachable without auth — otherwise the redirect-to-login
 // itself would get redirected, and nobody could ever reach the login page or submit it.
-const PUBLIC_PATHS = ['/', '/homepage.html', '/pricing.html', '/login.html', '/api/login', '/api/logout', '/logo-white.png', '/logo-black-transparent.png'];
+// Every public marketing page is listed here (launch requirement: the whole site is visible
+// to visitors without an account) — only the app itself (ai-design-studio.html), admin.html,
+// and the non-auth API endpoints stay behind login.
+const PUBLIC_PATHS = [
+  '/', '/homepage.html', '/product.html', '/pricing.html', '/enterprise.html', '/news.html',
+  '/contact.html', '/terms.html', '/privacy.html', '/cookie-policy.html', '/login.html',
+  '/api/login', '/api/logout',
+  '/logo-white.png', '/logo-black-transparent.png',
+  '/favicon.ico', '/favicon-16.png', '/favicon-32.png', '/favicon-48.png', '/favicon-192.png',
+  '/favicon-512.png', '/apple-touch-icon.png',
+];
 
 // Paths that require the admin role specifically, on top of just being logged in.
 const ADMIN_ONLY_PATHS = ['/admin.html', '/api/admin-users', '/api/admin-lockouts'];
