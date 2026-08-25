@@ -15553,15 +15553,21 @@ async function generateApprovedAreaRenders(){
         let prompt = buildEventDirectGeminiPrompt(Object.assign({}, briefData, { output_views: [area] }));
         prompt += '\n\nTHEME LOCK: the attached image is the client-APPROVED concept board for this event. This render must use EXACTLY the same design theme as that board — identical color palette, materials, architectural language, lighting style, furniture family, branding, graphics, flooring, decor, and finishes. It must read as the same event, photographed in the "' + area + '" area.';
         prompt += '\n\nFORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions) — a wide horizontal composition filling the entire frame edge to edge, maximum detail and sharpness, high-resolution presentation quality.';
-        const response = await fetchWithTimeout('/api/generate-image-gemini', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, referenceImage: boardParts.base64, referenceMimeType: boardParts.mime, isUserInitiatedEdit: false, aspectRatio: '4:3', imageSize: '2K' })
-        }, 190000);
-        const rawText = await response.text();
-        let data = {};
-        try{ data = JSON.parse(rawText); }catch(e){ /* leave {} */ }
-        if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Render failed.');
+        // Highest available resolution: try 4K first, and if the model rejects it fall
+        // back to 2K rather than failing the area entirely.
+        let data = null;
+        for(const size of ['4K', '2K']){
+          const response = await fetchWithTimeout('/api/generate-image-gemini', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, referenceImage: boardParts.base64, referenceMimeType: boardParts.mime, isUserInitiatedEdit: false, aspectRatio: '4:3', imageSize: size })
+          }, 190000);
+          const rawText = await response.text();
+          let parsed = {};
+          try{ parsed = JSON.parse(rawText); }catch(e){ /* leave {} */ }
+          if(response.ok && parsed.image){ data = parsed; break; }
+          if(size === '2K') throw new Error((parsed.error && parsed.error.message) || 'Render failed.');
+        }
         eventConceptBoard.areaRenders.push({ area, image: data.image });
         renderEcbAreaRenders(null);
         saveCurrentProject();
