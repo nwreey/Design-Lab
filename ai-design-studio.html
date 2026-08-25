@@ -18646,7 +18646,13 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
   // any error live under the main image from here on, not inside the (now closed) panel.
   closeModifyDesignPanel();
   const mainStatusEl = document.getElementById('actionStatus');
-  setStatusError(mainStatusEl, 'Sending to DesignsLab — this can take a moment...');
+  setStatusError(mainStatusEl, '');
+  // Same visible progress bar as "Other option" — a modification can take up to a minute,
+  // and a bare status line made it look frozen. Creeps 15% -> 92% while the request is in
+  // flight, then jumps to 100% on completion (owner request).
+  const modifyProgressMsg = 'Modifying your design... this can take up to a minute. Everything outside the marked area stays untouched.';
+  updateApproveProgress(15, modifyProgressMsg);
+  let stopModifySim = startSimulatedProgress(15, 92, modifyProgressMsg, 45000);
   // Same protection as every other generation flow — closing the tab, refreshing, or
   // switching projects mid-edit should warn/block the same way it does during a fresh render.
   projectSwitchLocked = true;
@@ -18703,12 +18709,22 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
     }
 
 
-    if(activeOptionIndex === idx) setStatusError(mainStatusEl, '');
+    if(stopModifySim){ stopModifySim(); stopModifySim = null; }
+    if(activeOptionIndex === idx){
+      setStatusError(mainStatusEl, '');
+      updateApproveProgress(100, 'Done.');
+      await new Promise(r => setTimeout(r, 800)); // let the 100% completion state actually register before it disappears
+      hideApproveProgress();
+    }
     saveCurrentProject();
     projectSwitchLocked = false;
   }catch(err){
     console.error('Modify design failed:', err);
-    if(activeOptionIndex === idx) setStatusError(mainStatusEl, 'Could not modify that area: ' + (err.message || 'unknown error'));
+    if(stopModifySim){ stopModifySim(); stopModifySim = null; }
+    if(activeOptionIndex === idx){
+      hideApproveProgress();
+      setStatusError(mainStatusEl, 'Could not modify that area: ' + (err.message || 'unknown error'));
+    }
     projectSwitchLocked = false;
   }
 }
