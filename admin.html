@@ -216,6 +216,7 @@
           <tr>
             <th>Username</th>
             <th>Role</th>
+            <th>Plan</th>
             <th>Projects</th>
             <th>Edits</th>
             <th>Modifies</th>
@@ -288,6 +289,16 @@
       <div class="field">
         <label for="editLimitsAutofill">AI Auto-Fill Limit</label>
         <input type="number" id="editLimitsAutofill" placeholder="blank = unlimited" min="0">
+      </div>
+      <div class="field">
+        <label for="editLimitsPlan">Purchased Plan</label>
+        <select id="editLimitsPlan">
+          <option value="">Trial (no plan yet)</option>
+          <option value="Starter">Starter</option>
+          <option value="Studio">Studio</option>
+          <option value="Pro">Pro</option>
+        </select>
+        <div class="hint" style="margin-top:6px;">Trial users cannot Approve a design (they see the plans popup instead). Set the plan here once payment is complete, and raise the limits above to match it.</div>
       </div>
       <div class="modal-status" id="editLimitsStatus"></div>
       <div class="modal-buttons">
@@ -645,7 +656,7 @@ async function loadUsers(){
 function renderUsersTable(){
   const body = document.getElementById('usersTableBody');
   if(usersCache.length === 0){
-    body.innerHTML = '<tr><td colspan="7" class="hint">No team members added yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="8" class="hint">No team members added yet.</td></tr>';
     return;
   }
   body.innerHTML = usersCache.map(u => {
@@ -661,13 +672,14 @@ function renderUsersTable(){
       <tr>
         <td>${escapeHtml(u.username)}${u.email ? '<br><span style="font-size:11px;color:#888;">' + escapeHtml(u.email) + '</span>' : ''}</td>
         <td><span class="role-badge ${u.role === 'admin' ? 'admin' : ''}">${u.role}</span></td>
+        <td>${u.role === 'admin' ? '<span style="color:#999;">-</span>' : (u.plan ? '<span class="role-badge admin">' + escapeHtml(u.plan) + '</span>' : '<span class="role-badge">Trial</span>')}</td>
         <td class="usage ${projOver ? 'over' : ''}">${projLimitText}</td>
         <td class="usage ${editOver ? 'over' : ''}">${editLimitText}</td>
         <td class="usage ${modifyOver ? 'over' : ''}">${modifyLimitText}</td>
         <td class="usage ${autofillOver ? 'over' : ''}">${autofillLimitText}</td>
         <td class="actions-cell">
           <button class="ghost" onclick="toggleRole('${u.id}', '${u.role}')">${u.role === 'admin' ? 'Make member' : 'Make admin'}</button>
-          <button class="ghost" onclick="showEditLimitsModal('${u.id}', '${escapeHtml(u.username)}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'}, ${u.modify_limit != null ? u.modify_limit : 'null'}, ${u.autofill_limit != null ? u.autofill_limit : 'null'})">Edit limits</button>
+          <button class="ghost" onclick="showEditLimitsModal('${u.id}', '${escapeHtml(u.username)}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'}, ${u.modify_limit != null ? u.modify_limit : 'null'}, ${u.autofill_limit != null ? u.autofill_limit : 'null'}, '${u.plan ? escapeHtml(u.plan) : ''}')">Edit limits &amp; plan</button>
           <button class="ghost" onclick="showResetPasswordModal('${u.id}', '${escapeHtml(u.username)}')">Reset password</button>
           <button class="ghost" onclick="resetEditCount('${u.id}')">Reset edit count</button>
           <button class="ghost" onclick="resetModifyCount('${u.id}')">Reset modify count</button>
@@ -785,13 +797,14 @@ async function toggleRole(id, currentRole){
 // silently fail.
 let __editLimitsUserId = null;
 
-function showEditLimitsModal(id, username, currentProjectLimit, currentEditLimit, currentModifyLimit, currentAutofillLimit){
+function showEditLimitsModal(id, username, currentProjectLimit, currentEditLimit, currentModifyLimit, currentAutofillLimit, currentPlan){
   __editLimitsUserId = id;
   document.getElementById('editLimitsUsername').textContent = username;
   document.getElementById('editLimitsProject').value = currentProjectLimit == null ? '' : currentProjectLimit;
   document.getElementById('editLimitsEdit').value = currentEditLimit == null ? '' : currentEditLimit;
   document.getElementById('editLimitsModify').value = currentModifyLimit == null ? '' : currentModifyLimit;
   document.getElementById('editLimitsAutofill').value = currentAutofillLimit == null ? '' : currentAutofillLimit;
+  document.getElementById('editLimitsPlan').value = currentPlan || '';
   document.getElementById('editLimitsStatus').textContent = '';
   document.getElementById('editLimitsModal').style.display = 'flex';
 }
@@ -821,7 +834,8 @@ async function confirmEditLimits(){
         projectLimit: projRaw === '' ? null : parseInt(projRaw, 10),
         editLimit: editRaw === '' ? null : parseInt(editRaw, 10),
         modifyLimit: modifyRaw === '' ? null : parseInt(modifyRaw, 10),
-        autofillLimit: autofillRaw === '' ? null : parseInt(autofillRaw, 10)
+        autofillLimit: autofillRaw === '' ? null : parseInt(autofillRaw, 10),
+        plan: document.getElementById('editLimitsPlan').value || null
       })
     });
     const data = await response.json().catch(() => ({}));

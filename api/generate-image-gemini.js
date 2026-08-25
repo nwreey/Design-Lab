@@ -88,7 +88,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, isUserInitiatedEdit, isFreeFirstModification, aspectRatio, engineMode } = req.body || {};
+    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, isUserInitiatedEdit, aspectRatio, engineMode } = req.body || {};
     if (!prompt || typeof prompt !== 'string') {
       res.status(400).json({ error: { message: 'Request body must include a "prompt" string.' } });
       return;
@@ -116,12 +116,11 @@ module.exports = async (req, res) => {
     // it) but no longer has any effect — kept only so a stray 'test' value can never throw here.
     const resolvedImageSize = '1K';
 
-    // The very first modification on a freshly generated design doesn't count against the
-    // modify quota at all — occasionally the initial render needs a quick correction, and
-    // that shouldn't cost the person anything. This bypasses both the limit check and the
-    // increment below, not just the increment: someone already at their limit should still
-    // get this one free adjustment, since it isn't meant to be quota-conditional.
-    if (isUserInitiatedEdit && !isFreeFirstModification) {
+    // Owner decision: EVERY user-initiated modification (Modify Design and Other option
+    // alike) counts against the modify quota — the old "first modification is free"
+    // exemption is gone, and since it lived server-side there is no client flag that can
+    // reinstate it.
+    if (isUserInitiatedEdit) {
       const quotaError = await checkModifyQuota(caller);
       if (quotaError) {
         res.status(403).json({ error: { message: quotaError } });
@@ -187,7 +186,7 @@ module.exports = async (req, res) => {
     }
 
     const mime = imagePart.inlineData.mimeType || 'image/png';
-    if (isUserInitiatedEdit && !isFreeFirstModification) await incrementModifyCount(caller);
+    if (isUserInitiatedEdit) await incrementModifyCount(caller);
     res.status(200).json({ image: `data:${mime};base64,${imagePart.inlineData.data}` });
   } catch (err) {
     res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });

@@ -128,13 +128,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, aspectRatio, isUserInitiatedEdit, isFreeFirstModification } = req.body || {};
+    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, aspectRatio, isUserInitiatedEdit } = req.body || {};
     if (!prompt || typeof prompt !== 'string') {
       res.status(400).json({ error: { message: 'Request body must include a "prompt" string.' } });
       return;
     }
 
-    if (isUserInitiatedEdit && !isFreeFirstModification) {
+    if (isUserInitiatedEdit) {
       const quotaError = await checkModifyQuota(caller);
       if (quotaError) {
         res.status(403).json({ error: { message: quotaError } });
@@ -206,7 +206,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (isUserInitiatedEdit && !isFreeFirstModification) await incrementModifyCount(caller);
+    if (isUserInitiatedEdit) await incrementModifyCount(caller);
     res.status(200).json({ image: `data:image/png;base64,${b64}` });
   } catch (err) {
     res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });

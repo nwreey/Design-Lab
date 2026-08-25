@@ -49,6 +49,9 @@ export default async function handler(req, res) {
   let autofillLimit = null;
   let autofillCount = 0;
   let email = null;
+  // Purchased plan name (Starter/Studio/Pro). NULL = free trial. Admins are treated as
+  // always-planned by the client, so leaving this null for them is fine.
+  let plan = null;
   if (payload.role !== 'admin') {
     try {
       // Ensure the column exists — this endpoint might be the first one hit after a
@@ -59,7 +62,8 @@ export default async function handler(req, res) {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS autofill_limit INTEGER;`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS autofill_count INTEGER NOT NULL DEFAULT 0;`;
-      const userResult = await sql`SELECT project_limit, project_count, edit_limit, edit_count, modify_limit, modify_count, autofill_limit, autofill_count, email FROM users WHERE id = ${payload.userId};`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT;`;
+      const userResult = await sql`SELECT project_limit, project_count, edit_limit, edit_count, modify_limit, modify_count, autofill_limit, autofill_count, email, plan FROM users WHERE id = ${payload.userId};`;
       if (userResult.rows.length > 0) {
         projectLimit = userResult.rows[0].project_limit;
         projectCount = userResult.rows[0].project_count || 0;
@@ -70,6 +74,7 @@ export default async function handler(req, res) {
         autofillLimit = userResult.rows[0].autofill_limit;
         autofillCount = userResult.rows[0].autofill_count || 0;
         email = userResult.rows[0].email || null;
+        plan = userResult.rows[0].plan || null;
       }
     } catch (err) {
       // Don't fail the whole /api/me call over this — the sidebar simply won't show a
@@ -78,5 +83,5 @@ export default async function handler(req, res) {
     }
   }
 
-  res.status(200).json({ userId: payload.userId, username: payload.username, email, role: payload.role, projectLimit, projectCount, editLimit, editCount, modifyLimit, modifyCount, autofillLimit, autofillCount });
+  res.status(200).json({ userId: payload.userId, username: payload.username, email, role: payload.role, plan, projectLimit, projectCount, editLimit, editCount, modifyLimit, modifyCount, autofillLimit, autofillCount });
 }
