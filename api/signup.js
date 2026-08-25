@@ -234,10 +234,10 @@ export default async function handler(req, res) {
             const placeholderSalt = crypto.randomBytes(16).toString('hex');
             const placeholderHash = crypto.scryptSync(crypto.randomBytes(32).toString('hex'), placeholderSalt, 64).toString('hex');
             // Trial quotas for every approved user, per explicit product decision:
-            // 1 project, 1 AI auto-fill, 2 design modifications, 5 image edits.
+            // 1 project, 1 AI auto-fill, 2 design modifications, 3 image edits.
             await sql`
               INSERT INTO users (id, username, password_hash, email, role, project_limit, edit_limit, modify_limit, autofill_limit)
-              VALUES (${userId}, ${usernameEmail}, ${placeholderSalt + ':' + placeholderHash}, ${usernameEmail}, 'member', 1, 5, 2, 1);
+              VALUES (${userId}, ${usernameEmail}, ${placeholderSalt + ':' + placeholderHash}, ${usernameEmail}, 'member', 1, 3, 2, 1);
             `;
             accountCreated = true;
           }
