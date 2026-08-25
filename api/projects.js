@@ -3,6 +3,11 @@ import { neon } from '@neondatabase/serverless';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 import { put, get, del } from '@vercel/blob';
 
+// Saving a project with several large renders uploads multiple blobs in one request —
+// the default function timeout was cutting these off mid-save ("server did not respond
+// with a clear reason"), losing edits on refresh. Give it a full minute.
+export const config = { maxDuration: 60 };
+
 /* ================= Caller identity ================= */
 /* Same token verification as login.js/admin-users.js/me.js, duplicated here rather than
    imported from a shared module — this file runs on Vercel's Node runtime and the token

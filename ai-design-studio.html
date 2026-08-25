@@ -18990,6 +18990,9 @@ ${buildApprovedDecisionsText()}
         // walk the versions on the card.
         target.images = (target.images && target.images.length) ? target.images : [target.image];
         target.images.push(compressedResult);
+        // Keep saves small: at most 6 versions per picture — the ORIGINAL (index 0) is
+        // always kept, the oldest middle versions are dropped first.
+        while(target.images.length > 6) target.images.splice(1, 1);
         target.activeIndex = target.images.length - 1;
         target.image = compressedResult;
       }
@@ -20958,18 +20961,30 @@ function zipUpdateBlobRefCache(original, stored){
   }
 }
 
-function dbPutProject(project){
-  const payload = substituteCachedBlobRefs(project);
-  return fetch('/api/projects', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }).then(async response => {
-    const data = await response.json().catch(() => ({}));
-    if(!response.ok) throw new Error((data.error && data.error.message) || 'The server did not respond with a clear reason — this can happen if the save took too long (a project with many images can take a moment)');
-    if(data.storedProject) zipUpdateBlobRefCache(project, data.storedProject);
-    return data;
-  });
+async function dbPutProject(project){
+  // A save that times out once (big images, slow upload) almost always succeeds on a
+  // retry — and each retry is cheaper, since blobs stored by earlier attempts come back
+  // as refs. Retry silently before ever alarming the user about a lost project.
+  let lastError = null;
+  for(let attempt = 1; attempt <= 3; attempt++){
+    try{
+      const payload = substituteCachedBlobRefs(project);
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if(!response.ok) throw new Error((data.error && data.error.message) || 'The server did not respond with a clear reason — this can happen if the save took too long (a project with many images can take a moment)');
+      if(data.storedProject) zipUpdateBlobRefCache(project, data.storedProject);
+      return data;
+    }catch(err){
+      lastError = err;
+      console.warn('Project save attempt ' + attempt + ' failed:', err && err.message);
+      if(attempt < 3) await new Promise(r => setTimeout(r, attempt * 2000));
+    }
+  }
+  throw lastError;
 }
 
 function dbGetAllProjects(){
