@@ -140,6 +140,10 @@ export default async function handler(req, res) {
         res.status(403).json({ error: { message: quotaError } });
         return;
       }
+      // Owner decision: the modification is spent the moment the user commits to it
+      // (clicks OK), not when the image finishes rendering — so charge it up front,
+      // before the model call, instead of after a successful generation.
+      await incrementModifyCount(caller);
     }
 
     const size = sizeFromAspectRatio(aspectRatio);
@@ -206,7 +210,6 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (isUserInitiatedEdit) await incrementModifyCount(caller);
     res.status(200).json({ image: `data:image/png;base64,${b64}` });
   } catch (err) {
     res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });

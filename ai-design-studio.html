@@ -17898,6 +17898,9 @@ async function regenerateOtherOption(){
 }
 
 async function confirmRegenerateOtherOption(){
+  // The modification is charged the moment the user clicks OK (the server now
+  // increments before generating) — reflect that immediately in the sidebar.
+  if(!isAdminUser && currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
   const idx = activeOptionIndex;
   const opt = optionResults[idx];
   if(!opt) return;
@@ -18011,16 +18014,6 @@ async function confirmRegenerateOtherOption(){
     opt.status = 'done';
     opt.gallery.push({ label: 'Other option', image: compressed, engine: otherOptionUsesOpenAi ? 'openai' : 'gemini' });
     opt.activeGalleryIndex = opt.gallery.length - 1;
-    if(isFreeFirstModification){
-      opt.usedFreeModification = true;
-      if(activeOptionIndex === idx) document.getElementById('freeModificationNote').style.display = 'none';
-    }else if(!isAdminUser && currentUserModifyCount != null){
-      // Other option already counts against the modify quota on the backend (same
-      // isUserInitiatedEdit path as Modify Design's Submit) — keep the sidebar's local
-      // count in sync immediately here too, not just after a Modify Design submission.
-      currentUserModifyCount++;
-      renderModifyUsageIndicator();
-    }
     if(activeOptionIndex === idx){
       if(stopSim) stopSim();
       document.getElementById('renderSlotImg').src = compressed;
@@ -18546,6 +18539,9 @@ async function submitModifyDesign(){
 }
 
 async function confirmSubmitModifyDesign(){
+  // The modification is charged the moment the user clicks OK (the server now
+  // increments before generating) — reflect that immediately in the sidebar.
+  if(!isAdminUser && currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
   const opt = optionResults[activeOptionIndex];
   if(!opt) return;
   const idx = activeOptionIndex;
@@ -18667,15 +18663,6 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
       renderGalleryNav();
     }
 
-    if(isFreeFirstModification){
-      opt.usedFreeModification = true;
-      if(activeOptionIndex === idx) document.getElementById('freeModificationNote').style.display = 'none';
-    }else if(!isAdminUser && currentUserModifyCount != null){
-      // Keep the sidebar indicator in sync immediately, without waiting for a page reload
-      // or another /api/me round trip — the backend already incremented the real count.
-      currentUserModifyCount++;
-      renderModifyUsageIndicator();
-    }
 
     if(activeOptionIndex === idx) setStatusError(mainStatusEl, '');
     saveCurrentProject();
