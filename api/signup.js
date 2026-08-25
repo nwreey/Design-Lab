@@ -217,6 +217,8 @@ export default async function handler(req, res) {
 
           // 1. Account (idempotent — an existing account is reused, never overwritten)
           await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;`;
+          await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS autofill_limit INTEGER;`;
+          await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS autofill_count INTEGER NOT NULL DEFAULT 0;`;
           const existingUser = await sql`SELECT id FROM users WHERE username = ${usernameEmail};`;
           let userId;
           if (existingUser.rows.length > 0) {
@@ -225,9 +227,11 @@ export default async function handler(req, res) {
             userId = 'user_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
             const placeholderSalt = crypto.randomBytes(16).toString('hex');
             const placeholderHash = crypto.scryptSync(crypto.randomBytes(32).toString('hex'), placeholderSalt, 64).toString('hex');
+            // Trial quotas for every approved user, per explicit product decision:
+            // 1 project, 1 AI auto-fill, 3 design modifications, 5 image edits.
             await sql`
-              INSERT INTO users (id, username, password_hash, email, role, project_limit, edit_limit, modify_limit)
-              VALUES (${userId}, ${usernameEmail}, ${placeholderSalt + ':' + placeholderHash}, ${usernameEmail}, 'member', 2, 5, 5);
+              INSERT INTO users (id, username, password_hash, email, role, project_limit, edit_limit, modify_limit, autofill_limit)
+              VALUES (${userId}, ${usernameEmail}, ${placeholderSalt + ':' + placeholderHash}, ${usernameEmail}, 'member', 1, 5, 3, 1);
             `;
             accountCreated = true;
           }

@@ -154,7 +154,7 @@
 
     <div class="card">
       <h2>Signup Requests</h2>
-      <div class="hint" style="margin-bottom:14px;">Access requests submitted through the public signup page (Early Access Program). Clicking "Approve &amp; email" now does the full onboarding in one click: it creates the account automatically (username = their email, starter limits 2 projects / 5 edits / 5 modifies — adjust in Users List), and emails them a personal Set-Password link (valid 7 days) — they choose a password and are signed in immediately. No separate credentials message needed.</div>
+      <div class="hint" style="margin-bottom:14px;">Access requests submitted through the public signup page (Early Access Program). Clicking "Approve &amp; email" now does the full onboarding in one click: it creates the account automatically (username = their email, trial quotas 1 project / 1 AI auto-fill / 3 design modifications / 5 image edits — adjust in Users List), and emails them a personal Set-Password link (valid 7 days) — they choose a password and are signed in immediately. No separate credentials message needed.</div>
       <table>
         <thead>
           <tr>
@@ -201,6 +201,7 @@
             <th>Projects</th>
             <th>Edits</th>
             <th>Modifies</th>
+            <th>AI Fills</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -265,6 +266,10 @@
       <div class="field">
         <label for="editLimitsModify">Modification Limit</label>
         <input type="number" id="editLimitsModify" placeholder="blank = unlimited" min="0">
+      </div>
+      <div class="field">
+        <label for="editLimitsAutofill">AI Auto-Fill Limit</label>
+        <input type="number" id="editLimitsAutofill" placeholder="blank = unlimited" min="0">
       </div>
       <div class="modal-status" id="editLimitsStatus"></div>
       <div class="modal-buttons">
@@ -500,9 +505,10 @@ async function setSignupRequestStatus(id, status, notify){
     if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not update the request.');
     await loadSignupRequests();
     if(notify){
+      await loadUsers(); // the approved applicant's new account appears in Users List immediately
       statusEl.className = data.emailSent ? 'status-msg ok' : 'status-msg error';
       statusEl.textContent = data.emailSent
-        ? ('Approved — ' + (data.accountCreated ? 'account created (username = their email, starter limits: 2 projects / 5 edits / 5 modifies — adjust below) and ' : 'account already existed; ') + 'a Set-Password link was emailed. They can sign in the moment they set a password.')
+        ? ('Approved — ' + (data.accountCreated ? 'account created (username = their email, trial quotas: 1 project / 1 AI fill / 3 modifies / 5 edits — adjust below) and ' : 'account already existed; ') + 'a Set-Password link was emailed. They can sign in the moment they set a password.')
         : 'Approved and marked reviewed, but the approval email could not be sent (run the Email System Check above).';
     }
   }catch(err){
@@ -550,16 +556,18 @@ async function loadUsers(){
 function renderUsersTable(){
   const body = document.getElementById('usersTableBody');
   if(usersCache.length === 0){
-    body.innerHTML = '<tr><td colspan="6" class="hint">No team members added yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" class="hint">No team members added yet.</td></tr>';
     return;
   }
   body.innerHTML = usersCache.map(u => {
     const projLimitText = u.project_limit != null ? `${u.project_count} / ${u.project_limit}` : `${u.project_count} / \u221e`;
     const editLimitText = u.edit_limit != null ? `${u.edit_count} / ${u.edit_limit}` : `${u.edit_count} / \u221e`;
     const modifyLimitText = u.modify_limit != null ? `${u.modify_count} / ${u.modify_limit}` : `${u.modify_count} / \u221e`;
+    const autofillLimitText = u.autofill_limit != null ? `${u.autofill_count || 0} / ${u.autofill_limit}` : `${u.autofill_count || 0} / \u221e`;
     const projOver = u.project_limit != null && u.project_count >= u.project_limit;
     const editOver = u.edit_limit != null && u.edit_count >= u.edit_limit;
     const modifyOver = u.modify_limit != null && u.modify_count >= u.modify_limit;
+    const autofillOver = u.autofill_limit != null && (u.autofill_count || 0) >= u.autofill_limit;
     return `
       <tr>
         <td>${escapeHtml(u.username)}${u.email ? '<br><span style="font-size:11px;color:#888;">' + escapeHtml(u.email) + '</span>' : ''}</td>
@@ -567,12 +575,14 @@ function renderUsersTable(){
         <td class="usage ${projOver ? 'over' : ''}">${projLimitText}</td>
         <td class="usage ${editOver ? 'over' : ''}">${editLimitText}</td>
         <td class="usage ${modifyOver ? 'over' : ''}">${modifyLimitText}</td>
+        <td class="usage ${autofillOver ? 'over' : ''}">${autofillLimitText}</td>
         <td class="actions-cell">
           <button class="ghost" onclick="toggleRole('${u.id}', '${u.role}')">${u.role === 'admin' ? 'Make member' : 'Make admin'}</button>
-          <button class="ghost" onclick="showEditLimitsModal('${u.id}', '${escapeHtml(u.username)}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'}, ${u.modify_limit != null ? u.modify_limit : 'null'})">Edit limits</button>
+          <button class="ghost" onclick="showEditLimitsModal('${u.id}', '${escapeHtml(u.username)}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'}, ${u.modify_limit != null ? u.modify_limit : 'null'}, ${u.autofill_limit != null ? u.autofill_limit : 'null'})">Edit limits</button>
           <button class="ghost" onclick="showResetPasswordModal('${u.id}', '${escapeHtml(u.username)}')">Reset password</button>
           <button class="ghost" onclick="resetEditCount('${u.id}')">Reset edit count</button>
           <button class="ghost" onclick="resetModifyCount('${u.id}')">Reset modify count</button>
+          <button class="ghost" onclick="resetAutofillCount('${u.id}')">Reset AI fill count</button>
           <button class="danger" onclick="removeUser('${u.id}', '${escapeHtml(u.username)}')">Remove</button>
         </td>
       </tr>
@@ -686,12 +696,13 @@ async function toggleRole(id, currentRole){
 // silently fail.
 let __editLimitsUserId = null;
 
-function showEditLimitsModal(id, username, currentProjectLimit, currentEditLimit, currentModifyLimit){
+function showEditLimitsModal(id, username, currentProjectLimit, currentEditLimit, currentModifyLimit, currentAutofillLimit){
   __editLimitsUserId = id;
   document.getElementById('editLimitsUsername').textContent = username;
   document.getElementById('editLimitsProject').value = currentProjectLimit == null ? '' : currentProjectLimit;
   document.getElementById('editLimitsEdit').value = currentEditLimit == null ? '' : currentEditLimit;
   document.getElementById('editLimitsModify').value = currentModifyLimit == null ? '' : currentModifyLimit;
+  document.getElementById('editLimitsAutofill').value = currentAutofillLimit == null ? '' : currentAutofillLimit;
   document.getElementById('editLimitsStatus').textContent = '';
   document.getElementById('editLimitsModal').style.display = 'flex';
 }
@@ -706,6 +717,7 @@ async function confirmEditLimits(){
   const projRaw = document.getElementById('editLimitsProject').value.trim();
   const editRaw = document.getElementById('editLimitsEdit').value.trim();
   const modifyRaw = document.getElementById('editLimitsModify').value.trim();
+  const autofillRaw = document.getElementById('editLimitsAutofill').value.trim();
   const statusEl = document.getElementById('editLimitsStatus');
   const btn = document.getElementById('editLimitsSaveBtn');
 
@@ -719,7 +731,8 @@ async function confirmEditLimits(){
         id: __editLimitsUserId,
         projectLimit: projRaw === '' ? null : parseInt(projRaw, 10),
         editLimit: editRaw === '' ? null : parseInt(editRaw, 10),
-        modifyLimit: modifyRaw === '' ? null : parseInt(modifyRaw, 10)
+        modifyLimit: modifyRaw === '' ? null : parseInt(modifyRaw, 10),
+        autofillLimit: autofillRaw === '' ? null : parseInt(autofillRaw, 10)
       })
     });
     const data = await response.json().catch(() => ({}));
@@ -785,6 +798,11 @@ async function resetEditCount(id){
 async function resetModifyCount(id){
   if(!await genericConfirm("Reset this user's modify count back to zero?", 'Team Member Limits', 'Reset count')) return;
   patchUser(id, { resetModifyCount: true });
+}
+
+async function resetAutofillCount(id){
+  if(!await genericConfirm("Reset this user's modify count back to zero?", 'Team Member Limits', 'Reset count')) return;
+  patchUser(id, { resetAutofillCount: true });
 }
 
 async function patchUser(id, fields){

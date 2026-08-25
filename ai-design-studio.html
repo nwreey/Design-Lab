@@ -13663,7 +13663,12 @@ async function runAiAutofill(){
     // status line — no separate debug panel needed, and nothing here changes for non-admins.
     console.error('AI auto-fill failed:', err);
     const rawMessage = (err && err.message) ? err.message : String(err);
-    if(isAdminUser){
+    if(err && err.isQuotaError){
+      // The user's own AI Auto Fill allowance is used up — that's their real, actionable
+      // situation, so everyone (not just admins) sees the server's exact message.
+      status.textContent = rawMessage;
+      status.style.color = '#c0432b';
+    } else if(isAdminUser){
       status.textContent = 'Auto-fill failed — admin-only detail: ' + rawMessage;
       status.style.color = '#c0432b';
     } else {
@@ -14245,6 +14250,14 @@ async function callAutofillApi(system, contentParts, schema, schemaName){
 
   if(!response.ok){
     const apiMsg = (data && data.error && data.error.message) ? data.error.message : JSON.stringify(data);
+    // Quota exhaustion is the one server error that IS the user's own actionable situation
+    // (not a broken feature) — flagged so runAiAutofill's catch shows the real message to
+    // everyone instead of the generic "we're updating this feature" fallback.
+    if(data && data.error && data.error.code === 'autofill_quota'){
+      const quotaErr = new Error(apiMsg);
+      quotaErr.isQuotaError = true;
+      throw quotaErr;
+    }
     throw new Error(`API request failed (HTTP ${response.status}): ${apiMsg}`);
   }
 

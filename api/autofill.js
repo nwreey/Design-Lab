@@ -13,6 +13,34 @@
    booth/event two-stage design pipeline) specifically because Structured Outputs strict mode and
    multi-image input use the Responses API's own request/response shape, not Chat Completions' —
    trying to bolt both shapes onto one endpoint would make either caller harder to reason about. */
+const crypto = require('crypto');
+const { neon } = require('@neondatabase/serverless');
+const sql = neon(process.env.DATABASE_URL, { fullResults: true });
+
+/* Auth + per-user AI Auto-Fill quota (added with the trial-account rollout: every
+   auto-approved user gets autofill_limit 1 by default; NULL = unlimited; admins and the
+   master admin are exempt, matching every other quota in this app). The middleware
+   already keeps guests out; this re-verifies the token to know WHICH user is calling,
+   same defense-in-depth token check as api/admin-users.js. */
+function verifyTokenNode(token, secret) {
+  if (!token) return null;
+  const separatorIndex = token.indexOf('.');
+  if (separatorIndex === -1) return null;
+  const payloadB64 = token.substring(0, separatorIndex);
+  const signature = token.substring(separatorIndex + 1);
+  const expectedSignature = crypto.createHmac('sha256', secret).update(payloadB64).digest('hex');
+  if (signature !== expectedSignature) return null;
+  let payload;
+  try { payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf8')); } catch (err) { return null; }
+  if (!payload.expiry || payload.expiry < Math.floor(Date.now() / 1000)) return null;
+  return payload;
+}
+function parseCookie(cookieHeader, name) {
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -26,6 +54,35 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: { message: 'Method not allowed. Use POST.' } });
     return;
+  }
+
+  // ---- Quota gate (before any OpenAI cost is incurred) ----
+  const callerToken = parseCookie(req.headers.cookie, 'design_lab_auth');
+  const caller = verifyTokenNode(callerToken, process.env.SITE_PASSWORD || '');
+  if (!caller) {
+    res.status(401).json({ error: { message: 'Please sign in to use AI Auto Fill.' } });
+    return;
+  }
+  const quotaApplies = caller.role !== 'admin' && caller.userId !== 'master-admin';
+  if (quotaApplies) {
+    try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS autofill_limit INTEGER;`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS autofill_count INTEGER NOT NULL DEFAULT 0;`;
+      const rows = await sql`SELECT autofill_limit, autofill_count FROM users WHERE id = ${String(caller.userId)};`;
+      if (rows.rows.length > 0) {
+        const { autofill_limit, autofill_count } = rows.rows[0];
+        if (autofill_limit != null && (autofill_count || 0) >= autofill_limit) {
+          res.status(403).json({ error: {
+            code: 'autofill_quota',
+            message: `You've used your AI Auto Fill allowance (${autofill_count} of ${autofill_limit}). Please fill in the form manually, or contact us to increase your allowance.`,
+          } });
+          return;
+        }
+      }
+    } catch (err) {
+      // A broken quota lookup must never take the whole feature down — log and continue.
+      console.error('autofill: quota check failed (continuing):', err);
+    }
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
@@ -140,6 +197,16 @@ module.exports = async (req, res) => {
       return;
     }
 
+    // Successful generation — consume one auto-fill from the caller's allowance. Counted
+    // only here, after OpenAI actually returned a usable result: a failed or refused run
+    // never costs the user their allowance.
+    if (quotaApplies) {
+      try {
+        await sql`UPDATE users SET autofill_count = COALESCE(autofill_count, 0) + 1 WHERE id = ${String(caller.userId)};`;
+      } catch (err) {
+        console.error('autofill: could not increment autofill_count:', err);
+      }
+    }
     res.status(200).json({ result: parsed });
   } catch (err) {
     res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });

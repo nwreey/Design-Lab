@@ -73,6 +73,10 @@ async function ensureSchema() {
   // Optional contact email per user — used by transactional notifications (e.g. the plan
   // purchase confirmation in api/purchase.js). Blank for accounts created before this.
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;`;
+  // AI Auto-Fill quota — how many times a user may run the AI form auto-fill (enforced
+  // by api/autofill.js). NULL = unlimited, same convention as every other limit here.
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS autofill_limit INTEGER;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS autofill_count INTEGER NOT NULL DEFAULT 0;`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS modify_count INTEGER NOT NULL DEFAULT 0;`;
 
   // project_count is a PERMANENT, increment-only consumption counter — unlike the project
@@ -126,7 +130,7 @@ export default async function handler(req, res) {
     // reflects how many projects actually count against this user's limit, which is not
     // necessarily the same as how many they currently have saved if any were deleted.
     const result = await sql`
-      SELECT id, username, email, role, project_limit, project_count, edit_limit, edit_count, modify_limit, modify_count, created_at
+      SELECT id, username, email, role, project_limit, project_count, edit_limit, edit_count, modify_limit, modify_count, autofill_limit, autofill_count, created_at
       FROM users
       ORDER BY created_at ASC;
     `;
@@ -135,7 +139,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { username, password, email, role, projectLimit, editLimit, modifyLimit } = req.body || {};
+    const { username, password, email, role, projectLimit, editLimit, modifyLimit, autofillLimit } = req.body || {};
     const cleanEmail = (typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) ? email.trim().slice(0, 200) : null;
     if (!username || !password) {
       res.status(400).json({ error: { message: 'Username and password are required.' } });
@@ -151,9 +155,9 @@ export default async function handler(req, res) {
 
     try {
       await sql`
-        INSERT INTO users (id, username, password_hash, email, role, project_limit, edit_limit, modify_limit)
+        INSERT INTO users (id, username, password_hash, email, role, project_limit, edit_limit, modify_limit, autofill_limit)
         VALUES (${id}, ${username}, ${passwordHash}, ${cleanEmail}, ${finalRole},
-                ${projectLimit != null ? projectLimit : null}, ${editLimit != null ? editLimit : null}, ${modifyLimit != null ? modifyLimit : null});
+                ${projectLimit != null ? projectLimit : null}, ${editLimit != null ? editLimit : null}, ${modifyLimit != null ? modifyLimit : null}, ${autofillLimit != null ? autofillLimit : null});
       `;
     } catch (err) {
       if (String(err.message || '').includes('duplicate key')) {
@@ -170,7 +174,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { id, role, projectLimit, editLimit, modifyLimit, resetEditCount, resetModifyCount, newPassword } = req.body || {};
+    const { id, role, projectLimit, editLimit, modifyLimit, autofillLimit, resetEditCount, resetModifyCount, resetAutofillCount, newPassword } = req.body || {};
     if (!id) {
       res.status(400).json({ error: { message: 'User id is required.' } });
       return;
@@ -200,6 +204,12 @@ export default async function handler(req, res) {
     }
     if (resetModifyCount) {
       await sql`UPDATE users SET modify_count = 0 WHERE id = ${id};`;
+    }
+    if (autofillLimit !== undefined) {
+      await sql`UPDATE users SET autofill_limit = ${autofillLimit} WHERE id = ${id};`;
+    }
+    if (resetAutofillCount) {
+      await sql`UPDATE users SET autofill_count = 0 WHERE id = ${id};`;
     }
 
     res.status(200).json({ ok: true });
