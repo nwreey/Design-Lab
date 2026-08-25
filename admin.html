@@ -140,6 +140,18 @@
     </div>
 
     <div class="card">
+      <h2>Email System Check</h2>
+      <div class="hint" style="margin-bottom:12px;">Verifies the whole notification-email chain in one click: the Mandrill API key on the server, the key's validity, designslab.ai's domain verification (DKIM/SPF), and — optionally — a real test email to your address. Use this whenever an email "didn't arrive".</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button class="ghost" onclick="runEmailCheck(false)">Run check</button>
+        <input type="text" id="emailCheckTo" placeholder="your@email.com" style="max-width:220px;">
+        <button class="ghost" onclick="runEmailCheck(true)">Run check + send test email</button>
+      </div>
+      <pre id="emailCheckResult" style="display:none;white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;font-size:11.5px;background:#F7F7F7;border:1px solid var(--line);padding:12px 14px;margin-top:14px;line-height:1.6;"></pre>
+      <div class="status-msg" id="emailCheckStatus"></div>
+    </div>
+
+    <div class="card">
       <h2>Signup Requests</h2>
       <div class="hint" style="margin-bottom:14px;">Access requests submitted through the public signup page (Early Access Program). Review each request, create the account via "Add a team member" above (fill in their email so they also get purchase notifications), then click "Approve &amp; email" — this marks the request reviewed and sends the applicant a branded approval email from notification@designslab.ai. It doesn't create an account by itself.</div>
       <table>
@@ -313,6 +325,33 @@ async function init(){
     await loadRatings();
   }catch(err){
     showGate('Could not verify access: ' + (err.message || 'unknown error'));
+  }
+}
+
+/* ================= Email System Check ================= */
+async function runEmailCheck(withSend){
+  const statusEl = document.getElementById('emailCheckStatus');
+  const resultEl = document.getElementById('emailCheckResult');
+  statusEl.className = 'status-msg';
+  statusEl.textContent = 'Checking…';
+  resultEl.style.display = 'none';
+  let url = '/api/email-test';
+  if(withSend){
+    const to = document.getElementById('emailCheckTo').value.trim();
+    if(!to){ statusEl.className = 'status-msg error'; statusEl.textContent = 'Enter the email address to send the test to.'; return; }
+    url += '?send=1&to=' + encodeURIComponent(to);
+  }
+  try{
+    const response = await fetch(url);
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Check failed.');
+    statusEl.className = 'status-msg ' + ((data.testSend ? data.testSend.sent : !data.verdict.includes('NOT')) ? 'ok' : 'error');
+    statusEl.textContent = data.verdict || '';
+    resultEl.textContent = JSON.stringify(data, null, 2);
+    resultEl.style.display = 'block';
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Check failed.';
   }
 }
 
