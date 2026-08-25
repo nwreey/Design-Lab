@@ -203,9 +203,8 @@
             <li><span class="check">✓</span> 12 camera views per approved design</li>
             <li><span class="check">✓</span> High-resolution downloads</li>
           </ul>
-          <div class="plan-buy-area" id="buyAreaStarter">
-            <button type="button" class="btn btn-primary" onclick="purchasePlan('Starter', this)">Purchase Starter</button>
-            <div class="plan-request-err" id="buyErrStarter"></div>
+          <div class="plan-buy-area">
+            <a href="/signup.html?plan=Starter" class="btn btn-primary">Become a User</a>
           </div>
         </div>
 
@@ -222,9 +221,8 @@
             <li><span class="check">✓</span> High-resolution downloads</li>
             <li><span class="check">✓</span> Team accounts with per-member limits</li>
           </ul>
-          <div class="plan-buy-area" id="buyAreaStudio">
-            <button type="button" class="btn btn-primary" onclick="purchasePlan('Studio', this)">Purchase Studio</button>
-            <div class="plan-request-err" id="buyErrStudio"></div>
+          <div class="plan-buy-area">
+            <a href="/signup.html?plan=Studio" class="btn btn-primary">Become a User</a>
           </div>
         </div>
 
@@ -239,16 +237,15 @@
             <li><span class="check">✓</span> Dedicated admin control panel</li>
             <li><span class="check">✓</span> Priority support</li>
           </ul>
-          <div class="plan-buy-area" id="buyAreaEnterprise">
-            <button type="button" class="btn btn-primary" onclick="purchasePlan('Enterprise', this)">Request Enterprise Plan</button>
-            <div class="plan-request-err" id="buyErrEnterprise"></div>
+          <div class="plan-buy-area">
+            <a href="/signup.html?plan=Enterprise" class="btn btn-primary">Become a User</a>
           </div>
         </div>
 
       </div>
 
       <div class="pricing-note">
-        A registered account is required to purchase any plan. New here? <a href="/signup.html" style="font-weight:700;">Request access</a> first — once your account is set up you can choose your plan here, and our team activates it for you.
+        Prices shown are for information only. Plan purchases and upgrades are made from your account control panel inside the studio — <a href="/signup.html" style="font-weight:700;">become a user</a> to get started, or <a href="/login.html" style="font-weight:700;">sign in</a> if you already have an account.
       </div>
     </div>
   </section>
@@ -261,7 +258,7 @@
         <h2>See what your first design looks like</h2>
         <p>Explore the product, or sign in to start designing with DesignsLab AI.</p>
         <div class="hero-actions">
-          <a href="/login.html" class="btn btn-primary">🚀 Try It Now</a>
+          <a href="/signup.html" class="btn btn-primary">🚀 Try It Now</a>
           <a href="/product.html" class="btn btn-secondary">Explore the Product</a>
         </div>
       </div>
@@ -341,61 +338,6 @@ function toggleMobileNav(){ document.getElementById('siteHeader').classList.togg
 window.addEventListener('scroll', () => {
   document.getElementById('siteHeader').classList.toggle('scrolled', window.scrollY > 8);
 }, { passive: true });
-/* ================= Plan purchase (registration required) =================
-   Per explicit product decision: no guest can purchase — a visitor without an account is
-   sent to the signup (request access) page carrying their chosen plan; a logged-in user's
-   click records a purchase request (/api/purchase) that the admin activates manually,
-   since no payment gateway is connected yet. The real enforcement is server-side
-   (middleware.js keeps /api/purchase off PUBLIC_PATHS and the endpoint re-verifies the
-   token) — this client code just gives each audience the right path. */
-function redirectTo(url){ window.location.href = url; }
-async function fetchMe(){
-  try{
-    const response = await fetch('/api/me');
-    if(!response.ok) return null;
-    // A guest's /api/me fetch gets 302-redirected by the middleware to login.html and
-    // comes back as HTML with status 200 — content-type is how we tell that apart from
-    // a real JSON session payload, never assuming ok === logged-in.
-    const contentType = response.headers.get('content-type') || '';
-    if(!contentType.includes('json')) return null;
-    return await response.json();
-  }catch(e){ return null; }
-}
-async function purchasePlan(plan, btn){
-  const errEl = document.getElementById('buyErr' + plan);
-  errEl.textContent = '';
-  const originalLabel = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Checking…';
-  const me = await fetchMe();
-  if(!me){
-    // Not registered/signed in — purchasing requires an account, so route them to
-    // request access first, carrying the plan they wanted. Wrapped in a named helper
-    // (rather than assigning location.href inline) so the smoke test can observe the
-    // exact redirect target — jsdom can't perform real navigation.
-    redirectTo('/signup.html?plan=' + encodeURIComponent(plan));
-    return;
-  }
-  btn.textContent = 'Submitting…';
-  try{
-    const response = await fetch('/api/purchase', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan }),
-    });
-    const data = await response.json().catch(() => null);
-    if(!response.ok || !data || !data.ok){
-      throw new Error((data && data.error && data.error.message) || 'Could not submit your purchase request. Please try again.');
-    }
-    document.getElementById('buyArea' + plan).innerHTML =
-      '<div class="plan-request-ok">✓ Request received — we\'ll activate your ' + plan + ' plan and contact you shortly.</div>';
-  }catch(err){
-    errEl.textContent = err.message || 'Could not submit your purchase request. Please try again.';
-    btn.disabled = false;
-    btn.textContent = originalLabel;
-  }
-}
-
 if('IntersectionObserver' in window){
   const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => { if(entry.isIntersecting){ entry.target.classList.add('in'); revealObserver.unobserve(entry.target); } });

@@ -652,8 +652,17 @@
         <div id="editUsageIndicator" class="usage-row"></div>
       </div>
 
-      <div class="buy-more-prompt" id="buyMorePrompt" style="display:none;" data-i18n="sidebar.buyMore">
-        Buy more usage — coming soon.
+      <div class="buy-more-prompt" id="buyMorePrompt" style="display:none;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;" data-i18n="sidebar.upgradeTitle">Upgrade your plan</div>
+        <div id="upgradeControls">
+          <select id="upgradePlanSelect" style="width:100%;font-family:inherit;font-size:12px;padding:6px 8px;border:1.5px solid var(--line);border-radius:2px;background:#fff;color:var(--navy);">
+            <option value="Starter">Starter — $49/mo</option>
+            <option value="Studio" selected>Studio — $129/mo</option>
+            <option value="Enterprise">Enterprise — Custom</option>
+          </select>
+          <button class="ghost small" style="width:100%;margin-top:6px;" onclick="requestPlanUpgrade()" data-i18n="sidebar.upgradeBtn">Request upgrade</button>
+        </div>
+        <div id="upgradeStatus" style="font-size:11px;margin-top:6px;line-height:1.5;"></div>
       </div>
 
       <div class="sidebar-account-section" id="sidebarAccountSection" style="display:none;">
@@ -3588,7 +3597,9 @@ const I18N_EN = {
   'sidebar.uploadExistingHint': 'Enter the booth size and a project name above to enable upload.',
   'sidebar.uploadExistingNote': 'Already have a finished design? Upload it to skip the form and jump straight to camera views.',
   'sidebar.accountUsage': 'Account Usage',
-  'sidebar.buyMore': 'Buy more usage — coming soon.',
+  'sidebar.upgradeTitle': 'Upgrade your plan',
+  'sidebar.upgradeBtn': 'Request upgrade',
+  'sidebar.upgradeDone': 'Request received — our team will contact you to activate your plan.',
   'app.title': 'AI Design Studio',
   'app.tagline': 'Describe your idea in words, get a starting concept layout for your booth or event',
   'app.adminPanel': 'Admin panel',
@@ -3713,7 +3724,9 @@ const I18N_AR = {
   'sidebar.uploadExistingHint': 'أدخل مقاس الجناح واسم المشروع أعلاه لتفعيل الرفع.',
   'sidebar.uploadExistingNote': 'هل لديك تصميم جاهز؟ ارفعه لتخطي النموذج والانتقال مباشرة إلى زوايا الكاميرا.',
   'sidebar.accountUsage': 'استخدام الحساب',
-  'sidebar.buyMore': 'شراء استخدام إضافي — قريبًا.',
+  'sidebar.upgradeTitle': 'ترقية باقتك',
+  'sidebar.upgradeBtn': 'طلب ترقية',
+  'sidebar.upgradeDone': 'تم استلام طلبك — سيتواصل معك فريقنا لتفعيل الباقة.',
   'app.title': 'استوديو التصميم بالذكاء الاصطناعي',
   'app.tagline': 'صف فكرتك بالكلمات، واحصل على تصميم مبدئي لجناحك أو فعاليتك',
   'app.adminPanel': 'لوحة الإدارة',
@@ -3838,7 +3851,9 @@ const I18N_FR = {
   'sidebar.uploadExistingHint': 'Saisissez la taille du stand et un nom de projet ci-dessus pour activer l\'import.',
   'sidebar.uploadExistingNote': 'Vous avez déjà un design terminé ? Importez-le pour passer directement aux vues caméra.',
   'sidebar.accountUsage': 'Utilisation du compte',
-  'sidebar.buyMore': 'Acheter plus d\'utilisation — bientôt disponible.',
+  'sidebar.upgradeTitle': 'Passer à un forfait supérieur',
+  'sidebar.upgradeBtn': 'Demander la mise à niveau',
+  'sidebar.upgradeDone': 'Demande reçue — notre équipe vous contactera pour activer votre forfait.',
   'app.title': 'AI Design Studio',
   'app.tagline': 'Décrivez votre idée avec des mots, obtenez un concept de départ pour votre stand ou événement',
   'app.adminPanel': 'Panneau admin',
@@ -3963,7 +3978,9 @@ const I18N_DE = {
   'sidebar.uploadExistingHint': 'Geben Sie oben die Standgröße und einen Projektnamen ein, um den Upload zu aktivieren.',
   'sidebar.uploadExistingNote': 'Haben Sie bereits ein fertiges Design? Laden Sie es hoch, um das Formular zu überspringen und direkt zu den Kameraansichten zu gelangen.',
   'sidebar.accountUsage': 'Kontonutzung',
-  'sidebar.buyMore': 'Mehr Nutzung kaufen — demnächst verfügbar.',
+  'sidebar.upgradeTitle': 'Plan upgraden',
+  'sidebar.upgradeBtn': 'Upgrade anfragen',
+  'sidebar.upgradeDone': 'Anfrage erhalten — unser Team meldet sich zur Aktivierung Ihres Plans.',
   'app.title': 'AI Design Studio',
   'app.tagline': 'Beschreiben Sie Ihre Idee in Worten und erhalten Sie ein erstes Konzept für Ihren Stand oder Ihre Veranstaltung',
   'app.adminPanel': 'Admin-Bereich',
@@ -4088,7 +4105,9 @@ const I18N_ES = {
   'sidebar.uploadExistingHint': 'Introduzca el tamaño del stand y un nombre de proyecto arriba para habilitar la subida.',
   'sidebar.uploadExistingNote': '¿Ya tiene un diseño terminado? Súbalo para saltarse el formulario e ir directo a las vistas de cámara.',
   'sidebar.accountUsage': 'Uso de la cuenta',
-  'sidebar.buyMore': 'Comprar más uso — próximamente.',
+  'sidebar.upgradeTitle': 'Mejora tu plan',
+  'sidebar.upgradeBtn': 'Solicitar mejora',
+  'sidebar.upgradeDone': 'Solicitud recibida — nuestro equipo te contactará para activar tu plan.',
   'app.title': 'AI Design Studio',
   'app.tagline': 'Describa su idea con palabras y obtenga un concepto inicial para su stand o evento',
   'app.adminPanel': 'Panel de administración',
@@ -4213,7 +4232,9 @@ const I18N_IT = {
   'sidebar.uploadExistingHint': 'Inserisci le dimensioni dello stand e un nome progetto sopra per abilitare il caricamento.',
   'sidebar.uploadExistingNote': 'Hai già un design finito? Caricalo per saltare il modulo e passare direttamente alle viste della fotocamera.',
   'sidebar.accountUsage': 'Utilizzo dell\'account',
-  'sidebar.buyMore': 'Acquista più utilizzo — presto disponibile.',
+  'sidebar.upgradeTitle': 'Aggiorna il tuo piano',
+  'sidebar.upgradeBtn': 'Richiedi upgrade',
+  'sidebar.upgradeDone': 'Richiesta ricevuta — il nostro team ti contatterà per attivare il piano.',
   'app.title': 'AI Design Studio',
   'app.tagline': 'Descrivi la tua idea a parole, ottieni un concept iniziale per il tuo stand o evento',
   'app.adminPanel': 'Pannello di amministrazione',
@@ -4338,7 +4359,9 @@ const I18N_ZH = {
   'sidebar.uploadExistingHint': '请在上方填写展位尺寸和项目名称以启用上传。',
   'sidebar.uploadExistingNote': '已经有完成的设计了吗？上传即可跳过表单，直接进入相机视角。',
   'sidebar.accountUsage': '账户用量',
-  'sidebar.buyMore': '购买更多用量 — 即将推出。',
+  'sidebar.upgradeTitle': '升级您的套餐',
+  'sidebar.upgradeBtn': '申请升级',
+  'sidebar.upgradeDone': '已收到您的申请 — 我们的团队将与您联系以激活套餐。',
   'app.title': 'AI 设计工作室',
   'app.tagline': '用文字描述您的想法，获得展位或活动的初始概念方案',
   'app.adminPanel': '管理面板',
@@ -4463,7 +4486,9 @@ const I18N_JA = {
   'sidebar.uploadExistingHint': '上のブースサイズとプロジェクト名を入力するとアップロードが有効になります。',
   'sidebar.uploadExistingNote': '完成したデザインをお持ちですか？アップロードしてフォームをスキップし、カメラビューに直接進めます。',
   'sidebar.accountUsage': 'アカウント使用状況',
-  'sidebar.buyMore': '使用量を追加購入 — 近日公開。',
+  'sidebar.upgradeTitle': 'プランをアップグレード',
+  'sidebar.upgradeBtn': 'アップグレードを申請',
+  'sidebar.upgradeDone': '申請を受け付けました — チームよりプラン有効化のご連絡をいたします。',
   'app.title': 'AI デザインスタジオ',
   'app.tagline': 'アイデアを言葉で説明すると、ブースやイベントの初期コンセプトが得られます',
   'app.adminPanel': '管理者パネル',
@@ -9199,6 +9224,32 @@ let currentUserEditLimit = null;
 let currentUserEditCount = null;
 let adminCheckPromise = null;
 
+/* Plan upgrade request from the user's own control panel (sidebar) — per explicit
+   product decision the public pricing page is information-only, and THIS is the one
+   place a purchase actually happens. Reuses the existing /api/purchase plan-request
+   endpoint (admin activates manually + emails go out; see api/purchase.js). */
+async function requestPlanUpgrade(){
+  const statusEl = document.getElementById('upgradeStatus');
+  const plan = document.getElementById('upgradePlanSelect').value;
+  statusEl.style.color = '';
+  statusEl.textContent = '…';
+  try{
+    const response = await fetch('/api/purchase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok || !data.ok) throw new Error((data.error && data.error.message) || 'Could not submit your request. Please try again.');
+    document.getElementById('upgradeControls').style.display = 'none';
+    statusEl.style.color = '#1E7A3C';
+    statusEl.textContent = t('sidebar.upgradeDone');
+  }catch(err){
+    statusEl.style.color = '#C0432B';
+    statusEl.textContent = err.message || 'Could not submit your request. Please try again.';
+  }
+}
+
 async function checkAdminAccess(){
   try{
     const response = await fetch('/api/me');
@@ -9270,13 +9321,13 @@ function updateUsageSummaryVisibility(){
   const hasContent = rows.some(el => el.textContent !== '');
   panel.style.display = hasContent ? 'block' : 'none';
 
-  // Surface the upsell prompt whenever any of the three is approaching or has reached
-  // its limit — not clickable yet (no plan/billing flow exists to link it to), but the
-  // person should still see, at a glance, that they're running low.
+  // The Upgrade-your-plan widget is now the ONE place a purchase actually happens (the
+  // public pricing page is information-only, per explicit product decision), so it shows
+  // whenever the account has usage limits at all — not only when running low. Admins
+  // (no limits, hasContent false) never see it.
   const buyMoreEl = document.getElementById('buyMorePrompt');
   if(buyMoreEl){
-    const anyNearOrAtLimit = rows.some(el => el.classList.contains('near-limit') || el.classList.contains('at-limit'));
-    buyMoreEl.style.display = (hasContent && anyNearOrAtLimit) ? 'block' : 'none';
+    buyMoreEl.style.display = hasContent ? 'block' : 'none';
   }
 }
 
