@@ -104,7 +104,7 @@
     width:100%;font-family:inherit;font-weight:700;font-size:12.5px;padding:9px 12px;
     background:var(--navy);color:#fff;border:2px solid var(--navy);border-radius:3px;cursor:pointer;
     transition:.15s ease;
-  }
+  text-transform:uppercase;letter-spacing:.05em;}
   .upgrade-open-btn:hover{background:#fff;color:var(--navy);}
   /* Upgrade modal: the three plan cards, compact version of the pricing page's own cards */
   .upgrade-modal{
@@ -754,8 +754,7 @@
       </div>
 
       <div class="buy-more-prompt" id="buyMorePrompt" style="display:none;">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:7px;" data-i18n="sidebar.upgradeTitle">Upgrade your plan</div>
-        <button type="button" class="upgrade-open-btn" onclick="openUpgradeModal()" data-i18n="sidebar.upgradeBtn">⬆ Upgrade</button>
+        <button type="button" class="upgrade-open-btn" onclick="openUpgradeModal()" data-i18n="sidebar.upgradeBtn">Upgrade your plan</button>
       </div>
 
       <div class="sidebar-account-section" id="sidebarAccountSection" style="display:none;">
@@ -3710,8 +3709,7 @@ const I18N_EN = {
   'sidebar.uploadExistingHint': 'Enter the booth size and a project name above to enable upload.',
   'sidebar.uploadExistingNote': 'Already have a finished design? Upload it to skip the form and jump straight to camera views.',
   'sidebar.accountUsage': 'Account Usage',
-  'sidebar.upgradeTitle': 'Upgrade your plan',
-  'sidebar.upgradeBtn': 'Request upgrade',
+  'sidebar.upgradeBtn': 'Upgrade your plan',
   'sidebar.upgradeDone': 'Request received. Our team will contact you to activate your plan.',
   'app.title': 'AI Design Studio',
   'app.tagline': 'Describe your idea in words, get a starting concept layout for your booth or event',
@@ -3873,8 +3871,7 @@ const I18N_AR = {
   'sidebar.uploadExistingHint': 'أدخل مقاس الجناح واسم المشروع أعلاه لتفعيل الرفع.',
   'sidebar.uploadExistingNote': 'هل لديك تصميم جاهز؟ ارفعه لتخطي النموذج والانتقال مباشرة إلى زوايا الكاميرا.',
   'sidebar.accountUsage': 'استخدام الحساب',
-  'sidebar.upgradeTitle': 'ترقية باقتك',
-  'sidebar.upgradeBtn': 'طلب ترقية',
+  'sidebar.upgradeBtn': 'ترقية باقتك',
   'sidebar.upgradeDone': 'تم استلام طلبك. سيتواصل معك فريقنا لتفعيل الباقة.',
   'app.title': 'استوديو التصميم بالذكاء الاصطناعي',
   'app.tagline': 'صف فكرتك بالكلمات، واحصل على تصميم مبدئي لجناحك أو فعاليتك',
@@ -4036,8 +4033,7 @@ const I18N_FR = {
   'sidebar.uploadExistingHint': 'Saisissez la taille du stand et un nom de projet ci-dessus pour activer l\'import.',
   'sidebar.uploadExistingNote': 'Vous avez déjà un design terminé ? Importez-le pour passer directement aux vues caméra.',
   'sidebar.accountUsage': 'Utilisation du compte',
-  'sidebar.upgradeTitle': 'Passer à un forfait supérieur',
-  'sidebar.upgradeBtn': 'Demander la mise à niveau',
+  'sidebar.upgradeBtn': 'Passer à un forfait supérieur',
   'sidebar.upgradeDone': 'Demande reçue. Notre équipe vous contactera pour activer votre forfait.',
   'app.title': 'AI Design Studio',
   'app.tagline': 'Décrivez votre idée avec des mots, obtenez un concept de départ pour votre stand ou événement',
@@ -4199,8 +4195,7 @@ const I18N_DE = {
   'sidebar.uploadExistingHint': 'Geben Sie oben die Standgröße und einen Projektnamen ein, um den Upload zu aktivieren.',
   'sidebar.uploadExistingNote': 'Haben Sie bereits ein fertiges Design? Laden Sie es hoch, um das Formular zu überspringen und direkt zu den Kameraansichten zu gelangen.',
   'sidebar.accountUsage': 'Kontonutzung',
-  'sidebar.upgradeTitle': 'Plan upgraden',
-  'sidebar.upgradeBtn': 'Upgrade anfragen',
+  'sidebar.upgradeBtn': 'Plan upgraden',
   'sidebar.upgradeDone': 'Anfrage erhalten. Unser Team meldet sich zur Aktivierung Ihres Plans.',
   'app.title': 'AI Design Studio',
   'app.tagline': 'Beschreiben Sie Ihre Idee in Worten und erhalten Sie ein erstes Konzept für Ihren Stand oder Ihre Veranstaltung',
@@ -4362,8 +4357,7 @@ const I18N_ES = {
   'sidebar.uploadExistingHint': 'Introduzca el tamaño del stand y un nombre de proyecto arriba para habilitar la subida.',
   'sidebar.uploadExistingNote': '¿Ya tiene un diseño terminado? Súbalo para saltarse el formulario e ir directo a las vistas de cámara.',
   'sidebar.accountUsage': 'Uso de la cuenta',
-  'sidebar.upgradeTitle': 'Mejora tu plan',
-  'sidebar.upgradeBtn': 'Solicitar mejora',
+  'sidebar.upgradeBtn': 'Mejora tu plan',
   'sidebar.upgradeDone': 'Solicitud recibida. Nuestro equipo te contactará para activar tu plan.',
   'app.title': 'AI Design Studio',
   'app.tagline': 'Describa su idea con palabras y obtenga un concepto inicial para su stand o evento',
@@ -4525,8 +4519,7 @@ const I18N_IT = {
   'sidebar.uploadExistingHint': 'Inserisci le dimensioni dello stand e un nome progetto sopra per abilitare il caricamento.',
   'sidebar.uploadExistingNote': 'Hai già un design finito? Caricalo per saltare il modulo e passare direttamente alle viste della fotocamera.',
   'sidebar.accountUsage': 'Utilizzo dell\'account',
-  'sidebar.upgradeTitle': 'Aggiorna il tuo piano',
-  'sidebar.upgradeBtn': 'Richiedi upgrade',
+  'sidebar.upgradeBtn': 'Aggiorna il tuo piano',
   'sidebar.upgradeDone': 'Richiesta ricevuta. Il nostro team ti contatterà per attivare il piano.',
   'app.title': 'AI Design Studio',
   'app.tagline': 'Descrivi la tua idea a parole, ottieni un concept iniziale per il tuo stand o evento',
@@ -4688,8 +4681,7 @@ const I18N_ZH = {
   'sidebar.uploadExistingHint': '请在上方填写展位尺寸和项目名称以启用上传。',
   'sidebar.uploadExistingNote': '已经有完成的设计了吗？上传即可跳过表单，直接进入相机视角。',
   'sidebar.accountUsage': '账户用量',
-  'sidebar.upgradeTitle': '升级您的套餐',
-  'sidebar.upgradeBtn': '申请升级',
+  'sidebar.upgradeBtn': '升级您的套餐',
   'sidebar.upgradeDone': '已收到您的申请。我们的团队将与您联系以激活套餐。',
   'app.title': 'AI 设计工作室',
   'app.tagline': '用文字描述您的想法，获得展位或活动的初始概念方案',
@@ -4851,8 +4843,7 @@ const I18N_JA = {
   'sidebar.uploadExistingHint': '上のブースサイズとプロジェクト名を入力するとアップロードが有効になります。',
   'sidebar.uploadExistingNote': '完成したデザインをお持ちですか？アップロードしてフォームをスキップし、カメラビューに直接進めます。',
   'sidebar.accountUsage': 'アカウント使用状況',
-  'sidebar.upgradeTitle': 'プランをアップグレード',
-  'sidebar.upgradeBtn': 'アップグレードを申請',
+  'sidebar.upgradeBtn': 'プランをアップグレード',
   'sidebar.upgradeDone': '申請を受け付けました。チームよりプラン有効化のご連絡をいたします。',
   'app.title': 'AI デザインスタジオ',
   'app.tagline': 'アイデアを言葉で説明すると、ブースやイベントの初期コンセプトが得られます',
