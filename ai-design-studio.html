@@ -1684,24 +1684,12 @@ Replace only the materials and graphics."></textarea>
         </div>
       </div>
       <div class="hint" id="indoorOutdoorSizeMandatoryHint" style="display:none;margin-top:-8px;">* Required unless you check "I don't know" for that side — then select at least one Required Area for that side instead.</div>
-      <div class="hint" id="indoorOutdoorSizeHint" style="display:none;margin-top:-8px;margin-bottom:16px;">If either size is unknown, check its box — that space is then planned around the areas you select above in "Required Areas" instead of a fixed footprint.</div>
+      <div class="hint" id="indoorOutdoorSizeHint" style="display:none;margin-top:6px;margin-bottom:16px;">If either size is unknown, check its box — that space is then planned around the areas you select above in "Required Areas" instead of a fixed footprint.</div>
 
-      <div class="field">
-        <label>Venue</label>
-        <input type="text" id="f_venue" placeholder="e.g. King Abdulaziz International Conference Center">
-      </div>
-
-      <div class="row2">
-        <div class="field">
-          <label>City</label>
-          <input type="text" id="f_city" placeholder="e.g. Riyadh">
-        </div>
-        <div class="field">
-          <label>Country</label>
-          <input type="text" id="f_country" placeholder="e.g. Saudi Arabia">
-        </div>
-      </div>
-
+      <!-- Venue / City / Country used to be duplicated here as standalone fields — the
+           Area Planning section above already collects Venue Type, Venue Name, City, and
+           Country (f_apVenueName / f_apCity / f_apCountry), so those are the single source
+           of truth now. -->
       <!-- "Tell us about your event" (descFieldWrap, shared with Booth mode's own version of
            this field) is moved to right after this anchor whenever mode is 'event' — see
            setMode(). -->
@@ -13232,7 +13220,7 @@ function toggleAiAutofillPanel(cb){
 // scans — objective facts (location, attendee count), things it can't meaningfully fill (file
 // uploads), the helper's own inputs, and Modular Wall Layout (see the block comment above).
 const AUTOFILL_EXCLUDED_IDS = new Set([
-  'f_country', 'f_city', 'f_venue', 'f_attendees',
+  'f_attendees',
   'f_modularWallLayout', 'f_referenceImage', 'f_posterFiles', 'f_logo',
   'f_needsAiHelp', 'f_autofillGoal', 'f_autofillWebsite', 'f_autofillWantsRigging', 'f_autofillScenario',
   'f_apVenueName', 'f_apCity', 'f_apCountry',
@@ -14043,9 +14031,9 @@ async function buildEventAutofillPrompt(goal, website, websiteText, websiteWarni
       outdoorDepth: document.getElementById('f_outdoorDepth').value || null,
       outdoorSizeUnknown: document.getElementById('f_outdoorSizeUnknown').checked,
     },
-    venue: document.getElementById('f_venue').value || null,
-    city: document.getElementById('f_city').value || null,
-    country: document.getElementById('f_country').value || null,
+    venue: document.getElementById('f_apVenueName').value || null,
+    city: document.getElementById('f_apCity').value || null,
+    country: document.getElementById('f_apCountry').value || null,
     constructionStyle: document.getElementById('f_constructionStyle').value || null,
     industryStyleAlreadySet: document.getElementById('f_industryStyle').value || null,
     eventStory: document.getElementById('f_desc').value || null,
@@ -15511,9 +15499,9 @@ async function generateDesign(){
   const eventTypeRaw = document.getElementById('f_eventType').value;
   const eventTypeCustom = document.getElementById('f_eventTypeCustom').value.trim();
   const eventType = eventTypeRaw === 'Custom' ? (eventTypeCustom || 'Custom') : eventTypeRaw;
-  const country = document.getElementById('f_country').value.trim();
-  const city = document.getElementById('f_city').value.trim();
-  const venue = document.getElementById('f_venue').value.trim();
+  const country = document.getElementById('f_apCountry').value.trim();
+  const city = document.getElementById('f_apCity').value.trim();
+  const venue = document.getElementById('f_apVenueName').value.trim();
   const environment = document.getElementById('f_environment').value;
   let desc = document.getElementById('f_desc').value.trim(); // reassigned below (after all validation passes) to the English translation actually sent to the AI, if translation was needed — see translateDescriptionIfNeeded()
   const openSides = mode === 'booth' ? buildOpenSidesDescription() : '';
@@ -20493,9 +20481,6 @@ function collectFormSnapshot(){
     f_attendees: document.getElementById('f_attendees').value,
     f_eventType: document.getElementById('f_eventType').value,
     f_eventTypeCustom: document.getElementById('f_eventTypeCustom').value,
-    f_country: document.getElementById('f_country').value,
-    f_city: document.getElementById('f_city').value,
-    f_venue: document.getElementById('f_venue').value,
     f_eventWebsite: document.getElementById('f_eventWebsite').value,
     f_eventObjective: document.getElementById('f_eventObjective').value,
     f_eventObjectiveCustom: document.getElementById('f_eventObjectiveCustom').value,
@@ -20610,9 +20595,6 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_eventType').value = snap.f_eventType || '';
   document.getElementById('f_eventTypeCustom').value = snap.f_eventTypeCustom || '';
   toggleEventTypeCustom(document.getElementById('f_eventType'));
-  document.getElementById('f_country').value = snap.f_country || '';
-  document.getElementById('f_city').value = snap.f_city || '';
-  document.getElementById('f_venue').value = snap.f_venue || '';
   document.getElementById('f_eventWebsite').value = snap.f_eventWebsite || '';
   document.getElementById('f_eventObjective').value = snap.f_eventObjective || '';
   document.getElementById('f_eventObjectiveCustom').value = snap.f_eventObjectiveCustom || '';
@@ -20654,9 +20636,11 @@ function restoreFormSnapshot(snap){
   updateEnvironmentSizeFields(document.getElementById('f_environment'));
   document.getElementById('f_apProjectType').value = snap.f_apProjectType || 'Event';
   document.getElementById('f_apVenueType').value = snap.f_apVenueType || 'Exhibition Center';
-  document.getElementById('f_apVenueName').value = snap.f_apVenueName || '';
-  document.getElementById('f_apCity').value = snap.f_apCity || '';
-  document.getElementById('f_apCountry').value = snap.f_apCountry || '';
+  // Older saved projects carried venue/city/country in the removed standalone fields —
+  // fold them into the Area Planning fields so nothing typed before the merge is lost.
+  document.getElementById('f_apVenueName').value = snap.f_apVenueName || snap.f_venue || '';
+  document.getElementById('f_apCity').value = snap.f_apCity || snap.f_city || '';
+  document.getElementById('f_apCountry').value = snap.f_apCountry || snap.f_country || '';
   areaPlanningList = snap.f_areaPlanningList || [];
   renderAreaPlanningList();
   document.getElementById('f_desc').value = snap.f_desc || '';
