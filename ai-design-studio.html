@@ -3585,6 +3585,13 @@ Replace only the materials and graphics."></textarea>
         <button type="button" class="markup-color-swatch" data-color="#2E9E5C" style="background:#2E9E5C;" onclick="setMarkupColor('#2E9E5C', this)" title="Green"></button>
         <button type="button" class="markup-color-swatch" data-color="#E8B923" style="background:#E8B923;" onclick="setMarkupColor('#E8B923', this)" title="Yellow"></button>
       </div>
+      <select id="editCameraSelect" class="ghost small" style="padding:6px 10px;font-size:12px;" title="Re-render the same design from another camera angle">
+        <option value="" selected>Camera</option>
+        <option value="Right">Right</option>
+        <option value="Left">Left</option>
+        <option value="Front">Front</option>
+        <option value="Top">Top</option>
+      </select>
       <span class="hint" style="margin:0;">Draw on the image to mark the area, then describe the change below. Use different colors to mark separate changes, and explain what each color means in the text.</span>
     </div>
     <textarea id="editText" placeholder="Describe the change you want (e.g. make the reception counter taller, change the screen wall color to gold)"></textarea>
@@ -18714,6 +18721,8 @@ function openEditPanel(camId, isStandalone){
   }
 
   document.getElementById('editText').value = '';
+  const editCameraSelect = document.getElementById('editCameraSelect');
+  if(editCameraSelect) editCameraSelect.value = '';
   clearEditReference();
   penModeOn = true;
   document.getElementById('penOnBtn').classList.add('active');
@@ -18813,9 +18822,10 @@ async function submitEdit(){
   const canvas = document.getElementById('markupCanvas');
   const baseImg = document.getElementById('editBaseImg');
   const hasMarkup = canvasHasMarkup(canvas);
+  const editCameraChoice = (document.getElementById('editCameraSelect') || {}).value || '';
 
-  if(!editDesc && !hasMarkup){
-    await customAlert('Describe the change or mark it up on the image first.', 'Edit Image');
+  if(!editDesc && !hasMarkup && !editCameraChoice){
+    await customAlert('Describe the change, mark it up on the image, or pick a camera angle first.', 'Edit Image');
     return;
   }
 
@@ -18849,6 +18859,18 @@ ${buildApprovedDecisionsText()}
     promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for this booth design, apply this requested change while keeping everything else identical: "${editDesc}".`;
   }else{
     promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for this booth design.`;
+  }
+
+  // Camera re-angle request (owner feature): the same design, unchanged, viewed from the
+  // chosen side — combinable with a described/marked edit or usable on its own.
+  if(editCameraChoice){
+    const CAMERA_CHANGE_TEXT = {
+      'Right': 'from the RIGHT side — camera positioned to the right of the design, looking across it',
+      'Left': 'from the LEFT side — camera positioned to the left of the design, looking across it',
+      'Front': 'from the FRONT — camera directly in front of the design, facing it straight on',
+      'Top': 'from the TOP — an elevated, high-angle view looking down over the design'
+    };
+    promptText += ' CAMERA CHANGE (mandatory): re-render this EXACT same design viewed ' + (CAMERA_CHANGE_TEXT[editCameraChoice] || editCameraChoice) + '. Every design element, material, color, branding, lighting choice, and piece of furniture stays IDENTICAL to the reference image — the ONLY thing that changes is the camera position.';
   }
 
   const statusEl = editTarget.type === 'ecbArea' ? document.getElementById('ecbActionStatus') : document.getElementById('actionStatus');
