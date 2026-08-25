@@ -1876,11 +1876,8 @@ Replace only the materials and graphics."></textarea>
         <div class="hint">Optional. If provided, the AI reads your brand's stated colors, tone, and visual rules alongside the logo itself.</div>
       </div>
 
-      <div class="field" id="eventWebsiteField">
-        <label>Website</label>
-        <input type="text" id="f_eventWebsite" placeholder="e.g. www.example.com">
-        <div class="hint">Optional. Helps the AI understand your brand and industry context.</div>
-      </div>
+      <!-- Website moved into the "Need help completing the brief?" helper panel — the AI
+           asks for the event website there instead (see aiAutofillWebsiteField). -->
     </div>
 
     <div class="field">
@@ -10289,18 +10286,17 @@ function updateModeDependentLabels(){
       : 'e.g. Booth for a tech startup. We need an interactive product display area, a private meeting corner, and a large display screen. Brand identity in deep navy and gold.';
   }
   // AI Autofill Helper — same panel and runAiAutofill() logic power both modes (see
-  // collectAutofillFieldDescriptors and buildEventAutofillPrompt/buildBoothAutofillPrompt), but
-  // Event mode asks no questions at all: no Goal field (Event Objective, already required in
-  // Event Details, covers that role) and no Website field (reuses f_eventWebsite, already
-  // entered in the Upload section, instead of asking again — see runAiAutofill). Booth mode is
-  // unchanged. Goal/Website/Rigging fields and their wording all swap here alongside every other
-  // mode-dependent label.
+  // collectAutofillFieldDescriptors and buildEventAutofillPrompt/buildBoothAutofillPrompt).
+  // Event mode asks ONE question: the event website (owner decision — the Website field
+  // moved here from the Upload section). No Goal field (Event Objective, already required
+  // in Event Details, covers that role) and no Scenario/Rigging fields. Booth mode is
+  // unchanged. All wording swaps here alongside every other mode-dependent label.
   const autofillGoalLabel = document.getElementById('aiAutofillGoalLabel');
   if(autofillGoalLabel) autofillGoalLabel.textContent = 'Goal of the booth';
   const autofillMainHint = document.getElementById('aiAutofillMainHint');
   if(autofillMainHint){
     autofillMainHint.textContent = mode === 'event'
-      ? "Click below and DesignsLab AI will read everything already entered in Event Details (including your Website in the Upload section above, if provided), then suggest the visitor experience, mood, brand values, activities, and creative direction below based on the event you've already described — no extra questions needed. Everything it fills in stays fully editable before you generate."
+      ? "Tell DesignsLab AI your event website (optional) and it will read everything already entered in Event Details, then suggest the visitor experience, mood, brand values, activities, and creative direction below based on the event you've already described. Everything it fills in stays fully editable before you generate."
       : "Tell DesignsLab AI the Goal of the booth and your company website, and it will read everything already entered in Booth Details, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.";
   }
   const autofillScenarioField = document.getElementById('aiAutofillScenarioField');
@@ -10308,7 +10304,9 @@ function updateModeDependentLabels(){
   const autofillGoalField = document.getElementById('aiAutofillGoalField');
   if(autofillGoalField) autofillGoalField.style.display = mode === 'event' ? 'none' : 'block';
   const autofillWebsiteField = document.getElementById('aiAutofillWebsiteField');
-  if(autofillWebsiteField) autofillWebsiteField.style.display = mode === 'event' ? 'none' : 'block';
+  if(autofillWebsiteField) autofillWebsiteField.style.display = 'block';
+  const autofillWebsiteLabel = autofillWebsiteField ? autofillWebsiteField.querySelector('label') : null;
+  if(autofillWebsiteLabel) autofillWebsiteLabel.textContent = mode === 'event' ? 'Event website (optional)' : 'Company website';
   const autofillRiggingField = document.getElementById('aiAutofillRiggingField');
   if(autofillRiggingField) autofillRiggingField.style.display = mode === 'event' ? 'none' : 'block';
 }
@@ -14118,11 +14116,8 @@ async function runAiAutofill(){
   const reviewNote = document.getElementById('aiAutofillReviewNote');
   // Event mode has no Goal question in this panel at all (Event Objective, already required in
   // Event Details, covers that role) and reuses whatever Website was already entered in the
-  // Upload section (f_eventWebsite) instead of asking again — see updateModeDependentLabels.
   const goal = mode === 'event' ? '' : (document.getElementById('f_autofillGoal').value || '').trim();
-  const website = mode === 'event'
-    ? (document.getElementById('f_eventWebsite').value || '').trim()
-    : (document.getElementById('f_autofillWebsite').value || '').trim();
+  const website = (document.getElementById('f_autofillWebsite').value || '').trim();
   // Only meaningful in Booth mode — the rigging sub-field is hidden entirely for Event mode
   // (see updateModeDependentLabels), so this just reads its untouched default there.
   const wantsRigging = document.getElementById('f_autofillWantsRigging').value; // 'unspecified' | 'yes' | 'no'
@@ -20475,7 +20470,6 @@ function collectFormSnapshot(){
     f_attendees: document.getElementById('f_attendees').value,
     f_eventType: document.getElementById('f_eventType').value,
     f_eventTypeCustom: document.getElementById('f_eventTypeCustom').value,
-    f_eventWebsite: document.getElementById('f_eventWebsite').value,
     f_eventObjective: document.getElementById('f_eventObjective').value,
     f_eventObjectiveCustom: document.getElementById('f_eventObjectiveCustom').value,
     f_targetAudience: Array.from(document.querySelectorAll('.target-audience-cb:checked')).map(cb => cb.value),
@@ -20588,7 +20582,9 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_eventType').value = snap.f_eventType || '';
   document.getElementById('f_eventTypeCustom').value = snap.f_eventTypeCustom || '';
   toggleEventTypeCustom(document.getElementById('f_eventType'));
-  document.getElementById('f_eventWebsite').value = snap.f_eventWebsite || '';
+  // Legacy projects stored the event website in the removed Upload-section field — fold it
+  // into the helper's website input so it is not lost.
+  if(snap.f_eventWebsite && !document.getElementById('f_autofillWebsite').value){ document.getElementById('f_autofillWebsite').value = snap.f_eventWebsite; }
   document.getElementById('f_eventObjective').value = snap.f_eventObjective || '';
   document.getElementById('f_eventObjectiveCustom').value = snap.f_eventObjectiveCustom || '';
   toggleEventObjectiveCustom(document.getElementById('f_eventObjective'));
