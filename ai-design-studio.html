@@ -13549,24 +13549,11 @@ function applyCheckboxGroupByValue(selector, values){
 function applyAutofillResult(result){
   if(!result || typeof result !== 'object') return;
 
-  // Brand colors — a dynamic, unbounded list of color rows rather than fixed ids, so it's
-  // applied by resizing #colorRows to match, then setting each row's hex input (which syncs
-  // its own swatch via the existing syncColorPicker wiring already on that input).
-  if(Array.isArray(result.brandColors) && result.brandColors.length){
-    const rows = document.getElementById('colorRows');
-    const hexPattern = /^#?[0-9A-Fa-f]{3}$|^#?[0-9A-Fa-f]{6}$/;
-    const colors = result.brandColors.filter(c => typeof c === 'string' && hexPattern.test(c.trim())).slice(0, 5);
-    if(colors.length && rows){
-      while(rows.children.length < colors.length) addColorRow();
-      while(rows.children.length > Math.max(colors.length, 1)) removeColorRow(rows.lastElementChild.querySelector('.color-remove'));
-      Array.from(rows.children).forEach((row, i) => {
-        if(!colors[i]) return;
-        const hexInput = row.querySelector('.color-hex');
-        hexInput.value = colors[i].startsWith('#') ? colors[i] : '#' + colors[i];
-        hexInput.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-    }
-  }
+  // Brand colors are USER-OWNED and never touched by Auto-Fill (owner decision). The AI
+  // used to "helpfully" resize/overwrite the color rows with 2-4 colors from its own brand
+  // knowledge or the logo — which is exactly how an uninvited red (#8B1E2B) ended up in a
+  // purple-and-white brief and then in every render. Whatever brandColors the model
+  // returns is now ignored entirely; the palette is only ever what the client typed.
 
   // Brand Portfolio (booth mode only) — see buildBoothAutofillPrompt's own "brandPortfolio" rule:
   // the model is instructed to only ever propose entries when the client hadn't added any of
