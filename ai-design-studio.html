@@ -15567,9 +15567,9 @@ function ecbAreaCurrentImage(r){
   return (r.images && r.images.length) ? r.images[r.activeIndex != null ? r.activeIndex : r.images.length - 1] : r.image;
 }
 
-function ecbAreaNav(area, delta){
+function ecbAreaNav(renderIdx, delta){
   if(ecbAreaRendersInProgress || ecbAreaEditing) return;
-  const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === area);
+  const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || [])[renderIdx];
   if(!r || !r.images || r.images.length < 2) return;
   const next = Math.max(0, Math.min(r.images.length - 1, (r.activeIndex != null ? r.activeIndex : r.images.length - 1) + delta));
   r.activeIndex = next;
@@ -15588,9 +15588,12 @@ function renderEcbAreaRenders(inProgressArea){
   wrap.style.display = 'block';
   grid.innerHTML = areas.map(area => {
     const done = renders.find(r => r.area === area);
+    // Bind every action to the render's NUMERIC index — area names carried through
+    // generated onclick attributes ('/', '&', quotes) caused edits to land on the wrong
+    // card (real reported case: editing picture 2 changed picture 3).
+    const renderIdx = done ? renders.indexOf(done) : -1;
     const active = inProgressArea === area;
     const editing = ecbAreaEditing && ecbAreaEditing.area === area;
-    const esc = area.replace(/'/g, "\\'");
     const shown = done ? ecbAreaCurrentImage(done) : null;
     const versions = done && done.images ? done.images.length : 1;
     const vIndex = done && done.images ? (done.activeIndex != null ? done.activeIndex : versions - 1) : 0;
@@ -15601,9 +15604,9 @@ function renderEcbAreaRenders(inProgressArea){
       + '</div>' : '';
     const navRow = (done && versions > 1 && !editing && !ecbAreaRendersInProgress)
       ? '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;">'
-        + '<button class="ghost small" ' + (vIndex === 0 ? 'disabled' : '') + ' onclick="ecbAreaNav(\'' + esc + '\', -1)">&lsaquo; Back</button>'
+        + '<button class="ghost small" ' + (vIndex === 0 ? 'disabled' : '') + ' onclick="ecbAreaNav(' + renderIdx + ', -1)">&lsaquo; Back</button>'
         + '<span style="font-size:11px;opacity:.6;">' + (vIndex + 1) + ' / ' + versions + '</span>'
-        + '<button class="ghost small" ' + (vIndex === versions - 1 ? 'disabled' : '') + ' onclick="ecbAreaNav(\'' + esc + '\', 1)">Forward &rsaquo;</button>'
+        + '<button class="ghost small" ' + (vIndex === versions - 1 ? 'disabled' : '') + ' onclick="ecbAreaNav(' + renderIdx + ', 1)">Forward &rsaquo;</button>'
         + '</div>' : '';
     return `
       <div style="border:1.5px solid var(--line);border-radius:2px;overflow:hidden;background:#fff;">
@@ -15616,8 +15619,8 @@ function renderEcbAreaRenders(inProgressArea){
           <div style="font-size:12.5px;font-weight:700;">${area}</div>
           ${navRow}
           ${(done && !ecbAreaRendersInProgress && !editing) ? '<div style="display:flex;gap:6px;margin-top:8px;">'
-              + '<button class="ghost small" onclick="downloadEcbAreaRender(\'' + esc + '\')">Download</button>'
-              + '<button class="ghost small" onclick="openEditPanel(\'ecbArea:' + esc + '\')">Edit</button>'
+              + '<button class="ghost small" onclick="downloadEcbAreaRender(' + renderIdx + ')">Download</button>'
+              + '<button class="ghost small" onclick="openEditPanel(\'ecbAreaIdx:' + renderIdx + '\')">Edit</button>'
               + '</div>' : ''}
         </div>
       </div>
@@ -15649,10 +15652,10 @@ async function forceDownloadImage(src, filename){
   }
 }
 
-function downloadEcbAreaRender(area){
-  const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === area);
+function downloadEcbAreaRender(renderIdx){
+  const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || [])[renderIdx];
   if(!r) return;
-  const name = (document.getElementById('f_name').value.trim() || 'event') + ' - ' + area;
+  const name = (document.getElementById('f_name').value.trim() || 'event') + ' - ' + r.area;
   forceDownloadImage(ecbAreaCurrentImage(r), name.replace(/[^\w\- ]+/g, '').trim() + '.png');
 }
 
@@ -18698,14 +18701,15 @@ function openEditPanel(camId, isStandalone){
     if(!hist) return;
     sourceImage = hist.images[hist.activeIndex];
     editTarget = { type: 'standalone' };
-  }else if(typeof camId === 'string' && camId.indexOf('ecbArea:') === 0){
+  }else if(typeof camId === 'string' && camId.indexOf('ecbAreaIdx:') === 0){
     // Approved event-area render (same Edit panel as the exhibition section's view cards).
-    const area = camId.slice(8);
-    const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === area);
+    // Resolved strictly by numeric index so the edit can NEVER land on a different card.
+    const renderIdx = parseInt(camId.slice(11), 10);
+    const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || [])[renderIdx];
     if(!r) return;
     sourceImage = ecbAreaCurrentImage(r);
-    editTarget = { type: 'ecbArea', area };
-    downloadLabel = area;
+    editTarget = { type: 'ecbArea', renderIdx, area: r.area };
+    downloadLabel = r.area;
   }else if(camId){
     const card = document.getElementById('genCard-' + camId);
     const cardImg = card ? card.querySelector('img') : null;
@@ -18978,7 +18982,8 @@ ${buildApprovedDecisionsText()}
     }
 
     if(editTarget.type === 'ecbArea'){
-      const target = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === editTarget.area);
+      const rendersArr = (eventConceptBoard && eventConceptBoard.areaRenders) || [];
+      const target = rendersArr[editTarget.renderIdx] || rendersArr.find(x => x.area === editTarget.area);
       if(target){
         // Version history, exhibition-style: the original is always kept; Back/Forward
         // walk the versions on the card.
