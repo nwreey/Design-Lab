@@ -1525,6 +1525,20 @@ Replace only the materials and graphics."></textarea>
         <input type="text" id="f_eventTypeCustom" placeholder="Describe the custom event type" style="display:none;margin-top:8px;">
       </div>
 
+      <div class="field" id="conferenceSeatingField" style="display:none;">
+        <label>Seating style</label>
+        <div class="hint" style="margin-bottom:10px;">How the conference hall is seated — this directly controls the layout in the render.</div>
+        <select id="f_conferenceSeating">
+          <option value="Theatre" selected>Theatre — straight rows of chairs facing the stage</option>
+          <option value="Classroom">Classroom — rows of tables with chairs facing the stage</option>
+          <option value="U-Shape">U-Shape — tables arranged in a U open toward the stage</option>
+          <option value="Boardroom">Boardroom — one large central table</option>
+          <option value="Banquet">Banquet — round tables with full seating</option>
+          <option value="Cabaret">Cabaret — half-round tables, all seats facing the stage</option>
+          <option value="VIP Seating">VIP Seating — premium armchairs / sofa-style front seating</option>
+        </select>
+      </div>
+
       <div class="field">
         <label>Environment</label>
         <select id="f_environment" onchange="updateEnvironmentSizeFields(this)">
@@ -10048,6 +10062,9 @@ function updateEnvironmentSizeFields(select){
 
 function toggleEventTypeCustom(select){
   document.getElementById('f_eventTypeCustom').style.display = select.value === 'Custom' ? 'block' : 'none';
+  // Conference-only: let the user choose the seating configuration for the hall.
+  const seatingField = document.getElementById('conferenceSeatingField');
+  if(seatingField) seatingField.style.display = /conference/i.test(select.value) ? 'block' : 'none';
 }
 
 function toggleEventObjectiveCustom(select){
@@ -15040,6 +15057,7 @@ function buildEventThemeBoardBriefData(){
   const keyActivities = Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value);
   const specialRequirements = Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value);
   const outputViews = Array.from(document.querySelectorAll('.output-view-cb:checked')).map(cb => cb.value);
+  const conferenceSeating = /conference/i.test(eventType || '') ? (document.getElementById('f_conferenceSeating').value || 'Theatre') : null;
   const colorHexes = Array.from(document.querySelectorAll('.color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   const brandPersonality = selectedBrandPersonalities.slice(); // ranked array, primary first (see BPE-001)
   const areaPlanningData = buildAreaPlanningData();
@@ -15065,6 +15083,7 @@ function buildEventThemeBoardBriefData(){
     key_activities: keyActivities,
     special_requirements: specialRequirements,
     output_views: outputViews,
+    conference_seating: conferenceSeating,
     client_description: desc || null
   };
 }
@@ -15190,6 +15209,8 @@ function buildEventDirectGeminiPrompt(d){
   // the recognizable foreground — never a generic aerial or lobby shot.
   if(d.event_type && /conference/i.test(d.event_type)){
     lines.push('- MANDATORY CAMERA COMPOSITION FOR THIS CONFERENCE: frame the image from inside the main hall facing the stage. The stage — with its backdrop, screens, and lectern — is the clear focal point of the composition. The first rows of seated attendees are visible in the foreground, and the VIP seating area (premium front-row seating, visibly more luxurious than the regular seating) is clearly recognizable closest to the stage. The view should read exactly like a professional photograph taken from the audience area toward the stage during the event.');
+    lines.push('- SEATING CONFIGURATION (client\'s choice, mandatory): ' + (d.conference_seating || 'Theatre') + ' style. Render the audience seating exactly in this configuration.');
+    lines.push('- STANDARD CONFERENCE SEATING RULES (mandatory, applied to whichever configuration is chosen): (1) LAYOUT — seats are arranged in straight, orderly rows or table groups facing the stage/screen; every seat in a row has equal spacing; rows have equal spacing between them; the whole seating block is centered on the stage unless the hall shape forces otherwise. (2) AISLES — keep a clear main central aisle and clear side aisles along the walls; never place a single chair inside an aisle; aisles run continuously from the entrance to the stage. (3) CAPACITY — the number of seats must be physically credible for the hall dimensions given the chair width, chair depth, row spacing, and the aisles; never overlap, shrink, or compress seats to force more capacity than realistically fits. (4) STAGE — every seat faces the stage; keep an appropriate clear zone between the first row and the stage edge; no seats behind the stage or outside the usable audience area.');
   }
   lines.push('- One single unified image of the event environment — never a collage, grid, split frame, or multiple panels.');
   lines.push('- Photorealistic professional visualization quality: realistic materials, physically plausible lighting, correct human scale, believable staging and AV production.');
@@ -20568,6 +20589,7 @@ function collectFormSnapshot(){
     f_eventBrandValues: Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value),
     f_keyActivities: Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value),
     f_outputViews: Array.from(document.querySelectorAll('.output-view-cb:checked')).map(cb => cb.value),
+    f_conferenceSeating: document.getElementById('f_conferenceSeating').value,
     f_eventSpecialRequirements: Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value),
     f_successMetrics: Array.from(document.querySelectorAll('.success-metrics-cb:checked')).map(cb => cb.value),
     f_aiCreativeFreedom: document.getElementById('f_aiCreativeFreedom').value,
@@ -20690,6 +20712,8 @@ function restoreFormSnapshot(snap){
   document.querySelectorAll('.key-activities-cb').forEach(cb => { cb.checked = savedKeyActivities.has(cb.value); });
   const savedOutputViews = new Set(snap.f_outputViews || []);
   document.querySelectorAll('.output-view-cb').forEach(cb => { cb.checked = savedOutputViews.has(cb.value); });
+  document.getElementById('f_conferenceSeating').value = snap.f_conferenceSeating || 'Theatre';
+  toggleEventTypeCustom(document.getElementById('f_eventType'));
   const savedEventSpecialReq = new Set(snap.f_eventSpecialRequirements || []);
   document.querySelectorAll('.event-special-req-cb').forEach(cb => { cb.checked = savedEventSpecialReq.has(cb.value); });
   const savedSuccessMetrics = new Set(snap.f_successMetrics || []);
