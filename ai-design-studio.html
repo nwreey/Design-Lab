@@ -3289,6 +3289,12 @@ Replace only the materials and graphics."></textarea>
       </div>
     </div>
     <div id="ecbGalleryStrip" class="gallery-strip"></div>
+    <!-- Approve: one separate high-resolution A4-landscape render per selected area,
+         themed from the approved board (owner request). -->
+    <div id="ecbAreaRenders" style="display:none;margin-top:26px;">
+      <div class="eyebrow">Approved Area Renders</div>
+      <div id="ecbAreaRendersGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:12px;"></div>
+    </div>
     <div class="approve-progress" id="ecbProgress" style="display:none;">
       <div class="approve-progress-header">
         <span class="approve-progress-message" id="ecbProgressMessage"></span>
@@ -15385,7 +15391,7 @@ async function generateEventConceptBoard(options){
       ? eventConceptBoard.gallery.slice()
       : (eventConceptBoard && eventConceptBoard.image ? [{ label: 'Theme 1', image: eventConceptBoard.image }] : []);
     prevGallery.push({ label: 'Theme ' + (prevGallery.length + 1), image: compressed });
-    eventConceptBoard = { image: compressed, gallery: prevGallery, activeIndex: prevGallery.length - 1, spec: null, engine: 'gemini' };
+    eventConceptBoard = { image: compressed, gallery: prevGallery, activeIndex: prevGallery.length - 1, areas: (briefData.required_areas || []).slice(), spec: null, engine: 'gemini' };
     if(stopEcbSim){ stopEcbSim(); stopEcbSim = null; }
     if(inPlace){
       updateEcbProgress(100, 'Done.');
@@ -15443,6 +15449,7 @@ function renderEventConceptBoardResult(skipScroll){
   document.getElementById('result').style.display = 'none';
   document.getElementById('eventConceptResult').style.display = 'block';
   renderEcbGalleryStrip();
+  renderEcbAreaRenders(null);
   if(!skipScroll) document.getElementById('eventConceptResult').scrollIntoView({behavior:'smooth', block:'start'});
   // A finished concept board locks the form, same as a finished booth render — covers both the
   // live-generation success path and reopening a saved project that already has one.
@@ -15479,6 +15486,93 @@ function approveEventConceptBoard(){
   eventConceptBoard.approved = true;
   applyEventConceptBoardApprovalLock();
   saveCurrentProject();
+  // Owner request: approval delivers one separate HIGH-RESOLUTION A4-landscape picture
+  // for every area this board was generated from.
+  generateApprovedAreaRenders();
+}
+
+function renderEcbAreaRenders(inProgressArea){
+  const wrap = document.getElementById('ecbAreaRenders');
+  const grid = document.getElementById('ecbAreaRendersGrid');
+  if(!wrap || !grid) return;
+  const renders = (eventConceptBoard && eventConceptBoard.areaRenders) || [];
+  const areas = (eventConceptBoard && eventConceptBoard.areas) || [];
+  if(!renders.length && !inProgressArea){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  grid.innerHTML = areas.map(area => {
+    const done = renders.find(r => r.area === area);
+    const active = inProgressArea === area;
+    return `
+      <div style="border:1.5px solid var(--line);border-radius:2px;overflow:hidden;background:#fff;">
+        <div style="background:#0B0C10;aspect-ratio:297/210;display:flex;align-items:center;justify-content:center;position:relative;">
+          ${done
+            ? '<img src="' + done.image + '" alt="' + area + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openImageLightbox(this.src)">'
+            : '<div style="color:#9AA0AC;font-size:12px;padding:14px;text-align:center;">' + (active ? 'Generating high-resolution render...' : (done === undefined && (done || '') === '' && (renders.someError && renders.someError[area]) ? '' : 'Waiting...')) + '</div>'}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;">
+          <div style="font-size:12.5px;font-weight:700;">${area}</div>
+          ${done ? '<button class="ghost small" onclick="downloadEcbAreaRender(\'' + area.replace(/'/g, "\\'") + '\')">Download</button>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function downloadEcbAreaRender(area){
+  const r = ((eventConceptBoard && eventConceptBoard.areaRenders) || []).find(x => x.area === area);
+  if(!r) return;
+  const name = (document.getElementById('f_name').value.trim() || 'event') + ' - ' + area;
+  const a = document.createElement('a');
+  a.href = r.image;
+  a.download = name.replace(/[^\w\- ]+/g, '').trim() + '.png';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+async function generateApprovedAreaRenders(){
+  const areas = (eventConceptBoard && eventConceptBoard.areas && eventConceptBoard.areas.length)
+    ? eventConceptBoard.areas
+    : getSelectedEventAreas();
+  if(!areas.length) return;
+  eventConceptBoard.areas = areas.slice();
+  eventConceptBoard.areaRenders = eventConceptBoard.areaRenders || [];
+  const statusEl = document.getElementById('ecbActionStatus');
+  projectSwitchLocked = true;
+  try{
+    const briefData = buildEventThemeBoardBriefData();
+    const boardParts = dataUrlParts(eventConceptBoard.image);
+    for(const area of areas){
+      if(eventConceptBoard.areaRenders.find(r => r.area === area)) continue; // resume-safe
+      renderEcbAreaRenders(area);
+      if(statusEl) statusEl.textContent = 'Approved — generating high-resolution renders (' + (eventConceptBoard.areaRenders.length + 1) + ' of ' + areas.length + ')...';
+      try{
+        // The single-area version of the exact same brief (all color / conference /
+        // quality rules included), locked to the approved board's theme.
+        let prompt = buildEventDirectGeminiPrompt(Object.assign({}, briefData, { output_views: [area] }));
+        prompt += '\n\nTHEME LOCK: the attached image is the client-APPROVED concept board for this event. This render must use EXACTLY the same design theme as that board — identical color palette, materials, architectural language, lighting style, furniture family, branding, graphics, flooring, decor, and finishes. It must read as the same event, photographed in the "' + area + '" area.';
+        prompt += '\n\nFORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions) — a wide horizontal composition filling the entire frame edge to edge, maximum detail and sharpness, high-resolution presentation quality.';
+        const response = await fetchWithTimeout('/api/generate-image-gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, referenceImage: boardParts.base64, referenceMimeType: boardParts.mime, isUserInitiatedEdit: false, aspectRatio: '4:3', imageSize: '2K' })
+        }, 190000);
+        const rawText = await response.text();
+        let data = {};
+        try{ data = JSON.parse(rawText); }catch(e){ /* leave {} */ }
+        if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Render failed.');
+        eventConceptBoard.areaRenders.push({ area, image: data.image });
+        renderEcbAreaRenders(null);
+        saveCurrentProject();
+      }catch(areaErr){
+        console.error('Area render failed for ' + area + ':', areaErr);
+        if(statusEl) statusEl.textContent = 'Could not render "' + area + '": ' + (areaErr.message || 'unknown error') + ' — continuing with the rest.';
+      }
+    }
+    renderEcbAreaRenders(null);
+    if(statusEl) statusEl.textContent = 'Approved — ' + eventConceptBoard.areaRenders.length + ' of ' + areas.length + ' high-resolution area renders ready below.';
+    saveCurrentProject();
+  }finally{
+    projectSwitchLocked = false;
+  }
 }
 
 function showEcbFrameLoading(message){

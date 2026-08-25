@@ -116,7 +116,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, isUserInitiatedEdit, quotaKind, aspectRatio, engineMode } = req.body || {};
+    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, isUserInitiatedEdit, quotaKind, aspectRatio, engineMode, imageSize } = req.body || {};
     if (!prompt || typeof prompt !== 'string') {
       res.status(400).json({ error: { message: 'Request body must include a "prompt" string.' } });
       return;
@@ -142,7 +142,9 @@ module.exports = async (req, res) => {
     // (confirmed-working value, unlike the invalid '0.5K'); if it's still too soft, the next step up
     // is 2K. engineMode is still accepted on the request body (older/cached clients may still send
     // it) but no longer has any effect — kept only so a stray 'test' value can never throw here.
-    const resolvedImageSize = '1K';
+    // '2K' is honored only when explicitly requested (the event board's Approve flow uses
+    // it for the final high-resolution per-area renders); everything else stays on 1K.
+    const resolvedImageSize = imageSize === '2K' ? '2K' : '1K';
 
     // Owner decision: EVERY user-initiated modification (Modify Design and Other option
     // alike) counts against the modify quota — the old "first modification is free"
