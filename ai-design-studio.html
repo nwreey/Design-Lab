@@ -19004,7 +19004,9 @@ ${buildApprovedDecisionsText()}
     return;
   }
 
-  statusEl.textContent = 'Applying your edit... this can take up to a minute.';
+  // For area-render edits the progress already runs INSIDE the picture box — writing it
+  // here too duplicated the message under the theme's Download bar (owner report).
+  statusEl.textContent = editTarget.type === 'ecbArea' ? '' : 'Applying your edit... this can take up to a minute.';
 
   try{
     // Same 190s allowance as every other call to this OpenAI edit endpoint — see the comment
