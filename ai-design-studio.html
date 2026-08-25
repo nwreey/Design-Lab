@@ -15552,8 +15552,9 @@ async function generateApprovedAreaRenders(){
         // The single-area version of the exact same brief (all color / conference /
         // quality rules included), locked to the approved board's theme.
         let prompt = buildEventDirectGeminiPrompt(Object.assign({}, briefData, { output_views: [area] }));
-        prompt += '\n\nTHEME LOCK: the attached image is the client-APPROVED concept board for this event. This render must use EXACTLY the same design theme as that board — identical color palette, materials, architectural language, lighting style, furniture family, branding, graphics, flooring, decor, and finishes. It must read as the same event, photographed in the "' + area + '" area.';
-        prompt += '\n\nFORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions) — a wide horizontal composition filling the entire frame edge to edge, maximum detail and sharpness, high-resolution presentation quality.';
+        prompt += '\n\nTHEME LOCK: the attached image is the client-APPROVED concept board for this event. It may be composed of MULTIPLE panels — use it ONLY as the theme reference (color palette, materials, architectural language, lighting style, furniture family, branding, graphics, flooring, decor, finishes). Do NOT imitate its panel layout or composition in any way. This render must read as the same event, photographed in the "' + area + '" area.';
+        prompt += '\n\nHARD RULE — ONE COMPLETE UNDIVIDED IMAGE: the output is EXACTLY ONE single, continuous, seamless photograph of this one area filling the ENTIRE frame edge to edge. Absolutely NO splitting of the frame: no two sections, no panels, no grid, no collage, no split-screen, no side-by-side views, no picture-in-picture, no borders or dividing lines of any kind anywhere in the image. If any dividing line or second section would appear, recompose as one single continuous scene before returning the result.';
+        prompt += '\n\nFORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions) — one wide horizontal composition filling the entire frame edge to edge, maximum detail and sharpness, high-resolution presentation quality.';
         // Highest available resolution: try 4K first, and if the model rejects it fall
         // back to 2K rather than failing the area entirely.
         let data = null;
