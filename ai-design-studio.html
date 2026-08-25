@@ -2089,6 +2089,25 @@ Replace only the materials and graphics."></textarea>
           <option value="Maximum creativity">Maximum creativity</option>
         </select>
       </div>
+
+      <div class="field" id="outputViewsField">
+        <label>What should the output show?</label>
+        <div class="hint" style="margin-bottom:10px;">Select every space the generated concept image must clearly include.</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="output-view-cb" value="Entrance Gate"> Entrance Gate</label>
+          <label><input type="checkbox" class="output-view-cb" value="Outdoor Area"> Outdoor Area</label>
+          <label><input type="checkbox" class="output-view-cb" value="Foyer / Pre-Function Area"> Foyer / Pre-Function Area</label>
+          <label><input type="checkbox" class="output-view-cb" value="Registration & Welcome"> Registration &amp; Welcome</label>
+          <label><input type="checkbox" class="output-view-cb" value="Exhibition Area"> Exhibition Area</label>
+          <label><input type="checkbox" class="output-view-cb" value="Conference / Main Hall"> Conference / Main Hall</label>
+          <label><input type="checkbox" class="output-view-cb" value="Main Stage"> Main Stage</label>
+          <label><input type="checkbox" class="output-view-cb" value="VIP Area / Lounge"> VIP Area / Lounge</label>
+          <label><input type="checkbox" class="output-view-cb" value="Networking Lounge"> Networking Lounge</label>
+          <label><input type="checkbox" class="output-view-cb" value="Catering / F&B Area"> Catering / F&amp;B Area</label>
+          <label><input type="checkbox" class="output-view-cb" value="Breakout Rooms"> Breakout Rooms</label>
+          <label><input type="checkbox" class="output-view-cb" value="Photo / Media Wall"> Photo / Media Wall</label>
+        </div>
+      </div>
     </div>
 
     <div class="section-headline" id="boothThemeHeadline" style="display:none;" data-i18n="section.boothTheme">Booth Theme</div>
@@ -15025,6 +15044,7 @@ function buildEventThemeBoardBriefData(){
   const eventBrandValues = Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value);
   const keyActivities = Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value);
   const specialRequirements = Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value);
+  const outputViews = Array.from(document.querySelectorAll('.output-view-cb:checked')).map(cb => cb.value);
   const colorHexes = Array.from(document.querySelectorAll('.color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   const brandPersonality = selectedBrandPersonalities.slice(); // ranked array, primary first (see BPE-001)
   const areaPlanningData = buildAreaPlanningData();
@@ -15049,6 +15069,7 @@ function buildEventThemeBoardBriefData(){
     brand_values: eventBrandValues,
     key_activities: keyActivities,
     special_requirements: specialRequirements,
+    output_views: outputViews,
     client_description: desc || null
   };
 }
@@ -15165,6 +15186,7 @@ function buildEventDirectGeminiPrompt(d){
   if(d.target_audience && d.target_audience.length) lines.push('- Target audience: ' + d.target_audience.join(', ') + '.');
   if(d.visitor_experience_priorities && d.visitor_experience_priorities.length) lines.push('- Visitor experience priorities: ' + d.visitor_experience_priorities.join(', ') + '.');
   if(d.special_requirements && d.special_requirements.length) lines.push('- Special requirements: ' + d.special_requirements.join(', ') + '.');
+  if(d.output_views && d.output_views.length) lines.push('- THE IMAGE MUST CLEARLY SHOW these spaces, each recognizable in the composition (mandatory visual content — choose a camera angle and layout that makes every one of them visible): ' + d.output_views.join(', ') + '.');
   if(d.client_description) lines.push('- Client\'s own description of the event (highest priority creative direction): "' + d.client_description.replace(/"/g, "'") + '".');
   lines.push('');
   lines.push('RENDERING RULES:');
@@ -20462,6 +20484,7 @@ function collectFormSnapshot(){
     f_eventMood: Array.from(document.querySelectorAll('.event-mood-cb:checked')).map(cb => cb.value),
     f_eventBrandValues: Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value),
     f_keyActivities: Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value),
+    f_outputViews: Array.from(document.querySelectorAll('.output-view-cb:checked')).map(cb => cb.value),
     f_eventSpecialRequirements: Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value),
     f_successMetrics: Array.from(document.querySelectorAll('.success-metrics-cb:checked')).map(cb => cb.value),
     f_aiCreativeFreedom: document.getElementById('f_aiCreativeFreedom').value,
@@ -20585,6 +20608,8 @@ function restoreFormSnapshot(snap){
   enforceCheckboxMax('.event-brand-values-cb', 5, 'brandValuesCountHint');
   const savedKeyActivities = new Set(snap.f_keyActivities || []);
   document.querySelectorAll('.key-activities-cb').forEach(cb => { cb.checked = savedKeyActivities.has(cb.value); });
+  const savedOutputViews = new Set(snap.f_outputViews || []);
+  document.querySelectorAll('.output-view-cb').forEach(cb => { cb.checked = savedOutputViews.has(cb.value); });
   const savedEventSpecialReq = new Set(snap.f_eventSpecialRequirements || []);
   document.querySelectorAll('.event-special-req-cb').forEach(cb => { cb.checked = savedEventSpecialReq.has(cb.value); });
   const savedSuccessMetrics = new Set(snap.f_successMetrics || []);
