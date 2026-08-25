@@ -15254,7 +15254,7 @@ function buildEventDirectGeminiPrompt(d){
   if(panels.length >= 2){
     lines.push('You are a world-class event designer at a top agency. Create ONE professional CONCEPT-BOARD image presenting a single unified event design theme applied across ' + panels.length + ' selected areas, composed as EXACTLY ' + panels.length + ' separate visual panels — one panel per area, no more, no fewer.');
   }else if(panels.length === 1){
-    lines.push('You are a world-class event designer. Create ONE photorealistic, presentation-ready concept render focused ENTIRELY on the "' + panels[0] + '" area of the event described below. Do not invent or add other areas — this single area IS the image.');
+    lines.push('You are a world-class event designer. Create ONE photorealistic, presentation-ready concept render focused ENTIRELY on the "' + panels[0] + '" area of the event described below. HARD RULE: generate ONLY this explicitly selected area — never add, replace, substitute, merge, or infer any additional area; this single area IS the image.');
   }else{
     lines.push('You are a world-class event designer. Create ONE photorealistic, presentation-ready concept render of the complete event environment described below, as a wide hero perspective that shows the overall space, its atmosphere, and its key zones in a single coherent view.');
   }
@@ -15284,6 +15284,7 @@ function buildEventDirectGeminiPrompt(d){
   if(d.visitor_experience_priorities && d.visitor_experience_priorities.length) lines.push('- Visitor experience priorities: ' + d.visitor_experience_priorities.join(', ') + '.');
   if(d.special_requirements && d.special_requirements.length) lines.push('- Special requirements: ' + d.special_requirements.join(', ') + '.');
   if(panels.length >= 2){
+    lines.push('- HARD RULE: generate ONLY the areas explicitly selected by the client and listed below. NEVER add, replace, substitute, merge, or infer any additional area. The number of panels must EXACTLY equal ' + panels.length + ' — one panel per listed area, nothing else.');
     lines.push('- CONCEPT-BOARD PANELS (mandatory, one panel per selected area):');
     panels.forEach((name, i) => {
       const def = (typeof EVENT_AREA_MASTER !== 'undefined' && EVENT_AREA_MASTER[name]) || null;
