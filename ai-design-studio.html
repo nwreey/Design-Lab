@@ -15336,6 +15336,7 @@ function buildEventDirectGeminiPrompt(d){
   }
   lines.push('- Photorealistic professional visualization quality: realistic materials, physically plausible lighting, correct human scale, believable staging and AV production.');
   lines.push('- Include people naturally using the space at a density that matches the stated attendance, so the scale reads correctly.');
+  lines.push('- LOGO AUTHENTICITY (hard rule): if a company/event logo image is attached to this request, it is the ONLY authoritative logo. Reproduce it EXACTLY as attached — same mark, same wordmark, same proportions, same colors. NEVER use any other version of this company\'s logo, including older, newer, or alternative versions you may know from training data or the internet — your memory of this brand\'s logo is considered WRONG; only the attached file is correct. If no logo is attached, render the brand/event name as clean typography only and never invent or recall a logo mark.');
   lines.push('- No watermarks, no captions, no labels, and no text of any kind except the event or brand name where signage would naturally carry it. The functional area names from this brief are internal planning terms — never render them as floating labels, zone names, arrows, dimension lines, or callouts anywhere in the image. This is a photorealistic visualization, not a labeled floor plan.');
   if(d.colors && d.colors.length) lines.push('- COLOR DISCIPLINE CHECK: before finalizing, verify no color outside the stated brand palette and neutrals appears anywhere in the image — an unlisted accent color (for example red appearing when the palette is white and blue) is a failure.');
   lines.push('- ENVIRONMENT QUALITY (mandatory): an architecturally realistic venue — generous ceiling height with professional truss-mounted stage lighting and line-array speakers, clean finished walls, realistic floor materials, physically consistent shadows and reflections, and correct perspective throughout. Nothing may look like a toy, a diagram, or a video-game scene.');
@@ -15375,7 +15376,7 @@ async function generateEventConceptBoard(options){
     if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
       eventGenBody.referenceImage = logoDataUrl.split(',')[1];
       eventGenBody.referenceMimeType = logoMediaType;
-      eventGenBody.prompt += '\n\nThe attached image is the exact company/event logo — wherever a logo appears in the render it must match this exactly, with no redesign, restyling, or recoloring.';
+      eventGenBody.prompt += '\n\nThe attached image is the EXACT and ONLY authoritative company/event logo. Wherever a logo appears in the render it must match this attached file pixel-for-pixel — no redesign, restyling, recoloring, and NEVER a different or older version of this company\'s logo that you may know from elsewhere.';
     }
 
     const response = await fetchWithTimeout(genEndpoint, {
@@ -15585,6 +15586,12 @@ async function generateApprovedAreaRenders(){
   try{
     const briefData = buildEventThemeBoardBriefData();
     const boardParts = dataUrlParts(eventConceptBoard.image);
+    // The client's uploaded logo travels with EVERY area render — without it, the model
+    // fell back to its own (often outdated) memory of the brand's logo. Real reported case.
+    const areaRenderExtraRefs = [];
+    if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+      areaRenderExtraRefs.push({ data: logoDataUrl.split(',')[1], mimeType: logoMediaType });
+    }
     for(const area of areas){
       if(eventConceptBoard.areaRenders.find(r => r.area === area)) continue; // resume-safe
       renderEcbAreaRenders(area);
@@ -15593,8 +15600,11 @@ async function generateApprovedAreaRenders(){
         // The single-area version of the exact same brief (all color / conference /
         // quality rules included), locked to the approved board's theme.
         let prompt = buildEventDirectGeminiPrompt(Object.assign({}, briefData, { output_views: [area] }));
-        prompt += '\n\nTHEME LOCK: the attached image is the client-APPROVED concept board for this event. It may be composed of MULTIPLE panels — use it ONLY as the theme reference (color palette, materials, architectural language, lighting style, furniture family, branding, graphics, flooring, decor, finishes). Do NOT imitate its panel layout or composition in any way. This render must read as the same event, photographed in the "' + area + '" area.';
+        prompt += '\n\nTHEME LOCK: the FIRST attached image is the client-APPROVED concept board for this event. It may be composed of MULTIPLE panels — use it ONLY as the theme reference (color palette, materials, architectural language, lighting style, furniture family, branding, graphics, flooring, decor, finishes). Do NOT imitate its panel layout or composition in any way. This render must read as the same event, photographed in the "' + area + '" area.';
         prompt += '\n\nHARD RULE — ONE COMPLETE UNDIVIDED IMAGE: the output is EXACTLY ONE single, continuous, seamless photograph of this one area filling the ENTIRE frame edge to edge. Absolutely NO splitting of the frame: no two sections, no panels, no grid, no collage, no split-screen, no side-by-side views, no picture-in-picture, no borders or dividing lines of any kind anywhere in the image. If any dividing line or second section would appear, recompose as one single continuous scene before returning the result.';
+        if(areaRenderExtraRefs.length){
+          prompt += '\n\nLOGO REFERENCE: the SECOND attached image is the EXACT and ONLY authoritative company/event logo. Every logo appearance in this render must match it pixel-for-pixel — never a different, older, or remembered version of this company\'s logo, even if the approved board itself shows the logo imperfectly. The attached logo file always wins.';
+        }
         prompt += '\n\nFORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions) — one wide horizontal composition filling the entire frame edge to edge, maximum detail and sharpness, high-resolution presentation quality.';
         // Highest available resolution: try 4K first, and if the model rejects it fall
         // back to 2K rather than failing the area entirely.
@@ -15603,7 +15613,7 @@ async function generateApprovedAreaRenders(){
           const response = await fetchWithTimeout('/api/generate-image-gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, referenceImage: boardParts.base64, referenceMimeType: boardParts.mime, isUserInitiatedEdit: false, aspectRatio: '4:3', imageSize: size })
+            body: JSON.stringify({ prompt, referenceImage: boardParts.base64, referenceMimeType: boardParts.mime, additionalReferenceImages: areaRenderExtraRefs, isUserInitiatedEdit: false, aspectRatio: '4:3', imageSize: size })
           }, 190000);
           const rawText = await response.text();
           let parsed = {};
