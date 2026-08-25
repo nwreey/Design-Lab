@@ -1650,7 +1650,7 @@ Replace only the materials and graphics."></textarea>
           </div>
         </div>
         <label class="remember"><input type="checkbox" id="f_eventSizeUnknown" onchange="toggleGenericSizeUnknown(this)"> I don't know the exact size of the space</label>
-        <div class="hint">* Required unless you check "I don't know the exact size" above — in that case, select at least one Required Area above instead. Select an Environment above (Indoor / Outdoor / Hybrid) for a more specific size question, or leave it unspecified and answer generally here.</div>
+        <div class="hint">* Required unless you check "I don't know the exact size" above — then the AI sizes the space from your event type and attendee count. Select an Environment above (Indoor / Outdoor / Hybrid) for a more specific size question, or leave it unspecified and answer generally here.</div>
       </div>
 
       <div class="row2" id="indoorOutdoorSizeRow" style="display:none;">
@@ -1671,8 +1671,8 @@ Replace only the materials and graphics."></textarea>
           <label class="remember"><input type="checkbox" id="f_outdoorSizeUnknown" onchange="toggleOutdoorSizeUnknown(this)"> I don't know the outdoor size</label>
         </div>
       </div>
-      <div class="hint" id="indoorOutdoorSizeMandatoryHint" style="display:none;margin-top:-8px;">* Required unless you check "I don't know" for that side — then select at least one Required Area for that side instead.</div>
-      <div class="hint" id="indoorOutdoorSizeHint" style="display:none;margin-top:6px;margin-bottom:16px;">If either size is unknown, check its box — that space is then planned around the areas you select above in "Required Areas" instead of a fixed footprint.</div>
+      <div class="hint" id="indoorOutdoorSizeMandatoryHint" style="display:none;margin-top:-8px;">* Required unless you check "I don't know" for that side.</div>
+      <div class="hint" id="indoorOutdoorSizeHint" style="display:none;margin-top:6px;margin-bottom:16px;">If either size is unknown, check its box — the AI then sizes that space from your event type, attendee count, and any areas you may have added above.</div>
 
       <!-- Venue / City / Country used to be duplicated here as standalone fields — the
            Area Planning section above already collects Venue Type, Venue Name, City, and
@@ -14456,9 +14456,10 @@ function getMissingRequirements(m){
     if(needsIndoorSize || needsOutdoorSize){
       if(needsIndoorSize && !indoorSizeUnknown && (!indoorWidth || !indoorDepth)) addMissing('the indoor size (or check "I don\'t know the indoor size")', 'f_indoorWidth');
       if(needsOutdoorSize && !outdoorSizeUnknown && (!outdoorWidth || !outdoorDepth)) addMissing('the outdoor size (or check "I don\'t know the outdoor size")', 'f_outdoorWidth');
-      if((needsIndoorSize && indoorSizeUnknown || needsOutdoorSize && outdoorSizeUnknown) && areaPlanningList.length === 0) addMissing('at least one Area in Area Planning (since the exact size is unknown)', 'areaPlanningListField');
+      // Areas are OPTIONAL even when the size is unknown (owner decision) — the AI infers
+      // a sensible scale from the event type and attendee count instead.
     } else if(eventSizeUnknown){
-      if(areaPlanningList.length === 0) addMissing('at least one Area in Area Planning (since the exact size is unknown)', 'areaPlanningListField');
+      // Same: unknown size no longer forces Area Planning entries.
     } else if(environmentForSize === ''){
       // No Environment chosen — nothing to require here, the brief tells the AI to infer it.
     } else if(!eventWidth || !eventDepth){
@@ -15553,19 +15554,10 @@ async function generateDesign(){
         errBox.scrollIntoView({behavior:'smooth', block:'center'});
         return;
       }
-      if((needsIndoorSize && indoorSizeUnknown || needsOutdoorSize && outdoorSizeUnknown) && areaPlanningList.length === 0){
-        errBox.textContent = 'Since the exact size is unknown, please add at least one Area in Area Planning — this is what the design will be planned around instead of fixed dimensions.';
-        errBox.style.display = 'block';
-        errBox.scrollIntoView({behavior:'smooth', block:'center'});
-        return;
-      }
+      // Areas are OPTIONAL even when the size is unknown (owner decision) — the AI infers
+      // a sensible scale from the event type and attendee count instead.
     } else if(eventSizeUnknown){
-      if(areaPlanningList.length === 0){
-        errBox.textContent = 'Since the exact size is unknown, please add at least one Area in Area Planning — this is what the design will be planned around instead of fixed dimensions.';
-        errBox.style.display = 'block';
-        errBox.scrollIntoView({behavior:'smooth', block:'center'});
-        return;
-      }
+      // Same: unknown size no longer forces Area Planning entries.
     } else if(environmentForSize === ''){
       // No Environment chosen yet — the size question isn't even shown in this case, so
       // nothing to require here. The brief will explicitly tell the AI to infer both the
