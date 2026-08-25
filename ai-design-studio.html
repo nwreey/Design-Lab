@@ -3272,8 +3272,21 @@ Replace only the materials and graphics."></textarea>
   <div id="eventConceptResult" style="display:none;">
     <div class="eyebrow">Event Concept Board</div>
     <h2 class="concept-title" id="ecbTitle">Your Event Concept</h2>
-    <div class="render-frame" id="ecbFrame">
+    <div class="render-frame" id="ecbFrame" style="position:relative;">
       <img id="ecbImg" alt="Event Concept Board" style="display:none;" onclick="openImageLightbox(this.src)">
+      <!-- Generate shows the panel immediately: black frame with the progress bar INSIDE
+           the picture area until the render arrives (owner request). -->
+      <div id="ecbFrameLoading" style="display:none;position:absolute;inset:0;background:#0B0C10;z-index:2;align-items:center;justify-content:center;padding:28px;">
+        <div style="width:min(440px,82%);">
+          <div class="approve-progress-header">
+            <span class="approve-progress-message" id="ecbFrameProgressMessage" style="color:#EAEAEA;"></span>
+            <span class="approve-progress-percent" id="ecbFrameProgressPercent" style="color:#EAEAEA;">0%</span>
+          </div>
+          <div class="approve-progress-track">
+            <div class="approve-progress-fill" id="ecbFrameProgressFill" style="width:0%;"></div>
+          </div>
+        </div>
+      </div>
     </div>
     <div id="ecbGalleryStrip" class="gallery-strip"></div>
     <div class="approve-progress" id="ecbProgress" style="display:none;">
@@ -15329,12 +15342,15 @@ async function generateEventConceptBoard(options){
       updateEcbProgress(15, ecbMsg);
       stopEcbSim = startEcbSimulatedProgress(15, 92, ecbMsg, 45000);
     }else{
-      document.getElementById('loadingText').textContent = 'Organizing your event brief...';
+      // Owner request: show the picture area immediately as a black frame with the
+      // progress bar INSIDE it — no full-page loading overlay.
+      document.getElementById('loading').style.display = 'none';
+      const genMsg = 'Designing your event concept... this can take up to a minute.';
+      showEcbFrameLoading(genMsg);
+      stopEcbSim = startEcbFrameSimulatedProgress(8, 92, genMsg, 45000);
     }
     const briefData = buildEventThemeBoardBriefData();
-
     // Owner decision: the form goes STRAIGHT to Gemini — no intermediate analysis stage.
-    if(!inPlace) document.getElementById('loadingText').textContent = 'Designing your event concept...';
     const layoutPrompt = buildEventDirectGeminiPrompt(briefData);
     const genEndpoint = '/api/generate-image-gemini';
     const eventGenBody = { prompt: layoutPrompt, isUserInitiatedEdit: false, aspectRatio: '4:3' };
@@ -15370,6 +15386,10 @@ async function generateEventConceptBoard(options){
       updateEcbProgress(100, 'Done.');
       await new Promise(r => setTimeout(r, 800));
       hideEcbProgress();
+    }else{
+      updateEcbFrameProgress(100, 'Done.');
+      await new Promise(r => setTimeout(r, 500));
+      hideEcbFrameLoading();
     }
     // Keeps the form locked on success, same as the exhibition booth pipeline — renderEventConceptBoardResult()
     // itself calls lockForm(), covering both this live-generation path and the restore-from-
@@ -15385,6 +15405,9 @@ async function generateEventConceptBoard(options){
       const st = document.getElementById('ecbActionStatus');
       if(st) st.textContent = 'Could not generate another theme: ' + (err.message || 'unknown error');
     }else{
+      hideEcbFrameLoading();
+      // First generation failed with nothing to show — take the black frame down again.
+      if(!eventConceptBoard) document.getElementById('eventConceptResult').style.display = 'none';
       errBox.textContent = err.message || 'Could not generate the event concept board.';
       errBox.style.display = 'block';
       errBox.scrollIntoView({behavior:'smooth', block:'center'});
@@ -15451,6 +15474,46 @@ function approveEventConceptBoard(){
   eventConceptBoard.approved = true;
   applyEventConceptBoardApprovalLock();
   saveCurrentProject();
+}
+
+function showEcbFrameLoading(message){
+  const panel = document.getElementById('eventConceptResult');
+  const frame = document.getElementById('ecbFrame');
+  const overlay = document.getElementById('ecbFrameLoading');
+  document.getElementById('promptReview').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  panel.style.display = 'block';
+  // Give the empty frame a real black canvas to load into on a first generation.
+  if(frame) frame.style.minHeight = '340px';
+  if(overlay) overlay.style.display = 'flex';
+  updateEcbFrameProgress(8, message);
+  panel.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function updateEcbFrameProgress(percent, message){
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  const fill = document.getElementById('ecbFrameProgressFill');
+  const pct = document.getElementById('ecbFrameProgressPercent');
+  const msg = document.getElementById('ecbFrameProgressMessage');
+  if(fill) fill.style.width = clamped + '%';
+  if(pct) pct.textContent = clamped + '%';
+  if(msg && message) msg.textContent = message;
+}
+function hideEcbFrameLoading(){
+  const overlay = document.getElementById('ecbFrameLoading');
+  if(overlay) overlay.style.display = 'none';
+  const frame = document.getElementById('ecbFrame');
+  if(frame) frame.style.minHeight = '';
+}
+function startEcbFrameSimulatedProgress(startPercent, capPercent, message, estimatedDurationMs){
+  let elapsed = 0;
+  const stepMs = 400;
+  const timer = setInterval(() => {
+    elapsed += stepMs;
+    const t = elapsed / estimatedDurationMs;
+    const eased = 1 - Math.exp(-t * 2.2);
+    updateEcbFrameProgress(startPercent + (capPercent - startPercent) * eased, message);
+  }, stepMs);
+  return function(){ clearInterval(timer); };
 }
 
 function updateEcbProgress(percent, message){
