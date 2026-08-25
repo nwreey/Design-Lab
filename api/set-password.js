@@ -87,7 +87,7 @@ export default async function handler(req, res) {
       const reason = found && found.invalid === 'expired'
         ? 'This link has expired. Please contact us and we’ll send you a fresh one.'
         : found && found.invalid === 'used'
-          ? 'This link was already used. If that wasn’t you, contact us immediately — otherwise just sign in with the password you set.'
+          ? 'This link was already used. If that wasn’t you, contact us immediately. Otherwise just sign in with the password you set.'
           : 'This link is not valid. Please use the exact link from your approval email.';
       res.status(400).json({ error: { message: reason } });
       return;

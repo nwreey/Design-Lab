@@ -79,7 +79,7 @@ export default async function handler(req, res) {
   try {
     const allowed = await checkSubmitRateLimit(ip);
     if (!allowed) {
-      res.status(429).json({ error: { message: 'Too many messages from this connection — please try again in an hour, or email us directly at ' + CONTACT_INBOX + '.' } });
+      res.status(429).json({ error: { message: 'Too many messages from this connection. Please try again in an hour, or email us directly at ' + CONTACT_INBOX + '.' } });
       return;
     }
   } catch (err) {
@@ -99,7 +99,7 @@ export default async function handler(req, res) {
   if (!result.sent) {
     // Honest failure — the message was NOT delivered anywhere, so tell the visitor
     // exactly how to still reach us rather than pretending it worked.
-    res.status(502).json({ error: { message: 'Sorry — your message could not be sent right now. Please email us directly at ' + CONTACT_INBOX + '.' } });
+    res.status(502).json({ error: { message: 'Sorry, your message could not be sent right now. Please email us directly at ' + CONTACT_INBOX + '.' } });
     return;
   }
 

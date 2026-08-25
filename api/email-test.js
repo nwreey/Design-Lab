@@ -132,9 +132,9 @@ export default async function handler(req, res) {
         'This is a test email sent from the admin Email System Check on designslab.ai.',
         'If you are reading this, Mandrill delivery from <strong>notification@designslab.ai</strong> is working.',
       ],
-      footnote: 'Triggered manually by an admin — safe to delete.',
+      footnote: 'Triggered manually by an admin. Safe to delete.',
     });
-    report.testSend = await sendTransactionalEmail({ toEmail: to, toName: 'Admin Test', subject: 'Email system test — DesignsLab AI', html });
+    report.testSend = await sendTransactionalEmail({ toEmail: to, toName: 'Admin Test', subject: 'Email system test | DesignsLab AI', html });
   }
 
   if (!report.verdict) {

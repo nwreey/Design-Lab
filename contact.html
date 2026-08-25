@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<title>Contact — DesignsLab AI</title>
+<title>Contact | DesignsLab AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -146,7 +146,7 @@
   <section class="wrap contact-hero reveal">
     <span class="eyebrow">Contact</span>
     <h1>Let's talk about your next activation.</h1>
-    <p>Questions about a project, billing, or the platform itself — send us a note and we'll get back to you.</p>
+    <p>Questions about a project, billing, or the platform itself? Send us a note and we'll get back to you.</p>
   </section>
 
   <section class="wrap contact-layout">
@@ -170,7 +170,7 @@
         </div>
         <button type="submit" class="btn btn-primary">Send message</button>
         <div class="form-status" id="formStatus"></div>
-        <div class="form-note">Your message goes straight to our team at info@designslab.ai — we usually reply within one business day.</div>
+        <div class="form-note">Your message goes straight to our team at info@designslab.ai. We usually reply within one business day.</div>
       </form>
     </div>
 
@@ -274,13 +274,13 @@ document.getElementById('contactForm').addEventListener('submit', async function
       }),
     });
     const data = await response.json().catch(() => ({}));
-    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not send your message — please email us directly at info@designslab.ai.');
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not send your message. Please email us directly at info@designslab.ai.');
     status.className = 'form-status show';
-    status.textContent = "Thanks — your message has been sent to our team. We'll reply to you by email, usually within one business day.";
+    status.textContent = "Thanks! Your message has been sent to our team. We'll reply to you by email, usually within one business day.";
     form.reset();
   }catch(err){
     status.className = 'form-status show error';
-    status.textContent = err.message || 'Could not send your message — please email us directly at info@designslab.ai.';
+    status.textContent = err.message || 'Could not send your message. Please email us directly at info@designslab.ai.';
   }finally{
     btn.disabled = false;
     btn.textContent = originalLabel;

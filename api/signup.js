@@ -133,7 +133,7 @@ export default async function handler(req, res) {
     try {
       const allowed = await checkSubmitRateLimit(ip);
       if (!allowed) {
-        res.status(429).json({ error: { message: 'Too many requests from this connection — please try again in an hour.' } });
+        res.status(429).json({ error: { message: 'Too many requests from this connection. Please try again in an hour.' } });
         return;
       }
     } catch (err) {
