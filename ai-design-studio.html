@@ -15510,9 +15510,9 @@ function renderEcbAreaRenders(inProgressArea){
             ? '<img src="' + done.image + '" alt="' + area + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openImageLightbox(this.src)">'
             : '<div style="color:#9AA0AC;font-size:12px;padding:14px;text-align:center;">' + (active ? 'Generating high-resolution render...' : (done === undefined && (done || '') === '' && (renders.someError && renders.someError[area]) ? '' : 'Waiting...')) + '</div>'}
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;flex-wrap:wrap;">
+        <div style="padding:10px 12px;">
           <div style="font-size:12.5px;font-weight:700;">${area}</div>
-          ${done ? '<div style="display:flex;gap:6px;">'
+          ${done ? '<div style="display:flex;gap:6px;margin-top:8px;">'
               + '<button class="ghost small" onclick="downloadEcbAreaRender(\'' + area.replace(/'/g, "\\'") + '\')">Download</button>'
               + '<button class="ghost small" onclick="openEditPanel(\'ecbArea:' + area.replace(/'/g, "\\'") + '\')">Edit</button>'
               + '</div>' : ''}
@@ -15570,9 +15570,22 @@ async function generateApprovedAreaRenders(){
           if(response.ok && parsed.image){ data = parsed; break; }
           if(size === '2K') throw new Error((parsed.error && parsed.error.message) || 'Render failed.');
         }
-        eventConceptBoard.areaRenders.push({ area, image: data.image });
+        // Keep the resolution high but the payload storable: raw 4K data URLs made the
+        // project save exceed the server's request-size limit, so the renders were lost
+        // on refresh. ~2048px at high JPEG quality prints crisply on A4 and always saves.
+        let storedImage = data.image;
+        for(const q of [0.88, 0.8, 0.7, 0.6]){
+          storedImage = await compressDataUrl(data.image, 2048, q);
+          if(estimateDataUrlBytes(storedImage) <= 1500 * 1024) break;
+        }
+        eventConceptBoard.areaRenders.push({ area, image: storedImage });
         renderEcbAreaRenders(null);
-        saveCurrentProject();
+        try{
+          await saveCurrentProject();
+        }catch(saveErr){
+          console.error('Could not save area render:', saveErr);
+          if(statusEl) statusEl.textContent = 'Warning: "' + area + '" rendered but could not be saved — it may disappear after a refresh.';
+        }
       }catch(areaErr){
         console.error('Area render failed for ' + area + ':', areaErr);
         if(statusEl) statusEl.textContent = 'Could not render "' + area + '": ' + (areaErr.message || 'unknown error') + ' — continuing with the rest.';
