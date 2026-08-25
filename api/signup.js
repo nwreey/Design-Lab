@@ -215,6 +215,22 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'DELETE') {
+    // Admin testing aid: clears the per-IP submission rate limits (signup + contact form)
+    // so the owner can re-test flows immediately instead of waiting out the 1-hour window.
+    // Affects only the rate tables — never touches actual requests or messages.
+    if (req.query && req.query.resetRate === '1') {
+      try {
+        await sql`CREATE TABLE IF NOT EXISTS signup_rate (ip TEXT PRIMARY KEY, submit_count INTEGER NOT NULL DEFAULT 0, window_start TIMESTAMPTZ NOT NULL DEFAULT NOW());`;
+        await sql`CREATE TABLE IF NOT EXISTS contact_rate (ip TEXT PRIMARY KEY, submit_count INTEGER NOT NULL DEFAULT 0, window_start TIMESTAMPTZ NOT NULL DEFAULT NOW());`;
+        await sql`DELETE FROM signup_rate;`;
+        await sql`DELETE FROM contact_rate;`;
+        res.status(200).json({ ok: true, cleared: true });
+      } catch (err) {
+        console.error('signup: could not reset rate limits:', err);
+        res.status(500).json({ error: { message: 'Could not reset the rate limits.' } });
+      }
+      return;
+    }
     const id = (req.query && req.query.id) || '';
     if (!id) {
       res.status(400).json({ error: { message: 'Provide a request id.' } });

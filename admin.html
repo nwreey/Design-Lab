@@ -146,6 +146,7 @@
         <button class="ghost" onclick="runEmailCheck(false)">Run check</button>
         <input type="text" id="emailCheckTo" placeholder="your@email.com" style="max-width:220px;">
         <button class="ghost" onclick="runEmailCheck(true)">Run check + send test email</button>
+        <button class="ghost" onclick="resetRateLimits()" title="Clears the 5-per-hour per-visitor limits on the signup and contact forms — for your own testing">Reset form rate limits</button>
       </div>
       <pre id="emailCheckResult" style="display:none;white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;font-size:11.5px;background:#F7F7F7;border:1px solid var(--line);padding:12px 14px;margin-top:14px;line-height:1.6;"></pre>
       <div class="status-msg" id="emailCheckStatus"></div>
@@ -329,6 +330,22 @@ async function init(){
 }
 
 /* ================= Email System Check ================= */
+async function resetRateLimits(){
+  const statusEl = document.getElementById('emailCheckStatus');
+  statusEl.className = 'status-msg';
+  statusEl.textContent = 'Resetting…';
+  try{
+    const response = await fetch('/api/signup?resetRate=1', { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not reset the rate limits.');
+    statusEl.className = 'status-msg ok';
+    statusEl.textContent = 'Rate limits cleared — you can submit the signup and contact forms again immediately.';
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Could not reset the rate limits.';
+  }
+}
+
 async function runEmailCheck(withSend){
   const statusEl = document.getElementById('emailCheckStatus');
   const resultEl = document.getElementById('emailCheckResult');
