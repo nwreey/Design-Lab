@@ -7790,7 +7790,7 @@ function bpProductDrop(e, brandId, targetProductId){
 // a short placeholder string so the model can match "reference image 3" back to "Philips ->
 // MRI Scanner" while reading this structure.
 function buildBrandPortfolioData(){
-  const mainColors = Array.from(document.querySelectorAll('.color-hex'))
+  const mainColors = Array.from(document.querySelectorAll('#colorRows .color-hex'))
     .map(i => String(i.value).trim())
     .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   return {
@@ -14512,7 +14512,7 @@ function getMissingRequirements(m){
   const levels = document.getElementById('f_levels').value;
   const upperDeckPurposeCount = document.querySelectorAll('.upperdeck-purpose-cb:checked').length;
   const industryStyle = document.getElementById('f_industryStyle').value;
-  const colorHexes = Array.from(document.querySelectorAll('.color-hex'))
+  const colorHexes = Array.from(document.querySelectorAll('#colorRows .color-hex'))
     .map(i => String(i.value).trim())
     .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   const hasPosters = document.getElementById('f_hasPosters').value;
@@ -15128,7 +15128,7 @@ function buildEventThemeBoardBriefData(){
   const keyActivities = Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value);
   const specialRequirements = Array.from(document.querySelectorAll('.event-special-req-cb:checked')).map(cb => cb.value);
   const conferenceSeating = /conference/i.test(eventType || '') ? (document.getElementById('f_conferenceSeating').value || 'Theatre') : null;
-  const colorHexes = Array.from(document.querySelectorAll('.color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
+  const colorHexes = Array.from(document.querySelectorAll('#colorRows .color-hex')).map(i => i.value.trim()).filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
   const brandPersonality = selectedBrandPersonalities.slice(); // ranked array, primary first (see BPE-001)
   const areaPlanningData = buildAreaPlanningData();
   const requiredAreas = areaPlanningData.areas.map(a => a.name).filter(Boolean);
@@ -16066,7 +16066,7 @@ async function generateDesign(){
   const hasPosters = document.getElementById('f_hasPosters').value;
   const posterCount = document.getElementById('f_posterCount').value.trim();
 
-  const colorHexes = Array.from(document.querySelectorAll('.color-hex'))
+  const colorHexes = Array.from(document.querySelectorAll('#colorRows .color-hex'))
     .map(i => i.value.trim())
     .filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
 
@@ -21120,7 +21120,7 @@ function collectFormSnapshot(){
     f_upperFloor: document.getElementById('f_upperFloor').value,
     f_hasPosters: document.getElementById('f_hasPosters').value,
     f_posterCount: document.getElementById('f_posterCount').value,
-    colorHexes: Array.from(document.querySelectorAll('.color-hex')).map(i => i.value)
+    colorHexes: Array.from(document.querySelectorAll('#colorRows .color-hex')).map(i => i.value)
   };
 }
 
