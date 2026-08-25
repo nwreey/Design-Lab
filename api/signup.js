@@ -195,18 +195,65 @@ export default async function handler(req, res) {
       return;
     }
     try {
-      // Approval email (admin clicked "Approve & email") — sent to the request's own
-      // address, before the status flips, so a DB failure never emails without recording.
+      /* Approval (admin clicked "Approve & email") — per explicit product decision this
+         now does the full onboarding in one click:
+         1. Creates the account automatically: username = the applicant's email
+            (lowercased), with an unusable random placeholder password and conservative
+            starter quotas (adjustable any time in Users List). Re-approving an existing
+            account skips creation and just issues a fresh link.
+         2. Issues a single-use set-password token (random 32 bytes; only its SHA-256
+            hash is stored — a DB leak never exposes usable links), valid 7 days.
+         3. Emails the applicant their Set Your Password link — clicking it sets their
+            password AND signs them in directly (see api/set-password.js).
+         All before the status flips, so a failure never marks a request reviewed
+         without the applicant actually being onboarded. */
       let emailResult = { sent: false };
+      let accountCreated = false;
       if (notify && status === 'reviewed') {
         const rows = await sql`SELECT name, email FROM signup_requests WHERE id = ${id};`;
         if (rows.rows.length > 0) {
-          const emailContent = buildAccessApprovedEmail({ name: rows.rows[0].name });
-          emailResult = await sendTransactionalEmail({ toEmail: rows.rows[0].email, toName: rows.rows[0].name, subject: emailContent.subject, html: emailContent.html });
+          const reqRow = rows.rows[0];
+          const usernameEmail = String(reqRow.email || '').trim().toLowerCase();
+
+          // 1. Account (idempotent — an existing account is reused, never overwritten)
+          await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;`;
+          const existingUser = await sql`SELECT id FROM users WHERE username = ${usernameEmail};`;
+          let userId;
+          if (existingUser.rows.length > 0) {
+            userId = existingUser.rows[0].id;
+          } else {
+            userId = 'user_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            const placeholderSalt = crypto.randomBytes(16).toString('hex');
+            const placeholderHash = crypto.scryptSync(crypto.randomBytes(32).toString('hex'), placeholderSalt, 64).toString('hex');
+            await sql`
+              INSERT INTO users (id, username, password_hash, email, role, project_limit, edit_limit, modify_limit)
+              VALUES (${userId}, ${usernameEmail}, ${placeholderSalt + ':' + placeholderHash}, ${usernameEmail}, 'member', 2, 5, 5);
+            `;
+            accountCreated = true;
+          }
+
+          // 2. Set-password token (any previous unused tokens for this user are replaced)
+          await sql`
+            CREATE TABLE IF NOT EXISTS password_setup_tokens (
+              token_hash TEXT PRIMARY KEY,
+              user_id TEXT NOT NULL,
+              expires_at TIMESTAMPTZ NOT NULL,
+              used_at TIMESTAMPTZ
+            );
+          `;
+          const rawToken = crypto.randomBytes(32).toString('hex');
+          const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+          await sql`DELETE FROM password_setup_tokens WHERE user_id = ${userId} AND used_at IS NULL;`;
+          await sql`INSERT INTO password_setup_tokens (token_hash, user_id, expires_at) VALUES (${tokenHash}, ${userId}, NOW() + INTERVAL '7 days');`;
+
+          // 3. Approval email with the personal set-password link
+          const setupUrl = 'https://designslab.ai/set-password.html?token=' + rawToken;
+          const emailContent = buildAccessApprovedEmail({ name: reqRow.name, email: usernameEmail, setupUrl });
+          emailResult = await sendTransactionalEmail({ toEmail: reqRow.email, toName: reqRow.name, subject: emailContent.subject, html: emailContent.html });
         }
       }
       await sql`UPDATE signup_requests SET status = ${status} WHERE id = ${id};`;
-      res.status(200).json({ ok: true, emailSent: emailResult.sent });
+      res.status(200).json({ ok: true, emailSent: emailResult.sent, accountCreated });
     } catch (err) {
       console.error('signup: could not update request:', err);
       res.status(500).json({ error: { message: 'Could not update the request.' } });

@@ -154,7 +154,7 @@
 
     <div class="card">
       <h2>Signup Requests</h2>
-      <div class="hint" style="margin-bottom:14px;">Access requests submitted through the public signup page (Early Access Program). Review each request, create the account via "Add a team member" above (fill in their email so they also get purchase notifications), then click "Approve &amp; email" — this marks the request reviewed and sends the applicant a branded approval email from notification@designslab.ai. It doesn't create an account by itself.</div>
+      <div class="hint" style="margin-bottom:14px;">Access requests submitted through the public signup page (Early Access Program). Clicking "Approve &amp; email" now does the full onboarding in one click: it creates the account automatically (username = their email, starter limits 2 projects / 5 edits / 5 modifies — adjust in Users List), and emails them a personal Set-Password link (valid 7 days) — they choose a password and are signed in immediately. No separate credentials message needed.</div>
       <table>
         <thead>
           <tr>
@@ -502,8 +502,8 @@ async function setSignupRequestStatus(id, status, notify){
     if(notify){
       statusEl.className = data.emailSent ? 'status-msg ok' : 'status-msg error';
       statusEl.textContent = data.emailSent
-        ? 'Approved — the applicant has been emailed that their account is ready.'
-        : 'Approved and marked reviewed, but the approval email could not be sent (check MANDRILL_API_KEY / Mandrill domain setup in the Vercel logs).';
+        ? ('Approved — ' + (data.accountCreated ? 'account created (username = their email, starter limits: 2 projects / 5 edits / 5 modifies — adjust below) and ' : 'account already existed; ') + 'a Set-Password link was emailed. They can sign in the moment they set a password.')
+        : 'Approved and marked reviewed, but the approval email could not be sent (run the Email System Check above).';
     }
   }catch(err){
     statusEl.className = 'status-msg error';

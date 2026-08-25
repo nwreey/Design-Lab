@@ -11,6 +11,9 @@ const PUBLIC_PATHS = [
   '/', '/homepage.html', '/product.html', '/pricing.html', '/enterprise.html', '/news.html',
   '/contact.html', '/terms.html', '/privacy.html', '/cookie-policy.html', '/login.html',
   '/signup.html',
+  // Set-password page + endpoint: reached from the approval email by people who, by
+  // definition, can't sign in yet. The single-use token in the link is the credential.
+  '/set-password.html', '/api/set-password',
   // /api/signup is public for POST (submitting an access request); its admin-only verbs
   // (GET/PATCH/DELETE) re-verify the admin token inside the endpoint itself, same
   // defense-in-depth pattern as api/admin-users.js.
