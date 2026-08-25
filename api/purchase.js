@@ -13,7 +13,7 @@ const sql = neon(process.env.DATABASE_URL, { fullResults: true });
    this endpoint independently re-verifies the token anyway, defense in depth, same
    pattern as api/admin-users.js.
 
-   POST   (logged-in users)  — {plan: 'Starter'|'Studio'|'Enterprise'} record/replace the
+   POST   (logged-in users)  — {plan: 'Starter'|'Studio'|'Pro'} record/replace the
                                caller's pending purchase request (one pending per user —
                                choosing a different plan updates it rather than stacking)
    GET    (admin only)       — list all purchase requests, newest first
@@ -47,7 +47,7 @@ function parseCookie(cookieHeader, name) {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-const VALID_PLANS = ['Starter', 'Studio', 'Enterprise'];
+const VALID_PLANS = ['Starter', 'Studio', 'Pro'];
 
 async function ensureSchema() {
   await sql`
