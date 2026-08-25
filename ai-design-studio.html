@@ -1732,7 +1732,7 @@ Replace only the materials and graphics."></textarea>
 
       <div class="field">
         <label><span data-i18n="field.boothHeight">Booth Height (m)</span> <span class="required-mark">*</span></label>
-        <input type="number" min="0" step="0.1" id="f_totalHeight" placeholder="e.g. 5.5">
+        <input type="number" min="2.44" step="0.1" id="f_totalHeight" placeholder="e.g. 5.5 (min 2.44)">
       </div>
 
       <div id="upperFloorField" style="display:none;">
@@ -3840,6 +3840,8 @@ const I18N_EN = {
   'validation.width': 'width',
   'validation.depth': 'depth',
   'validation.boothHeight': 'booth height',
+  'validation.boothHeightMin': 'a booth height of at least 2.44 m',
+  'validation.boothHeightMinFull': 'Booth Height must be at least 2.44 m (8 ft).',
   'validation.upperDeckPurpose': 'at least one Purpose of the Upper Deck (since you selected a double-deck booth)',
   'validation.brandColor': 'at least one brand color',
   'validation.logo': 'a company logo',
@@ -4002,6 +4004,8 @@ const I18N_AR = {
   'validation.width': 'العرض',
   'validation.depth': 'العمق',
   'validation.boothHeight': 'ارتفاع الجناح',
+  'validation.boothHeightMin': 'ارتفاع جناح لا يقل عن 2.44 م',
+  'validation.boothHeightMinFull': 'يجب ألا يقل ارتفاع الجناح عن 2.44 م (8 أقدام).',
   'validation.upperDeckPurpose': 'غرض واحد على الأقل للطابق العلوي (لأنك اخترت جناحًا بطابقين)',
   'validation.brandColor': 'لون واحد على الأقل للعلامة التجارية',
   'validation.logo': 'شعار الشركة',
@@ -4164,6 +4168,8 @@ const I18N_FR = {
   'validation.width': 'la largeur',
   'validation.depth': 'la profondeur',
   'validation.boothHeight': 'la hauteur du stand',
+  'validation.boothHeightMin': 'une hauteur de stand d\'au moins 2,44 m',
+  'validation.boothHeightMinFull': 'La hauteur du stand doit être d\'au moins 2,44 m (8 pieds).',
   'validation.upperDeckPurpose': 'au moins une fonction pour l\'étage (puisque vous avez choisi un stand à double niveau)',
   'validation.brandColor': 'au moins une couleur de marque',
   'validation.logo': 'un logo d\'entreprise',
@@ -4326,6 +4332,8 @@ const I18N_DE = {
   'validation.width': 'die Breite',
   'validation.depth': 'die Tiefe',
   'validation.boothHeight': 'die Standhöhe',
+  'validation.boothHeightMin': 'eine Standhöhe von mindestens 2,44 m',
+  'validation.boothHeightMinFull': 'Die Standhöhe muss mindestens 2,44 m (8 Fuß) betragen.',
   'validation.upperDeckPurpose': 'mindestens einen Zweck für das Obergeschoss (da Sie einen doppelstöckigen Stand gewählt haben)',
   'validation.brandColor': 'mindestens eine Markenfarbe',
   'validation.logo': 'ein Firmenlogo',
@@ -4488,6 +4496,8 @@ const I18N_ES = {
   'validation.width': 'el ancho',
   'validation.depth': 'la profundidad',
   'validation.boothHeight': 'la altura del stand',
+  'validation.boothHeightMin': 'una altura del stand de al menos 2,44 m',
+  'validation.boothHeightMinFull': 'La altura del stand debe ser de al menos 2,44 m (8 pies).',
   'validation.upperDeckPurpose': 'al menos un propósito para el piso superior (ya que seleccionó un stand de doble nivel)',
   'validation.brandColor': 'al menos un color de marca',
   'validation.logo': 'un logotipo de la empresa',
@@ -4650,6 +4660,8 @@ const I18N_IT = {
   'validation.width': 'la larghezza',
   'validation.depth': 'la profondità',
   'validation.boothHeight': 'l\'altezza dello stand',
+  'validation.boothHeightMin': 'un\'altezza dello stand di almeno 2,44 m',
+  'validation.boothHeightMinFull': 'L\'altezza dello stand deve essere di almeno 2,44 m (8 piedi).',
   'validation.upperDeckPurpose': 'almeno uno scopo per il piano superiore (poiché hai selezionato uno stand a doppio livello)',
   'validation.brandColor': 'almeno un colore del brand',
   'validation.logo': 'un logo aziendale',
@@ -4812,6 +4824,8 @@ const I18N_ZH = {
   'validation.width': '宽度',
   'validation.depth': '深度',
   'validation.boothHeight': '展位高度',
+  'validation.boothHeightMin': '不低于 2.44 米的展位高度',
+  'validation.boothHeightMinFull': '展位高度不得低于 2.44 米（8 英尺）。',
   'validation.upperDeckPurpose': '至少一项二楼用途（因为您选择了双层展位）',
   'validation.brandColor': '至少一种品牌颜色',
   'validation.logo': '公司标志',
@@ -4974,6 +4988,8 @@ const I18N_JA = {
   'validation.width': '幅',
   'validation.depth': '奥行',
   'validation.boothHeight': 'ブースの高さ',
+  'validation.boothHeightMin': '2.44m以上のブースの高さ',
+  'validation.boothHeightMinFull': 'ブースの高さは2.44m（8フィート）以上にしてください。',
   'validation.upperDeckPurpose': '2階の用途を少なくとも1つ（二層ブースを選択したため）',
   'validation.brandColor': 'ブランドカラーを少なくとも1色',
   'validation.logo': '会社のロゴ',
@@ -14456,6 +14472,7 @@ function getMissingRequirements(m){
     if(!width) addMissing(t('validation.width'), 'f_width');
     if(!depth) addMissing(t('validation.depth'), 'f_depth');
     if(!totalHeight) addMissing(t('validation.boothHeight'), 'f_totalHeight');
+    else if(parseFloat(totalHeight) < 2.44) addMissing(t('validation.boothHeightMin'), 'f_totalHeight');
     if(levels === '2' && upperDeckPurposeCount === 0) addMissing(t('validation.upperDeckPurpose'), { selector: '.upperdeck-purpose-cb' });
     if(levels === '2' && !openSidesConfirmedByUser) addMissing('Number of open sides — please confirm it for this double-deck booth (open the dropdown and choose one, even if keeping the current selection)', 'f_openSides');
     if(levels === '2'){
@@ -15523,6 +15540,15 @@ async function generateDesign(){
     if(!depth) missing.push(t('validation.depth'));
     if(!totalHeight) missing.push(t('validation.boothHeight'));
     errBox.textContent = t('validation.enterPrefix') + missing.join(', ') + t('validation.boothFieldSuffix');
+    errBox.style.display = 'block';
+    errBox.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  // Minimum booth height 2.44 m (8 ft) — standard system-wall panel height; anything lower
+  // is not a buildable exhibition booth. Checked here too so an in-flight Generate click is
+  // stopped with a clear message even if the field-jump validation above was bypassed.
+  if(mode === 'booth' && totalHeight && parseFloat(totalHeight) < 2.44){
+    errBox.textContent = t('validation.boothHeightMinFull');
     errBox.style.display = 'block';
     errBox.scrollIntoView({behavior:'smooth', block:'center'});
     return;
