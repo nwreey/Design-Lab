@@ -15826,8 +15826,30 @@ function renderEcbGalleryStrip(){
     <div class="gallery-thumb ${i === active ? 'active' : ''}" onclick="selectEcbGalleryEntry(${i})">
       <img src="${g.image}" alt="${g.label}">
       <div class="thumb-label">${g.label}</div>
+      <button type="button" class="gallery-thumb-remove" title="Remove this theme" onclick="event.stopPropagation(); removeEcbGalleryEntry(${i});">×</button>
     </div>
   `).join('');
+}
+
+async function removeEcbGalleryEntry(i){
+  if(ecbAreaRendersInProgress || ecbAreaEditing) return;
+  const gallery = (eventConceptBoard && eventConceptBoard.gallery) || [];
+  if(!gallery[i]) return;
+  if(gallery.length <= 1){
+    await customAlert('You need to keep at least one theme — this is the only one left.', 'Remove Theme');
+    return;
+  }
+  const ok = await customConfirm('Remove "' + gallery[i].label + '" from this project? This cannot be undone.', 'Remove Theme', 'Remove');
+  if(!ok) return;
+  gallery.splice(i, 1);
+  // Renumber so the strip always reads Theme 1..N with no gaps.
+  gallery.forEach((g, idx) => { g.label = 'Theme ' + (idx + 1); });
+  const active = Math.min(eventConceptBoard.activeIndex != null ? eventConceptBoard.activeIndex : gallery.length - 1, gallery.length - 1);
+  eventConceptBoard.activeIndex = (eventConceptBoard.activeIndex === i) ? gallery.length - 1 : (eventConceptBoard.activeIndex > i ? eventConceptBoard.activeIndex - 1 : active);
+  eventConceptBoard.image = gallery[eventConceptBoard.activeIndex].image;
+  document.getElementById('ecbImg').src = eventConceptBoard.image;
+  renderEcbGalleryStrip();
+  saveCurrentProject();
 }
 
 function selectEcbGalleryEntry(i){
