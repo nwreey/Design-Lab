@@ -9,7 +9,7 @@ export const config = {
 // and the non-auth API endpoints stay behind login.
 const PUBLIC_PATHS = [
   '/', '/homepage.html', '/product.html', '/pricing.html', '/enterprise.html', '/news.html',
-  '/contact.html', '/terms.html', '/privacy.html', '/cookie-policy.html', '/login.html',
+  '/contact.html', '/terms.html', '/privacy.html', '/cookie-policy.html', '/usage-policy.html', '/login.html',
   '/signup.html',
   // Set-password page + endpoint: reached from the approval email by people who, by
   // definition, can't sign in yet. The single-use token in the link is the credential.

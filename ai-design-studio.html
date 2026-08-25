@@ -73,7 +73,58 @@
     padding:8px 12px;border:1.3px dashed var(--line);border-radius:2px;background:var(--paper);
   }
 
-  .sidebar-account-section{margin-top:14px;padding-top:14px;border-top:1.5px solid var(--line);}
+  .sidebar-account-section{margin-top:14px;padding-top:14px;border-top:1.5px solid var(--line);position:relative;}
+  /* Account settings popover — anchored to the account button, opens upward (the button
+     sits at the very bottom of the sidebar). */
+  .acct-menu{
+    display:none;position:absolute;bottom:calc(100% + 6px);left:0;right:0;z-index:300;
+    background:#fff;border:1.5px solid var(--navy);border-radius:4px;
+    box-shadow:0 -8px 30px rgba(11,12,16,0.18);padding:6px;
+  }
+  .acct-menu.open{display:block;}
+  .acct-menu-header{padding:9px 10px 10px;border-bottom:1px solid var(--line);margin-bottom:5px;}
+  .acct-menu-header .n{font-size:12.5px;font-weight:700;color:var(--navy);word-break:break-all;}
+  .acct-menu-header .e{font-size:11px;color:#888;word-break:break-all;margin-top:1px;}
+  .acct-item{
+    display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:none;
+    font-family:inherit;font-size:12.5px;font-weight:600;color:var(--navy);padding:8px 10px;
+    border-radius:3px;cursor:pointer;text-decoration:none;
+  }
+  .acct-item:hover{background:var(--navy-soft);}
+  .acct-item .ico{width:16px;text-align:center;flex-shrink:0;opacity:.75;}
+  .acct-sep{height:1px;background:var(--line);margin:5px 4px;}
+  .acct-sub{display:none;padding:2px 0 2px 14px;}
+  .acct-sub.open{display:block;}
+  .acct-sub .acct-item{font-weight:500;font-size:12px;padding:6.5px 10px;}
+  .acct-caret{margin-left:auto;font-size:10px;opacity:.6;transition:transform .15s ease;}
+  .acct-item.expanded .acct-caret{transform:rotate(180deg);}
+  .acct-lang-check{margin-left:auto;font-weight:800;}
+  /* Shared small modal (My information / Give feedback) */
+  .acct-modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(11,12,16,0.55);z-index:9999;
+    align-items:center;justify-content:center;padding:20px;
+  }
+  .acct-modal-overlay.open{display:flex;}
+  .acct-modal{
+    background:#fff;border:1.5px solid var(--navy);border-radius:4px;max-width:420px;width:100%;
+    padding:26px 26px 22px;box-shadow:0 20px 60px rgba(11,12,16,.35);
+  }
+  .acct-modal h3{margin:0 0 14px;font-size:17px;font-weight:800;color:var(--navy);}
+  .acct-modal .info-row{display:flex;justify-content:space-between;gap:14px;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line);}
+  .acct-modal .info-row:last-of-type{border-bottom:none;}
+  .acct-modal .info-row .k{color:#777;font-weight:600;flex-shrink:0;}
+  .acct-modal .info-row .v{font-weight:700;color:var(--navy);text-align:right;word-break:break-all;}
+  .acct-modal textarea{
+    width:100%;min-height:110px;font-family:inherit;font-size:13px;padding:10px 12px;
+    border:1.5px solid var(--line);border-radius:3px;resize:vertical;line-height:1.55;
+  }
+  .acct-modal textarea:focus{outline:2px solid var(--gold);outline-offset:1px;}
+  .acct-modal-actions{display:flex;gap:10px;margin-top:16px;}
+  .acct-modal-actions button{flex:1;font-family:inherit;font-weight:700;font-size:13px;padding:10px 14px;border-radius:3px;cursor:pointer;}
+  .acct-modal-actions .go{background:var(--navy);color:#fff;border:2px solid var(--navy);}
+  .acct-modal-actions .go:disabled{opacity:.55;cursor:default;}
+  .acct-modal-actions .no{background:#fff;color:var(--navy);border:1.5px solid var(--navy);}
+  .acct-modal .status-line{font-size:12px;margin-top:10px;min-height:15px;line-height:1.5;}
   .sidebar-account-btn{
     width:100%;display:flex;align-items:center;gap:10px;padding:8px;
     background:transparent;border:1.5px solid transparent;border-radius:2px;cursor:default;text-align:left;
@@ -666,7 +717,29 @@
       </div>
 
       <div class="sidebar-account-section" id="sidebarAccountSection" style="display:none;">
-        <button type="button" class="sidebar-account-btn" id="sidebarAccountBtn" onclick="void 0">
+        <div class="acct-menu" id="acctMenu">
+          <div class="acct-menu-header">
+            <div class="n" id="acctMenuName"></div>
+            <div class="e" id="acctMenuEmail"></div>
+          </div>
+          <button type="button" class="acct-item" onclick="openAccountInfo()"><span class="ico">👤</span><span data-i18n="set.myInfo">My information</span></button>
+          <button type="button" class="acct-item" id="acctLangToggle" onclick="toggleAcctSub('acctLangSub', this)"><span class="ico">🌐</span><span data-i18n="set.language">Language</span><span class="acct-caret">▼</span></button>
+          <div class="acct-sub" id="acctLangSub"></div>
+          <button type="button" class="acct-item" onclick="goToPurchasePlan()"><span class="ico">◆</span><span data-i18n="set.purchasePlan">Purchase plan</span></button>
+          <div class="acct-sep"></div>
+          <a class="acct-item" href="/contact.html" target="_blank" rel="noopener"><span class="ico">?</span><span data-i18n="set.getHelp">Get help</span></a>
+          <button type="button" class="acct-item" onclick="openFeedbackModal()"><span class="ico">✎</span><span data-i18n="set.feedback">Give feedback</span></button>
+          <button type="button" class="acct-item" id="acctLearnToggle" onclick="toggleAcctSub('acctLearnSub', this)"><span class="ico">i</span><span data-i18n="set.learnMore">Learn more</span><span class="acct-caret">▼</span></button>
+          <div class="acct-sub" id="acctLearnSub">
+            <a class="acct-item" href="/product.html" target="_blank" rel="noopener" data-i18n="set.about">About Designs Lab</a>
+            <a class="acct-item" href="/usage-policy.html" target="_blank" rel="noopener" data-i18n="set.usagePolicy">Usage Policy</a>
+            <a class="acct-item" href="/privacy.html" target="_blank" rel="noopener" data-i18n="set.privacy">Privacy Policy</a>
+            <a class="acct-item" href="/terms.html" target="_blank" rel="noopener" data-i18n="set.terms">Terms of Service</a>
+          </div>
+          <div class="acct-sep"></div>
+          <button type="button" class="acct-item" onclick="logOut()"><span class="ico">⎋</span><span data-i18n="set.signOut">Sign out</span></button>
+        </div>
+        <button type="button" class="sidebar-account-btn" id="sidebarAccountBtn" onclick="toggleAccountMenu(event)">
           <span class="sidebar-account-avatar" id="sidebarAccountInitial"></span>
           <span class="sidebar-account-info">
             <span class="sidebar-account-name" id="sidebarAccountName"></span>
@@ -3604,6 +3677,31 @@ const I18N_EN = {
   'app.tagline': 'Describe your idea in words, get a starting concept layout for your booth or event',
   'app.adminPanel': 'Admin panel',
   'app.logout': 'Log out',
+  'set.myInfo': 'My information',
+  'set.language': 'Language',
+  'set.purchasePlan': 'Purchase plan',
+  'set.getHelp': 'Get help',
+  'set.feedback': 'Give feedback',
+  'set.learnMore': 'Learn more',
+  'set.about': 'About Designs Lab',
+  'set.usagePolicy': 'Usage Policy',
+  'set.privacy': 'Privacy Policy',
+  'set.terms': 'Terms of Service',
+  'set.signOut': 'Sign out',
+  'set.close': 'Close',
+  'set.cancel': 'Cancel',
+  'set.send': 'Send feedback',
+  'set.feedbackTitle': 'Share your feedback',
+  'set.feedbackPh': 'Tell us what\'s working well, what\'s missing, or what we should improve…',
+  'set.feedbackThanks': 'Thank you — your feedback has been sent to our team.',
+  'set.feedbackEmpty': 'Please write your feedback before sending.',
+  'set.infoUsername': 'Username',
+  'set.infoEmail': 'Email',
+  'set.infoRole': 'Role',
+  'set.infoProjects': 'Projects',
+  'set.infoAutofill': 'AI auto-fills',
+  'set.infoModifies': 'Design modifications',
+  'set.infoEdits': 'Image edits',
   'tabs.booth': 'Exhibition Booth',
   'tabs.event': 'Event Concept',
   'tabs.displayStand': 'Display Stand',
@@ -3731,6 +3829,31 @@ const I18N_AR = {
   'app.tagline': 'صف فكرتك بالكلمات، واحصل على تصميم مبدئي لجناحك أو فعاليتك',
   'app.adminPanel': 'لوحة الإدارة',
   'app.logout': 'تسجيل الخروج',
+  'set.myInfo': 'معلوماتي',
+  'set.language': 'اللغة',
+  'set.purchasePlan': 'شراء باقة',
+  'set.getHelp': 'الحصول على مساعدة',
+  'set.feedback': 'إرسال ملاحظات',
+  'set.learnMore': 'اعرف المزيد',
+  'set.about': 'عن Designs Lab',
+  'set.usagePolicy': 'سياسة الاستخدام',
+  'set.privacy': 'سياسة الخصوصية',
+  'set.terms': 'شروط الخدمة',
+  'set.signOut': 'تسجيل الخروج',
+  'set.close': 'إغلاق',
+  'set.cancel': 'إلغاء',
+  'set.send': 'إرسال الملاحظات',
+  'set.feedbackTitle': 'شاركنا ملاحظاتك',
+  'set.feedbackPh': 'أخبرنا ما الذي يعجبك، وما الذي ينقص، وما الذي يجب تحسينه…',
+  'set.feedbackThanks': 'شكرًا لك — تم إرسال ملاحظاتك إلى فريقنا.',
+  'set.feedbackEmpty': 'يرجى كتابة ملاحظاتك قبل الإرسال.',
+  'set.infoUsername': 'اسم المستخدم',
+  'set.infoEmail': 'البريد الإلكتروني',
+  'set.infoRole': 'الدور',
+  'set.infoProjects': 'المشاريع',
+  'set.infoAutofill': 'التعبئة الذكية',
+  'set.infoModifies': 'تعديلات التصميم',
+  'set.infoEdits': 'تعديلات الصور',
   'tabs.booth': 'جناح معرض',
   'tabs.event': 'فعالية',
   'tabs.displayStand': 'ستاند عرض',
@@ -3858,6 +3981,31 @@ const I18N_FR = {
   'app.tagline': 'Décrivez votre idée avec des mots, obtenez un concept de départ pour votre stand ou événement',
   'app.adminPanel': 'Panneau admin',
   'app.logout': 'Déconnexion',
+  'set.myInfo': 'Mes informations',
+  'set.language': 'Langue',
+  'set.purchasePlan': 'Acheter un forfait',
+  'set.getHelp': 'Obtenir de l\'aide',
+  'set.feedback': 'Donner mon avis',
+  'set.learnMore': 'En savoir plus',
+  'set.about': 'À propos de Designs Lab',
+  'set.usagePolicy': 'Politique d\'utilisation',
+  'set.privacy': 'Politique de confidentialité',
+  'set.terms': 'Conditions d\'utilisation',
+  'set.signOut': 'Se déconnecter',
+  'set.close': 'Fermer',
+  'set.cancel': 'Annuler',
+  'set.send': 'Envoyer l\'avis',
+  'set.feedbackTitle': 'Partagez votre avis',
+  'set.feedbackPh': 'Dites-nous ce qui fonctionne bien, ce qui manque, ou ce que nous devrions améliorer…',
+  'set.feedbackThanks': 'Merci — votre avis a été transmis à notre équipe.',
+  'set.feedbackEmpty': 'Veuillez écrire votre avis avant de l’envoyer.',
+  'set.infoUsername': 'Nom d\'utilisateur',
+  'set.infoEmail': 'E-mail',
+  'set.infoRole': 'Rôle',
+  'set.infoProjects': 'Projets',
+  'set.infoAutofill': 'Auto-remplissages IA',
+  'set.infoModifies': 'Modifications de design',
+  'set.infoEdits': 'Retouches d\'image',
   'tabs.booth': 'Stand d\'exposition',
   'tabs.event': 'Concept d\'événement',
   'tabs.displayStand': 'Présentoir',
@@ -3985,6 +4133,31 @@ const I18N_DE = {
   'app.tagline': 'Beschreiben Sie Ihre Idee in Worten und erhalten Sie ein erstes Konzept für Ihren Stand oder Ihre Veranstaltung',
   'app.adminPanel': 'Admin-Bereich',
   'app.logout': 'Abmelden',
+  'set.myInfo': 'Meine Informationen',
+  'set.language': 'Sprache',
+  'set.purchasePlan': 'Plan kaufen',
+  'set.getHelp': 'Hilfe erhalten',
+  'set.feedback': 'Feedback geben',
+  'set.learnMore': 'Mehr erfahren',
+  'set.about': 'Über Designs Lab',
+  'set.usagePolicy': 'Nutzungsrichtlinie',
+  'set.privacy': 'Datenschutzerklärung',
+  'set.terms': 'Nutzungsbedingungen',
+  'set.signOut': 'Abmelden',
+  'set.close': 'Schließen',
+  'set.cancel': 'Abbrechen',
+  'set.send': 'Feedback senden',
+  'set.feedbackTitle': 'Teilen Sie Ihr Feedback',
+  'set.feedbackPh': 'Sagen Sie uns, was gut funktioniert, was fehlt oder was wir verbessern sollten…',
+  'set.feedbackThanks': 'Danke — Ihr Feedback wurde an unser Team gesendet.',
+  'set.feedbackEmpty': 'Bitte schreiben Sie Ihr Feedback vor dem Senden.',
+  'set.infoUsername': 'Benutzername',
+  'set.infoEmail': 'E-Mail',
+  'set.infoRole': 'Rolle',
+  'set.infoProjects': 'Projekte',
+  'set.infoAutofill': 'KI-Ausfüllungen',
+  'set.infoModifies': 'Designänderungen',
+  'set.infoEdits': 'Bildbearbeitungen',
   'tabs.booth': 'Messestand',
   'tabs.event': 'Veranstaltungskonzept',
   'tabs.displayStand': 'Verkaufsständer',
@@ -4112,6 +4285,31 @@ const I18N_ES = {
   'app.tagline': 'Describa su idea con palabras y obtenga un concepto inicial para su stand o evento',
   'app.adminPanel': 'Panel de administración',
   'app.logout': 'Cerrar sesión',
+  'set.myInfo': 'Mi información',
+  'set.language': 'Idioma',
+  'set.purchasePlan': 'Comprar plan',
+  'set.getHelp': 'Obtener ayuda',
+  'set.feedback': 'Enviar comentarios',
+  'set.learnMore': 'Más información',
+  'set.about': 'Acerca de Designs Lab',
+  'set.usagePolicy': 'Política de uso',
+  'set.privacy': 'Política de privacidad',
+  'set.terms': 'Términos del servicio',
+  'set.signOut': 'Cerrar sesión',
+  'set.close': 'Cerrar',
+  'set.cancel': 'Cancelar',
+  'set.send': 'Enviar comentarios',
+  'set.feedbackTitle': 'Comparte tus comentarios',
+  'set.feedbackPh': 'Cuéntanos qué funciona bien, qué falta o qué deberíamos mejorar…',
+  'set.feedbackThanks': 'Gracias — tus comentarios se han enviado a nuestro equipo.',
+  'set.feedbackEmpty': 'Escribe tus comentarios antes de enviarlos.',
+  'set.infoUsername': 'Usuario',
+  'set.infoEmail': 'Correo',
+  'set.infoRole': 'Rol',
+  'set.infoProjects': 'Proyectos',
+  'set.infoAutofill': 'Autocompletados IA',
+  'set.infoModifies': 'Modificaciones de diseño',
+  'set.infoEdits': 'Ediciones de imagen',
   'tabs.booth': 'Stand de exposición',
   'tabs.event': 'Concepto de evento',
   'tabs.displayStand': 'Expositor',
@@ -4239,6 +4437,31 @@ const I18N_IT = {
   'app.tagline': 'Descrivi la tua idea a parole, ottieni un concept iniziale per il tuo stand o evento',
   'app.adminPanel': 'Pannello di amministrazione',
   'app.logout': 'Esci',
+  'set.myInfo': 'Le mie informazioni',
+  'set.language': 'Lingua',
+  'set.purchasePlan': 'Acquista piano',
+  'set.getHelp': 'Ottieni aiuto',
+  'set.feedback': 'Invia feedback',
+  'set.learnMore': 'Scopri di più',
+  'set.about': 'Informazioni su Designs Lab',
+  'set.usagePolicy': 'Politica d\'uso',
+  'set.privacy': 'Informativa sulla privacy',
+  'set.terms': 'Termini di servizio',
+  'set.signOut': 'Esci',
+  'set.close': 'Chiudi',
+  'set.cancel': 'Annulla',
+  'set.send': 'Invia feedback',
+  'set.feedbackTitle': 'Condividi il tuo feedback',
+  'set.feedbackPh': 'Dicci cosa funziona bene, cosa manca o cosa dovremmo migliorare…',
+  'set.feedbackThanks': 'Grazie — il tuo feedback è stato inviato al nostro team.',
+  'set.feedbackEmpty': 'Scrivi il tuo feedback prima di inviarlo.',
+  'set.infoUsername': 'Nome utente',
+  'set.infoEmail': 'Email',
+  'set.infoRole': 'Ruolo',
+  'set.infoProjects': 'Progetti',
+  'set.infoAutofill': 'Compilazioni IA',
+  'set.infoModifies': 'Modifiche al design',
+  'set.infoEdits': 'Ritocchi immagine',
   'tabs.booth': 'Stand espositivo',
   'tabs.event': 'Concept evento',
   'tabs.displayStand': 'Espositore',
@@ -4366,6 +4589,31 @@ const I18N_ZH = {
   'app.tagline': '用文字描述您的想法，获得展位或活动的初始概念方案',
   'app.adminPanel': '管理面板',
   'app.logout': '退出登录',
+  'set.myInfo': '我的信息',
+  'set.language': '语言',
+  'set.purchasePlan': '购买套餐',
+  'set.getHelp': '获取帮助',
+  'set.feedback': '提交反馈',
+  'set.learnMore': '了解更多',
+  'set.about': '关于 Designs Lab',
+  'set.usagePolicy': '使用政策',
+  'set.privacy': '隐私政策',
+  'set.terms': '服务条款',
+  'set.signOut': '退出登录',
+  'set.close': '关闭',
+  'set.cancel': '取消',
+  'set.send': '发送反馈',
+  'set.feedbackTitle': '分享您的反馈',
+  'set.feedbackPh': '告诉我们哪些做得好、缺少什么、以及我们应该改进什么…',
+  'set.feedbackThanks': '感谢您 — 反馈已发送给我们的团队。',
+  'set.feedbackEmpty': '发送前请先填写您的反馈。',
+  'set.infoUsername': '用户名',
+  'set.infoEmail': '邮箱',
+  'set.infoRole': '角色',
+  'set.infoProjects': '项目',
+  'set.infoAutofill': 'AI 自动填写',
+  'set.infoModifies': '设计修改',
+  'set.infoEdits': '图片编辑',
   'tabs.booth': '展览展位',
   'tabs.event': '活动概念',
   'tabs.displayStand': '展示架',
@@ -4493,6 +4741,31 @@ const I18N_JA = {
   'app.tagline': 'アイデアを言葉で説明すると、ブースやイベントの初期コンセプトが得られます',
   'app.adminPanel': '管理者パネル',
   'app.logout': 'ログアウト',
+  'set.myInfo': 'マイ情報',
+  'set.language': '言語',
+  'set.purchasePlan': 'プランを購入',
+  'set.getHelp': 'ヘルプ',
+  'set.feedback': 'フィードバックを送る',
+  'set.learnMore': '詳細情報',
+  'set.about': 'Designs Labについて',
+  'set.usagePolicy': '利用ポリシー',
+  'set.privacy': 'プライバシーポリシー',
+  'set.terms': '利用規約',
+  'set.signOut': 'ログアウト',
+  'set.close': '閉じる',
+  'set.cancel': 'キャンセル',
+  'set.send': '送信',
+  'set.feedbackTitle': 'フィードバックをお寄せください',
+  'set.feedbackPh': '良い点、足りない点、改善すべき点を教えてください…',
+  'set.feedbackThanks': 'ありがとうございます — フィードバックをチームに送信しました。',
+  'set.feedbackEmpty': '送信前にフィードバックをご記入ください。',
+  'set.infoUsername': 'ユーザー名',
+  'set.infoEmail': 'メール',
+  'set.infoRole': '役割',
+  'set.infoProjects': 'プロジェクト',
+  'set.infoAutofill': 'AI自動入力',
+  'set.infoModifies': 'デザイン修正',
+  'set.infoEdits': '画像編集',
   'tabs.booth': '展示ブース',
   'tabs.event': 'イベントコンセプト',
   'tabs.displayStand': 'ディスプレイスタンド',
@@ -9297,17 +9570,122 @@ async function checkAdminAccess(){
   }
 }
 
-// A lightweight placeholder for the account area — real settings/profile forms don't
-// exist yet, so this only surfaces what's already available (username, role) in a way
-// that leaves obvious room to grow into an actual settings panel later, without needing
-// to restructure the sidebar again when that's built.
+/* ================= Account settings menu =================
+   The gear button opens a professional settings popover (like every mature SaaS):
+   My information, Language, Purchase plan, Get help, Give feedback, Learn more
+   (About / Usage Policy / Privacy / Terms), Sign out. currentAccountInfo caches the
+   /api/me payload for the My-information modal. */
+let currentAccountInfo = null;
+
 function renderSidebarAccountSection(data){
   const section = document.getElementById('sidebarAccountSection');
   if(!section || !data.username) return;
+  currentAccountInfo = data;
   document.getElementById('sidebarAccountName').textContent = data.username;
   document.getElementById('sidebarAccountRole').textContent = data.role === 'admin' ? 'Administrator' : 'Team member';
   document.getElementById('sidebarAccountInitial').textContent = data.username.charAt(0).toUpperCase();
+  document.getElementById('acctMenuName').textContent = data.username;
+  document.getElementById('acctMenuEmail').textContent = data.email && data.email !== data.username ? data.email : (data.email || '');
   section.style.display = 'block';
+}
+
+function toggleAccountMenu(event){
+  if(event) event.stopPropagation();
+  const menu = document.getElementById('acctMenu');
+  const opening = !menu.classList.contains('open');
+  menu.classList.toggle('open', opening);
+  if(opening) renderAcctLanguageSub();
+}
+// Any click outside the menu closes it — standard popover behavior.
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('acctMenu');
+  if(menu && menu.classList.contains('open') && !menu.contains(e.target)) menu.classList.remove('open');
+});
+
+function toggleAcctSub(id, btn){
+  const sub = document.getElementById(id);
+  const opening = !sub.classList.contains('open');
+  sub.classList.toggle('open', opening);
+  if(btn) btn.classList.toggle('expanded', opening);
+}
+
+const ACCT_LANG_NAMES = { en:'English', ar:'العربية', fr:'Français', de:'Deutsch', es:'Español', it:'Italiano', zh:'中文', ja:'日本語' };
+function renderAcctLanguageSub(){
+  const sub = document.getElementById('acctLangSub');
+  if(!sub) return;
+  sub.innerHTML = Object.entries(ACCT_LANG_NAMES).map(([code, name]) =>
+    '<button type="button" class="acct-item" onclick="setLanguage(\'' + code + '\');renderAcctLanguageSub();">' + name +
+    (currentLanguage === code ? '<span class="acct-lang-check">✓</span>' : '') + '</button>'
+  ).join('');
+}
+
+function goToPurchasePlan(){
+  document.getElementById('acctMenu').classList.remove('open');
+  const widget = document.getElementById('buyMorePrompt');
+  if(widget && widget.style.display !== 'none'){
+    widget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    widget.style.outline = '2px solid var(--gold)';
+    setTimeout(() => { widget.style.outline = ''; }, 2200);
+  }else{
+    window.open('/pricing.html', '_blank', 'noopener');
+  }
+}
+
+function openAccountInfo(){
+  document.getElementById('acctMenu').classList.remove('open');
+  const d = currentAccountInfo || {};
+  const fmt = (count, limit) => limit != null ? (count || 0) + ' / ' + limit : (count || 0) + ' / \u221e';
+  document.getElementById('aiUsername').textContent = d.username || '—';
+  document.getElementById('aiEmail').textContent = d.email || d.username || '—';
+  document.getElementById('aiRole').textContent = d.role === 'admin' ? 'Administrator' : 'Team member';
+  document.getElementById('aiProjects').textContent = d.role === 'admin' ? '\u221e' : fmt(d.projectCount, d.projectLimit);
+  document.getElementById('aiAutofills').textContent = d.role === 'admin' ? '\u221e' : fmt(d.autofillCount, d.autofillLimit);
+  document.getElementById('aiModifies').textContent = d.role === 'admin' ? '\u221e' : fmt(d.modifyCount, d.modifyLimit);
+  document.getElementById('aiEdits').textContent = d.role === 'admin' ? '\u221e' : fmt(d.editCount, d.editLimit);
+  document.getElementById('acctInfoOverlay').classList.add('open');
+}
+
+function openFeedbackModal(){
+  document.getElementById('acctMenu').classList.remove('open');
+  document.getElementById('feedbackStatus').textContent = '';
+  document.getElementById('feedbackStatus').style.color = '';
+  document.getElementById('feedbackText').value = '';
+  const btn = document.getElementById('feedbackSendBtn');
+  btn.disabled = false;
+  btn.textContent = t('set.send');
+  document.getElementById('acctFeedbackOverlay').classList.add('open');
+  document.getElementById('feedbackText').focus();
+}
+
+async function sendFeedback(){
+  const statusEl = document.getElementById('feedbackStatus');
+  const btn = document.getElementById('feedbackSendBtn');
+  const message = document.getElementById('feedbackText').value.trim();
+  if(!message){
+    statusEl.style.color = '#c0432b';
+    statusEl.textContent = t('set.feedbackEmpty');
+    return;
+  }
+  btn.disabled = true;
+  statusEl.style.color = '';
+  statusEl.textContent = '…';
+  try{
+    const response = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok || !data.ok) throw new Error((data.error && data.error.message) || 'Could not send your feedback. Please try again.');
+    statusEl.style.color = '#1E7A3C';
+    statusEl.textContent = t('set.feedbackThanks');
+    btn.textContent = '✓';
+    setTimeout(() => { document.getElementById('acctFeedbackOverlay').classList.remove('open'); }, 1400);
+  }catch(err){
+    statusEl.style.color = '#c0432b';
+    statusEl.textContent = err.message || 'Could not send your feedback. Please try again.';
+    btn.disabled = false;
+  }
 }
 
 // Hides the whole grouped panel when there's genuinely nothing to show (admins, or before
@@ -20778,5 +21156,35 @@ if(typeof document.addEventListener === 'function'){
   document.addEventListener('change', updateGenerateButtonState);
 }
 </script>
+  <!-- Account settings: My information -->
+  <div class="acct-modal-overlay" id="acctInfoOverlay" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="acct-modal">
+      <h3 data-i18n="set.myInfo">My information</h3>
+      <div class="info-row"><span class="k" data-i18n="set.infoUsername">Username</span><span class="v" id="aiUsername"></span></div>
+      <div class="info-row"><span class="k" data-i18n="set.infoEmail">Email</span><span class="v" id="aiEmail"></span></div>
+      <div class="info-row"><span class="k" data-i18n="set.infoRole">Role</span><span class="v" id="aiRole"></span></div>
+      <div class="info-row"><span class="k" data-i18n="set.infoProjects">Projects</span><span class="v" id="aiProjects"></span></div>
+      <div class="info-row"><span class="k" data-i18n="set.infoAutofill">AI auto-fills</span><span class="v" id="aiAutofills"></span></div>
+      <div class="info-row"><span class="k" data-i18n="set.infoModifies">Design modifications</span><span class="v" id="aiModifies"></span></div>
+      <div class="info-row"><span class="k" data-i18n="set.infoEdits">Image edits</span><span class="v" id="aiEdits"></span></div>
+      <div class="acct-modal-actions">
+        <button type="button" class="no" onclick="document.getElementById('acctInfoOverlay').classList.remove('open')" data-i18n="set.close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account settings: Give feedback -->
+  <div class="acct-modal-overlay" id="acctFeedbackOverlay" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="acct-modal">
+      <h3 data-i18n="set.feedbackTitle">Share your feedback</h3>
+      <textarea id="feedbackText" maxlength="3000" data-i18n-placeholder="set.feedbackPh" placeholder="Tell us what's working well, what's missing, or what we should improve…"></textarea>
+      <div class="status-line" id="feedbackStatus"></div>
+      <div class="acct-modal-actions">
+        <button type="button" class="no" onclick="document.getElementById('acctFeedbackOverlay').classList.remove('open')" data-i18n="set.cancel">Cancel</button>
+        <button type="button" class="go" id="feedbackSendBtn" onclick="sendFeedback()" data-i18n="set.send">Send feedback</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

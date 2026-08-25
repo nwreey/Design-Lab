@@ -192,6 +192,24 @@
     </div>
 
     <div class="card">
+      <h2>User Feedback</h2>
+      <div class="hint" style="margin-bottom:14px;">Feedback submitted by signed-in users via the "Give feedback" option in their account settings menu inside the studio.</div>
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Feedback</th>
+            <th>Submitted</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="feedbackTableBody"></tbody>
+      </table>
+      <div class="status-msg" id="feedbackTableStatus"></div>
+    </div>
+
+    <div class="card">
       <h2>Users List</h2>
       <table>
         <thead>
@@ -327,10 +345,81 @@ async function init(){
     await loadUsers();
     await loadSignupRequests();
     await loadPlanRequests();
+    await loadFeedback();
     await loadLockouts();
     await loadRatings();
   }catch(err){
     showGate('Could not verify access: ' + (err.message || 'unknown error'));
+  }
+}
+
+/* ================= User Feedback (from the studio's account settings menu) ================= */
+async function loadFeedback(){
+  const statusEl = document.getElementById('feedbackTableStatus');
+  statusEl.className = 'status-msg';
+  statusEl.textContent = 'Loading...';
+  try{
+    const response = await fetch('/api/feedback');
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load feedback.');
+    renderFeedbackTable(data.feedback || []);
+    statusEl.textContent = '';
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Could not load feedback.';
+  }
+}
+
+function renderFeedbackTable(items){
+  const body = document.getElementById('feedbackTableBody');
+  if(items.length === 0){
+    body.innerHTML = '<tr><td colspan="5" class="hint">No feedback yet.</td></tr>';
+    return;
+  }
+  body.innerHTML = items.map(f => `
+    <tr style="${f.status === 'reviewed' ? 'opacity:.55;' : ''}">
+      <td>${escapeHtml(f.username)}</td>
+      <td style="max-width:420px;white-space:pre-wrap;font-size:12.5px;line-height:1.55;">${escapeHtml(f.message)}</td>
+      <td style="white-space:nowrap;">${new Date(f.created_at).toLocaleDateString()}</td>
+      <td>${f.status === 'reviewed' ? 'Reviewed' : '<strong>New</strong>'}</td>
+      <td style="white-space:nowrap;">
+        ${f.status === 'reviewed'
+          ? `<button class="ghost" onclick="setFeedbackStatus('${f.id}', 'new')">Mark new</button>`
+          : `<button class="ghost" onclick="setFeedbackStatus('${f.id}', 'reviewed')">Mark reviewed</button>`}
+        <button class="ghost" onclick="deleteFeedback('${f.id}')">Remove</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function setFeedbackStatus(id, status){
+  const statusEl = document.getElementById('feedbackTableStatus');
+  try{
+    const response = await fetch('/api/feedback', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not update the feedback.');
+    await loadFeedback();
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Could not update the feedback.';
+  }
+}
+
+async function deleteFeedback(id){
+  if(!confirm('Remove this feedback entry? This cannot be undone.')) return;
+  const statusEl = document.getElementById('feedbackTableStatus');
+  try{
+    const response = await fetch('/api/feedback?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not delete the feedback.');
+    await loadFeedback();
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = err.message || 'Could not delete the feedback.';
   }
 }
 
