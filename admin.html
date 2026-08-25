@@ -174,15 +174,14 @@
     </div>
 
     <div class="card">
-      <h2>Plan Purchase Requests</h2>
-      <div class="hint" style="margin-bottom:14px;">Purchase requests submitted by registered users from the public Pricing page. Activate the plan manually (adjust the user's limits under Users List), contact them, then mark the request handled.</div>
+      <h2>Plan Purchased</h2>
+      <div class="hint" style="margin-bottom:14px;">Plans purchased by users from inside the studio show up here. Activate each one under Users List with "Edit limits &amp; plan": set the plan and raise the limits to match. (Until the payment gateway goes live, an entry here means the user chose a plan at checkout.)</div>
       <table>
         <thead>
           <tr>
             <th>User</th>
             <th>Plan</th>
-            <th>Submitted</th>
-            <th>Status</th>
+            <th>Date</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -477,8 +476,8 @@ async function runEmailCheck(withSend){
   }
 }
 
-/* ================= Plan Purchase Requests =================
-   Backed by /api/purchase — POST is what registered users hit from the Pricing page;
+/* ================= Plan Purchased =================
+   Backed by /api/purchase — POST is what signed-in users hit from the studio's plan checkout;
    the GET/PATCH/DELETE verbs used here are admin-only (re-verified server-side). */
 async function loadPlanRequests(){
   const statusEl = document.getElementById('planRequestsStatus');
@@ -499,40 +498,21 @@ async function loadPlanRequests(){
 function renderPlanRequestsTable(requests){
   const body = document.getElementById('planRequestsBody');
   if(requests.length === 0){
-    body.innerHTML = '<tr><td colspan="5" class="hint">No purchase requests yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="4" class="hint">No plans purchased yet.</td></tr>';
     return;
   }
+  // Purchases are direct — no request/approval workflow here anymore. The record stays
+  // until the admin removes it (typically after activating the plan under Users List).
   body.innerHTML = requests.map(r => `
-    <tr style="${r.status === 'handled' ? 'opacity:.55;' : ''}">
+    <tr>
       <td>${escapeHtml(r.username)}</td>
       <td><strong>${escapeHtml(r.plan)}</strong></td>
       <td style="white-space:nowrap;">${new Date(r.created_at).toLocaleDateString()}</td>
-      <td>${r.status === 'handled' ? 'Handled' : '<strong>Pending</strong>'}</td>
       <td style="white-space:nowrap;">
-        ${r.status === 'handled'
-          ? `<button class="ghost" onclick="setPlanRequestStatus('${r.id}', 'pending')">Reopen</button>`
-          : `<button class="ghost" onclick="setPlanRequestStatus('${r.id}', 'handled')">Mark handled</button>`}
         <button class="ghost" onclick="deletePlanRequest('${r.id}')">Remove</button>
       </td>
     </tr>
   `).join('');
-}
-
-async function setPlanRequestStatus(id, status){
-  const statusEl = document.getElementById('planRequestsStatus');
-  try{
-    const response = await fetch('/api/purchase', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not update the request.');
-    await loadPlanRequests();
-  }catch(err){
-    statusEl.className = 'status-msg error';
-    statusEl.textContent = err.message || 'Could not update the request.';
-  }
 }
 
 async function deletePlanRequest(id){
