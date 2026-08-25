@@ -262,7 +262,19 @@ export default async function handler(req, res) {
           emailResult = await sendTransactionalEmail({ toEmail: reqRow.email, toName: reqRow.name, subject: emailContent.subject, html: emailContent.html });
         }
       }
-      await sql`UPDATE signup_requests SET status = ${status} WHERE id = ${id};`;
+      // Per explicit product decision: a successfully approved request DISAPPEARS from
+      // the Signup Requests list — the person now lives under Users List, which is the
+      // single source of truth from that point on. Deleted only when the approval email
+      // actually went out; if the email failed, the request stays pending so the admin
+      // can simply click Approve & email again (a fresh set-password link is issued).
+      if (notify && status === 'reviewed') {
+        if (emailResult.sent) {
+          await sql`DELETE FROM signup_requests WHERE id = ${id};`;
+        }
+        // email failed -> leave the request untouched (still pending) for a retry
+      } else {
+        await sql`UPDATE signup_requests SET status = ${status} WHERE id = ${id};`;
+      }
       res.status(200).json({ ok: true, emailSent: emailResult.sent, accountCreated });
     } catch (err) {
       console.error('signup: could not update request:', err);
