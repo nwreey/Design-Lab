@@ -15524,6 +15524,8 @@ function showEcbGoodLuckAndRating(freshRating){
   document.getElementById('rateUsBar').style.display = 'flex';
 }
 
+let ecbAreaRendersInProgress = false;
+
 function renderEcbAreaRenders(inProgressArea){
   const wrap = document.getElementById('ecbAreaRenders');
   const grid = document.getElementById('ecbAreaRendersGrid');
@@ -15544,7 +15546,7 @@ function renderEcbAreaRenders(inProgressArea){
         </div>
         <div style="padding:10px 12px;">
           <div style="font-size:12.5px;font-weight:700;">${area}</div>
-          ${done ? '<div style="display:flex;gap:6px;margin-top:8px;">'
+          ${(done && !ecbAreaRendersInProgress) ? '<div style="display:flex;gap:6px;margin-top:8px;">'
               + '<button class="ghost small" onclick="downloadEcbAreaRender(\'' + area.replace(/'/g, "\\'") + '\')">Download</button>'
               + '<button class="ghost small" onclick="openEditPanel(\'ecbArea:' + area.replace(/'/g, "\\'") + '\')">Edit</button>'
               + '</div>' : ''}
@@ -15572,7 +15574,14 @@ async function generateApprovedAreaRenders(){
   eventConceptBoard.areas = areas.slice();
   eventConceptBoard.areaRenders = eventConceptBoard.areaRenders || [];
   const statusEl = document.getElementById('ecbActionStatus');
+  // Same protection as the exhibition section's camera-views loop: projectSwitchLocked
+  // blocks switching projects in-app AND triggers the browser's native "leave site?"
+  // prompt on refresh/close (see the beforeunload handler); the flag below additionally
+  // freezes every clickable control on the board until all pictures have loaded.
   projectSwitchLocked = true;
+  ecbAreaRendersInProgress = true;
+  const ecbDlBtn = document.getElementById('ecbDownloadBtn');
+  if(ecbDlBtn) ecbDlBtn.disabled = true;
   try{
     const briefData = buildEventThemeBoardBriefData();
     const boardParts = dataUrlParts(eventConceptBoard.image);
@@ -15631,6 +15640,9 @@ async function generateApprovedAreaRenders(){
     saveCurrentProject();
   }finally{
     projectSwitchLocked = false;
+    ecbAreaRendersInProgress = false;
+    if(ecbDlBtn) ecbDlBtn.disabled = false;
+    renderEcbAreaRenders(null); // re-render with the Edit/Download buttons enabled again
   }
 }
 
@@ -15717,6 +15729,7 @@ function renderEcbGalleryStrip(){
 }
 
 function selectEcbGalleryEntry(i){
+  if(ecbAreaRendersInProgress) return; // everything stays hands-off until all renders finish
   if(!eventConceptBoard || !eventConceptBoard.gallery || !eventConceptBoard.gallery[i]) return;
   eventConceptBoard.activeIndex = i;
   eventConceptBoard.image = eventConceptBoard.gallery[i].image;
