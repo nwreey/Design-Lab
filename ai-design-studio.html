@@ -1639,10 +1639,53 @@ Replace only the materials and graphics."></textarea>
 
       <div class="field" id="areaPlanningListField">
         <label>Areas</label>
-        <div class="hint" style="margin-bottom:10px;">Add every distinct area the event needs — this drives the design directly, especially important if the size below is unknown.</div>
-        <div id="areaPlanningList"></div>
-        <div class="bp-empty-hint" id="areaPlanningEmptyHint">No areas added yet.</div>
-        <button type="button" class="ghost small" onclick="addArea()">+ Add Area</button>
+        <div class="hint" style="margin-bottom:10px;">Select every area the event physically needs — each selected area carries its full professional definition into the design brief.</div>
+
+        <div class="sublabel" style="font-weight:700;margin:6px 0 6px;">Core Areas</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="event-area-cb" value="Entrance Gate"> Entrance Gate</label>
+          <label><input type="checkbox" class="event-area-cb" value="Registration &amp; Welcome"> Registration &amp; Welcome</label>
+          <label><input type="checkbox" class="event-area-cb" value="Main Stage"> Main Stage</label>
+          <label><input type="checkbox" class="event-area-cb" value="Conference / Main Hall"> Conference / Main Hall</label>
+          <label><input type="checkbox" class="event-area-cb" value="VIP Area / Lounge"> VIP Area / Lounge</label>
+          <label><input type="checkbox" class="event-area-cb" value="Networking Lounge"> Networking Lounge</label>
+          <label><input type="checkbox" class="event-area-cb" value="Catering / F&amp;B Area"> Catering / F&amp;B Area</label>
+          <label><input type="checkbox" class="event-area-cb" value="Foyer / Pre-Function Area"> Foyer / Pre-Function Area</label>
+        </div>
+
+        <div class="sublabel" style="font-weight:700;margin:14px 0 6px;">Event-Specific Areas</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="event-area-cb" value="Exhibition Area"> Exhibition Area</label>
+          <label><input type="checkbox" class="event-area-cb" value="Breakout Rooms"> Breakout Rooms</label>
+          <label><input type="checkbox" class="event-area-cb" value="Photo / Media Wall"> Photo / Media Wall</label>
+          <label><input type="checkbox" class="event-area-cb" value="Outdoor Area"> Outdoor Area</label>
+          <label><input type="checkbox" class="event-area-cb" value="Speaker Ready Room"> Speaker Ready Room</label>
+          <label><input type="checkbox" class="event-area-cb" value="Green Room"> Green Room</label>
+          <label><input type="checkbox" class="event-area-cb" value="VIP Reception / Arrival"> VIP Reception / Arrival</label>
+          <label><input type="checkbox" class="event-area-cb" value="Media / Press Room"> Media / Press Room</label>
+          <label><input type="checkbox" class="event-area-cb" value="Charging / Business Lounge"> Charging / Business Lounge</label>
+        </div>
+
+        <div class="sublabel" style="font-weight:700;margin:14px 0 6px;">Operations</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="event-area-cb" value="Production / Control Room"> Production / Control Room</label>
+          <label><input type="checkbox" class="event-area-cb" value="Back of House"> Back of House</label>
+          <label><input type="checkbox" class="event-area-cb" value="Storage Area"> Storage Area</label>
+          <label><input type="checkbox" class="event-area-cb" value="Staff / Organizer Office"> Staff / Organizer Office</label>
+          <label><input type="checkbox" class="event-area-cb" value="Speaker / Presenter Area"> Speaker / Presenter Area</label>
+          <label><input type="checkbox" class="event-area-cb" value="Security / Access Control"> Security / Access Control</label>
+          <label><input type="checkbox" class="event-area-cb" value="First Aid / Medical Room"> First Aid / Medical Room</label>
+        </div>
+
+        <div class="sublabel" style="font-weight:700;margin:14px 0 6px;">Saudi / GCC Specific</div>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" class="event-area-cb" value="Prayer Room"> Prayer Room</label>
+        </div>
+
+        <!-- Legacy containers of the retired free-form area rows: kept hidden so older code
+             paths (renderAreaPlanningList / updateAreaPlanningSummary) can never crash. -->
+        <div id="areaPlanningList" style="display:none;"></div>
+        <div class="bp-empty-hint" id="areaPlanningEmptyHint" style="display:none;"></div>
         <div class="ap-summary-box" id="areaPlanningSummary" style="display:none;"></div>
       </div>
     </div>
@@ -8128,6 +8171,41 @@ function apUpdateSummary(){
 // (not its internal id), since names are what both a human-readable brief and the AI need —
 // any relationship still pointing at an id with no matching area (shouldn't happen, deleteArea
 // already strips these) is silently dropped rather than emitted as broken.
+/* Standard Event Areas — Master List (owner-provided): each selected area carries its
+   professional Purpose and Includes definition into the design brief so the AI knows what
+   must physically exist, instead of relying on free-text alone. */
+const EVENT_AREA_MASTER = {
+  'Entrance Gate': { purpose: 'Main arrival and access point for attendees.', includes: 'Entrance structure, event branding, directional signage, security/access control, queue space.' },
+  'Registration & Welcome': { purpose: 'Attendee check-in and welcome.', includes: 'Registration counters, QR/barcode scanners, badge collection, welcome desk, staff area, queue management.' },
+  'Main Stage': { purpose: 'Main presentation and ceremonial area.', includes: 'Stage, LED screen, scenic backdrop, lectern, presenter area, stage lighting, speakers, confidence monitors.' },
+  'Conference / Main Hall': { purpose: 'Main audience seating and presentations.', includes: 'The selected seating style, aisles, circulation, sightlines and access.' },
+  'VIP Area / Lounge': { purpose: 'Dedicated hospitality area for VIPs, executives, speakers or special guests.', includes: 'VIP seating, lounge furniture, refreshments, private access where required.' },
+  'Networking Lounge': { purpose: 'Informal interaction and business networking.', includes: 'Lounge seating, high tables, coffee tables, charging points and networking furniture.' },
+  'Catering / F&B Area': { purpose: 'Food and beverage service.', includes: 'Buffet/service counters, beverage stations, dining tables, service access and waste-management area.' },
+  'Foyer / Pre-Function Area': { purpose: 'Arrival, circulation, waiting and informal gathering immediately outside or before the main hall.', includes: 'Reception/waiting areas, sponsor branding, networking, registration overflow and directional signage.' },
+  'Exhibition Area': { purpose: 'Exhibitor and sponsor presence.', includes: 'Exhibition stands, visitor aisles, sponsor branding, electrical requirements and exhibitor circulation.' },
+  'Breakout Rooms': { purpose: 'Smaller parallel sessions, workshops or meetings.', includes: 'Seating, presentation screen, speaker area, tables where required and AV equipment.' },
+  'Photo / Media Wall': { purpose: 'Photography, media interviews and branded content creation.', includes: 'Branded backdrop, sponsor logos, lighting, photography space and media interview position.' },
+  'Outdoor Area': { purpose: 'Any event activity taking place outside the main indoor venue.', includes: 'Outdoor seating, activation areas, temporary structures, flooring, shade, lighting and weather protection.' },
+  'Speaker Ready Room': { purpose: 'For speakers to prepare before going on stage.', includes: 'Preparation seating, mirrors, AV preview, refreshments.' },
+  'Green Room': { purpose: 'For VIPs, presenters, performers and special guests waiting immediately before appearance.', includes: 'Comfortable seating, refreshments, privacy, quick stage access.' },
+  'VIP Reception / Arrival': { purpose: 'Dedicated VIP arrival, protocol and reception area.', includes: 'Protocol reception, premium finishes, private circulation.' },
+  'Media / Press Room': { purpose: 'For journalists, interviews, press conferences and media workstations.', includes: 'Media workstations, interview positions, press-conference setup, connectivity.' },
+  'Charging / Business Lounge': { purpose: 'Dedicated area for attendees to work, charge devices and conduct short meetings.', includes: 'Work tables, charging points, comfortable seating, short-meeting spots.' },
+  'Production / Control Room': { purpose: 'For AV, lighting, show control, presentation management and technical production.', includes: 'Control desks, monitors, comms, sightline to stage.' },
+  'Back of House': { purpose: 'For event staff, suppliers, equipment and operational support.', includes: 'Staff circulation, supplier access, operational support space.' },
+  'Storage Area': { purpose: 'For event materials, giveaways, furniture, signage and operational equipment.', includes: 'Secure storage racking and staging space.' },
+  'Staff / Organizer Office': { purpose: 'Private working area for event management and organizers.', includes: 'Desks, meeting table, secure storage, connectivity.' },
+  'Speaker / Presenter Area': { purpose: 'Dedicated preparation and holding area for speakers if a separate room is required.', includes: 'Holding seating, preview screen, stage access.' },
+  'Security / Access Control': { purpose: 'For security staff, access management and controlled-entry operations.', includes: 'Screening points, security post, controlled-entry lanes.' },
+  'First Aid / Medical Room': { purpose: 'For medical support and emergency response.', includes: 'Examination bed, first-aid equipment, clear emergency access.' },
+  'Prayer Room': { purpose: 'Prayer space — important for many events in Saudi Arabia and the GCC.', includes: 'Clean carpeted prayer space, qibla orientation, ablution access nearby, separation where required.' },
+};
+
+function getSelectedEventAreas(){
+  return Array.from(document.querySelectorAll('.event-area-cb:checked')).map(cb => cb.value);
+}
+
 function buildAreaPlanningData(){
   return {
     // Derived from the form's own Event Type field — the separate Area Planning
@@ -8143,27 +8221,25 @@ function buildAreaPlanningData(){
       city: document.getElementById('f_apCity').value.trim() || null,
       country: document.getElementById('f_apCountry').value.trim() || null,
     },
-    areas: areaPlanningList.map(a => ({
-      name: a.name.trim() || '(unnamed area)',
-      purpose: a.purpose.trim() || null,
-      size: a.sizeMode === 'percentage'
-        ? { mode: 'percentage', percentage: a.percentage !== '' ? parseFloat(a.percentage) : null }
-        : { mode: 'custom', width: a.width !== '' ? parseFloat(a.width) : null, depth: a.depth !== '' ? parseFloat(a.depth) : null, height: a.height !== '' ? parseFloat(a.height) : null },
-      priority: a.priority,
-      capacity: a.capacity !== '' ? parseInt(a.capacity, 10) : null,
-      equipment: a.equipment,
-      powerUtilities: a.powerUtilities,
-      accessibility: a.accessibility,
-      specialRequirements: a.specialRequirements.trim() || null,
-      preferredLocation: a.preferredLocation,
-      relationships: a.relationships
-        .filter(r => r.targetId)
-        .map(r => {
-          const target = apFindArea(r.targetId);
-          return { type: r.type, targetArea: target ? (target.name.trim() || '(unnamed area)') : null };
-        })
-        .filter(r => r.targetArea)
-    }))
+    // Areas now come from the master-list selections; each carries its standard
+    // professional definition. Shape kept compatible with the old free-form rows.
+    areas: getSelectedEventAreas().map(name => {
+      const def = EVENT_AREA_MASTER[name] || {};
+      return {
+        name,
+        purpose: def.purpose || null,
+        includes: def.includes || null,
+        size: { mode: 'percentage', percentage: null },
+        priority: 'Important',
+        capacity: null,
+        equipment: [],
+        powerUtilities: [],
+        accessibility: [],
+        specialRequirements: null,
+        preferredLocation: '',
+        relationships: []
+      };
+    })
   };
 }
 
@@ -13514,26 +13590,15 @@ function applyAutofillResult(result){
     renderBrandPortfolio();
   }
 
-  // Area Planning (event mode only) — same "never overwrite what the client already entered"
-  // enforcement as brandPortfolio above, mirroring apCreateArea()'s own field shape so each
-  // proposed area is a fully editable real area card, not a separate read-only AI suggestion.
-  if(mode === 'event' && areaPlanningList.length === 0 && Array.isArray(result.areaPlanning) && result.areaPlanning.length){
-    result.areaPlanning.slice(0, 12).forEach(a => {
-      if(!a || typeof a !== 'object' || !String(a.name || '').trim()) return;
-      const area = apCreateArea();
-      area.name = String(a.name).trim();
-      area.purpose = typeof a.purpose === 'string' ? a.purpose : '';
-      area.sizeMode = 'percentage';
-      const pct = Number(a.percentage);
-      area.percentage = Number.isFinite(pct) && pct > 0 ? String(Math.min(100, Math.round(pct))) : '';
-      if(AP_PRIORITY_OPTIONS.includes(a.priority)) area.priority = a.priority;
-      area.capacity = typeof a.capacity === 'string' ? a.capacity : '';
-      area.equipment = (Array.isArray(a.equipment) ? a.equipment : []).filter(v => AP_EQUIPMENT_OPTIONS.includes(v));
-      if(AP_PREFERRED_LOCATION_OPTIONS.includes(a.preferredLocation)) area.preferredLocation = a.preferredLocation;
-      area.specialRequirements = typeof a.specialRequirements === 'string' ? a.specialRequirements : '';
-      areaPlanningList.push(area);
+  // Area Planning (event mode only) — the free-form area rows are retired; AI-suggested
+  // areas now simply tick the matching entries in the master list, and only where the
+  // client hasn't already made a selection.
+  if(mode === 'event' && getSelectedEventAreas().length === 0 && Array.isArray(result.areaPlanning) && result.areaPlanning.length){
+    const suggested = result.areaPlanning.map(a => (a && a.name ? String(a.name).toLowerCase() : '')).filter(Boolean);
+    document.querySelectorAll('.event-area-cb').forEach(cb => {
+      const v = cb.value.toLowerCase();
+      if(suggested.some(n => n.includes(v) || v.includes(n) || v.split(' / ').some(part => n.includes(part.trim())))) cb.checked = true;
     });
-    renderAreaPlanningList();
   }
 
   // Brand personality — ranked array (Primary/Secondary/Accent), applied directly to the
@@ -15201,7 +15266,13 @@ function buildEventDirectGeminiPrompt(d){
   if(d.environment) lines.push('- Environment: ' + d.environment + '.');
   if(d.attendees) lines.push('- Expected attendees: about ' + d.attendees + ' people — the venue scale, seating, and circulation space must credibly fit this number.');
   if(d.venue) lines.push('- Venue / space: ' + JSON.stringify(d.venue) + '.');
-  if(d.required_areas && d.required_areas.length) lines.push('- Required functional areas that must be visible or clearly implied in the layout: ' + d.required_areas.join(', ') + '.');
+  if(d.required_areas && d.required_areas.length){
+    lines.push('- REQUIRED FUNCTIONAL AREAS (each must physically exist in the design, matching its professional definition):');
+    d.required_areas.forEach(name => {
+      const def = (typeof EVENT_AREA_MASTER !== 'undefined' && EVENT_AREA_MASTER[name]) || null;
+      lines.push('   • ' + name + (def ? ' — Purpose: ' + def.purpose + ' Must include: ' + def.includes : '') );
+    });
+  }
   if(d.key_activities && d.key_activities.length) lines.push('- Key activities the space must support: ' + d.key_activities.join(', ') + '.');
   if(d.architectural_style) lines.push('- Architectural / staging style: ' + d.architectural_style + '.');
   if(d.brand_personality && d.brand_personality.length) lines.push('- Brand personality (primary first): ' + d.brand_personality.join(', ') + '.');
@@ -20631,7 +20702,7 @@ function collectFormSnapshot(){
     f_apVenueName: document.getElementById('f_apVenueName').value,
     f_apCity: document.getElementById('f_apCity').value,
     f_apCountry: document.getElementById('f_apCountry').value,
-    f_areaPlanningList: JSON.parse(JSON.stringify(areaPlanningList)),
+    f_eventAreas: getSelectedEventAreas(),
     f_desc: document.getElementById('f_desc').value,
     f_floorType: document.getElementById('f_floorType').value,
     f_floorTypeCustom: document.getElementById('f_floorTypeCustom').value,
@@ -20763,8 +20834,20 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_apVenueName').value = snap.f_apVenueName || snap.f_venue || '';
   document.getElementById('f_apCity').value = snap.f_apCity || snap.f_city || '';
   document.getElementById('f_apCountry').value = snap.f_apCountry || snap.f_country || '';
-  areaPlanningList = snap.f_areaPlanningList || [];
-  renderAreaPlanningList();
+  // Master-list selections; legacy projects with free-form area rows fold their names in.
+  const savedEventAreas = new Set(snap.f_eventAreas || []);
+  if(!savedEventAreas.size && Array.isArray(snap.f_areaPlanningList)){
+    snap.f_areaPlanningList.forEach(a => {
+      const n = (a && a.name ? String(a.name) : '').toLowerCase();
+      if(!n) return;
+      document.querySelectorAll('.event-area-cb').forEach(cb => {
+        const v = cb.value.toLowerCase();
+        if(n.includes(v) || v.includes(n) || v.split(' / ').some(part => n.includes(part.trim()))) savedEventAreas.add(cb.value);
+      });
+    });
+  }
+  document.querySelectorAll('.event-area-cb').forEach(cb => { cb.checked = savedEventAreas.has(cb.value); });
+  areaPlanningList = [];
   document.getElementById('f_desc').value = snap.f_desc || '';
   document.getElementById('f_floorType').value = snap.f_floorType || 'Venue Floor (No Platform)';
   document.getElementById('f_floorTypeCustom').value = snap.f_floorTypeCustom || '';
