@@ -17905,24 +17905,6 @@ async function confirmRegenerateOtherOption(){
   const opt = optionResults[idx];
   if(!opt) return;
 
-  // Test Engine is retired (see useTestEngine's own comment in generateDesign()) — this is always
-  // false now, for every role including admins, so "Other option" always falls through to the
-  // Special Engine behavior below (admins get the explicit engine-choice dialog, non-admins get
-  // their usual automatic alternation between Gemini and OpenAI).
-  const isTestEngineSelectedForOtherOption = false;
-
-  // Admins choose the engine explicitly for this one click, via a dialog, instead of the
-  // automatic alternation every other user gets — asked here, before anything else is
-  // touched, so cancelling out of the choice leaves the UI completely untouched (no lock,
-  // no progress bar, no disabled buttons to undo).
-  let forcedEngine = null;
-  if(isTestEngineSelectedForOtherOption){
-    forcedEngine = 'gemini';
-  }else if(isAdminUser){
-    forcedEngine = await chooseImageEngine('Which engine should render this "Other option"?', 'Choose Image Engine');
-    if(!forcedEngine) return;
-  }
-
   const statusEl = document.getElementById('actionStatus');
   const isFreeFirstModification = false; // Every modification counts now — the free-first exemption was removed by owner decision.
 
@@ -17983,21 +17965,10 @@ async function confirmRegenerateOtherOption(){
       const otherOptionGeomParts = dataUrlParts(lastWhiteBoxModelImage);
       otherOptionBody.additionalReferenceImages = (otherOptionBody.additionalReferenceImages || []).concat([{ data: otherOptionGeomParts.base64, mimeType: otherOptionGeomParts.mime }]);
     }
-    // The very first render (Generate Design) always stays on Gemini. Admins picked an exact
-    // engine for this click via the dialog at the top of this function (forcedEngine); every
-    // other user instead gets automatic alternation — 1st Other option -> OpenAI, 2nd ->
-    // Gemini, 3rd -> OpenAI, and so on — so the two engines still end up compared directly
-    // against each other across a design's option history. Counted from this option's own
-    // gallery (each prior "Other option" click already pushed one 'Other option' entry onto
-    // it), so the sequence survives page refreshes/project reopens rather than resetting to
-    // "always OpenAI first" every time.
-    const otherOptionUsesOpenAi = forcedEngine
-      ? forcedEngine === 'openai'
-      : (opt.gallery.filter(g => g.label === 'Other option').length + 1) % 2 === 1;
-    const otherOptionEndpoint = otherOptionUsesOpenAi ? '/api/generate-image-openai' : '/api/generate-image-gemini';
-    // See capOpenAiPromptLength's own comment — OpenAI hard-rejects prompts over 32,000 chars.
-    // A no-op whenever otherOptionBody.prompt is already under the limit, which is most cases.
-    if(otherOptionUsesOpenAi) otherOptionBody.prompt = capOpenAiPromptLength(otherOptionBody.prompt);
+    // Owner decision: "Other option" always renders on Gemini for everyone — the old
+    // OpenAI/Gemini alternation (and the admin-only engine dialog) is retired, matching
+    // the main Generate Design call, which has always been Gemini-only.
+    const otherOptionEndpoint = '/api/generate-image-gemini';
     // Same 190s allowance as the main Generate Design call above — OpenAI's gpt-image-2 needs
     // more headroom than the old 100s default gave it (see that comment for the full reasoning).
     const response = await fetchWithTimeout(otherOptionEndpoint, {
@@ -18012,7 +17983,7 @@ async function confirmRegenerateOtherOption(){
     const correctedImage = await runBrandAssetIntegrityEngine(data.image);
     const compressed = await compressDataUrlToTarget(correctedImage);
     opt.status = 'done';
-    opt.gallery.push({ label: 'Other option', image: compressed, engine: otherOptionUsesOpenAi ? 'openai' : 'gemini' });
+    opt.gallery.push({ label: 'Other option', image: compressed, engine: 'gemini' });
     opt.activeGalleryIndex = opt.gallery.length - 1;
     if(activeOptionIndex === idx){
       if(stopSim) stopSim();
