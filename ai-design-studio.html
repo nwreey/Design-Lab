@@ -1984,20 +1984,6 @@ Replace only the materials and graphics."></textarea>
       </div>
 
       <div class="field">
-        <label>Estimated Visitor Duration</label>
-        <div class="hint" style="margin-bottom:10px;">Average stay.</div>
-        <select id="f_visitorDuration">
-          <option value="">Not specified</option>
-          <option value="15 min">15 min</option>
-          <option value="30 min">30 min</option>
-          <option value="1 hour" selected>1 hour</option>
-          <option value="2 hours">2 hours</option>
-          <option value="Half Day">Half Day</option>
-          <option value="Full Day">Full Day</option>
-        </select>
-      </div>
-
-      <div class="field">
         <label>Event Mood</label>
         <div class="hint" style="margin-bottom:10px;">Select up to 3.</div>
         <div class="checkbox-grid" id="eventMoodGrid">
@@ -20476,7 +20462,6 @@ function collectFormSnapshot(){
     f_visitorExperience: Array.from(document.querySelectorAll('.visitor-experience-cb:checked')).map(cb => cb.value),
     f_visitorJourney: document.getElementById('f_visitorJourney').value,
     f_visitorJourneyCustom: document.getElementById('f_visitorJourneyCustom').value,
-    f_visitorDuration: document.getElementById('f_visitorDuration').value,
     f_eventMood: Array.from(document.querySelectorAll('.event-mood-cb:checked')).map(cb => cb.value),
     f_eventBrandValues: Array.from(document.querySelectorAll('.event-brand-values-cb:checked')).map(cb => cb.value),
     f_keyActivities: Array.from(document.querySelectorAll('.key-activities-cb:checked')).map(cb => cb.value),
@@ -20595,7 +20580,6 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_visitorJourney').value = snap.f_visitorJourney || '';
   document.getElementById('f_visitorJourneyCustom').value = snap.f_visitorJourneyCustom || '';
   toggleVisitorJourneyCustom(document.getElementById('f_visitorJourney'));
-  document.getElementById('f_visitorDuration').value = snap.f_visitorDuration || '1 hour';
   const savedEventMood = new Set(snap.f_eventMood || []);
   document.querySelectorAll('.event-mood-cb').forEach(cb => { cb.checked = savedEventMood.has(cb.value); });
   enforceCheckboxMax('.event-mood-cb', 3, 'eventMoodCountHint');
