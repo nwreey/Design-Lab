@@ -15696,12 +15696,14 @@ async function generateApprovedAreaRenders(){
         // which invited Gemini to reinterpret the design — approved renders came back
         // looking different from the approved theme. Real reported case.
         const lines = [];
-        lines.push('You are a world-class event visualization artist. The FIRST attached image is the client-APPROVED concept board for this event; one of its panels shows the approved design of the "' + area + '" area.');
+        lines.push('CRITICAL OUTPUT FORMAT — READ THIS FIRST: your output is ONE single, continuous, seamless photograph of ONE area, filling 100% of the frame edge to edge. The FIRST attached image is a multi-panel COLLAGE (the approved concept board) — its collage format must NEVER be copied. If your output would contain two or more panels, sections, scenes, or any dividing line, it is INVALID — discard it and produce one seamless full-frame scene instead. Never split the image. Never show more than one area.');
         lines.push('');
-        lines.push('YOUR ONLY TASK: reproduce THAT EXACT approved design as ONE single, full-frame, high-resolution photograph of the "' + area + '" area. This is a REPRODUCTION, not a redesign.');
+        lines.push('You are a world-class event visualization artist. The FIRST attached image is the client-APPROVED concept board for this event; ONE of its panels shows the approved design of the "' + area + '" area.');
+        lines.push('');
+        lines.push('YOUR ONLY TASK: mentally CROP that single "' + area + '" panel out of the board, DISCARD everything else on the board, and reproduce that one panel\'s exact approved design as ONE full-frame, high-resolution photograph of the "' + area + '" area only. This is a REPRODUCTION, not a redesign.');
         lines.push('');
         lines.push('REPRODUCTION RULES (mandatory, no exceptions):');
-        lines.push('- Locate the panel in the approved board that depicts the "' + area + '" area and treat it as GROUND TRUTH.');
+        lines.push('- Locate the panel in the approved board that depicts the "' + area + '" area and treat it as GROUND TRUTH. Ignore every other panel completely — no other area may appear in your output.');
         lines.push('- Keep IDENTICAL to that panel: the architecture and structures, the spatial layout and placement of every element, the stage/backdrop/screen designs, the furniture (same pieces, same positions), the graphics and signage, the exact colors, the materials and finishes, the lighting design, and all branding.');
         lines.push('- NOTHING may be added, removed, moved, resized, restyled, recolored, or reinterpreted relative to the approved panel.');
         lines.push('- The ONLY permitted differences from the panel: higher resolution and richer photographic detail, a full-frame composition of this single area, and the camera position stated below.');
@@ -15716,6 +15718,7 @@ async function generateApprovedAreaRenders(){
           prompt += '\n\nLOGO REFERENCE: the SECOND attached image is the EXACT and ONLY authoritative company/event logo. Every logo appearance in this render must match it pixel-for-pixel — never a different, older, or remembered version of this company\'s logo, even if the approved board itself shows the logo imperfectly. The attached logo file always wins.';
         }
         prompt += '\n\nFORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions) — one wide horizontal composition filling the entire frame edge to edge, maximum detail and sharpness, high-resolution presentation quality.';
+        prompt += '\n\nFINAL SELF-CHECK before returning the image (all must be true, otherwise regenerate): (1) the image is ONE seamless scene with zero dividing lines, borders, panels, or sections; (2) it shows ONLY the "' + area + '" area and no other area; (3) the area fills the entire frame; (4) the design matches the approved board\'s panel exactly.';
         // Highest available resolution: try 4K first, and if the model rejects it fall
         // back to 2K rather than failing the area entirely.
         let data = null;
