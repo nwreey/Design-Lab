@@ -2111,7 +2111,7 @@ Replace only the materials and graphics."></textarea>
         <div class="hint" data-i18n="hint.brandColors">Add at least one brand color — the AI will build the full palette around these.</div>
       </div>
     </div>
-    <div class="field">
+    <div class="field" id="archStyleField">
       <label><span data-i18n="field.archStyle">Architectural style</span> <span class="required-mark">*</span></label>
       <select id="f_archStyle" onchange="updateArchStyleHint(this)">
         <option value="Modern" selected>Modern</option>
@@ -10285,6 +10285,11 @@ function updateModeDependentLabels(){
       ? "Tell DesignsLab AI your event website (optional) and it will read everything already entered in Event Details, then suggest the visitor experience, mood, brand values, activities, and creative direction below based on the event you've already described. Everything it fills in stays fully editable before you generate."
       : "Tell DesignsLab AI the Goal of the booth and your company website, and it will read everything already entered in Booth Details, then suggest the theme, flooring, requirements, and creative brief below based on the space you've already entered. Everything it fills in stays fully editable before you generate.";
   }
+  // Architectural style is booth-only now (owner decision) — the event brief no longer
+  // asks for or sends it; the staging direction comes from Construction Style, brand
+  // personality, and mood instead.
+  const archStyleField = document.getElementById('archStyleField');
+  if(archStyleField) archStyleField.style.display = mode === 'event' ? 'none' : 'block';
   const autofillScenarioField = document.getElementById('aiAutofillScenarioField');
   if(autofillScenarioField) autofillScenarioField.style.display = mode === 'event' ? 'none' : 'block';
   const autofillGoalField = document.getElementById('aiAutofillGoalField');
@@ -15009,7 +15014,7 @@ function buildEventThemeBoardBriefData(){
   const eventObjectiveCustom = document.getElementById('f_eventObjectiveCustom').value.trim();
   const eventObjective = eventObjectiveRaw === 'Other' ? (eventObjectiveCustom || 'Other') : eventObjectiveRaw;
   const industry = document.getElementById('f_industryStyle').value || null;
-  const archStyle = document.getElementById('f_archStyle').value || null;
+  const archStyle = null; // Architectural style field is hidden in event mode — never sent for events.
   const environment = document.getElementById('f_environment').value || null;
   const attendeesRaw = document.getElementById('f_attendees').value.trim();
   const attendees = attendeesRaw ? parseInt(attendeesRaw, 10) : null;
