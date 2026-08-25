@@ -3313,6 +3313,7 @@ Replace only the materials and graphics."></textarea>
       <div class="eyebrow">Approved Area Renders</div>
       <div id="ecbAreaRendersGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:12px;"></div>
     </div>
+    <div id="goodLuckEventAnchor"></div>
 
 
     <!-- The six creative-copy sections used to render directly under the image as
@@ -3401,6 +3402,7 @@ Replace only the materials and graphics."></textarea>
       <div class="tech-board-actions" id="techBoardActions" style="display:none;margin-top:14px;">
         <button class="ghost small" onclick="generateTechnicalBoard()">Generate Technical Board</button>
       </div>
+      <div id="goodLuckBoothAnchor"></div>
       <div class="good-luck-message" id="goodLuckMessage" style="display:none;">Good Luck with Your Project</div>
       <div class="rate-us-bar" id="rateUsBar" style="display:none;">
         <div class="rate-us-label" id="rateUsLabel">How would you rate this design?</div>
@@ -15453,6 +15455,9 @@ function renderEventConceptBoardResult(skipScroll){
   document.getElementById('eventConceptResult').style.display = 'block';
   renderEcbGalleryStrip();
   renderEcbAreaRenders(null);
+  if(eventConceptBoard.approved && eventConceptBoard.areas && eventConceptBoard.areas.length && eventConceptBoard.areaRenders && eventConceptBoard.areaRenders.length >= eventConceptBoard.areas.length){
+    showEcbGoodLuckAndRating(false);
+  }
   if(!skipScroll) document.getElementById('eventConceptResult').scrollIntoView({behavior:'smooth', block:'start'});
   // A finished concept board locks the form, same as a finished booth render — covers both the
   // live-generation success path and reopening a saved project that already has one.
@@ -15492,6 +15497,31 @@ function approveEventConceptBoard(){
   // Owner request: approval delivers one separate HIGH-RESOLUTION A4-landscape picture
   // for every area this board was generated from.
   generateApprovedAreaRenders();
+}
+
+// The Good Luck message and rating bar are ONE shared pair of elements used by both the
+// booth flow (after camera views) and the event flow (after approved area renders) —
+// moved between the two panels with the same anchor pattern as logoField.
+function placeGoodLuckAndRating(where){
+  const anchor = document.getElementById(where === 'event' ? 'goodLuckEventAnchor' : 'goodLuckBoothAnchor');
+  const msg = document.getElementById('goodLuckMessage');
+  const bar = document.getElementById('rateUsBar');
+  if(!anchor || !msg || !bar) return;
+  anchor.after(msg);
+  msg.after(bar);
+}
+
+function showEcbGoodLuckAndRating(freshRating){
+  placeGoodLuckAndRating('event');
+  document.getElementById('goodLuckMessage').style.display = 'block';
+  const label = document.getElementById('rateUsLabel');
+  if(freshRating){
+    label.textContent = 'How would you rate this design?';
+    label.classList.remove('rate-us-thanks');
+    currentRatingValue = 0;
+  }
+  previewRatingStars(currentRatingValue || 0);
+  document.getElementById('rateUsBar').style.display = 'flex';
 }
 
 function renderEcbAreaRenders(inProgressArea){
@@ -15595,6 +15625,9 @@ async function generateApprovedAreaRenders(){
     }
     renderEcbAreaRenders(null);
     if(statusEl) statusEl.textContent = 'Approved — ' + eventConceptBoard.areaRenders.length + ' of ' + areas.length + ' high-resolution area renders ready below.';
+    // Same finish as the exhibition section: once every picture is ready, Good Luck +
+    // the rating bar appear automatically.
+    if(eventConceptBoard.areaRenders.length >= areas.length) showEcbGoodLuckAndRating(true);
     saveCurrentProject();
   }finally{
     projectSwitchLocked = false;
@@ -19485,6 +19518,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
     await generateTechnicalBoard(true);
   }
 
+  placeGoodLuckAndRating('booth');
   document.getElementById('goodLuckMessage').style.display = 'block';
   document.getElementById('rateUsLabel').textContent = 'How would you rate this design?';
   document.getElementById('rateUsLabel').classList.remove('rate-us-thanks');
