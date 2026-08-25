@@ -15256,7 +15256,17 @@ Hard constraints: no logos, no branding, no readable text or typography inside a
    no intermediate Claude analysis or 12-slot mood-board spec stage. */
 function buildEventDirectGeminiPrompt(d){
   const lines = [];
-  lines.push('You are a world-class event designer. Create ONE photorealistic, presentation-ready concept render of the complete event environment described below, as a wide hero perspective that shows the overall space, its atmosphere, and its key zones in a single coherent view.');
+  // DYNAMIC MULTI-AREA CONCEPT BOARD (owner rule): the panel count always equals the number
+  // of areas selected under "What should the output show?" — never a fixed grid, never one
+  // venue crammed with every area.
+  const panels = (d.output_views || []).slice();
+  if(panels.length >= 2){
+    lines.push('You are a world-class event designer at a top agency. Create ONE professional CONCEPT-BOARD image presenting a single unified event design theme applied across ' + panels.length + ' selected areas, composed as EXACTLY ' + panels.length + ' separate visual panels — one panel per area, no more, no fewer.');
+  }else if(panels.length === 1){
+    lines.push('You are a world-class event designer. Create ONE photorealistic, presentation-ready concept render focused ENTIRELY on the "' + panels[0] + '" area of the event described below. Do not invent or add other areas — this single area IS the image.');
+  }else{
+    lines.push('You are a world-class event designer. Create ONE photorealistic, presentation-ready concept render of the complete event environment described below, as a wide hero perspective that shows the overall space, its atmosphere, and its key zones in a single coherent view.');
+  }
   lines.push('');
   lines.push('EVENT BRIEF (every stated detail is mandatory and must be respected):');
   if(d.event_name) lines.push('- Event name: ' + d.event_name + ' (this exact name may appear on stage backdrops and signage, spelled exactly like this; no other invented text anywhere).');
@@ -15282,7 +15292,17 @@ function buildEventDirectGeminiPrompt(d){
   if(d.target_audience && d.target_audience.length) lines.push('- Target audience: ' + d.target_audience.join(', ') + '.');
   if(d.visitor_experience_priorities && d.visitor_experience_priorities.length) lines.push('- Visitor experience priorities: ' + d.visitor_experience_priorities.join(', ') + '.');
   if(d.special_requirements && d.special_requirements.length) lines.push('- Special requirements: ' + d.special_requirements.join(', ') + '.');
-  if(d.output_views && d.output_views.length) lines.push('- THE IMAGE MUST CLEARLY SHOW these spaces, each recognizable in the composition (mandatory visual content — choose a camera angle and layout that makes every one of them visible): ' + d.output_views.join(', ') + '.');
+  if(panels.length >= 2){
+    lines.push('- CONCEPT-BOARD PANELS (mandatory, one panel per selected area):');
+    panels.forEach((name, i) => {
+      const def = (typeof EVENT_AREA_MASTER !== 'undefined' && EVENT_AREA_MASTER[name]) || null;
+      lines.push('   Panel ' + (i + 1) + ': ' + name + (def ? ' — ' + def.purpose + ' Show: ' + def.includes : ''));
+    });
+    lines.push('- LAYOUT RULE: automatically choose the most visually balanced composition for ' + panels.length + ' panels — a two-panel layout, three-panel editorial layout, 2x2 grid, 2x3 grid, 3x3 grid, or another balanced composition as appropriate. Never force a fixed grid; never leave empty panels; never merge two areas into one panel.');
+    lines.push('- IMPORTANT DISTINCTION: the selected areas are NOT to be placed together inside one physical venue shot. Each panel is its own separate, complete visual representation of ONE area, and the panels are combined into one professional concept-board image — like a top event agency\'s creative concept board.');
+    lines.push('- UNIFIED THEME ACROSS ALL PANELS: every panel expresses the SAME event design theme — identical color palette, materials, architectural language, lighting style, furniture family, branding, graphic style, flooring, decorative elements, technology, and finishes. Functionally different areas, visually one family.');
+    lines.push('- PANEL CONTENT: each panel shows its area as a complete, realistic event-design environment appropriate to its function, at correct human scale. No unrelated areas in a panel\'s background, no planning diagrams, no dimensions, no floor-plan annotations, no panel titles or text.');
+  }
   if(d.client_description) lines.push('- Client\'s own description of the event (highest priority creative direction): "' + d.client_description.replace(/"/g, "'") + '".');
   lines.push('');
   lines.push('RENDERING RULES:');
@@ -15290,6 +15310,7 @@ function buildEventDirectGeminiPrompt(d){
   // from inside the hall toward the stage, with the front rows and the VIP seating as
   // the recognizable foreground — never a generic aerial or lobby shot.
   if(d.event_type && /conference/i.test(d.event_type)){
+    if(panels.length >= 2) lines.push('- The conference rules below apply WITHIN the panel(s) depicting the stage / conference hall / seating:');
     lines.push('- MANDATORY CAMERA COMPOSITION FOR THIS CONFERENCE: frame the image from the front of the main hall facing the stage, with the camera elevated at the same mandatory 45-degree downward angle. The stage — with its backdrop, screens, and lectern — is the clear focal point of the composition. The first rows of seated attendees are visible in the foreground, and the VIP seating area (premium front-row seating, visibly more luxurious than the regular seating) is clearly recognizable closest to the stage. The view should read exactly like a professional photograph taken from the audience area toward the stage during the event.');
     lines.push('- SEATING CONFIGURATION (client\'s choice, mandatory): ' + (d.conference_seating || 'Theatre') + ' style. Render the audience seating exactly in this configuration.');
     // Purity of the hall: the client's real complaint was booths and glass meeting pods
@@ -15299,8 +15320,13 @@ function buildEventDirectGeminiPrompt(d){
     lines.push('- CONFERENCE HALL CONTENT (mandatory): the conference hall contains ONLY the stage and the audience seating area with its aisles' + (conferenceExtras.length ? ', plus ONLY these spaces the client explicitly requested: ' + conferenceExtras.join(', ') + ' (rendered as their own clearly separate zones, never mixed into the seating area)' : '') + '. NEVER add exhibition booths, meeting rooms, glass pods or partitions, workstations, lounge corners, or any other structures inside or around the seating area' + (conferenceExtras.length ? ' beyond the explicitly requested spaces' : '') + ' — an uninvited booth or meeting room in the hall is a hard failure.');
     lines.push('- STANDARD CONFERENCE SEATING RULES (mandatory, applied to whichever configuration is chosen): (1) LAYOUT — seats are arranged in straight, orderly rows or table groups facing the stage/screen; every seat in a row has equal spacing; rows have equal spacing between them; the whole seating block is centered on the stage unless the hall shape forces otherwise. (2) AISLES — keep a clear main central aisle and clear side aisles along the walls; never place a single chair inside an aisle; aisles run continuously from the entrance to the stage. (3) CAPACITY — the number of seats must be physically credible for the hall dimensions given the chair width, chair depth, row spacing, and the aisles; never overlap, shrink, or compress seats to force more capacity than realistically fits. (4) STAGE — every seat faces the stage; keep an appropriate clear zone between the first row and the stage edge; no seats behind the stage or outside the usable audience area. (5) VIP PLACEMENT — VIP chairs (the visibly premium armchair/sofa-style seats) are ALWAYS and ONLY in the first row(s) directly in front of the stage; NEVER place a VIP chair in the middle rows, at the back, or scattered anywhere else in the hall — behind the VIP front rows comes regular seating only.');
   }
-  lines.push('- CAMERA ANGLE (mandatory for every render): position the camera at the FRONT of the space, elevated at a 45-degree downward angle — halfway between eye level and top-down — so the floor layout and the vertical design both read clearly in one shot. Never a flat eye-level shot, never a fully top-down plan view.');
-  lines.push('- One single unified image of the event environment — never a collage, grid, split frame, or multiple panels.');
+  if(panels.length >= 2){
+    lines.push('- CAMERA ANGLE (per panel): within each panel, position the camera at the FRONT of that area, elevated at a 45-degree downward angle — halfway between eye level and top-down — so the layout and the vertical design of that area both read clearly. Never flat eye-level, never fully top-down.');
+    lines.push('- The final output is ONE image containing exactly ' + panels.length + ' clean, professionally arranged panels with consistent margins — nothing outside the panels, no captions between them.');
+  }else{
+    lines.push('- CAMERA ANGLE (mandatory for every render): position the camera at the FRONT of the space, elevated at a 45-degree downward angle — halfway between eye level and top-down — so the floor layout and the vertical design both read clearly in one shot. Never a flat eye-level shot, never a fully top-down plan view.');
+    lines.push('- One single unified image of the event environment — never a collage, grid, split frame, or multiple panels.');
+  }
   lines.push('- Photorealistic professional visualization quality: realistic materials, physically plausible lighting, correct human scale, believable staging and AV production.');
   lines.push('- Include people naturally using the space at a density that matches the stated attendance, so the scale reads correctly.');
   lines.push('- No watermarks, no captions, no labels, and no text of any kind except the event or brand name where signage would naturally carry it. The functional area names from this brief are internal planning terms — never render them as floating labels, zone names, arrows, dimension lines, or callouts anywhere in the image. This is a photorealistic visualization, not a labeled floor plan.');
