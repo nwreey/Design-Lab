@@ -15171,27 +15171,65 @@ Style for every image: ${styleLine}.
 Hard constraints: no logos, no branding, no readable text or typography inside any of the twelve images (the only text on the whole board is the "${spec.title}" title itself), no people, no faces, no hands. Consistent, premium color grading across all images. Editorial presentation quality, Behance-quality mood board. Landscape A3, full-bleed composition, no borders, no empty padding on any edge.`;
 }
 
+/* Direct form-to-Gemini prompt for the Events Concept category (owner decision):
+   the full form is composed into one rendering brief and sent straight to Gemini —
+   no intermediate Claude analysis or 12-slot mood-board spec stage. */
+function buildEventDirectGeminiPrompt(d){
+  const lines = [];
+  lines.push('You are a world-class event designer. Create ONE photorealistic, presentation-ready concept render of the complete event environment described below, as a wide hero perspective that shows the overall space, its atmosphere, and its key zones in a single coherent view.');
+  lines.push('');
+  lines.push('EVENT BRIEF (every stated detail is mandatory and must be respected):');
+  if(d.event_name) lines.push('- Event name: ' + d.event_name + ' (this exact name may appear on stage backdrops and signage, spelled exactly like this; no other invented text anywhere).');
+  if(d.event_type) lines.push('- Event type: ' + d.event_type + '.');
+  if(d.event_objective) lines.push('- Primary objective: ' + d.event_objective + '.');
+  if(d.industry) lines.push('- Industry: ' + d.industry + '.');
+  if(d.environment) lines.push('- Environment: ' + d.environment + '.');
+  if(d.attendees) lines.push('- Expected attendees: about ' + d.attendees + ' people — the venue scale, seating, and circulation space must credibly fit this number.');
+  if(d.venue) lines.push('- Venue / space: ' + JSON.stringify(d.venue) + '.');
+  if(d.required_areas && d.required_areas.length) lines.push('- Required functional areas that must be visible or clearly implied in the layout: ' + d.required_areas.join(', ') + '.');
+  if(d.key_activities && d.key_activities.length) lines.push('- Key activities the space must support: ' + d.key_activities.join(', ') + '.');
+  if(d.architectural_style) lines.push('- Architectural / staging style: ' + d.architectural_style + '.');
+  if(d.brand_personality && d.brand_personality.length) lines.push('- Brand personality (primary first): ' + d.brand_personality.join(', ') + '.');
+  if(d.colors && d.colors.length) lines.push('- Exact brand color palette (use these as the dominant scheme for staging, lighting, and graphics): ' + d.colors.join(', ') + '.');
+  if(d.mood && d.mood.length) lines.push('- Desired mood and atmosphere: ' + d.mood.join(', ') + '.');
+  if(d.brand_values && d.brand_values.length) lines.push('- Brand values to express: ' + d.brand_values.join(', ') + '.');
+  if(d.target_audience && d.target_audience.length) lines.push('- Target audience: ' + d.target_audience.join(', ') + '.');
+  if(d.visitor_experience_priorities && d.visitor_experience_priorities.length) lines.push('- Visitor experience priorities: ' + d.visitor_experience_priorities.join(', ') + '.');
+  if(d.special_requirements && d.special_requirements.length) lines.push('- Special requirements: ' + d.special_requirements.join(', ') + '.');
+  if(d.client_description) lines.push('- Client\'s own description of the event (highest priority creative direction): "' + d.client_description.replace(/"/g, "'") + '".');
+  lines.push('');
+  lines.push('RENDERING RULES:');
+  lines.push('- One single unified image of the event environment — never a collage, grid, split frame, or multiple panels.');
+  lines.push('- Photorealistic professional visualization quality: realistic materials, physically plausible lighting, correct human scale, believable staging and AV production.');
+  lines.push('- Include people naturally using the space at a density that matches the stated attendance, so the scale reads correctly.');
+  lines.push('- No watermarks, no captions, no labels, and no text of any kind except the event or brand name where signage would naturally carry it.');
+  lines.push('- The composition must look like the hero image of a professional event-design proposal a client would approve.');
+  return lines.join('\n');
+}
+
 async function generateEventConceptBoard(){
   const errBox = document.getElementById('errorBox');
   try{
     document.getElementById('loadingText').textContent = 'Organizing your event brief...';
     const briefData = buildEventThemeBoardBriefData();
 
-    document.getElementById('loadingText').textContent = 'Writing your event theme board...';
-    const analysis = await callPromptWriterApi(eventThemeBoardWriterSystem, [{ type: 'text', text: JSON.stringify(briefData, null, 2) }]);
-    const spec = normalizeEventMoodBoardSpec(analysis);
-    if(!spec) throw new Error('Could not generate the event theme board content — please try again.');
-
-    document.getElementById('loadingText').textContent = 'Designing your mood board...';
-    const layoutPrompt = buildEventMoodBoardImagePrompt(spec);
-
-    // Gemini only — no other option (the Image Engine admin-test selector has been removed).
+    // Owner decision: the form goes STRAIGHT to Gemini — no intermediate analysis stage.
+    document.getElementById('loadingText').textContent = 'Designing your event concept...';
+    const layoutPrompt = buildEventDirectGeminiPrompt(briefData);
     const genEndpoint = '/api/generate-image-gemini';
+    const eventGenBody = { prompt: layoutPrompt, isUserInitiatedEdit: false, aspectRatio: '4:3' };
+    // Attach the real company logo, same as the booth pipeline, so signage carries the
+    // actual mark instead of a reinvented one.
+    if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
+      eventGenBody.referenceImage = logoDataUrl.split(',')[1];
+      eventGenBody.referenceMimeType = logoMediaType;
+      eventGenBody.prompt += '\n\nThe attached image is the exact company/event logo — wherever a logo appears in the render it must match this exactly, with no redesign, restyling, or recoloring.';
+    }
 
     const response = await fetchWithTimeout(genEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: layoutPrompt, isUserInitiatedEdit: false, aspectRatio: '4:3' })
+      body: JSON.stringify(eventGenBody)
     }, 190000);
     const rawText = await response.text();
     let data = {};
@@ -15199,7 +15237,9 @@ async function generateEventConceptBoard(){
     if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Could not generate the mood board image.');
 
     const compressed = await compressDataUrlToTarget(data.image, 900 * 1024);
-    eventConceptBoard = { image: compressed, spec, engine: 'gemini' };
+    // spec is null in the direct pipeline — Modify Theme (spec editor) hides itself for
+    // these boards; older saved projects that still carry a spec keep the button.
+    eventConceptBoard = { image: compressed, spec: null, engine: 'gemini' };
     // Keeps the form locked on success, same as the exhibition booth pipeline — renderEventConceptBoardResult()
     // itself calls lockForm(), covering both this live-generation path and the restore-from-
     // saved-project path (restoreLogoAndPosters) in one place.
@@ -15227,6 +15267,10 @@ function renderEventConceptBoardResult(){
   img.src = eventConceptBoard.image;
   img.style.display = 'block';
 
+  // Modify Theme edits the 12-slot spec, which the direct form-to-Gemini pipeline no
+  // longer produces — show it only for older boards that still carry a spec.
+  const ecbModifyBtn = document.getElementById('ecbModifyBtn');
+  if(ecbModifyBtn) ecbModifyBtn.style.display = eventConceptBoard.spec ? '' : 'none';
   document.getElementById('promptReview').style.display = 'none';
   document.getElementById('result').style.display = 'none';
   document.getElementById('eventConceptResult').style.display = 'block';
@@ -15250,7 +15294,9 @@ function applyEventConceptBoardApprovalLock(){
   const modifyBtn = document.getElementById('ecbModifyBtn');
   const approveBtn = document.getElementById('ecbApproveBtn');
   const otherThemeBtn = document.getElementById('ecbOtherThemeBtn');
-  if(modifyBtn) modifyBtn.style.display = approved ? 'none' : '';
+  // Modify Theme also stays hidden for spec-less boards from the direct form-to-Gemini
+  // pipeline (there is no 12-slot spec to edit) — see renderEventConceptBoardResult.
+  if(modifyBtn) modifyBtn.style.display = (approved || !(eventConceptBoard && eventConceptBoard.spec)) ? 'none' : '';
   if(approveBtn) approveBtn.style.display = approved ? 'none' : '';
   if(otherThemeBtn) otherThemeBtn.style.display = approved ? 'none' : '';
   const statusEl = document.getElementById('ecbActionStatus');
