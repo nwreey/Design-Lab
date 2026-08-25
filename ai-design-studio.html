@@ -15267,7 +15267,7 @@ function buildEventDirectGeminiPrompt(d){
   if(d.attendees) lines.push('- Expected attendees: about ' + d.attendees + ' people — the venue scale, seating, and circulation space must credibly fit this number.');
   if(d.venue) lines.push('- Venue / space: ' + JSON.stringify(d.venue) + '.');
   if(d.required_areas && d.required_areas.length){
-    lines.push('- REQUIRED FUNCTIONAL AREAS (each must physically exist in the design, matching its professional definition):');
+    lines.push('- REQUIRED FUNCTIONAL AREAS (each must physically exist in the design, matching its professional definition). IMPORTANT: these area names and definitions are INTERNAL PLANNING INSTRUCTIONS ONLY — never display area names, labels, annotations, arrows, dimensions, callouts, or any planning text inside the generated image; the areas must simply exist visually as real spaces:');
     d.required_areas.forEach(name => {
       const def = (typeof EVENT_AREA_MASTER !== 'undefined' && EVENT_AREA_MASTER[name]) || null;
       lines.push('   • ' + name + (def ? ' — Purpose: ' + def.purpose + ' Must include: ' + def.includes : '') );
@@ -15303,7 +15303,7 @@ function buildEventDirectGeminiPrompt(d){
   lines.push('- One single unified image of the event environment — never a collage, grid, split frame, or multiple panels.');
   lines.push('- Photorealistic professional visualization quality: realistic materials, physically plausible lighting, correct human scale, believable staging and AV production.');
   lines.push('- Include people naturally using the space at a density that matches the stated attendance, so the scale reads correctly.');
-  lines.push('- No watermarks, no captions, no labels, and no text of any kind except the event or brand name where signage would naturally carry it.');
+  lines.push('- No watermarks, no captions, no labels, and no text of any kind except the event or brand name where signage would naturally carry it. The functional area names from this brief are internal planning terms — never render them as floating labels, zone names, arrows, dimension lines, or callouts anywhere in the image. This is a photorealistic visualization, not a labeled floor plan.');
   if(d.colors && d.colors.length) lines.push('- COLOR DISCIPLINE CHECK: before finalizing, verify no color outside the stated brand palette and neutrals appears anywhere in the image — an unlisted accent color (for example red appearing when the palette is white and blue) is a failure.');
   lines.push('- ENVIRONMENT QUALITY (mandatory): an architecturally realistic venue — generous ceiling height with professional truss-mounted stage lighting and line-array speakers, clean finished walls, realistic floor materials, physically consistent shadows and reflections, and correct perspective throughout. Nothing may look like a toy, a diagram, or a video-game scene.');
   lines.push('- IMAGE QUALITY (mandatory): presentation-grade professional visualization — balanced exposure, natural white balance, sharp focus across the scene, and cinematic but realistic lighting contrast, exactly like the hero image of a top-tier event design proposal.');
