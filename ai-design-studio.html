@@ -9770,18 +9770,33 @@ function toggleAcctSub(id, btn){
 
 
 
-function openAccountInfo(){
-  document.getElementById('acctMenu').classList.remove('open');
-  const d = currentAccountInfo || {};
+function renderAccountInfoFields(d){
   const fmt = (count, limit) => limit != null ? (count || 0) + ' / ' + limit : (count || 0) + ' / \u221e';
-  document.getElementById('aiUsername').textContent = d.username || '—';
-  document.getElementById('aiEmail').textContent = d.email || d.username || '—';
+  document.getElementById('aiUsername').textContent = d.username || '\u2014';
+  document.getElementById('aiEmail').textContent = d.email || d.username || '\u2014';
   document.getElementById('aiRole').textContent = d.role === 'admin' ? 'Administrator' : 'Team member';
   document.getElementById('aiProjects').textContent = d.role === 'admin' ? '\u221e' : fmt(d.projectCount, d.projectLimit);
   document.getElementById('aiAutofills').textContent = d.role === 'admin' ? '\u221e' : fmt(d.autofillCount, d.autofillLimit);
   document.getElementById('aiModifies').textContent = d.role === 'admin' ? '\u221e' : fmt(d.modifyCount, d.modifyLimit);
   document.getElementById('aiEdits').textContent = d.role === 'admin' ? '\u221e' : fmt(d.editCount, d.editLimit);
+}
+
+function openAccountInfo(){
+  document.getElementById('acctMenu').classList.remove('open');
+  // Show the cached numbers instantly so the modal never opens empty...
+  renderAccountInfoFields(currentAccountInfo || {});
   document.getElementById('acctInfoOverlay').classList.add('open');
+  // ...then refresh from the server, because the cached snapshot is from page load and
+  // every Other option / Modify / Edit since then has changed the real counts. Real
+  // reported case: "Other option doesn't deduct from modifications" -- the server DID
+  // deduct; this modal was just showing the stale page-load numbers.
+  fetch('/api/me').then(r => (r.ok && (r.headers.get('content-type') || '').includes('json')) ? r.json() : null).then(fresh => {
+    if(!fresh || !fresh.username) return;
+    currentAccountInfo = fresh;
+    renderAccountInfoFields(fresh);
+    // Keep the sidebar usage indicator in sync with the same fresh snapshot.
+    if(fresh.role !== 'admin' && fresh.modifyCount != null){ currentUserModifyCount = fresh.modifyCount; renderModifyUsageIndicator(); }
+  }).catch(() => {});
 }
 
 function openFeedbackModal(){
