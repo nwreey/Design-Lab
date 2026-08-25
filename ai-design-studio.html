@@ -3245,6 +3245,16 @@ Replace only the materials and graphics."></textarea>
     <div class="render-frame" id="ecbFrame">
       <img id="ecbImg" alt="Event Concept Board" style="display:none;" onclick="openImageLightbox(this.src)">
     </div>
+    <div id="ecbGalleryStrip" class="gallery-strip"></div>
+    <div class="approve-progress" id="ecbProgress" style="display:none;">
+      <div class="approve-progress-header">
+        <span class="approve-progress-message" id="ecbProgressMessage"></span>
+        <span class="approve-progress-percent" id="ecbProgressPercent">0%</span>
+      </div>
+      <div class="approve-progress-track">
+        <div class="approve-progress-fill" id="ecbProgressFill" style="width:0%;"></div>
+      </div>
+    </div>
     <div class="action-bar" id="ecbActionBar">
       <button class="ghost small" id="ecbDownloadBtn" onclick="downloadEventConceptBoardImage()">Download</button>
       <button class="ghost small" id="ecbModifyBtn" onclick="openModifyThemePanel()">Modify Theme</button>
@@ -15204,14 +15214,26 @@ function buildEventDirectGeminiPrompt(d){
   return lines.join('\n');
 }
 
-async function generateEventConceptBoard(){
+async function generateEventConceptBoard(options){
+  const inPlace = !!(options && options.inPlace);
   const errBox = document.getElementById('errorBox');
+  let stopEcbSim = null;
+  const ecbButtons = ['ecbDownloadBtn','ecbModifyBtn','ecbApproveBtn','ecbOtherThemeBtn'].map(id => document.getElementById(id)).filter(Boolean);
   try{
-    document.getElementById('loadingText').textContent = 'Organizing your event brief...';
+    if(inPlace){
+      // In-place regeneration: keep the current board visible, run the progress bar
+      // beneath it, and disable the action bar until the new version lands.
+      ecbButtons.forEach(b => { b.disabled = true; });
+      const ecbMsg = 'Generating another theme... this can take up to a minute. Your current version stays in the gallery below.';
+      updateEcbProgress(15, ecbMsg);
+      stopEcbSim = startEcbSimulatedProgress(15, 92, ecbMsg, 45000);
+    }else{
+      document.getElementById('loadingText').textContent = 'Organizing your event brief...';
+    }
     const briefData = buildEventThemeBoardBriefData();
 
     // Owner decision: the form goes STRAIGHT to Gemini — no intermediate analysis stage.
-    document.getElementById('loadingText').textContent = 'Designing your event concept...';
+    if(!inPlace) document.getElementById('loadingText').textContent = 'Designing your event concept...';
     const layoutPrompt = buildEventDirectGeminiPrompt(briefData);
     const genEndpoint = '/api/generate-image-gemini';
     const eventGenBody = { prompt: layoutPrompt, isUserInitiatedEdit: false, aspectRatio: '4:3' };
@@ -15234,29 +15256,49 @@ async function generateEventConceptBoard(){
     if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Could not generate the mood board image.');
 
     const compressed = await compressDataUrlToTarget(data.image, 900 * 1024);
-    // spec is null in the direct pipeline — Modify Theme (spec editor) hides itself for
-    // these boards; older saved projects that still carry a spec keep the button.
-    eventConceptBoard = { image: compressed, spec: null, engine: 'gemini' };
+    // Every generated theme joins a version gallery (previous pictures stay visible as
+    // thumbnails under the display area, like the booth's own gallery). spec is null in
+    // the direct pipeline — Modify Theme (spec editor) hides itself for these boards.
+    const prevGallery = (eventConceptBoard && eventConceptBoard.gallery)
+      ? eventConceptBoard.gallery.slice()
+      : (eventConceptBoard && eventConceptBoard.image ? [{ label: 'Theme 1', image: eventConceptBoard.image }] : []);
+    prevGallery.push({ label: 'Theme ' + (prevGallery.length + 1), image: compressed });
+    eventConceptBoard = { image: compressed, gallery: prevGallery, activeIndex: prevGallery.length - 1, spec: null, engine: 'gemini' };
+    if(stopEcbSim){ stopEcbSim(); stopEcbSim = null; }
+    if(inPlace){
+      updateEcbProgress(100, 'Done.');
+      await new Promise(r => setTimeout(r, 800));
+      hideEcbProgress();
+    }
     // Keeps the form locked on success, same as the exhibition booth pipeline — renderEventConceptBoardResult()
     // itself calls lockForm(), covering both this live-generation path and the restore-from-
     // saved-project path (restoreLogoAndPosters) in one place.
-    renderEventConceptBoardResult();
+    renderEventConceptBoardResult(inPlace);
     saveCurrentProject();
   }catch(err){
     console.error('Could not generate event concept board:', err);
-    errBox.textContent = err.message || 'Could not generate the event concept board.';
-    errBox.style.display = 'block';
-    errBox.scrollIntoView({behavior:'smooth', block:'center'});
-    // Only unlock on failure, so the user can fix something and retry — a successful board
-    // stays locked exactly like a successful booth render does (see lockForm's own comment).
-    unlockForm();
+    if(stopEcbSim){ stopEcbSim(); stopEcbSim = null; }
+    if(inPlace){
+      // Stay in place on failure too: no scroll, error under the board's action bar.
+      hideEcbProgress();
+      const st = document.getElementById('ecbActionStatus');
+      if(st) st.textContent = 'Could not generate another theme: ' + (err.message || 'unknown error');
+    }else{
+      errBox.textContent = err.message || 'Could not generate the event concept board.';
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({behavior:'smooth', block:'center'});
+      // Only unlock on failure, so the user can fix something and retry — a successful board
+      // stays locked exactly like a successful booth render does (see lockForm's own comment).
+      unlockForm();
+    }
   }finally{
-    document.getElementById('loading').style.display = 'none';
+    if(!inPlace) document.getElementById('loading').style.display = 'none';
+    ecbButtons.forEach(b => { b.disabled = false; });
     projectSwitchLocked = false;
   }
 }
 
-function renderEventConceptBoardResult(){
+function renderEventConceptBoardResult(skipScroll){
   if(!eventConceptBoard) return;
   const name = document.getElementById('f_name').value.trim();
   document.getElementById('ecbTitle').textContent = (eventConceptBoard.spec && eventConceptBoard.spec.eventTheme) || name || 'Your Event Concept';
@@ -15271,7 +15313,8 @@ function renderEventConceptBoardResult(){
   document.getElementById('promptReview').style.display = 'none';
   document.getElementById('result').style.display = 'none';
   document.getElementById('eventConceptResult').style.display = 'block';
-  document.getElementById('eventConceptResult').scrollIntoView({behavior:'smooth', block:'start'});
+  renderEcbGalleryStrip();
+  if(!skipScroll) document.getElementById('eventConceptResult').scrollIntoView({behavior:'smooth', block:'start'});
   // A finished concept board locks the form, same as a finished booth render — covers both the
   // live-generation success path and reopening a saved project that already has one.
   lockForm();
@@ -15307,14 +15350,65 @@ function approveEventConceptBoard(){
   saveCurrentProject();
 }
 
+function updateEcbProgress(percent, message){
+  const wrap = document.getElementById('ecbProgress');
+  if(!wrap) return;
+  wrap.style.display = 'block';
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  const fill = document.getElementById('ecbProgressFill');
+  const pct = document.getElementById('ecbProgressPercent');
+  const msg = document.getElementById('ecbProgressMessage');
+  if(fill) fill.style.width = clamped + '%';
+  if(pct) pct.textContent = clamped + '%';
+  if(msg) msg.textContent = message;
+}
+function hideEcbProgress(){
+  const wrap = document.getElementById('ecbProgress');
+  if(wrap) wrap.style.display = 'none';
+}
+function startEcbSimulatedProgress(startPercent, capPercent, message, estimatedDurationMs){
+  let elapsed = 0;
+  const stepMs = 400;
+  const timer = setInterval(() => {
+    elapsed += stepMs;
+    const t = elapsed / estimatedDurationMs;
+    const eased = 1 - Math.exp(-t * 2.2);
+    updateEcbProgress(startPercent + (capPercent - startPercent) * eased, message);
+  }, stepMs);
+  return function(){ clearInterval(timer); };
+}
+
+function renderEcbGalleryStrip(){
+  const wrap = document.getElementById('ecbGalleryStrip');
+  if(!wrap) return;
+  const gallery = (eventConceptBoard && eventConceptBoard.gallery) || [];
+  if(gallery.length <= 1){ wrap.innerHTML = ''; return; }
+  const active = eventConceptBoard.activeIndex != null ? eventConceptBoard.activeIndex : gallery.length - 1;
+  wrap.innerHTML = gallery.map((g, i) => `
+    <div class="gallery-thumb ${i === active ? 'active' : ''}" onclick="selectEcbGalleryEntry(${i})">
+      <img src="${g.image}" alt="${g.label}">
+      <div class="thumb-label">${g.label}</div>
+    </div>
+  `).join('');
+}
+
+function selectEcbGalleryEntry(i){
+  if(!eventConceptBoard || !eventConceptBoard.gallery || !eventConceptBoard.gallery[i]) return;
+  eventConceptBoard.activeIndex = i;
+  eventConceptBoard.image = eventConceptBoard.gallery[i].image;
+  document.getElementById('ecbImg').src = eventConceptBoard.image;
+  renderEcbGalleryStrip();
+  saveCurrentProject();
+}
+
 async function regenerateEventConceptBoard(){
   if(blockIfGenerating()) return;
   lockForm();
   projectSwitchLocked = true;
-  document.getElementById('formCard').scrollIntoView({behavior:'smooth', block:'start'});
-  document.getElementById('loading').style.display = 'flex';
-  document.getElementById('loadingText').textContent = 'Writing your event concept...';
-  await generateEventConceptBoard();
+  // Owner decision: NO scroll to the top and NO full-page loading overlay — the previous
+  // picture stays exactly where it is, a progress bar runs under it (same pattern as the
+  // exhibition booth's "Other option"), and the new theme joins a gallery of versions.
+  await generateEventConceptBoard({ inPlace: true });
 }
 
 async function downloadEventConceptBoardImage(){
