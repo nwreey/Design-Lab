@@ -7490,12 +7490,14 @@ async function generateDisplayStandDesign(){
       lines.push('- SCALE ACCURACY PER PANEL (hard rule): both panels must render the stand at the exact real-world proportions stated above (' + dsVal('f_dsMaxWidth') + ' cm wide x ' + dsVal('f_dsMaxDepth') + ' cm deep x ' + dsVal('f_dsMaxHeight') + ' cm tall) — never stretch, compress, elongate, or otherwise distort the stand\'s scale in one panel relative to the other; both must read as the same object at the same size.');
       lines.push('- LEFT/RIGHT CONSISTENCY (hard rule): Left Perspective and Right Perspective are mirrored viewing angles of the SAME physical stand, not two different designs — every structural element, shelf, and branding position must line up logically between them as a real object would look from either side.');
       lines.push('- Full-bleed board, two panels side by side, edge to edge — exactly 2 panels, never more, never fewer, no empty panels.');
+      lines.push('- PANEL CONTAINMENT (hard rule): each panel is exactly half the total image width, split down the vertical centerline; the stand in each panel is centered within its own half and never crosses, touches, or bleeds across that centerline into the other panel — each half must be independently croppable along the exact center line without cutting through the stand.');
       lines.push('- No text of any kind except: the brand/product branding the design itself carries, the two view-name captions, and the Width/Depth/Height dimension callout on the ' + dimensionPanelName + ' panel described above.');
     }else{
       lines.push('- CAMERA PER PANEL: in every panel the full stand is visible with a clean margin and the products readable; slight downward elevation on the Perspective panel.');
       lines.push('- SCALE ACCURACY PER PANEL (hard rule): every panel — especially the RIGHT SIDE view — must render the stand at the exact real-world proportions stated above (' + dsVal('f_dsMaxWidth') + ' cm wide x ' + dsVal('f_dsMaxDepth') + ' cm deep x ' + dsVal('f_dsMaxHeight') + ' cm tall). The Right Side panel\'s silhouette shows the stand\'s true depth-to-height ratio from these numbers — never stretch, compress, elongate, or otherwise distort the stand\'s scale in any one panel relative to the others; all four must read as the same object at the same size.');
       lines.push('- FRONT/BACK CONSTRUCTION CONSISTENCY (hard rule): the Back panel is the literal rear of the SAME physical stand shown in the Front panel — identical outer footprint, frame, structure, materials, colors and proportions, with only the camera moved to the opposite side. Every structural element visible on the Front (uprights, header, side panels, base, shelf edges) must continue logically onto the Back exactly as a real object would; never invent a different construction, thickness, or shape for the rear.');
       lines.push('- Full-bleed 2x2 board, edge to edge — exactly 4 panels, never more, never fewer, no empty panels.');
+      lines.push('- PANEL CONTAINMENT (hard rule): the grid is split into exact quarters by one vertical and one horizontal centerline; the stand in each panel is centered within its own quarter and never crosses, touches, or bleeds across either centerline into a neighboring panel — each quarter must be independently croppable along the exact grid lines without cutting through the stand.');
       lines.push('- No text of any kind except: the brand/product branding the design itself carries, the four view-name captions, and the Width/Depth/Height dimension callout on the ' + dimensionPanelName + ' panel described above.');
     }
     lines.push('- ENVIRONMENT & IMAGE QUALITY: physically realistic proportions and materials, believable retail lighting, consistent shadows and reflections, presentation-grade sharpness — the hero image of a professional display-stand proposal.');
@@ -7595,6 +7597,43 @@ function downloadDsViewRender(viewIdx){
   forceDownloadImage(r.image, name + ' - ' + view + '.png');
 }
 
+// Physically crops ONE panel out of the approved multi-view board using a canvas, instead of
+// relying on Gemini to "mentally crop" it — sending Gemini a collage and trusting it to ignore
+// most of the pixels was the actual root cause of approved renders coming back with two or more
+// cameras still visible in one picture. With a real crop, Gemini never even sees the other
+// panels, so there is nothing left for it to (re)combine.
+// totalViews===2 → side-by-side halves (index 0 = left, 1 = right).
+// totalViews===4 → 2x2 grid (index 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right) —
+// matches the exact panel order DS_VIEWS_OPEN/DS_VIEWS_CLOSED and the generation prompt use.
+function cropDsPanel(dataUrl, index, totalViews){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try{
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        let sx, sy, sw, sh;
+        if(totalViews === 2){
+          sw = w / 2; sh = h; sy = 0;
+          sx = index === 0 ? 0 : sw;
+        }else{
+          sw = w / 2; sh = h / 2;
+          sx = (index % 2 === 0) ? 0 : sw;
+          sy = index < 2 ? 0 : sh;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = sw;
+        canvas.height = sh;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+        resolve(canvas.toDataURL('image/png'));
+      }catch(err){ reject(err); }
+    };
+    img.onerror = () => reject(new Error('Could not load the approved board image for cropping.'));
+    img.src = dataUrl;
+  });
+}
+
 async function approveDisplayStand(){
   if(!dsLastImage) return;
   // Every deduction is announced first (owner rule): one edit per view actually on the board
@@ -7613,9 +7652,9 @@ async function approveDisplayStand(){
   projectSwitchLocked = true;
   const statusEl = document.getElementById('dsActionStatus');
   dsViewRenders = [];
-  // Board description matches whichever board was actually generated (2-panel vs 4-panel) —
-  // this reproduction prompt reads the SAME dsLastImage the user approved, so the collage
-  // description it warns against must match its real layout.
+  // Board description covers the fallback path only (see catch(cropErr) below) — if a panel
+  // can't be cropped client-side for some reason, the old whole-board reference + "mentally
+  // crop" prompt still runs rather than failing that view outright.
   const boardCollageDesc = viewCount === 2 ? 'a two-view COLLAGE' : 'a 2x2 four-view COLLAGE';
   const boardNoun = viewCount === 2 ? 'two-view' : 'four-view';
   try{
@@ -7628,24 +7667,49 @@ async function approveDisplayStand(){
       renderDsViewGrid(view);
       if(statusEl) statusEl.textContent = 'Approved — generating high-resolution renders (' + (dsViewRenders.length + 1) + ' of ' + viewCount + ')...';
       try{
+        // Physically crop this ONE panel out of the board first (see cropDsPanel) — Gemini never
+        // even receives the other panel(s), so it has nothing left to combine into one image.
+        let panelParts;
+        let usedCrop = true;
+        try{
+          const croppedDataUrl = await cropDsPanel(dsLastImage, dsCurrentViews.indexOf(view), viewCount);
+          panelParts = dataUrlParts(croppedDataUrl);
+        }catch(cropErr){
+          console.error('Could not crop the ' + view + ' panel client-side, falling back to the full board:', cropErr);
+          panelParts = boardParts;
+          usedCrop = false;
+        }
         const lines = [];
-        lines.push('CRITICAL OUTPUT FORMAT — READ THIS FIRST: your output is ONE single, continuous, seamless photograph of the display stand, filling 100% of the frame. The FIRST attached image is ' + boardCollageDesc + ' (the approved board) — its collage format must NEVER be copied. Any output with two or more panels, sections, or dividing lines is INVALID.');
-        lines.push('');
-        lines.push('The FIRST attached image is the client-APPROVED ' + boardNoun + ' board of this display stand; its "' + view + '" panel is the GROUND TRUTH for this render.');
-        lines.push('');
-        lines.push('YOUR ONLY TASK: mentally CROP the "' + view + '" panel out of the board, discard the other panel(s), and reproduce that exact approved design as ONE full-frame, high-resolution photograph of the stand from the ' + view + ' view. This is a REPRODUCTION, not a redesign — same design, dimensions, materials, colors, branding, products, features; NOTHING added, removed, moved, restyled, or recolored.');
-        lines.push('');
-        lines.push('- Do NOT reproduce the board\'s caption text in the photograph.');
-        if(extraRefs.length) lines.push('- LOGO: the SECOND attached image is the exact and only authoritative logo — pixel-for-pixel, never any other version.');
-        lines.push('- FORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions), maximum detail and sharpness, presentation-grade quality.');
-        lines.push('- FINAL SELF-CHECK before returning: one seamless scene, zero dividing lines, the stand matches the approved panel exactly. Regenerate otherwise.');
+        if(usedCrop){
+          lines.push('CRITICAL OUTPUT FORMAT — READ THIS FIRST (hard rule): your output is ONE single, continuous, seamless photograph of the display stand, filling 100% of the frame, from exactly ONE camera angle. NEVER a collage, grid, split-screen, side-by-side comparison, or multiple panels. NEVER show more than one view of the stand in the same image, even small or in a corner. An image containing two or more distinct camera angles of the stand is INVALID and must not be produced.');
+          lines.push('');
+          lines.push('The FIRST attached image is the exact client-APPROVED photograph of this display stand from the ' + view + ' view ONLY — this is your one and only reference, and it already shows exactly one camera angle.');
+          lines.push('');
+          lines.push('YOUR ONLY TASK: reproduce this exact approved photograph as ONE full-frame, high-resolution image of the stand from this same single ' + view + ' angle — nothing more. This is a REPRODUCTION, not a redesign and not a new composition — same design, dimensions, materials, colors, branding, products, features, and same single camera angle; NOTHING added, removed, moved, restyled, recolored, or combined with any other angle. You may only improve resolution, sharpness and overall image quality.');
+          lines.push('');
+          lines.push('- Do NOT reproduce any caption text, dimension labels, or leader lines from the reference image in the photograph.');
+          if(extraRefs.length) lines.push('- LOGO: the SECOND attached image is the exact and only authoritative logo — pixel-for-pixel, never any other version.');
+          lines.push('- FORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions), maximum detail and sharpness, presentation-grade quality.');
+          lines.push('- FINAL SELF-CHECK before returning (hard rule): confirm the output shows exactly ONE camera angle of the stand, zero dividing lines, zero other panels, zero collage — and that it matches the reference exactly. If the output would contain more than one view, discard it and regenerate.');
+        }else{
+          lines.push('CRITICAL OUTPUT FORMAT — READ THIS FIRST: your output is ONE single, continuous, seamless photograph of the display stand, filling 100% of the frame. The FIRST attached image is ' + boardCollageDesc + ' (the approved board) — its collage format must NEVER be copied. Any output with two or more panels, sections, or dividing lines is INVALID.');
+          lines.push('');
+          lines.push('The FIRST attached image is the client-APPROVED ' + boardNoun + ' board of this display stand; its "' + view + '" panel is the GROUND TRUTH for this render.');
+          lines.push('');
+          lines.push('YOUR ONLY TASK: mentally CROP the "' + view + '" panel out of the board, discard the other panel(s), and reproduce that exact approved design as ONE full-frame, high-resolution photograph of the stand from the ' + view + ' view. This is a REPRODUCTION, not a redesign — same design, dimensions, materials, colors, branding, products, features; NOTHING added, removed, moved, restyled, or recolored.');
+          lines.push('');
+          lines.push('- Do NOT reproduce the board\'s caption text in the photograph.');
+          if(extraRefs.length) lines.push('- LOGO: the SECOND attached image is the exact and only authoritative logo — pixel-for-pixel, never any other version.');
+          lines.push('- FORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions), maximum detail and sharpness, presentation-grade quality.');
+          lines.push('- FINAL SELF-CHECK before returning: one seamless scene, zero dividing lines, the stand matches the approved panel exactly. Regenerate otherwise.');
+        }
         const prompt = lines.join('\n');
         let data = null;
         for(const size of ['4K', '2K']){
           const response = await fetchWithTimeout('/api/generate-image-gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, referenceImage: boardParts.base64, referenceMimeType: boardParts.mime, additionalReferenceImages: extraRefs, isUserInitiatedEdit: size === '4K', quotaKind: 'edit', aspectRatio: '4:3', imageSize: size })
+            body: JSON.stringify({ prompt, referenceImage: panelParts.base64, referenceMimeType: panelParts.mime, additionalReferenceImages: extraRefs, isUserInitiatedEdit: size === '4K', quotaKind: 'edit', aspectRatio: '4:3', imageSize: size })
           }, 190000);
           const rawText = await response.text();
           let parsed = {};
