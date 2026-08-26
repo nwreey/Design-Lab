@@ -7887,6 +7887,10 @@ async function approveDisplayStand(){
     const boardParts = dataUrlParts(dsLastImage);
     const logoEntry = (dsFileStorage['dsLogoList'] || [])[0];
     const logoData = await readDsFileAsDataUrl(logoEntry);
+    // Same brand colors the client actually picked on the form — restated as a hard rule on
+    // every per-view render, not just the original board, so a "reproduction" pass can't drift
+    // the palette (e.g. a warm gold reading more yellow, or white picking up a color cast).
+    const colors = [dsVal('f_dsColorPrimaryHex'), dsVal('f_dsColorSecondaryHex'), dsVal('f_dsColorAccentHex')].filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
     const extraRefs = [];
     if(logoData && logoData.dataUrl && String(logoData.type).indexOf('image/') === 0) extraRefs.push({ data: logoData.dataUrl.split(',')[1], mimeType: logoData.type });
     for(const view of dsCurrentViews){
@@ -7914,9 +7918,10 @@ async function approveDisplayStand(){
           lines.push('YOUR ONLY TASK: reproduce this exact approved photograph as ONE full-frame, high-resolution image of the stand from this same single ' + view + ' angle — nothing more. This is a REPRODUCTION, not a redesign and not a new composition — same design, dimensions, materials, colors, branding, products, features, and same single camera angle; NOTHING added, removed, moved, restyled, recolored, or combined with any other angle. You may only improve resolution, sharpness and overall image quality.');
           lines.push('');
           lines.push('- Do NOT reproduce any caption text, dimension labels, or leader lines from the reference image in the photograph.');
+          if(colors.length) lines.push('- HARD RULE — BRAND COLOR COMPLIANCE: the ONLY colors permitted anywhere in this photograph are ' + colors.join(', ') + ' (exactly as specified, no hue/saturation drift), their derived shades/tints, and neutrals (white, black, grey, silver, natural wood, transparent materials). Never introduce, substitute, or shift toward any other color — match the reference image\'s colors exactly, not your own interpretation of them.');
           if(extraRefs.length) lines.push('- LOGO: the SECOND attached image is the exact and only authoritative logo — pixel-for-pixel, never any other version.');
           lines.push('- FORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions), maximum detail and sharpness, presentation-grade quality.');
-          lines.push('- FINAL SELF-CHECK before returning (hard rule): confirm the output shows exactly ONE camera angle of the stand, zero dividing lines, zero other panels, zero collage — and that it matches the reference exactly. If the output would contain more than one view, discard it and regenerate.');
+          lines.push('- FINAL SELF-CHECK before returning (hard rule): confirm the output shows exactly ONE camera angle of the stand, zero dividing lines, zero other panels, zero collage, and every color exactly matches the brand palette stated above with no drift — and that it matches the reference exactly. If the output would contain more than one view or any off-palette color, discard it and regenerate.');
         }else{
           lines.push('CRITICAL OUTPUT FORMAT — READ THIS FIRST: your output is ONE single, continuous, seamless photograph of the display stand, filling 100% of the frame. The FIRST attached image is ' + boardCollageDesc + ' (the approved board) — its collage format must NEVER be copied. Any output with two or more panels, sections, or dividing lines is INVALID.');
           lines.push('');
@@ -7925,9 +7930,10 @@ async function approveDisplayStand(){
           lines.push('YOUR ONLY TASK: mentally CROP the "' + view + '" panel out of the board, discard the other panel(s), and reproduce that exact approved design as ONE full-frame, high-resolution photograph of the stand from the ' + view + ' view. This is a REPRODUCTION, not a redesign — same design, dimensions, materials, colors, branding, products, features; NOTHING added, removed, moved, restyled, or recolored.');
           lines.push('');
           lines.push('- Do NOT reproduce the board\'s caption text in the photograph.');
+          if(colors.length) lines.push('- HARD RULE — BRAND COLOR COMPLIANCE: the ONLY colors permitted anywhere in this photograph are ' + colors.join(', ') + ' (exactly as specified, no hue/saturation drift), their derived shades/tints, and neutrals (white, black, grey, silver, natural wood, transparent materials). Never introduce, substitute, or shift toward any other color.');
           if(extraRefs.length) lines.push('- LOGO: the SECOND attached image is the exact and only authoritative logo — pixel-for-pixel, never any other version.');
           lines.push('- FORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions), maximum detail and sharpness, presentation-grade quality.');
-          lines.push('- FINAL SELF-CHECK before returning: one seamless scene, zero dividing lines, the stand matches the approved panel exactly. Regenerate otherwise.');
+          lines.push('- FINAL SELF-CHECK before returning: one seamless scene, zero dividing lines, every color exactly matches the brand palette stated above with no drift, the stand matches the approved panel exactly. Regenerate otherwise.');
         }
         const prompt = lines.join('\n');
         let data = null;
@@ -19669,7 +19675,10 @@ async function submitEdit(){
   const EDIT_DESIGNER_FRAMING = editTarget.type === 'ecbArea'
     ? 'You are the same world-class event designer who created this approved event area render. When making this edit, apply that same professional judgment, not just literal instruction-following: correct human-scale proportions for anything you add or resize, premium material and finish choices consistent with the rest of the design, clean uncluttered composition, and full design-language consistency (materials, brand color palette, architectural language, lighting approach) with everything already established. Never introduce any color outside the established brand palette and neutrals.\n'
     : editTarget.type === 'dsView'
-    ? 'You are the same world-class retail display designer who created this approved display stand render. When making this edit, apply that same professional judgment, not just literal instruction-following: correct human-scale proportions for anything you add or resize, premium material and finish choices consistent with the rest of the stand, clean uncluttered composition, and full design-language consistency (materials, brand color palette, branding, lighting approach) with everything already established. Never introduce any color outside the established brand palette and neutrals.\n'
+    ? 'You are the same world-class retail display designer who created this approved display stand render. When making this edit, apply that same professional judgment, not just literal instruction-following: correct human-scale proportions for anything you add or resize, premium material and finish choices consistent with the rest of the stand, clean uncluttered composition, and full design-language consistency (materials, brand color palette, branding, lighting approach) with everything already established. HARD RULE — BRAND COLOR COMPLIANCE: the ONLY colors permitted anywhere in this image are the client\'s selected colors' + (function(){
+        const dsColors = [dsVal('f_dsColorPrimaryHex'), dsVal('f_dsColorSecondaryHex'), dsVal('f_dsColorAccentHex')].filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
+        return dsColors.length ? (' (' + dsColors.join(', ') + ')') : '';
+      })() + ', their derived shades/tints, and neutrals (white, black, grey, silver, natural wood, transparent materials) — never introduce, substitute, or drift toward any other color anywhere in the image, including in this edit.\n'
     : `You are the same world-class exhibition stand designer — 20+ years of experience designing booths for international trade shows such as GITEX, CES, Arab Health, Hannover Messe, and Mobile World Congress — who created this approved booth design. When making this edit, apply that same professional judgment, not just literal instruction-following: correct human-scale proportions for anything you add or resize, premium material and finish choices consistent with the rest of the booth, clean and uncluttered composition, and full design-language consistency (materials, color palette, architectural style, lighting approach) with everything already established in this design. This is a real professional exhibition stand — every change must hold up to that same premium standard.
 ${buildApprovedDecisionsText()}
 `;
