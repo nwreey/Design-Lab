@@ -7949,7 +7949,8 @@ async function approveDisplayStand(){
           if(response.ok && parsed.image){ data = parsed; break; }
           if(size === '2K') throw new Error((parsed.error && parsed.error.message) || 'Render failed.');
         }
-        dsViewRenders.push({ view, image: data.image });
+        const storedViewImage = await compressDsViewImage(data.image);
+        dsViewRenders.push({ view, image: storedViewImage });
         renderDsViewGrid(null);
       }catch(viewErr){
         console.error('View render failed for ' + view + ':', viewErr);
@@ -19294,6 +19295,20 @@ async function compressDataUrlToTarget(dataUrl, maxBytes){
   return best;
 }
 
+// Raw 4K Display Stand view renders can exceed Vercel's request-size limit on save, which
+// fails silently with a generic "server did not respond with a clear reason" error (same root
+// cause already fixed for Event Concept Board area renders — see the identical comment at the
+// compressDataUrl() call inside that render loop). Keeps resolution high but the payload
+// storable/saveable.
+async function compressDsViewImage(dataUrl){
+  let stored = dataUrl;
+  for(const q of [0.88, 0.8, 0.7, 0.6]){
+    stored = await compressDataUrl(dataUrl, 2048, q);
+    if(estimateDataUrlBytes(stored) <= 1500 * 1024) break;
+  }
+  return stored;
+}
+
 /* ---------- other option: regenerate a fresh variation for this slot ---------- */
 
 async function regenerateOtherOption(){
@@ -19831,12 +19846,16 @@ ${buildApprovedDecisionsText()}
       const target = dsViewRenders[editTarget.renderIdx];
       if(target){
         // Same version-history pattern as ecbArea just above: the original is always kept;
-        // Back/Forward (dsViewNav) walk the versions on the card.
+        // Back/Forward (dsViewNav) walk the versions on the card. compressedResult here is the
+        // raw OpenAI edit output — pass it through the same size cap as the approve-time render
+        // (compressDsViewImage) so an edited view can't blow the save past the request-size
+        // limit either.
+        const storedEditImage = await compressDsViewImage(compressedResult);
         target.images = (target.images && target.images.length) ? target.images : [target.image];
-        target.images.push(compressedResult);
+        target.images.push(storedEditImage);
         while(target.images.length > 6) target.images.splice(1, 1);
         target.activeIndex = target.images.length - 1;
-        target.image = compressedResult;
+        target.image = storedEditImage;
       }
       stopDsViewEditProgress();
       statusEl.textContent = '';
