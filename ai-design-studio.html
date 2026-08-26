@@ -1144,10 +1144,31 @@
     </div>
 
     <div class="submit-bar">
-      <button class="primary" id="dsSubmitBtn" disabled title="Display Stand generation is not available yet" onclick="return false;">Generate Design</button>
+      <button class="primary" id="dsSubmitBtn" onclick="generateDisplayStandDesign()">Generate Design</button>
     </div>
-    <div style="text-align:center;padding:0 10px 20px;color:#666;font-size:13.5px;">
-      Not available yet — Display Stand generation is being built next. This button won't do anything until then.
+
+    <!-- Display Stand result: same black-frame in-picture loading pattern as the event board. -->
+    <div id="dsResult" style="display:none;padding:0 10px 20px;">
+      <div class="eyebrow">Display Stand Concept</div>
+      <h2 class="concept-title" id="dsResultTitle"></h2>
+      <div class="render-frame" id="dsFrame" style="position:relative;">
+        <img id="dsImg" alt="Display stand concept" style="display:none;" onclick="openImageLightbox(this.src)">
+        <div id="dsFrameLoading" style="display:none;position:absolute;inset:0;background:#0B0C10;z-index:2;align-items:center;justify-content:center;padding:28px;">
+          <div style="width:min(440px,82%);">
+            <div class="approve-progress-header">
+              <span class="approve-progress-message" id="dsProgressMessage" style="color:#EAEAEA;"></span>
+              <span class="approve-progress-percent" id="dsProgressPercent" style="color:#EAEAEA;">0%</span>
+            </div>
+            <div class="approve-progress-track">
+              <div class="approve-progress-fill" id="dsProgressFill" style="width:0%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="action-bar" style="margin-top:10px;">
+        <button class="ghost small" id="dsDownloadBtn" onclick="downloadDsImage()">Download</button>
+      </div>
+      <div class="action-status" id="dsActionStatus"></div>
     </div>
   </div>
 
@@ -7307,6 +7328,165 @@ function togglePosterUpload(sel){
 }
 
 const dsFileStorage = {};
+
+/* ================= Display Stand generation (direct to Gemini) ================= */
+let dsLastImage = null;
+
+function dsVal(id){ const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+function dsChecked(cls){ return Array.from(document.querySelectorAll('.' + cls + ':checked')).map(cb => cb.value); }
+
+function readDsFileAsDataUrl(entry){
+  return new Promise(resolve => {
+    if(!entry || !entry.file){ resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = () => resolve({ dataUrl: reader.result, type: entry.type || 'image/png' });
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(entry.file);
+  });
+}
+
+function updateDsProgress(percent, message){
+  const overlay = document.getElementById('dsFrameLoading');
+  if(overlay) overlay.style.display = 'flex';
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  const fill = document.getElementById('dsProgressFill');
+  const pct = document.getElementById('dsProgressPercent');
+  const msg = document.getElementById('dsProgressMessage');
+  if(fill) fill.style.width = clamped + '%';
+  if(pct) pct.textContent = clamped + '%';
+  if(msg && message) msg.textContent = message;
+}
+
+async function generateDisplayStandDesign(){
+  // Required fields
+  const missing = [];
+  if(!dsVal('f_dsName')) missing.push('Project Name');
+  if(!dsVal('f_dsType') && !dsVal('f_dsTypeCustom')) missing.push('Display Stand Type');
+  if(!dsVal('f_dsMaxWidth') || !dsVal('f_dsMaxDepth') || !dsVal('f_dsMaxHeight')) missing.push('Maximum Width / Depth / Height');
+  if(!dsVal('f_dsDescription')) missing.push('the description of your display stand');
+  const logoEntry = (dsFileStorage['dsLogoList'] || [])[0];
+  if(!logoEntry) missing.push('the company logo');
+  if(missing.length){
+    await customAlert('Please enter ' + missing.join(', ') + '.', 'Generate Design');
+    return;
+  }
+
+  // Every deduction is announced first (owner rule): a display stand generation costs 1 modification.
+  if(!isAdminUser){
+    const msg = (currentUserModifyLimit != null && currentUserModifyCount != null)
+      ? 'Generating this display stand will use 1 of your modifications — you have used ' + currentUserModifyCount + ' of ' + currentUserModifyLimit + '. Continue?'
+      : 'Generating this display stand will use 1 of your modifications. Continue?';
+    const ok = await customConfirm(msg, 'Generate Design', 'Continue');
+    if(!ok) return;
+    if(currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
+  }
+
+  const btn = document.getElementById('dsSubmitBtn');
+  btn.disabled = true;
+  projectSwitchLocked = true;
+  const panel = document.getElementById('dsResult');
+  panel.style.display = 'block';
+  document.getElementById('dsResultTitle').textContent = dsVal('f_dsName');
+  document.getElementById('dsImg').style.display = 'none';
+  document.getElementById('dsFrame').style.minHeight = '340px';
+  const genMsg = 'Designing your display stand... this can take up to a minute.';
+  updateDsProgress(8, genMsg);
+  panel.scrollIntoView({behavior:'smooth', block:'start'});
+  let elapsed = 0;
+  const sim = setInterval(() => { elapsed += 400; const t = elapsed / 45000; updateDsProgress(8 + 84 * (1 - Math.exp(-t * 2.2)), genMsg); }, 400);
+
+  try{
+    const type = dsVal('f_dsType') === 'Custom' ? (dsVal('f_dsTypeCustom') || 'Custom') : dsVal('f_dsType');
+    const colors = [dsVal('f_dsColorPrimaryHex'), dsVal('f_dsColorSecondaryHex'), dsVal('f_dsColorAccentHex')].filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
+    const materials = dsChecked('ds-material-cb');
+    const features = dsChecked('ds-feature-cb');
+    const lines = [];
+    lines.push('You are a world-class retail display designer. Create ONE photorealistic, presentation-ready concept render of a product display stand described below, shown in its real retail environment at correct scale.');
+    lines.push('');
+    lines.push('DISPLAY STAND BRIEF (every stated detail is mandatory):');
+    lines.push('- Project: ' + dsVal('f_dsName') + (dsVal('f_dsCompany') ? ' for ' + dsVal('f_dsCompany') : '') + (dsVal('f_dsIndustry') ? ' (' + dsVal('f_dsIndustry') + ' industry)' : '') + '.');
+    lines.push('- Display stand type: ' + type + '.');
+    if(dsVal('f_dsProductName') || dsVal('f_dsProductCategory')) lines.push('- Product displayed: ' + [dsVal('f_dsProductName'), dsVal('f_dsProductCategory')].filter(Boolean).join(' — ') + '.');
+    if(dsVal('f_dsProductWidth') && dsVal('f_dsProductHeight')) lines.push('- Each product unit measures about ' + dsVal('f_dsProductWidth') + 'x' + (dsVal('f_dsProductDepth') || dsVal('f_dsProductWidth')) + 'x' + dsVal('f_dsProductHeight') + ' cm — render the products at this true scale on the stand.');
+    if(dsVal('f_dsProductCount')) lines.push('- The stand holds approximately ' + dsVal('f_dsProductCount') + ' product units, arranged neatly.');
+    lines.push('- MAXIMUM STAND DIMENSIONS (hard limit, correct real-world proportions): ' + dsVal('f_dsMaxWidth') + ' cm wide x ' + dsVal('f_dsMaxDepth') + ' cm deep x ' + dsVal('f_dsMaxHeight') + ' cm tall.');
+    if(dsVal('f_dsShelfCount')) lines.push('- Number of shelves: ' + dsVal('f_dsShelfCount') + '.');
+    if(dsVal('f_dsLevelCount')) lines.push('- Number of display levels: ' + dsVal('f_dsLevelCount') + '.');
+    if(dsVal('f_dsLocation')) lines.push('- Used in: ' + dsVal('f_dsLocation') + '.');
+    if(dsVal('f_dsRetailEnvironment')) lines.push('- Retail environment shown around the stand: ' + dsVal('f_dsRetailEnvironment') + '.');
+    if(dsVal('f_dsPurpose')) lines.push('- Purpose: ' + dsVal('f_dsPurpose') + '.');
+    if(materials.length) lines.push('- Materials (use ONLY these): ' + materials.join(', ') + '.');
+    if(features.length) lines.push('- Required features, each clearly visible: ' + features.join(', ') + '.');
+    if(dsVal('f_dsStyle')) lines.push('- Style: ' + dsVal('f_dsStyle') + '.');
+    if(dsVal('f_dsProduction')) lines.push('- Production type: ' + dsVal('f_dsProduction') + '.');
+    if(dsVal('f_dsBudget')) lines.push('- Manufacturing budget tier: ' + dsVal('f_dsBudget') + ' — materials and finish complexity must be realistic for this budget.');
+    lines.push('- Client\'s creative direction (highest priority): "' + dsVal('f_dsDescription').replace(/"/g, "'") + '".');
+    lines.push('');
+    lines.push('RENDERING RULES:');
+    if(colors.length) lines.push('- HARD RULE — BRAND COLOR COMPLIANCE: the ONLY colors permitted are ' + colors.join(', ') + ', their derived shades/tints, and neutrals (white, black, grey, silver, natural wood, transparent materials). Never introduce any other accent color anywhere.');
+    lines.push('- LOGO AUTHENTICITY (hard rule): the attached logo image is the ONLY authoritative logo — reproduce it exactly wherever branding appears; never any other version of this company\'s logo you may know.');
+    lines.push('- CAMERA: front of the stand, elevated at a 45-degree downward angle, the full stand visible with a clean margin, products readable.');
+    lines.push('- One single seamless photograph — never a collage, grid, split frame, or multiple panels. Full-bleed, edge to edge, no borders.');
+    lines.push('- No text of any kind except the brand/product branding the design itself carries.');
+    lines.push('- ENVIRONMENT & IMAGE QUALITY: physically realistic proportions and materials, believable retail lighting, consistent shadows and reflections, presentation-grade sharpness — the hero image of a professional display-stand proposal.');
+    let prompt = lines.join('\n');
+
+    // Attach the uploaded logo (first) + up to 3 product images.
+    const logoData = await readDsFileAsDataUrl(logoEntry);
+    const additionalReferenceImages = [];
+    const productEntries = (dsFileStorage['dsProductImagesList'] || []).slice(0, 3);
+    for(const entry of productEntries){
+      const d = await readDsFileAsDataUrl(entry);
+      if(d && d.dataUrl && String(d.type).indexOf('image/') === 0) additionalReferenceImages.push({ data: d.dataUrl.split(',')[1], mimeType: d.type });
+    }
+    if(additionalReferenceImages.length) prompt += '\n\nPRODUCT REFERENCE IMAGES: the additional attached images show the REAL product — the products on the stand must match them exactly (packaging, shape, colors), never invented substitutes.';
+
+    const body = { prompt, isUserInitiatedEdit: !isAdminUser, aspectRatio: '4:3' };
+    if(logoData && logoData.dataUrl && String(logoData.type).indexOf('image/') === 0){
+      body.referenceImage = logoData.dataUrl.split(',')[1];
+      body.referenceMimeType = logoData.type;
+      body.additionalReferenceImages = additionalReferenceImages;
+    }else if(additionalReferenceImages.length){
+      body.additionalReferenceImages = additionalReferenceImages;
+    }
+
+    const response = await fetchWithTimeout('/api/generate-image-gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }, 190000);
+    const rawText = await response.text();
+    let data = {};
+    try{ data = JSON.parse(rawText); }catch(e){ /* leave {} */ }
+    if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Could not generate the display stand.');
+
+    clearInterval(sim);
+    updateDsProgress(100, 'Done.');
+    await new Promise(r => setTimeout(r, 500));
+    document.getElementById('dsFrameLoading').style.display = 'none';
+    document.getElementById('dsFrame').style.minHeight = '';
+    dsLastImage = data.image;
+    const img = document.getElementById('dsImg');
+    img.src = data.image;
+    img.style.display = 'block';
+    document.getElementById('dsActionStatus').textContent = '';
+  }catch(err){
+    clearInterval(sim);
+    console.error('Display stand generation failed:', err);
+    document.getElementById('dsFrameLoading').style.display = 'none';
+    if(!dsLastImage){ document.getElementById('dsResult').style.display = 'none'; }
+    await customAlert('Could not generate the display stand: ' + (err.message || 'unknown error'), 'Generate Design');
+  }finally{
+    btn.disabled = false;
+    projectSwitchLocked = false;
+  }
+}
+
+function downloadDsImage(){
+  if(!dsLastImage) return;
+  const name = (dsVal('f_dsName') || 'display-stand').replace(/[^\w\- ]+/g, '').trim();
+  forceDownloadImage(dsLastImage, name + '.png');
+}
 
 function handleDsFileUpload(input, listId){
   const files = Array.from(input.files || []);
