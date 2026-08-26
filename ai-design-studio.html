@@ -1187,7 +1187,8 @@
       <div class="action-bar" style="margin-top:10px;">
         <button class="ghost small" id="dsDownloadBtn" onclick="downloadDsImage()">Download</button>
         <button class="primary small" id="dsApproveBtn" onclick="approveDisplayStand()">Approve</button>
-        <div class="other-design-wrap" style="margin-left:auto;">
+        <button class="ghost small" id="dsOtherOptionBtn" onclick="regenerateDsOtherOption()" style="margin-left:auto;">Other option</button>
+        <div class="other-design-wrap">
           <button type="button" class="ghost small" onclick="toggleOtherDesignMenu(event, 'otherDesignMenuDs')">Other Design</button>
           <div class="other-design-dropdown" id="otherDesignMenuDs"></div>
         </div>
@@ -7473,6 +7474,49 @@ async function generateDisplayStandDesign(){
   if(!isNewDsProject || isAdminUser) saveCurrentProject();
 
   try{
+    const body = await buildDsGenerationRequestBody();
+    const response = await fetchWithTimeout('/api/generate-image-gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }, 190000);
+    const rawText = await response.text();
+    let data = {};
+    try{ data = JSON.parse(rawText); }catch(e){ /* leave {} */ }
+    if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Could not generate the display stand.');
+
+    clearInterval(sim);
+    updateDsProgress(100, 'Done.');
+    await new Promise(r => setTimeout(r, 500));
+    document.getElementById('dsFrameLoading').style.display = 'none';
+    document.getElementById('dsFrame').style.minHeight = '';
+    dsLastImage = data.image;
+    const img = document.getElementById('dsImg');
+    img.src = data.image;
+    img.style.display = 'block';
+    document.getElementById('dsActionStatus').textContent = '';
+    // New project's first save, deferred until here — see this function's own comment above
+    // the earlier saveCurrentProject() call for why. A refusal/network failure before this
+    // point costs nothing; renderProjectSidebar() (inside saveCurrentProject) is also what
+    // makes this project actually show up in the sidebar for the first time.
+    if(isNewDsProject && !isAdminUser) saveCurrentProject();
+  }catch(err){
+    clearInterval(sim);
+    console.error('Display stand generation failed:', err);
+    document.getElementById('dsFrameLoading').style.display = 'none';
+    if(!dsLastImage){ document.getElementById('dsResult').style.display = 'none'; }
+    await customAlert('Could not generate the display stand: ' + (err.message || 'unknown error'), 'Generate Design');
+  }finally{
+    btn.disabled = false;
+    projectSwitchLocked = false;
+  }
+}
+
+// Builds the Gemini request body (prompt + reference images) for a Display Stand board —
+// shared by both the first Generate and "Other option" (regenerateDsOtherOption), which read
+// the exact same live form fields and only differ in their quota billing / surrounding UI. Sets
+// dsCurrentViews as a side effect (Open vs Closed back changes the camera set), same as before.
+async function buildDsGenerationRequestBody(){
     const type = dsVal('f_dsType') === 'Custom' ? (dsVal('f_dsTypeCustom') || 'Custom') : dsVal('f_dsType');
     const colors = [dsVal('f_dsColorPrimaryHex'), dsVal('f_dsColorSecondaryHex'), dsVal('f_dsColorAccentHex')].filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
     const materials = dsChecked('ds-material-cb');
@@ -7544,6 +7588,7 @@ async function generateDisplayStandDesign(){
     let prompt = lines.join('\n');
 
     // Attach the uploaded logo (first) + up to 3 product images.
+    const logoEntry = (dsFileStorage['dsLogoList'] || [])[0];
     const logoData = await readDsFileAsDataUrl(logoEntry);
     const additionalReferenceImages = [];
     const productEntries = (dsFileStorage['dsProductImagesList'] || []).slice(0, 3);
@@ -7561,7 +7606,61 @@ async function generateDisplayStandDesign(){
     }else if(additionalReferenceImages.length){
       body.additionalReferenceImages = additionalReferenceImages;
     }
+    return body;
+}
 
+// "Other option" (owner request): regenerate a genuinely different board image for the same
+// brief — same brief/fields as Generate, just a fresh call to Gemini, billed against the
+// MODIFY quota (not project, since this is never a new project) exactly like booth's own
+// regenerateOtherOption()/confirmRegenerateOtherOption(). Only usable once a board already
+// exists, since there'd be nothing to replace otherwise.
+async function regenerateDsOtherOption(){
+  if(!dsLastImage) return;
+
+  const missing = [];
+  if(!dsVal('f_dsName')) missing.push('Project Name');
+  if(!dsVal('f_dsType') && !dsVal('f_dsTypeCustom')) missing.push('Display Stand Type');
+  if(!dsVal('f_dsMaxWidth') || !dsVal('f_dsMaxDepth') || !dsVal('f_dsMaxHeight')) missing.push('Maximum Width / Depth / Height');
+  if(!dsVal('f_dsBackType')) missing.push('Back Side Access (Open or Closed)');
+  if(!dsVal('f_dsDescription')) missing.push('the description of your display stand');
+  if(!(dsFileStorage['dsLogoList'] || [])[0]) missing.push('the company logo');
+  if(missing.length){
+    await customAlert('Please enter ' + missing.join(', ') + '.', 'Other Option');
+    return;
+  }
+
+  if(adminCheckPromise) await adminCheckPromise;
+  if(!isAdminUser && currentUserModifyLimit != null && currentUserModifyCount != null && currentUserModifyCount >= currentUserModifyLimit){
+    await customAlert('You\'ve reached your modify limit (' + currentUserModifyLimit + '). Please contact your administrator to increase this limit.', 'Other Option');
+    return;
+  }
+
+  // Every deduction is announced first (owner rule).
+  if(!isAdminUser){
+    const msg = (currentUserModifyLimit != null && currentUserModifyCount != null)
+      ? 'Generating another option for this display stand will use 1 of your modifications — you have used ' + currentUserModifyCount + ' of ' + currentUserModifyLimit + '. Continue?'
+      : 'Generating another option for this display stand will use 1 of your modifications. Continue?';
+    const ok = await customConfirm(msg, 'Other Option', 'Continue');
+    if(!ok) return;
+    if(currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
+  }
+
+  const otherBtn = document.getElementById('dsOtherOptionBtn');
+  const approveBtn = document.getElementById('dsApproveBtn');
+  if(otherBtn) otherBtn.disabled = true;
+  if(approveBtn) approveBtn.disabled = true;
+  projectSwitchLocked = true;
+  const previousImage = dsLastImage;
+  document.getElementById('dsImg').style.display = 'none';
+  document.getElementById('dsFrame').style.minHeight = '340px';
+  const genMsg = 'Generating another option for your display stand... this can take up to a minute.';
+  updateDsProgress(8, genMsg);
+  document.getElementById('dsFrame').scrollIntoView({behavior:'smooth', block:'start'});
+  let elapsed = 0;
+  const sim = setInterval(() => { elapsed += 400; const t = elapsed / 45000; updateDsProgress(8 + 84 * (1 - Math.exp(-t * 2.2)), genMsg); }, 400);
+
+  try{
+    const body = await buildDsGenerationRequestBody();
     const response = await fetchWithTimeout('/api/generate-image-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -7570,7 +7669,7 @@ async function generateDisplayStandDesign(){
     const rawText = await response.text();
     let data = {};
     try{ data = JSON.parse(rawText); }catch(e){ /* leave {} */ }
-    if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Could not generate the display stand.');
+    if(!response.ok || !data.image) throw new Error((data.error && data.error.message) || 'Could not generate another option.');
 
     clearInterval(sim);
     updateDsProgress(100, 'Done.');
@@ -7581,20 +7680,31 @@ async function generateDisplayStandDesign(){
     const img = document.getElementById('dsImg');
     img.src = data.image;
     img.style.display = 'block';
+    // The new board replaces the old one entirely — any previously-approved per-view renders
+    // and the Good Luck/rating bar belonged to the picture that's just been replaced, so they
+    // can't stay on screen (same reasoning generateDisplayStandDesign() already applies on a
+    // fresh Generate).
+    dsViewRenders = [];
+    document.getElementById('dsViewRenders').style.display = 'none';
+    document.getElementById('goodLuckMessage').style.display = 'none';
+    document.getElementById('rateUsBar').style.display = 'none';
     document.getElementById('dsActionStatus').textContent = '';
-    // New project's first save, deferred until here — see this function's own comment above
-    // the earlier saveCurrentProject() call for why. A refusal/network failure before this
-    // point costs nothing; renderProjectSidebar() (inside saveCurrentProject) is also what
-    // makes this project actually show up in the sidebar for the first time.
-    if(isNewDsProject && !isAdminUser) saveCurrentProject();
+    saveCurrentProject();
   }catch(err){
     clearInterval(sim);
-    console.error('Display stand generation failed:', err);
+    console.error('Display stand "other option" failed:', err);
     document.getElementById('dsFrameLoading').style.display = 'none';
-    if(!dsLastImage){ document.getElementById('dsResult').style.display = 'none'; }
-    await customAlert('Could not generate the display stand: ' + (err.message || 'unknown error'), 'Generate Design');
+    document.getElementById('dsFrame').style.minHeight = '';
+    // Restore the picture that was on screen before this attempt — a failed "other option"
+    // must never leave the board blank when a perfectly good approved image already existed.
+    dsLastImage = previousImage;
+    const img = document.getElementById('dsImg');
+    img.src = previousImage;
+    img.style.display = 'block';
+    await customAlert('Could not generate another option: ' + (err.message || 'unknown error'), 'Other Option');
   }finally{
-    btn.disabled = false;
+    if(otherBtn) otherBtn.disabled = false;
+    if(approveBtn) approveBtn.disabled = false;
     projectSwitchLocked = false;
   }
 }
