@@ -956,6 +956,14 @@
       <label>Maximum Height (cm) <span class="required-mark">*</span></label>
       <input type="number" id="f_dsMaxHeight" placeholder="e.g. 170" min="0" step="0.1">
     </div>
+    <div class="field">
+      <label>Back Side Access <span class="required-mark">*</span></label>
+      <select id="f_dsBackType">
+        <option value="">Select back side access...</option>
+        <option value="Open">Open — accessible from all 4 sides (island display, no back wall)</option>
+        <option value="Closed">Closed — solid back panel, placed against a wall</option>
+      </select>
+    </div>
     <div class="row2">
       <div class="field">
         <label>Number of Shelves</label>
@@ -7388,6 +7396,7 @@ async function generateDisplayStandDesign(){
   if(!dsVal('f_dsName')) missing.push('Project Name');
   if(!dsVal('f_dsType') && !dsVal('f_dsTypeCustom')) missing.push('Display Stand Type');
   if(!dsVal('f_dsMaxWidth') || !dsVal('f_dsMaxDepth') || !dsVal('f_dsMaxHeight')) missing.push('Maximum Width / Depth / Height');
+  if(!dsVal('f_dsBackType')) missing.push('Back Side Access (Open or Closed)');
   if(!dsVal('f_dsDescription')) missing.push('the description of your display stand');
   const logoEntry = (dsFileStorage['dsLogoList'] || [])[0];
   if(!logoEntry) missing.push('the company logo');
@@ -7425,13 +7434,31 @@ async function generateDisplayStandDesign(){
     const colors = [dsVal('f_dsColorPrimaryHex'), dsVal('f_dsColorSecondaryHex'), dsVal('f_dsColorAccentHex')].filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
     const materials = dsChecked('ds-material-cb');
     const features = dsChecked('ds-feature-cb');
+    // Back Side Access decides the camera set: an Open (island/4-sided) stand shows a full
+    // 2x2 four-view board; a Closed stand (solid back panel, sits against a wall) can never
+    // actually be photographed from the back or a true side-on angle without showing the wall
+    // behind it, so it gets two angled front views instead — Left/Right Perspective. dsCurrentViews
+    // drives the Approve step's per-view high-res renders, so it must match whichever set the
+    // board was actually generated with.
+    const isClosedBack = dsVal('f_dsBackType') === 'Closed';
+    dsCurrentViews = isClosedBack ? DS_VIEWS_CLOSED.slice() : DS_VIEWS_OPEN.slice();
+    const dimensionPanelName = isClosedBack ? 'Left Perspective' : 'Perspective';
     const lines = [];
-    lines.push('You are a world-class retail display designer. Create ONE presentation image showing the SAME product display stand from FOUR cameras, as described below.');
-    lines.push('');
-    lines.push('OUTPUT FORMAT — FOUR-VIEW BOARD (mandatory): the image is divided into EXACTLY 4 equal panels in a 2x2 grid: top-left = PERSPECTIVE view (three-quarter hero angle), top-right = FRONT view, bottom-left = RIGHT SIDE view, bottom-right = BACK view. Each panel carries a small clean caption with its view name (Perspective, Front, Right Side, Back).');
-    lines.push('DIMENSION CALLOUT (Perspective panel only): in the Perspective panel add small, clean dimension lines/labels for the stand\'s overall Width, Depth, and Height in cm — like a product spec sheet (e.g. thin arrows or leader lines to the base and side of the stand, each labeled "W: ' + dsVal('f_dsMaxWidth') + ' cm", "D: ' + dsVal('f_dsMaxDepth') + ' cm", "H: ' + dsVal('f_dsMaxHeight') + ' cm"). Keep these small and unobtrusive, in a corner or along the edges — never covering the stand or products. The other three panels (Front, Right Side, Back) carry ONLY their view-name caption, no dimension text.');
-    lines.push('SAME STAND IN ALL FOUR PANELS (hard rule): all four panels show the IDENTICAL display stand — the same design, same dimensions, same materials, same colors, same branding, same products in the same positions, same features. ONLY the camera position changes between panels. Any design difference between panels is a failure.');
-    lines.push('');
+    if(isClosedBack){
+      lines.push('You are a world-class retail display designer. Create ONE presentation image showing the SAME product display stand from TWO cameras, as described below.');
+      lines.push('');
+      lines.push('OUTPUT FORMAT — TWO-VIEW BOARD (mandatory): the image is divided into EXACTLY 2 equal panels, side by side: left = LEFT PERSPECTIVE view (three-quarter hero angle from the front-left), right = RIGHT PERSPECTIVE view (three-quarter hero angle from the front-right). This stand has a CLOSED back (it sits flush against a wall) — NEVER show the back of the stand in either panel; both panels are angled views of the front and its two accessible side edges only. Each panel carries a small clean caption with its view name (Left Perspective, Right Perspective).');
+      lines.push('DIMENSION CALLOUT (Left Perspective panel only): in the Left Perspective panel add small, clean dimension lines/labels for the stand\'s overall Width, Depth, and Height in cm — like a product spec sheet (e.g. thin arrows or leader lines to the base and side of the stand, each labeled "W: ' + dsVal('f_dsMaxWidth') + ' cm", "D: ' + dsVal('f_dsMaxDepth') + ' cm", "H: ' + dsVal('f_dsMaxHeight') + ' cm"). Keep these small and unobtrusive, in a corner or along the edges — never covering the stand or products. The Right Perspective panel carries ONLY its view-name caption, no dimension text.');
+      lines.push('SAME STAND IN BOTH PANELS (hard rule): both panels show the IDENTICAL display stand — the same design, same dimensions, same materials, same colors, same branding, same products in the same positions, same features. ONLY the camera position changes between panels. Any design difference between panels is a failure.');
+      lines.push('');
+    }else{
+      lines.push('You are a world-class retail display designer. Create ONE presentation image showing the SAME product display stand from FOUR cameras, as described below.');
+      lines.push('');
+      lines.push('OUTPUT FORMAT — FOUR-VIEW BOARD (mandatory): the image is divided into EXACTLY 4 equal panels in a 2x2 grid: top-left = PERSPECTIVE view (three-quarter hero angle), top-right = FRONT view, bottom-left = RIGHT SIDE view, bottom-right = BACK view. Each panel carries a small clean caption with its view name (Perspective, Front, Right Side, Back).');
+      lines.push('DIMENSION CALLOUT (Perspective panel only): in the Perspective panel add small, clean dimension lines/labels for the stand\'s overall Width, Depth, and Height in cm — like a product spec sheet (e.g. thin arrows or leader lines to the base and side of the stand, each labeled "W: ' + dsVal('f_dsMaxWidth') + ' cm", "D: ' + dsVal('f_dsMaxDepth') + ' cm", "H: ' + dsVal('f_dsMaxHeight') + ' cm"). Keep these small and unobtrusive, in a corner or along the edges — never covering the stand or products. The other three panels (Front, Right Side, Back) carry ONLY their view-name caption, no dimension text.');
+      lines.push('SAME STAND IN ALL FOUR PANELS (hard rule): all four panels show the IDENTICAL display stand — the same design, same dimensions, same materials, same colors, same branding, same products in the same positions, same features. ONLY the camera position changes between panels. Any design difference between panels is a failure.');
+      lines.push('');
+    }
     lines.push('DISPLAY STAND BRIEF (every stated detail is mandatory):');
     lines.push('- Project: ' + dsVal('f_dsName') + (dsVal('f_dsCompany') ? ' for ' + dsVal('f_dsCompany') : '') + (dsVal('f_dsIndustry') ? ' (' + dsVal('f_dsIndustry') + ' industry)' : '') + '.');
     lines.push('- Display stand type: ' + type + '.');
@@ -7439,6 +7466,7 @@ async function generateDisplayStandDesign(){
     if(dsVal('f_dsProductWidth') && dsVal('f_dsProductHeight')) lines.push('- Each product unit measures about ' + dsVal('f_dsProductWidth') + 'x' + (dsVal('f_dsProductDepth') || dsVal('f_dsProductWidth')) + 'x' + dsVal('f_dsProductHeight') + ' cm — render the products at this true scale on the stand.');
     if(dsVal('f_dsProductCount')) lines.push('- The stand holds approximately ' + dsVal('f_dsProductCount') + ' product units, arranged neatly.');
     lines.push('- MAXIMUM STAND DIMENSIONS (hard limit, correct real-world proportions): ' + dsVal('f_dsMaxWidth') + ' cm wide x ' + dsVal('f_dsMaxDepth') + ' cm deep x ' + dsVal('f_dsMaxHeight') + ' cm tall.');
+    lines.push('- Back construction: ' + (isClosedBack ? 'CLOSED — a solid back panel, designed to sit flush against a wall; no shelving, products or branding needed on the back since it will never be seen or photographed.' : 'OPEN — a fully finished, branded back so the stand looks good and is usable from all four sides (island placement, no wall).') + '');
     if(dsVal('f_dsShelfCount')) lines.push('- Number of shelves: ' + dsVal('f_dsShelfCount') + '.');
     if(dsVal('f_dsLevelCount')) lines.push('- Number of display levels: ' + dsVal('f_dsLevelCount') + '.');
     if(dsVal('f_dsLocation')) lines.push('- Used in: ' + dsVal('f_dsLocation') + '.');
@@ -7454,11 +7482,19 @@ async function generateDisplayStandDesign(){
     lines.push('RENDERING RULES:');
     if(colors.length) lines.push('- HARD RULE — BRAND COLOR COMPLIANCE: the ONLY colors permitted are ' + colors.join(', ') + ', their derived shades/tints, and neutrals (white, black, grey, silver, natural wood, transparent materials). Never introduce any other accent color anywhere.');
     lines.push('- LOGO AUTHENTICITY (hard rule): the attached logo image is the ONLY authoritative logo — reproduce it exactly wherever branding appears; never any other version of this company\'s logo you may know.');
-    lines.push('- CAMERA PER PANEL: in every panel the full stand is visible with a clean margin and the products readable; slight downward elevation on the Perspective panel.');
-    lines.push('- SCALE ACCURACY PER PANEL (hard rule): every panel — especially the RIGHT SIDE view — must render the stand at the exact real-world proportions stated above (' + dsVal('f_dsMaxWidth') + ' cm wide x ' + dsVal('f_dsMaxDepth') + ' cm deep x ' + dsVal('f_dsMaxHeight') + ' cm tall). The Right Side panel\'s silhouette shows the stand\'s true depth-to-height ratio from these numbers — never stretch, compress, elongate, or otherwise distort the stand\'s scale in any one panel relative to the others; all four must read as the same object at the same size.');
-    lines.push('- FRONT/BACK CONSTRUCTION CONSISTENCY (hard rule): the Back panel is the literal rear of the SAME physical stand shown in the Front panel — identical outer footprint, frame, structure, materials, colors and proportions, with only the camera moved to the opposite side. Every structural element visible on the Front (uprights, header, side panels, base, shelf edges) must continue logically onto the Back exactly as a real object would; never invent a different construction, thickness, or shape for the rear.');
-    lines.push('- Full-bleed 2x2 board, edge to edge — exactly 4 panels, never more, never fewer, no empty panels.');
-    lines.push('- No text of any kind except: the brand/product branding the design itself carries, the four view-name captions, and the Width/Depth/Height dimension callout on the Perspective panel described above.');
+    if(isClosedBack){
+      lines.push('- CAMERA PER PANEL: in every panel the full stand is visible with a clean margin and the products readable, angled just enough to read as a distinct three-quarter view from its own side without ever exposing the back.');
+      lines.push('- SCALE ACCURACY PER PANEL (hard rule): both panels must render the stand at the exact real-world proportions stated above (' + dsVal('f_dsMaxWidth') + ' cm wide x ' + dsVal('f_dsMaxDepth') + ' cm deep x ' + dsVal('f_dsMaxHeight') + ' cm tall) — never stretch, compress, elongate, or otherwise distort the stand\'s scale in one panel relative to the other; both must read as the same object at the same size.');
+      lines.push('- LEFT/RIGHT CONSISTENCY (hard rule): Left Perspective and Right Perspective are mirrored viewing angles of the SAME physical stand, not two different designs — every structural element, shelf, and branding position must line up logically between them as a real object would look from either side.');
+      lines.push('- Full-bleed board, two panels side by side, edge to edge — exactly 2 panels, never more, never fewer, no empty panels.');
+      lines.push('- No text of any kind except: the brand/product branding the design itself carries, the two view-name captions, and the Width/Depth/Height dimension callout on the ' + dimensionPanelName + ' panel described above.');
+    }else{
+      lines.push('- CAMERA PER PANEL: in every panel the full stand is visible with a clean margin and the products readable; slight downward elevation on the Perspective panel.');
+      lines.push('- SCALE ACCURACY PER PANEL (hard rule): every panel — especially the RIGHT SIDE view — must render the stand at the exact real-world proportions stated above (' + dsVal('f_dsMaxWidth') + ' cm wide x ' + dsVal('f_dsMaxDepth') + ' cm deep x ' + dsVal('f_dsMaxHeight') + ' cm tall). The Right Side panel\'s silhouette shows the stand\'s true depth-to-height ratio from these numbers — never stretch, compress, elongate, or otherwise distort the stand\'s scale in any one panel relative to the others; all four must read as the same object at the same size.');
+      lines.push('- FRONT/BACK CONSTRUCTION CONSISTENCY (hard rule): the Back panel is the literal rear of the SAME physical stand shown in the Front panel — identical outer footprint, frame, structure, materials, colors and proportions, with only the camera moved to the opposite side. Every structural element visible on the Front (uprights, header, side panels, base, shelf edges) must continue logically onto the Back exactly as a real object would; never invent a different construction, thickness, or shape for the rear.');
+      lines.push('- Full-bleed 2x2 board, edge to edge — exactly 4 panels, never more, never fewer, no empty panels.');
+      lines.push('- No text of any kind except: the brand/product branding the design itself carries, the four view-name captions, and the Width/Depth/Height dimension callout on the ' + dimensionPanelName + ' panel described above.');
+    }
     lines.push('- ENVIRONMENT & IMAGE QUALITY: physically realistic proportions and materials, believable retail lighting, consistent shadows and reflections, presentation-grade sharpness — the hero image of a professional display-stand proposal.');
     let prompt = lines.join('\n');
 
@@ -7514,7 +7550,14 @@ async function generateDisplayStandDesign(){
   }
 }
 
-const DS_VIEWS = ['Perspective', 'Front', 'Right Side', 'Back'];
+// DS_VIEWS_OPEN drives the standard 4-camera board (Open/island stands); DS_VIEWS_CLOSED
+// drives the 2-camera board used when the stand has a closed back against a wall (see Back
+// Side Access field). dsCurrentViews is set by generateDisplayStandDesign() to whichever set
+// was actually used, and is what the Approve step and view grid below read from — so both
+// stay in sync with whatever board is actually on screen.
+const DS_VIEWS_OPEN = ['Perspective', 'Front', 'Right Side', 'Back'];
+const DS_VIEWS_CLOSED = ['Left Perspective', 'Right Perspective'];
+let dsCurrentViews = DS_VIEWS_OPEN.slice();
 let dsViewRenders = []; // { view, image }
 
 function renderDsViewGrid(inProgressView){
@@ -7523,7 +7566,7 @@ function renderDsViewGrid(inProgressView){
   if(!wrap || !grid) return;
   if(!dsViewRenders.length && !inProgressView){ wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
-  grid.innerHTML = DS_VIEWS.map(view => {
+  grid.innerHTML = dsCurrentViews.map(view => {
     const done = dsViewRenders.find(r => r.view === view);
     const active = inProgressView === view;
     return `
@@ -7535,7 +7578,7 @@ function renderDsViewGrid(inProgressView){
         </div>
         <div style="padding:10px 12px;">
           <div style="font-size:12.5px;font-weight:700;">${view}</div>
-          ${done ? '<div style="display:flex;gap:6px;margin-top:8px;"><button class="ghost small" onclick="downloadDsViewRender(' + DS_VIEWS.indexOf(view) + ')">Download</button></div>' : ''}
+          ${done ? '<div style="display:flex;gap:6px;margin-top:8px;"><button class="ghost small" onclick="downloadDsViewRender(' + dsCurrentViews.indexOf(view) + ')">Download</button></div>' : ''}
         </div>
       </div>
     `;
@@ -7543,7 +7586,7 @@ function renderDsViewGrid(inProgressView){
 }
 
 function downloadDsViewRender(viewIdx){
-  const view = DS_VIEWS[viewIdx];
+  const view = dsCurrentViews[viewIdx];
   const r = dsViewRenders.find(x => x.view === view);
   if(!r) return;
   const name = (dsVal('f_dsName') || 'display-stand').replace(/[^\w\- ]+/g, '').trim();
@@ -7552,36 +7595,43 @@ function downloadDsViewRender(viewIdx){
 
 async function approveDisplayStand(){
   if(!dsLastImage) return;
-  // Every deduction is announced first (owner rule): 4 views = 4 edits.
+  // Every deduction is announced first (owner rule): one edit per view actually on the board
+  // (4 for an Open/island stand, 2 for a Closed/wall stand — see dsCurrentViews).
+  const viewCount = dsCurrentViews.length;
   if(!isAdminUser){
-    const msg = 'Approving will generate 4 high-resolution view renders (Perspective, Front, Right Side, Back) and will use 4 of your edits'
+    const msg = 'Approving will generate ' + viewCount + ' high-resolution view renders (' + dsCurrentViews.join(', ') + ') and will use ' + viewCount + ' of your edits'
       + ((currentUserEditLimit != null && currentUserEditCount != null) ? ' — you have used ' + currentUserEditCount + ' of ' + currentUserEditLimit : '')
       + '. Continue?';
     const ok = await customConfirm(msg, 'Approve', 'Approve');
     if(!ok) return;
-    if(currentUserEditCount != null){ currentUserEditCount += 4; renderEditUsageIndicator(); }
+    if(currentUserEditCount != null){ currentUserEditCount += viewCount; renderEditUsageIndicator(); }
   }
   const approveBtn = document.getElementById('dsApproveBtn');
   approveBtn.disabled = true;
   projectSwitchLocked = true;
   const statusEl = document.getElementById('dsActionStatus');
   dsViewRenders = [];
+  // Board description matches whichever board was actually generated (2-panel vs 4-panel) —
+  // this reproduction prompt reads the SAME dsLastImage the user approved, so the collage
+  // description it warns against must match its real layout.
+  const boardCollageDesc = viewCount === 2 ? 'a two-view COLLAGE' : 'a 2x2 four-view COLLAGE';
+  const boardNoun = viewCount === 2 ? 'two-view' : 'four-view';
   try{
     const boardParts = dataUrlParts(dsLastImage);
     const logoEntry = (dsFileStorage['dsLogoList'] || [])[0];
     const logoData = await readDsFileAsDataUrl(logoEntry);
     const extraRefs = [];
     if(logoData && logoData.dataUrl && String(logoData.type).indexOf('image/') === 0) extraRefs.push({ data: logoData.dataUrl.split(',')[1], mimeType: logoData.type });
-    for(const view of DS_VIEWS){
+    for(const view of dsCurrentViews){
       renderDsViewGrid(view);
-      if(statusEl) statusEl.textContent = 'Approved — generating high-resolution renders (' + (dsViewRenders.length + 1) + ' of 4)...';
+      if(statusEl) statusEl.textContent = 'Approved — generating high-resolution renders (' + (dsViewRenders.length + 1) + ' of ' + viewCount + ')...';
       try{
         const lines = [];
-        lines.push('CRITICAL OUTPUT FORMAT — READ THIS FIRST: your output is ONE single, continuous, seamless photograph of the display stand, filling 100% of the frame. The FIRST attached image is a 2x2 four-view COLLAGE (the approved board) — its collage format must NEVER be copied. Any output with two or more panels, sections, or dividing lines is INVALID.');
+        lines.push('CRITICAL OUTPUT FORMAT — READ THIS FIRST: your output is ONE single, continuous, seamless photograph of the display stand, filling 100% of the frame. The FIRST attached image is ' + boardCollageDesc + ' (the approved board) — its collage format must NEVER be copied. Any output with two or more panels, sections, or dividing lines is INVALID.');
         lines.push('');
-        lines.push('The FIRST attached image is the client-APPROVED four-view board of this display stand; its "' + view + '" panel is the GROUND TRUTH for this render.');
+        lines.push('The FIRST attached image is the client-APPROVED ' + boardNoun + ' board of this display stand; its "' + view + '" panel is the GROUND TRUTH for this render.');
         lines.push('');
-        lines.push('YOUR ONLY TASK: mentally CROP the "' + view + '" panel out of the board, discard the other three panels, and reproduce that exact approved design as ONE full-frame, high-resolution photograph of the stand from the ' + view + ' view. This is a REPRODUCTION, not a redesign — same design, dimensions, materials, colors, branding, products, features; NOTHING added, removed, moved, restyled, or recolored.');
+        lines.push('YOUR ONLY TASK: mentally CROP the "' + view + '" panel out of the board, discard the other panel(s), and reproduce that exact approved design as ONE full-frame, high-resolution photograph of the stand from the ' + view + ' view. This is a REPRODUCTION, not a redesign — same design, dimensions, materials, colors, branding, products, features; NOTHING added, removed, moved, restyled, or recolored.');
         lines.push('');
         lines.push('- Do NOT reproduce the board\'s caption text in the photograph.');
         if(extraRefs.length) lines.push('- LOGO: the SECOND attached image is the exact and only authoritative logo — pixel-for-pixel, never any other version.');
@@ -7609,7 +7659,7 @@ async function approveDisplayStand(){
       }
     }
     renderDsViewGrid(null);
-    if(statusEl) statusEl.textContent = 'Approved — ' + dsViewRenders.length + ' of 4 high-resolution view renders ready below.';
+    if(statusEl) statusEl.textContent = 'Approved — ' + dsViewRenders.length + ' of ' + viewCount + ' high-resolution view renders ready below.';
   }finally{
     approveBtn.disabled = false;
     projectSwitchLocked = false;
