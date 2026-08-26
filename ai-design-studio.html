@@ -1196,6 +1196,7 @@
       <div id="dsViewRenders" style="display:none;margin-top:26px;">
         <div class="eyebrow">Approved View Renders</div>
         <div id="dsViewRendersGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:12px;"></div>
+        <div id="goodLuckDsAnchor"></div>
       </div>
     </div>
   </div>
@@ -7424,6 +7425,11 @@ async function generateDisplayStandDesign(){
   const panel = document.getElementById('dsResult');
   panel.style.display = 'block';
   document.getElementById('dsResultTitle').textContent = dsVal('f_dsName');
+  // A fresh board means any Good Luck/rating still showing belongs to a design that no longer
+  // exists — hide it until this new board is approved again.
+  document.getElementById('dsViewRenders').style.display = 'none';
+  document.getElementById('goodLuckMessage').style.display = 'none';
+  document.getElementById('rateUsBar').style.display = 'none';
   document.getElementById('dsImg').style.display = 'none';
   document.getElementById('dsFrame').style.minHeight = '340px';
   const genMsg = 'Designing your display stand... this can take up to a minute.';
@@ -7652,6 +7658,11 @@ async function approveDisplayStand(){
   projectSwitchLocked = true;
   const statusEl = document.getElementById('dsActionStatus');
   dsViewRenders = [];
+  // Hide any Good Luck/rating left over from an earlier approve in this session — it only
+  // reappears once this fresh batch of view renders has actually finished (see the check
+  // right after the loop below), matching the booth/event pattern.
+  document.getElementById('goodLuckMessage').style.display = 'none';
+  document.getElementById('rateUsBar').style.display = 'none';
   // Board description covers the fallback path only (see catch(cropErr) below) — if a panel
   // can't be cropped client-side for some reason, the old whole-board reference + "mentally
   // crop" prompt still runs rather than failing that view outright.
@@ -7726,6 +7737,10 @@ async function approveDisplayStand(){
     }
     renderDsViewGrid(null);
     if(statusEl) statusEl.textContent = 'Approved — ' + dsViewRenders.length + ' of ' + viewCount + ' high-resolution view renders ready below.';
+    // Good Luck message + rating only appear once every view actually finished — matching the
+    // booth (camera views + technical board) and event (all approved area renders) behavior;
+    // a batch with one or more failed views isn't "done" yet.
+    if(dsViewRenders.length >= viewCount) showDsGoodLuckAndRating(true);
   }finally{
     approveBtn.disabled = false;
     projectSwitchLocked = false;
@@ -16000,16 +16015,33 @@ async function approveEventConceptBoard(){
   generateApprovedAreaRenders();
 }
 
-// The Good Luck message and rating bar are ONE shared pair of elements used by both the
-// booth flow (after camera views) and the event flow (after approved area renders) —
-// moved between the two panels with the same anchor pattern as logoField.
+// The Good Luck message and rating bar are ONE shared pair of elements used by the booth flow
+// (after camera views), the event flow (after approved area renders), and the display stand
+// flow (after approved view renders) — moved between the three panels with the same anchor
+// pattern as logoField.
 function placeGoodLuckAndRating(where){
-  const anchor = document.getElementById(where === 'event' ? 'goodLuckEventAnchor' : 'goodLuckBoothAnchor');
+  const anchorId = where === 'event' ? 'goodLuckEventAnchor' : (where === 'displaystand' ? 'goodLuckDsAnchor' : 'goodLuckBoothAnchor');
+  const anchor = document.getElementById(anchorId);
   const msg = document.getElementById('goodLuckMessage');
   const bar = document.getElementById('rateUsBar');
   if(!anchor || !msg || !bar) return;
   anchor.after(msg);
   msg.after(bar);
+}
+
+// Mirrors showEcbGoodLuckAndRating() — called once every approved Display Stand view render
+// has actually finished (see approveDisplayStand's own check), not merely attempted.
+function showDsGoodLuckAndRating(freshRating){
+  placeGoodLuckAndRating('displaystand');
+  document.getElementById('goodLuckMessage').style.display = 'block';
+  const label = document.getElementById('rateUsLabel');
+  if(freshRating){
+    label.textContent = 'How would you rate this design?';
+    label.classList.remove('rate-us-thanks');
+    currentRatingValue = 0;
+  }
+  previewRatingStars(currentRatingValue || 0);
+  document.getElementById('rateUsBar').style.display = 'flex';
 }
 
 function showEcbGoodLuckAndRating(freshRating){
