@@ -253,6 +253,20 @@
 
   .wrap{flex:1;max-width:920px;margin:0 auto;padding:36px 20px 80px;min-width:0;}
 
+  /* Other Designs rail — a small floating panel shown once any design has been generated,
+     suggesting the other two categories. Fixed rather than a real flex column so it never
+     disturbs the existing sidebar/.wrap layout or its many tested breakpoints; hidden below
+     1300px where there simply isn't spare width for it. */
+  .other-designs-rail{position:fixed;top:110px;right:24px;width:230px;background:#fff;border:1.5px solid var(--navy);border-radius:2px;padding:16px 16px 14px;z-index:40;display:none;box-shadow:0 2px 10px rgba(11,12,16,.08);}
+  @media(max-width:1300px){.other-designs-rail{display:none !important;}}
+  .other-designs-rail-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--teal);margin-bottom:2px;}
+  .other-designs-rail-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--navy);margin-bottom:12px;}
+  .other-design-card{border:1.3px solid var(--line);border-radius:2px;padding:11px 12px;margin-bottom:10px;}
+  .other-design-card:last-child{margin-bottom:0;}
+  .other-design-card-title{font-weight:700;font-size:13px;color:var(--navy);margin-bottom:4px;}
+  .other-design-card-blurb{font-size:12px;line-height:1.5;color:var(--ink);opacity:.75;margin-bottom:9px;}
+  .other-design-card button{width:100%;}
+
   /* header */
   header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;border-bottom:2px solid var(--navy);padding-bottom:18px;margin-bottom:34px;flex-wrap:wrap;}
   .brandmark{display:flex;align-items:center;gap:12px;}
@@ -822,6 +836,12 @@
     <button class="tab" id="tabDisplayStand" onclick="setMode('displaystand')" data-i18n="tabs.displayStand">Display Stand</button>
     <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')" style="display:none;" data-i18n="tabs.editDesign">Modify Design</button>
   </div>
+
+  <aside class="other-designs-rail" id="otherDesignsRail">
+    <div class="other-designs-rail-eyebrow">Explore</div>
+    <div class="other-designs-rail-title">Other Designs</div>
+    <div id="otherDesignsList"></div>
+  </aside>
 
   <div class="show-form-bar" id="showFormBar" style="display:none;">
     <button type="button" class="ghost small" onclick="startNewProject()">🏠 Home Page</button>
@@ -7408,7 +7428,8 @@ async function generateDisplayStandDesign(){
     const lines = [];
     lines.push('You are a world-class retail display designer. Create ONE presentation image showing the SAME product display stand from FOUR cameras, as described below.');
     lines.push('');
-    lines.push('OUTPUT FORMAT — FOUR-VIEW BOARD (mandatory): the image is divided into EXACTLY 4 equal panels in a 2x2 grid: top-left = PERSPECTIVE view (three-quarter hero angle), top-right = FRONT view, bottom-left = RIGHT SIDE view, bottom-right = BACK view. Each panel carries a small clean caption with its view name (Perspective, Front, Right Side, Back) — these captions are the only text annotations allowed.');
+    lines.push('OUTPUT FORMAT — FOUR-VIEW BOARD (mandatory): the image is divided into EXACTLY 4 equal panels in a 2x2 grid: top-left = PERSPECTIVE view (three-quarter hero angle), top-right = FRONT view, bottom-left = RIGHT SIDE view, bottom-right = BACK view. Each panel carries a small clean caption with its view name (Perspective, Front, Right Side, Back).');
+    lines.push('DIMENSION CALLOUT (Perspective panel only): in the Perspective panel add small, clean dimension lines/labels for the stand\'s overall Width, Depth, and Height in cm — like a product spec sheet (e.g. thin arrows or leader lines to the base and side of the stand, each labeled "W: ' + dsVal('f_dsMaxWidth') + ' cm", "D: ' + dsVal('f_dsMaxDepth') + ' cm", "H: ' + dsVal('f_dsMaxHeight') + ' cm"). Keep these small and unobtrusive, in a corner or along the edges — never covering the stand or products. The other three panels (Front, Right Side, Back) carry ONLY their view-name caption, no dimension text.');
     lines.push('SAME STAND IN ALL FOUR PANELS (hard rule): all four panels show the IDENTICAL display stand — the same design, same dimensions, same materials, same colors, same branding, same products in the same positions, same features. ONLY the camera position changes between panels. Any design difference between panels is a failure.');
     lines.push('');
     lines.push('DISPLAY STAND BRIEF (every stated detail is mandatory):');
@@ -7434,8 +7455,10 @@ async function generateDisplayStandDesign(){
     if(colors.length) lines.push('- HARD RULE — BRAND COLOR COMPLIANCE: the ONLY colors permitted are ' + colors.join(', ') + ', their derived shades/tints, and neutrals (white, black, grey, silver, natural wood, transparent materials). Never introduce any other accent color anywhere.');
     lines.push('- LOGO AUTHENTICITY (hard rule): the attached logo image is the ONLY authoritative logo — reproduce it exactly wherever branding appears; never any other version of this company\'s logo you may know.');
     lines.push('- CAMERA PER PANEL: in every panel the full stand is visible with a clean margin and the products readable; slight downward elevation on the Perspective panel.');
+    lines.push('- SCALE ACCURACY PER PANEL (hard rule): every panel — especially the RIGHT SIDE view — must render the stand at the exact real-world proportions stated above (' + dsVal('f_dsMaxWidth') + ' cm wide x ' + dsVal('f_dsMaxDepth') + ' cm deep x ' + dsVal('f_dsMaxHeight') + ' cm tall). The Right Side panel\'s silhouette shows the stand\'s true depth-to-height ratio from these numbers — never stretch, compress, elongate, or otherwise distort the stand\'s scale in any one panel relative to the others; all four must read as the same object at the same size.');
+    lines.push('- FRONT/BACK CONSTRUCTION CONSISTENCY (hard rule): the Back panel is the literal rear of the SAME physical stand shown in the Front panel — identical outer footprint, frame, structure, materials, colors and proportions, with only the camera moved to the opposite side. Every structural element visible on the Front (uprights, header, side panels, base, shelf edges) must continue logically onto the Back exactly as a real object would; never invent a different construction, thickness, or shape for the rear.');
     lines.push('- Full-bleed 2x2 board, edge to edge — exactly 4 panels, never more, never fewer, no empty panels.');
-    lines.push('- No text of any kind except the brand/product branding the design itself carries.');
+    lines.push('- No text of any kind except: the brand/product branding the design itself carries, the four view-name captions, and the Width/Depth/Height dimension callout on the Perspective panel described above.');
     lines.push('- ENVIRONMENT & IMAGE QUALITY: physically realistic proportions and materials, believable retail lighting, consistent shadows and reflections, presentation-grade sharpness — the hero image of a professional display-stand proposal.');
     let prompt = lines.join('\n');
 
@@ -7478,6 +7501,7 @@ async function generateDisplayStandDesign(){
     img.src = data.image;
     img.style.display = 'block';
     document.getElementById('dsActionStatus').textContent = '';
+    showOtherDesignsRail();
   }catch(err){
     clearInterval(sim);
     console.error('Display stand generation failed:', err);
@@ -10775,6 +10799,48 @@ function updateConstructionStyleHint(select, forcedMode){
   }
 }
 
+// Other Designs rail — a small floating panel that appears once any of the three design
+// categories has actually been generated, suggesting the other two so the user can explore
+// them without hunting for the top tabs. anyDesignGenerated is a one-way flag for the current
+// session/project (set true by showOtherDesignsRail(), reset by startNewProject()); the panel
+// itself always excludes whichever mode is currently active so it never suggests "try this"
+// for the thing already on screen.
+const OTHER_DESIGN_CATEGORIES = {
+  booth: { label: 'Exhibition Booth', blurb: 'Design a custom exhibition booth from your brand and space requirements.' },
+  event: { label: 'Event Concept', blurb: 'Generate a full event theme with a multi-panel concept board.' },
+  displaystand: { label: 'Display Stand', blurb: 'Create a retail product display stand with a 4-camera view board.' }
+};
+let anyDesignGenerated = false;
+
+function renderOtherDesignsRail(){
+  const rail = document.getElementById('otherDesignsRail');
+  const list = document.getElementById('otherDesignsList');
+  if(!rail || !list) return;
+  const keys = Object.keys(OTHER_DESIGN_CATEGORIES).filter(k => k !== mode);
+  if(!anyDesignGenerated || !keys.length){ rail.style.display = 'none'; return; }
+  rail.style.display = 'block';
+  list.innerHTML = keys.map(k => {
+    const c = OTHER_DESIGN_CATEGORIES[k];
+    return '<div class="other-design-card">'
+      + '<div class="other-design-card-title">' + c.label + '</div>'
+      + '<div class="other-design-card-blurb">' + c.blurb + '</div>'
+      + '<button type="button" class="ghost small" onclick="startOtherDesign(\'' + k + '\')">Start &rarr;</button>'
+      + '</div>';
+  }).join('');
+}
+
+function startOtherDesign(targetMode){
+  setMode(targetMode);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Called from every generation-success point across all three categories, plus project
+// restore when a reopened project already has a finished result.
+function showOtherDesignsRail(){
+  anyDesignGenerated = true;
+  renderOtherDesignsRail();
+}
+
 function setMode(m){
   // Construction Style's <option> list differs by mode (Booth's build tiers vs. Event's
   // production tiers) even though it's the same shared #f_constructionStyle element — rebuild
@@ -10889,6 +10955,7 @@ function setMode(m){
     // active the first time setMode() ever ran, ignoring every later language switch.
     updateModeDependentLabels();
   }
+  renderOtherDesignsRail();
   updateGenerateButtonState();
 }
 
@@ -15690,6 +15757,7 @@ async function generateEventConceptBoard(options){
       : (eventConceptBoard && eventConceptBoard.image ? [{ label: 'Theme 1', image: eventConceptBoard.image }] : []);
     prevGallery.push({ label: 'Theme ' + (prevGallery.length + 1), image: compressed });
     eventConceptBoard = { image: compressed, gallery: prevGallery, activeIndex: prevGallery.length - 1, areas: (briefData.required_areas || []).slice(), spec: null, engine: 'gemini' };
+    showOtherDesignsRail();
     if(stopEcbSim){ stopEcbSim(); stopEcbSim = null; }
     if(inPlace){
       updateEcbProgress(100, 'Done.');
@@ -18272,6 +18340,7 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
             currentUserModifyCount++;
             renderModifyUsageIndicator();
           }
+          showOtherDesignsRail();
         }
         renderOptionTabsV2();
         if(activeOptionIndex === i) showOptionV2(i);
@@ -18369,6 +18438,7 @@ async function renderParametricMultiViewOption_TE(i, opt, renderCtx){
     optionResults[i].status = 'done';
     optionResults[i].gallery = [{ label: 'Original', image: compressed, engine: firstRenderChosenEngine === 'openai' ? 'openai' : 'gemini' }];
     optionResults[i].activeGalleryIndex = 0;
+    showOtherDesignsRail();
   }catch(err){
     optionResults[i].status = 'error';
     optionResults[i].errorMsg = err && err.message ? err.message : 'Unexpected error rendering the 4-view parametric sheet.';
@@ -22122,6 +22192,13 @@ function openProject(id){
       // (via restoreGeneratedViewsIfSaved) re-locks them immediately after if this
       // particular project turns out to already be approved.
       unlockApprovedActionBar();
+      // Set BEFORE restoreFormSnapshot (which calls setMode() internally, and setMode() itself
+      // calls renderOtherDesignsRail()) so the rail's very first render for this project already
+      // reflects whether it has a finished result, rather than briefly showing the previous
+      // project's state. Display Stand results aren't part of the saved project yet, so this
+      // can only detect booth/event results — a pre-existing gap (see the same note in
+      // generateDisplayStandDesign's own history), not something new here.
+      anyDesignGenerated = !!(project.optionResult || project.eventConceptBoard);
       restoreFormSnapshot(project.formSnapshot);
       // Reset AFTER restoreFormSnapshot, not before — see the identical comment in
       // startNewProject() for why the order matters here.
@@ -22129,6 +22206,7 @@ function openProject(id){
       eventFieldSnapshot = { name: '', archStyle: 'Modern', industryStyle: '', constructionStyle: 'Premium Custom Build', brandPersonalities: ['Elegant', 'Innovative', 'Creative'] };
       restoreLogoAndPosters(project);
       restoreResultsView(project);
+      renderOtherDesignsRail();
       renderProjectSidebar();
       // Only land directly on the results view when there actually IS a finished result —
       // a project saved before generating, or one stuck mid prompt-review, has nothing to
@@ -22306,6 +22384,7 @@ function startNewProject(){
   pendingPromptResult = null;
   optionResults = [];
   activeOptionIndex = 0;
+  anyDesignGenerated = false;
 
   restoreFormSnapshot({});
   // Reset AFTER restoreFormSnapshot, not before — that function calls setMode() internally,
