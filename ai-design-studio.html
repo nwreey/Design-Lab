@@ -7409,14 +7409,41 @@ async function generateDisplayStandDesign(){
     return;
   }
 
-  // Every deduction is announced first (owner rule): a display stand generation costs 1 modification.
+  // Awaiting adminCheckPromise first guarantees currentUserProjectLimit/lastKnownProjectCount
+  // are this page load's real numbers — same reasoning as generateDesign()'s identical await.
+  if(adminCheckPromise) await adminCheckPromise;
+  // First Generate for a brand-new Display Stand project costs a PROJECT slot, exactly like
+  // booth's own generateDesign(); clicking Generate again on an already-existing DS project
+  // (the form stays open/editable after the first Generate) is a real regeneration, billed
+  // against the MODIFY quota instead — same isNewProject split booth already uses, just never
+  // wired up for Display Stand until now (it previously always billed 1 modification, even on
+  // the very first generate, and never actually saved/created a project at all).
+  const isNewDsProject = !currentProjectId;
+  if(!isAdminUser && isNewDsProject && currentUserProjectLimit != null && lastKnownProjectCount != null && lastKnownProjectCount >= currentUserProjectLimit){
+    await customAlert('You\'ve reached your project limit (' + currentUserProjectLimit + '). Please contact your administrator to increase this limit, or open an existing project instead of starting a new one.', 'Generate Design');
+    return;
+  }
+  if(!isAdminUser && !isNewDsProject && currentUserModifyLimit != null && currentUserModifyCount != null && currentUserModifyCount >= currentUserModifyLimit){
+    await customAlert('You\'ve reached your modify limit (' + currentUserModifyLimit + '). Please contact your administrator to increase this limit.', 'Generate Design');
+    return;
+  }
+
+  // Every deduction is announced first (owner rule).
   if(!isAdminUser){
-    const msg = (currentUserModifyLimit != null && currentUserModifyCount != null)
-      ? 'Generating this display stand will use 1 of your modifications — you have used ' + currentUserModifyCount + ' of ' + currentUserModifyLimit + '. Continue?'
-      : 'Generating this display stand will use 1 of your modifications. Continue?';
+    const msg = isNewDsProject
+      ? ((currentUserProjectLimit != null && lastKnownProjectCount != null)
+          ? 'Generating this display stand will use 1 of your allowed projects — you\'ll have ' + Math.max(0, currentUserProjectLimit - lastKnownProjectCount - 1) + ' remaining after this one. Continue?'
+          : 'Generating this display stand will use 1 of your allowed projects. Continue?')
+      : ((currentUserModifyLimit != null && currentUserModifyCount != null)
+          ? 'Generating this display stand again will use 1 of your modifications — you have used ' + currentUserModifyCount + ' of ' + currentUserModifyLimit + '. Continue?'
+          : 'Generating this display stand again will use 1 of your modifications. Continue?');
     const ok = await customConfirm(msg, 'Generate Design', 'Continue');
     if(!ok) return;
-    if(currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
+    // The PROJECT count itself only increments inside saveCurrentProject() on a successful
+    // save (see its own "PERMANENT, increment-only" comment) — not here — so a generation
+    // that fails never burns a project slot for nothing. The MODIFY count has no equivalent
+    // deferred-save step to hook into, so it increments right here, same as booth/event.
+    if(!isNewDsProject && currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
   }
 
   const btn = document.getElementById('dsSubmitBtn');
@@ -7437,6 +7464,13 @@ async function generateDisplayStandDesign(){
   panel.scrollIntoView({behavior:'smooth', block:'start'});
   let elapsed = 0;
   const sim = setInterval(() => { elapsed += 400; const t = elapsed / 45000; updateDsProgress(8 + 84 * (1 - Math.exp(-t * 2.2)), genMsg); }, 400);
+
+  // Only saved immediately here for an EXISTING project being regenerated — never costs a
+  // project slot either way, and there's real prior content worth protecting against a
+  // mid-generation refresh. A brand-new project's very first save (the one that permanently
+  // burns a project slot) is deferred until generation actually succeeds, below — mirrors
+  // booth's own generateDesign() timing exactly (see its own identical comment).
+  if(!isNewDsProject || isAdminUser) saveCurrentProject();
 
   try{
     const type = dsVal('f_dsType') === 'Custom' ? (dsVal('f_dsTypeCustom') || 'Custom') : dsVal('f_dsType');
@@ -7548,6 +7582,11 @@ async function generateDisplayStandDesign(){
     img.src = data.image;
     img.style.display = 'block';
     document.getElementById('dsActionStatus').textContent = '';
+    // New project's first save, deferred until here — see this function's own comment above
+    // the earlier saveCurrentProject() call for why. A refusal/network failure before this
+    // point costs nothing; renderProjectSidebar() (inside saveCurrentProject) is also what
+    // makes this project actually show up in the sidebar for the first time.
+    if(isNewDsProject && !isAdminUser) saveCurrentProject();
   }catch(err){
     clearInterval(sim);
     console.error('Display stand generation failed:', err);
@@ -7568,7 +7607,50 @@ async function generateDisplayStandDesign(){
 const DS_VIEWS_OPEN = ['Perspective', 'Front', 'Right Side', 'Back'];
 const DS_VIEWS_CLOSED = ['Left Perspective', 'Right Perspective'];
 let dsCurrentViews = DS_VIEWS_OPEN.slice();
-let dsViewRenders = []; // { view, image }
+let dsViewRenders = []; // { view, image, images, activeIndex } — images/activeIndex hold the edit-history version stack, exhibition/event-area style (see ecbAreaCurrentImage's identical pattern); `image` stays in sync with the active version for anything that still reads it directly.
+let dsViewEditing = null; // { view, stop } — which view card (if any) currently has an in-progress single-picture edit running, so its progress bar renders inside that one card only.
+
+// Returns whichever version of a DS view render is currently active — same idea as
+// ecbAreaCurrentImage for the Event Concept Board's area renders.
+function dsViewCurrentImage(r){
+  return (r.images && r.images.length) ? r.images[r.activeIndex != null ? r.activeIndex : r.images.length - 1] : r.image;
+}
+
+// Back/Forward navigation through one view's edit history — mirrors ecbAreaNav exactly.
+function dsViewNav(renderIdx, delta){
+  if(dsViewEditing) return;
+  const r = dsViewRenders[renderIdx];
+  if(!r || !r.images || r.images.length < 2) return;
+  const next = Math.max(0, Math.min(r.images.length - 1, (r.activeIndex != null ? r.activeIndex : r.images.length - 1) + delta));
+  r.activeIndex = next;
+  r.image = r.images[next];
+  renderDsViewGrid(null);
+  saveCurrentProject();
+}
+
+function startDsViewEditProgress(view){
+  dsViewEditing = { view, stop: null };
+  renderDsViewGrid(null);
+  let elapsed = 0;
+  const stepMs = 400;
+  const timer = setInterval(() => {
+    elapsed += stepMs;
+    const t = elapsed / 45000;
+    const eased = 1 - Math.exp(-t * 2.2);
+    const fill = document.getElementById('dsViewEditFill');
+    const pct = document.getElementById('dsViewEditPercent');
+    const clamped = Math.round(10 + 82 * eased);
+    if(fill) fill.style.width = clamped + '%';
+    if(pct) pct.textContent = clamped + '%';
+  }, stepMs);
+  dsViewEditing.stop = function(){ clearInterval(timer); };
+}
+
+function stopDsViewEditProgress(){
+  if(dsViewEditing && dsViewEditing.stop) dsViewEditing.stop();
+  dsViewEditing = null;
+  renderDsViewGrid(null);
+}
 
 function renderDsViewGrid(inProgressView){
   const wrap = document.getElementById('dsViewRenders');
@@ -7578,29 +7660,52 @@ function renderDsViewGrid(inProgressView){
   wrap.style.display = 'block';
   grid.innerHTML = dsCurrentViews.map(view => {
     const done = dsViewRenders.find(r => r.view === view);
+    // Bind every action to the render's NUMERIC index, not the view name — area/view names
+    // carried through generated onclick attributes can break on quotes/slashes (real bug hit
+    // in the Event Concept Board's area renders; same fix applied here from the start).
+    const renderIdx = done ? dsViewRenders.indexOf(done) : -1;
     const active = inProgressView === view;
+    const editing = dsViewEditing && dsViewEditing.view === view;
+    const shown = done ? dsViewCurrentImage(done) : null;
+    const versions = done && done.images ? done.images.length : 1;
+    const vIndex = done && done.images ? (done.activeIndex != null ? done.activeIndex : versions - 1) : 0;
+    // The edit runs with the ORIGINAL still visible; the progress bar sits INSIDE the box —
+    // same in-card pattern as the Event Concept Board's area-render edits.
+    const editOverlay = editing ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(11,12,16,.82);padding:10px 12px;z-index:2;">'
+      + '<div class="approve-progress-header"><span class="approve-progress-message" style="color:#EAEAEA;">Applying your edit...</span><span class="approve-progress-percent" id="dsViewEditPercent" style="color:#EAEAEA;">10%</span></div>'
+      + '<div class="approve-progress-track"><div class="approve-progress-fill" id="dsViewEditFill" style="width:10%;"></div></div>'
+      + '</div>' : '';
+    const navRow = (done && versions > 1 && !editing)
+      ? '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;">'
+        + '<button class="ghost small" ' + (vIndex === 0 ? 'disabled' : '') + ' onclick="dsViewNav(' + renderIdx + ', -1)">&lsaquo; Back</button>'
+        + '<span style="font-size:11px;opacity:.6;">' + (vIndex + 1) + ' / ' + versions + '</span>'
+        + '<button class="ghost small" ' + (vIndex === versions - 1 ? 'disabled' : '') + ' onclick="dsViewNav(' + renderIdx + ', 1)">Forward &rsaquo;</button>'
+        + '</div>' : '';
     return `
       <div style="border:1.5px solid var(--line);border-radius:2px;overflow:hidden;background:#fff;">
-        <div style="background:#0B0C10;aspect-ratio:297/210;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#0B0C10;aspect-ratio:297/210;display:flex;align-items:center;justify-content:center;position:relative;">
           ${done
-            ? '<img src="' + done.image + '" alt="' + view + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openImageLightbox(this.src)">'
+            ? '<img src="' + shown + '" alt="' + view + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openImageLightbox(this.src)">' + editOverlay
             : '<div style="color:#9AA0AC;font-size:12px;padding:14px;text-align:center;">' + (active ? 'Generating high-resolution render...' : 'Waiting...') + '</div>'}
         </div>
         <div style="padding:10px 12px;">
           <div style="font-size:12.5px;font-weight:700;">${view}</div>
-          ${done ? '<div style="display:flex;gap:6px;margin-top:8px;"><button class="ghost small" onclick="downloadDsViewRender(' + dsCurrentViews.indexOf(view) + ')">Download</button></div>' : ''}
+          ${navRow}
+          ${(done && !editing) ? '<div style="display:flex;gap:6px;margin-top:8px;">'
+              + '<button class="ghost small" onclick="downloadDsViewRender(' + renderIdx + ')">Download</button>'
+              + '<button class="ghost small" onclick="openEditPanel(\'dsViewIdx:' + renderIdx + '\')">Edit</button>'
+              + '</div>' : ''}
         </div>
       </div>
     `;
   }).join('');
 }
 
-function downloadDsViewRender(viewIdx){
-  const view = dsCurrentViews[viewIdx];
-  const r = dsViewRenders.find(x => x.view === view);
+function downloadDsViewRender(renderIdx){
+  const r = dsViewRenders[renderIdx];
   if(!r) return;
   const name = (dsVal('f_dsName') || 'display-stand').replace(/[^\w\- ]+/g, '').trim();
-  forceDownloadImage(r.image, name + ' - ' + view + '.png');
+  forceDownloadImage(dsViewCurrentImage(r), name + ' - ' + r.view + '.png');
 }
 
 // Physically crops ONE panel out of the approved multi-view board using a canvas, instead of
@@ -7741,6 +7846,9 @@ async function approveDisplayStand(){
     // booth (camera views + technical board) and event (all approved area renders) behavior;
     // a batch with one or more failed views isn't "done" yet.
     if(dsViewRenders.length >= viewCount) showDsGoodLuckAndRating(true);
+    // Persist the approved view renders (even a partial batch, so a failed view isn't lost on
+    // refresh — Retry-equivalent isn't built for DS yet, but at least the successful ones survive).
+    saveCurrentProject();
   }finally{
     approveBtn.disabled = false;
     projectSwitchLocked = false;
@@ -7766,6 +7874,14 @@ function handleDsFileUpload(input, listId){
       try{ entry.previewUrl = URL.createObjectURL(f); }catch(err){ /* no thumbnail, filename row still works */ }
     }
     dsFileStorage[listId].push(entry);
+    // Also captured as a base64 data URL, separately from the instant blob: previewUrl above —
+    // a project save needs something that survives a reload (see collectDsFileSnapshots),
+    // which a blob: URL never does. Filled in asynchronously; a save that fires in the split
+    // second before this resolves just skips that one file (collectDsFileSnapshots filters on
+    // f.dataUrl being present) rather than saving a broken row.
+    readDsFileAsDataUrl(entry).then(result => {
+      if(result && result.dataUrl) entry.dataUrl = result.dataUrl;
+    }).catch(err => { /* no persisted copy for this file; save just skips it (see comment above) */ });
   });
   renderDsFileList(listId);
   input.value = '';
@@ -19276,6 +19392,15 @@ function openEditPanel(camId, isStandalone){
     sourceImage = ecbAreaCurrentImage(r);
     editTarget = { type: 'ecbArea', renderIdx, area: r.area };
     downloadLabel = r.area;
+  }else if(typeof camId === 'string' && camId.indexOf('dsViewIdx:') === 0){
+    // Approved Display Stand view render (same Edit panel as every other picture in the app).
+    // Resolved strictly by numeric index, same reasoning as ecbAreaIdx above.
+    const renderIdx = parseInt(camId.slice(10), 10);
+    const r = dsViewRenders[renderIdx];
+    if(!r) return;
+    sourceImage = dsViewCurrentImage(r);
+    editTarget = { type: 'dsView', renderIdx, view: r.view };
+    downloadLabel = r.view;
   }else if(camId){
     const card = document.getElementById('genCard-' + camId);
     const cardImg = card ? card.querySelector('img') : null;
@@ -19397,7 +19522,7 @@ function canvasHasMarkup(canvas){
 async function submitEdit(){
   const idx = activeOptionIndex;
   const opt = optionResults[idx];
-  if(!opt && (!editTarget || (editTarget.type !== 'standalone' && editTarget.type !== 'ecbArea'))) return;
+  if(!opt && (!editTarget || (editTarget.type !== 'standalone' && editTarget.type !== 'ecbArea' && editTarget.type !== 'dsView'))) return;
 
   const editDesc = document.getElementById('editText').value.trim();
   const canvas = document.getElementById('markupCanvas');
@@ -19429,12 +19554,21 @@ async function submitEdit(){
   const compositeDataUrl = composite.toDataURL('image/png');
 
   let promptText;
-  // Event-area edits use event framing (and skip the booth-only approved-decisions block).
+  // Event-area and Display Stand edits each use their own framing (and skip the booth-only
+  // approved-decisions block, which only ever applies to the exhibition booth pipeline).
   const EDIT_DESIGNER_FRAMING = editTarget.type === 'ecbArea'
     ? 'You are the same world-class event designer who created this approved event area render. When making this edit, apply that same professional judgment, not just literal instruction-following: correct human-scale proportions for anything you add or resize, premium material and finish choices consistent with the rest of the design, clean uncluttered composition, and full design-language consistency (materials, brand color palette, architectural language, lighting approach) with everything already established. Never introduce any color outside the established brand palette and neutrals.\n'
+    : editTarget.type === 'dsView'
+    ? 'You are the same world-class retail display designer who created this approved display stand render. When making this edit, apply that same professional judgment, not just literal instruction-following: correct human-scale proportions for anything you add or resize, premium material and finish choices consistent with the rest of the stand, clean uncluttered composition, and full design-language consistency (materials, brand color palette, branding, lighting approach) with everything already established. Never introduce any color outside the established brand palette and neutrals.\n'
     : `You are the same world-class exhibition stand designer — 20+ years of experience designing booths for international trade shows such as GITEX, CES, Arab Health, Hannover Messe, and Mobile World Congress — who created this approved booth design. When making this edit, apply that same professional judgment, not just literal instruction-following: correct human-scale proportions for anything you add or resize, premium material and finish choices consistent with the rest of the booth, clean and uncluttered composition, and full design-language consistency (materials, color palette, architectural style, lighting approach) with everything already established in this design. This is a real professional exhibition stand — every change must hold up to that same premium standard.
 ${buildApprovedDecisionsText()}
 `;
+  // What to call the thing being edited in the reference-image instruction below — booth's
+  // wording ("this booth design") never fit event area renders or Display Stand pictures either,
+  // it just went unnoticed until Display Stand needed its own accurate wording.
+  const editSubjectNoun = editTarget.type === 'ecbArea' ? 'this event area'
+    : editTarget.type === 'dsView' ? 'this display stand'
+    : 'this booth design';
   const colorsUsedList = Array.from(markupColorsUsed).map(c => MARKUP_COLOR_NAMES[c] || c);
   const markupDescription = colorsUsedList.length > 1
     ? `The attached image includes hand-drawn markings in ${colorsUsedList.length} different colors (${colorsUsedList.join(', ')}) — treat each color as marking a separate, distinct change; use the description below to match each color to its intended change`
@@ -19443,13 +19577,13 @@ ${buildApprovedDecisionsText()}
       : `The attached image includes a hand-drawn marking indicating exactly where this change should be applied`;
 
   if(hasMarkup && editDesc){
-    promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for this booth design, apply the requested change(s) while keeping everything else identical: "${editDesc}". ${markupDescription} — use the marking(s) to locate each change precisely. Keep the overall design, materials, and colors elsewhere unchanged.`;
+    promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for ${editSubjectNoun}, apply the requested change(s) while keeping everything else identical: "${editDesc}". ${markupDescription} — use the marking(s) to locate each change precisely. Keep the overall design, materials, and colors elsewhere unchanged.`;
   }else if(hasMarkup){
-    promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for this booth design, ${markupDescription.charAt(0).toLowerCase() + markupDescription.slice(1)}. Infer a sensible design improvement at each marked location that fits the overall style, and keep everything else in the image identical.`;
+    promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for ${editSubjectNoun}, ${markupDescription.charAt(0).toLowerCase() + markupDescription.slice(1)}. Infer a sensible design improvement at each marked location that fits the overall style, and keep everything else in the image identical.`;
   }else if(editDesc){
-    promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for this booth design, apply this requested change while keeping everything else identical: "${editDesc}".`;
+    promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for ${editSubjectNoun}, apply this requested change while keeping everything else identical: "${editDesc}".`;
   }else{
-    promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for this booth design.`;
+    promptText = `${EDIT_DESIGNER_FRAMING}Using the attached image as the exact reference for ${editSubjectNoun}.`;
   }
 
   // Camera re-angle request (owner feature): the same design, unchanged, viewed from the
@@ -19464,10 +19598,13 @@ ${buildApprovedDecisionsText()}
     promptText += ' CAMERA CHANGE (mandatory): re-render this EXACT same design viewed ' + (CAMERA_CHANGE_TEXT[editCameraChoice] || editCameraChoice) + '. Every design element, material, color, branding, lighting choice, and piece of furniture stays IDENTICAL to the reference image — the ONLY thing that changes is the camera position.';
   }
 
-  const statusEl = editTarget.type === 'ecbArea' ? document.getElementById('ecbActionStatus') : document.getElementById('actionStatus');
-  // For area-render edits the progress lives INSIDE the picture box (startEcbAreaEditProgress)
-  // — no duplicate message in the board's status line under the Download bar.
-  statusEl.textContent = editTarget.type === 'ecbArea' ? '' : 'Preparing your edit...';
+  const statusEl = editTarget.type === 'ecbArea' ? document.getElementById('ecbActionStatus')
+    : editTarget.type === 'dsView' ? document.getElementById('dsActionStatus')
+    : document.getElementById('actionStatus');
+  // For area-render and Display Stand view edits the progress lives INSIDE the picture box
+  // (startEcbAreaEditProgress / startDsViewEditProgress) — no duplicate message in the
+  // board's status line under the Download bar.
+  statusEl.textContent = (editTarget.type === 'ecbArea' || editTarget.type === 'dsView') ? '' : 'Preparing your edit...';
   closeEditPanel();
 
   // Show progress directly on the specific picture being edited, not only as a page-top
@@ -19483,6 +19620,10 @@ ${buildApprovedDecisionsText()}
   }else if(editTarget.type === 'ecbArea'){
     // Original stays visible; the progress bar runs inside that card's image box.
     startEcbAreaEditProgress(editTarget.area);
+  }else if(editTarget.type === 'dsView'){
+    // Same in-card pattern as ecbArea just above — original stays visible, progress bar runs
+    // inside that one view's own box.
+    startDsViewEditProgress(editTarget.view);
   }
   // Same protection as every other generation flow — an edit in flight is just as much "a
   // design being generated" as the initial render or the camera views, so closing the tab,
@@ -19522,9 +19663,10 @@ ${buildApprovedDecisionsText()}
     return;
   }
 
-  // For area-render edits the progress already runs INSIDE the picture box — writing it
-  // here too duplicated the message under the theme's Download bar (owner report).
-  statusEl.textContent = editTarget.type === 'ecbArea' ? '' : 'Applying your edit... this can take up to a minute.';
+  // For area-render and Display Stand view edits the progress already runs INSIDE the picture
+  // box — writing it here too duplicated the message under the theme/board's Download bar
+  // (owner report, originally for Event area renders).
+  statusEl.textContent = (editTarget.type === 'ecbArea' || editTarget.type === 'dsView') ? '' : 'Applying your edit... this can take up to a minute.';
 
   try{
     // Same 190s allowance as every other call to this OpenAI edit endpoint — see the comment
@@ -19566,6 +19708,19 @@ ${buildApprovedDecisionsText()}
       }
       stopEcbAreaEditProgress();
       statusEl.textContent = '';
+    }else if(editTarget.type === 'dsView'){
+      const target = dsViewRenders[editTarget.renderIdx];
+      if(target){
+        // Same version-history pattern as ecbArea just above: the original is always kept;
+        // Back/Forward (dsViewNav) walk the versions on the card.
+        target.images = (target.images && target.images.length) ? target.images : [target.image];
+        target.images.push(compressedResult);
+        while(target.images.length > 6) target.images.splice(1, 1);
+        target.activeIndex = target.images.length - 1;
+        target.image = compressedResult;
+      }
+      stopDsViewEditProgress();
+      statusEl.textContent = '';
     }else if(editTarget.type === 'camview'){
       pushCardHistory(editTarget.camId, compressedResult, editDesc);
       renderGeneratedViewCard(editTarget.camId, 'done', compressedResult);
@@ -19592,6 +19747,7 @@ ${buildApprovedDecisionsText()}
       renderGeneratedViewCard(editTarget.camId, 'done', originalCardImage);
     }
     if(editTarget.type === 'ecbArea') stopEcbAreaEditProgress(); // original untouched, bar removed
+    if(editTarget.type === 'dsView') stopDsViewEditProgress(); // original untouched, bar removed
     if(activeOptionIndex === idx){
       setStatusError(statusEl, 'Could not apply that edit: ' + (err.message || 'unknown error'));
     }
@@ -21778,8 +21934,60 @@ function collectFormSnapshot(){
     f_upperFloor: document.getElementById('f_upperFloor').value,
     f_hasPosters: document.getElementById('f_hasPosters').value,
     f_posterCount: document.getElementById('f_posterCount').value,
-    colorHexes: Array.from(document.querySelectorAll('#colorRows .color-hex')).map(i => i.value)
+    colorHexes: Array.from(document.querySelectorAll('#colorRows .color-hex')).map(i => i.value),
+    // Display Stand fields — its own separate form (not shared with booth/event), saved and
+    // restored the same way so a Display Stand project can actually be reopened instead of
+    // silently restoring as a blank booth form (a real prior gap: DS never persisted at all).
+    f_dsName: document.getElementById('f_dsName').value,
+    f_dsCompany: document.getElementById('f_dsCompany').value,
+    f_dsIndustry: document.getElementById('f_dsIndustry').value,
+    f_dsType: document.getElementById('f_dsType').value,
+    f_dsTypeCustom: document.getElementById('f_dsTypeCustom').value,
+    f_dsProductName: document.getElementById('f_dsProductName').value,
+    f_dsProductCategory: document.getElementById('f_dsProductCategory').value,
+    f_dsProductWidth: document.getElementById('f_dsProductWidth').value,
+    f_dsProductDepth: document.getElementById('f_dsProductDepth').value,
+    f_dsProductHeight: document.getElementById('f_dsProductHeight').value,
+    f_dsProductWeight: document.getElementById('f_dsProductWeight').value,
+    f_dsProductCount: document.getElementById('f_dsProductCount').value,
+    f_dsMaxWidth: document.getElementById('f_dsMaxWidth').value,
+    f_dsMaxDepth: document.getElementById('f_dsMaxDepth').value,
+    f_dsMaxHeight: document.getElementById('f_dsMaxHeight').value,
+    f_dsBackType: document.getElementById('f_dsBackType').value,
+    f_dsShelfCount: document.getElementById('f_dsShelfCount').value,
+    f_dsLevelCount: document.getElementById('f_dsLevelCount').value,
+    f_dsLocation: document.getElementById('f_dsLocation').value,
+    f_dsPurpose: document.getElementById('f_dsPurpose').value,
+    f_dsMaterials: Array.from(document.querySelectorAll('.ds-material-cb:checked')).map(cb => cb.value),
+    f_dsWebsite: document.getElementById('f_dsWebsite').value,
+    f_dsFeatures: Array.from(document.querySelectorAll('.ds-feature-cb:checked')).map(cb => cb.value),
+    f_dsStyle: document.getElementById('f_dsStyle').value,
+    f_dsColorPrimaryHex: document.getElementById('f_dsColorPrimaryHex').value,
+    f_dsColorSecondaryHex: document.getElementById('f_dsColorSecondaryHex').value,
+    f_dsColorAccentHex: document.getElementById('f_dsColorAccentHex').value,
+    f_dsDescription: document.getElementById('f_dsDescription').value,
+    f_dsProduction: document.getElementById('f_dsProduction').value,
+    f_dsBudget: document.getElementById('f_dsBudget').value,
+    f_dsRetailEnvironment: document.getElementById('f_dsRetailEnvironment').value,
+    dsFiles: collectDsFileSnapshots()
   };
+}
+
+// Serializes dsFileStorage's four upload lists (logo, brand guidelines, product images, product
+// artwork) into plain {name, type, dataUrl} objects a project save can actually store — the raw
+// File objects and blob: preview URLs handleDsFileUpload keeps for this session don't survive a
+// save/reload. entry.dataUrl is filled in asynchronously by handleDsFileUpload right after
+// upload; an entry uploaded a split-second before a save fires may not have it yet and is
+// skipped rather than saved as a broken row.
+function collectDsFileSnapshots(){
+  const listIds = ['dsLogoList', 'dsBrandGuidelinesList', 'dsProductImagesList', 'dsProductArtworkList'];
+  const out = {};
+  listIds.forEach(listId => {
+    out[listId] = (dsFileStorage[listId] || [])
+      .filter(f => f.dataUrl)
+      .map(f => ({ name: f.name, type: f.type, dataUrl: f.dataUrl }));
+  });
+  return out;
 }
 
 function restoreFormSnapshot(snap){
@@ -21984,6 +22192,76 @@ function restoreFormSnapshot(snap){
     `;
     rows.appendChild(div);
   });
+
+  restoreDsFormFields(snap);
+}
+
+function restoreDsFormFields(snap){
+  document.getElementById('f_dsName').value = snap.f_dsName || '';
+  document.getElementById('f_dsCompany').value = snap.f_dsCompany || '';
+  document.getElementById('f_dsIndustry').value = snap.f_dsIndustry || '';
+  document.getElementById('f_dsType').value = snap.f_dsType || '';
+  document.getElementById('f_dsTypeCustom').value = snap.f_dsTypeCustom || '';
+  document.getElementById('f_dsTypeCustom').style.display = snap.f_dsType === 'Custom' ? 'block' : 'none';
+  document.getElementById('f_dsProductName').value = snap.f_dsProductName || '';
+  document.getElementById('f_dsProductCategory').value = snap.f_dsProductCategory || '';
+  document.getElementById('f_dsProductWidth').value = snap.f_dsProductWidth || '';
+  document.getElementById('f_dsProductDepth').value = snap.f_dsProductDepth || '';
+  document.getElementById('f_dsProductHeight').value = snap.f_dsProductHeight || '';
+  document.getElementById('f_dsProductWeight').value = snap.f_dsProductWeight || '';
+  document.getElementById('f_dsProductCount').value = snap.f_dsProductCount || '';
+  document.getElementById('f_dsMaxWidth').value = snap.f_dsMaxWidth || '';
+  document.getElementById('f_dsMaxDepth').value = snap.f_dsMaxDepth || '';
+  document.getElementById('f_dsMaxHeight').value = snap.f_dsMaxHeight || '';
+  document.getElementById('f_dsBackType').value = snap.f_dsBackType || '';
+  document.getElementById('f_dsShelfCount').value = snap.f_dsShelfCount || '';
+  document.getElementById('f_dsLevelCount').value = snap.f_dsLevelCount || '';
+  document.getElementById('f_dsLocation').value = snap.f_dsLocation || '';
+  document.getElementById('f_dsPurpose').value = snap.f_dsPurpose || '';
+  const savedDsMaterials = new Set(snap.f_dsMaterials || []);
+  document.querySelectorAll('.ds-material-cb').forEach(cb => { cb.checked = savedDsMaterials.has(cb.value); });
+  document.getElementById('f_dsWebsite').value = snap.f_dsWebsite || '';
+  const savedDsFeatures = new Set(snap.f_dsFeatures || []);
+  document.querySelectorAll('.ds-feature-cb').forEach(cb => { cb.checked = savedDsFeatures.has(cb.value); });
+  document.getElementById('f_dsStyle').value = snap.f_dsStyle || '';
+  document.getElementById('f_dsColorPrimaryHex').value = snap.f_dsColorPrimaryHex || '#152241';
+  document.getElementById('f_dsColorPrimary').value = snap.f_dsColorPrimaryHex || '#152241';
+  document.getElementById('f_dsColorSecondaryHex').value = snap.f_dsColorSecondaryHex || '#E1A13B';
+  document.getElementById('f_dsColorSecondary').value = snap.f_dsColorSecondaryHex || '#E1A13B';
+  document.getElementById('f_dsColorAccentHex').value = snap.f_dsColorAccentHex || '#FFFFFF';
+  document.getElementById('f_dsColorAccent').value = snap.f_dsColorAccentHex || '#FFFFFF';
+  document.getElementById('f_dsDescription').value = snap.f_dsDescription || '';
+  document.getElementById('f_dsProduction').value = snap.f_dsProduction || '';
+  document.getElementById('f_dsBudget').value = snap.f_dsBudget || '';
+  document.getElementById('f_dsRetailEnvironment').value = snap.f_dsRetailEnvironment || '';
+
+  // Rebuild the four upload lists from their saved {name, type, dataUrl} snapshots — the
+  // restored entries have no `file`/File object (nothing to re-upload), only what's needed to
+  // show a thumbnail/filename row and, for the logo, to attach it to future renders/edits.
+  const listIds = ['dsLogoList', 'dsBrandGuidelinesList', 'dsProductImagesList', 'dsProductArtworkList'];
+  const savedDsFiles = snap.dsFiles || {};
+  listIds.forEach(listId => {
+    dsFileStorage[listId] = (savedDsFiles[listId] || []).map(f => ({
+      name: f.name,
+      type: f.type,
+      dataUrl: f.dataUrl,
+      previewUrl: (f.type && f.type.indexOf('image/') === 0) ? f.dataUrl : null
+    }));
+    renderDsFileList(listId);
+  });
+
+  // Display Stand's board image itself is NOT restored here — only the form fields. The
+  // generated board/renders are restored by restoreDsResultsIfSaved(project), called from
+  // restoreResultsView() further below, same as booth/event results: that runs AFTER
+  // currentRatingValue is set from the saved project, so the rating bar shows the right stars
+  // instead of whatever was left over from a previously open project.
+  dsLastImage = null;
+  dsViewRenders = [];
+  dsCurrentViews = DS_VIEWS_OPEN.slice();
+  const dsPanel = document.getElementById('dsResult');
+  const dsViewsWrap = document.getElementById('dsViewRenders');
+  if(dsPanel) dsPanel.style.display = 'none';
+  if(dsViewsWrap) dsViewsWrap.style.display = 'none';
 }
 
 function restoreLogoAndPosters(project){
@@ -22083,6 +22361,41 @@ function restoreResultsView(project){
   }
 
   restoreGeneratedViewsIfSaved(project);
+  restoreDsResultsIfSaved(project);
+}
+
+/* Restores a saved Display Stand project's own generated result (board image + approved
+   hi-res per-view renders) — DS is a separate pipeline from booth/event, so it needs its own
+   restore step rather than piggybacking on restoreGeneratedViewsIfSaved's booth-only
+   viewCardHistories check above. Called after that function so currentRatingValue is already
+   set from project.rating if a booth result also set it — for a DS project there IS no booth
+   result, so this sets it fresh here instead. */
+function restoreDsResultsIfSaved(project){
+  const dsResult = project.dsResult || null;
+  const panel = document.getElementById('dsResult');
+  const viewsWrap = document.getElementById('dsViewRenders');
+  if(!dsResult || !dsResult.image){
+    if(panel) panel.style.display = 'none';
+    if(viewsWrap) viewsWrap.style.display = 'none';
+    return;
+  }
+  dsLastImage = dsResult.image;
+  dsViewRenders = dsResult.renders || [];
+  dsCurrentViews = (dsResult.views && dsResult.views.length) ? dsResult.views : DS_VIEWS_OPEN.slice();
+  if(panel) panel.style.display = 'block';
+  document.getElementById('dsResultTitle').textContent = dsResult.resultTitle || dsVal('f_dsName');
+  const img = document.getElementById('dsImg');
+  if(img){
+    img.src = dsLastImage;
+    img.style.display = 'block';
+  }
+  renderDsViewGrid(null);
+  if(dsResult.goodLuckShown && dsViewRenders.length && dsViewRenders.length >= dsCurrentViews.length){
+    // Same saved-rating restoration as the booth path in restoreGeneratedViewsIfSaved — this
+    // project has no booth camera views, so nothing else will have set these yet.
+    currentRatingValue = project.rating || 0;
+    showDsGoodLuckAndRating(false);
+  }
 }
 
 /* Presigned Luma video URLs expire after 1 hour, but the underlying generation itself
@@ -22206,7 +22519,10 @@ async function saveCurrentProject(){
   const isNewProject = !currentProjectId;
   if(!currentProjectId) currentProjectId = generateProjectId();
 
-  let projectName = (document.getElementById('f_name').value || '').trim() || currentProjectName || 'Untitled Project';
+  // Display Stand has its own separate name field (f_dsName) — the shared f_name input isn't
+  // part of its form at all, so reading f_name here for a DS project always came back empty.
+  const nameFieldId = mode === 'displaystand' ? 'f_dsName' : 'f_name';
+  let projectName = (document.getElementById(nameFieldId).value || '').trim() || currentProjectName || 'Untitled Project';
   if(isNewProject){
     // Only de-duplicate at the moment a project is first created — after that, its name
     // only ever changes through the deliberate rename flow, which does its own check.
@@ -22229,6 +22545,16 @@ async function saveCurrentProject(){
     posterFiles: (posterFiles || []).map(pf => ({ name: pf.name, size: pf.size, type: pf.type, file: pf.file })),
     brandPortfolio: brandPortfolio || [],
     eventConceptBoard: eventConceptBoard || null,
+    // Display Stand's own generated result (board image + approved hi-res view renders) —
+    // same image-bearing, fully-JSON-serializable pattern as eventConceptBoard/brandPortfolio
+    // just above, restored by restoreDsResultsIfSaved (see restoreResultsView).
+    dsResult: (dsLastImage || (dsViewRenders && dsViewRenders.length)) ? {
+      image: dsLastImage,
+      views: dsCurrentViews,
+      renders: dsViewRenders,
+      resultTitle: document.getElementById('dsResultTitle') ? document.getElementById('dsResultTitle').textContent : '',
+      goodLuckShown: document.getElementById('goodLuckMessage') ? document.getElementById('goodLuckMessage').style.display === 'block' : false
+    } : null,
     promptResult: pendingPromptResult || null,
     optionResult: (optionResults && optionResults[0]) ? optionResults[0] : null,
     cameraPanelApproved: document.getElementById('viewer3dGeneratedCard').style.display === 'block',
