@@ -75,19 +75,7 @@ export default async function handler(req, res) {
 
   const captcha = await verifyRecaptcha(body.recaptchaToken, 'forgot', ip);
   if (!captcha.ok) {
-    // TEMPORARY diagnostic passthrough: when the request explicitly asks for it, include
-    // the rejection reason (e.g. 'invalid-input-secret') so the misconfiguration can be
-    // identified without digging through server logs. The reason is a Google config code,
-    // not a secret. Remove once the reCAPTCHA key rotation issue is resolved.
-    const payload = { error: { message: RECAPTCHA_FAIL_MESSAGE } };
-    if (body.__captchaDebug === true) {
-      payload.error.debugReason = captcha.reason || 'unknown';
-      // Which secret is this deployment actually running with? Prefix+suffix only —
-      // enough to tell old key from new key apart, never the full secret.
-      const s = (process.env.RECAPTCHA_SECRET_KEY || '').trim();
-      payload.error.debugSecret = s ? s.slice(0, 8) + '…' + s.slice(-4) + ' (len ' + s.length + ')' : 'NOT SET';
-    }
-    res.status(400).json(payload);
+    res.status(400).json({ error: { message: RECAPTCHA_FAIL_MESSAGE } });
     return;
   }
 
@@ -105,7 +93,7 @@ export default async function handler(req, res) {
     // Usernames ARE email addresses for self-served accounts. Case-insensitive match.
     const result = await sql`SELECT id, username FROM users WHERE LOWER(username) = ${email};`;
     if (result.rows.length === 0) {
-      res.status(404).json({ error: { message: 'No account found for this email. Please sign up first at designslab.ai/signup.html.' } });
+      res.status(404).json({ error: { message: 'No account found for this email. Please sign up first.' } });
       return;
     }
     const user = result.rows[0];
