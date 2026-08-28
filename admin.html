@@ -1152,7 +1152,11 @@ async function addUser(){
     document.getElementById('newEditLimit').value = '';
     document.getElementById('newModifyLimit').value = '';
     statusEl.className = 'status-msg ok';
-    statusEl.textContent = 'User added.';
+    // The backend reports whether the Free Plan welcome email actually went out (only
+    // attempted when an email address was filled in).
+    statusEl.textContent = email
+      ? (data.emailSent ? 'User added — welcome email sent to ' + email + '.' : 'User added, but the welcome email could not be sent (check Mandrill in Usage & Billing).')
+      : 'User added.';
     await loadUsers();
   }catch(err){
     statusEl.className = 'status-msg error';

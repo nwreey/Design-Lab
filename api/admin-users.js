@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 import { del } from '@vercel/blob';
+import { sendTransactionalEmail, buildBrandedEmail } from '../lib/email.js';
 
 // Duplicated from api/projects.js rather than shared — each serverless function here is
 // independent, and this small amount of logic is simpler to keep self-contained per file
@@ -173,7 +174,40 @@ export default async function handler(req, res) {
       return;
     }
 
-    res.status(200).json({ ok: true, id });
+    // Welcome email (owner request): when the admin filled an email for the new account,
+    // congratulate them on their Free Plan and state exactly the allowances the admin set —
+    // projects, modifications, and edits. Best-effort via Mandrill: a delivery failure never
+    // fails the account creation (the response reports emailSent so the panel can say so).
+    // The password is deliberately NOT emailed — credentials are shared by the admin directly.
+    let emailSent = false;
+    if (cleanEmail) {
+      const fmtLimit = (v, singular, plural) => v != null ? (v + ' ' + (v === 1 ? singular : plural)) : ('unlimited ' + plural);
+      const welcomeHtml = buildBrandedEmail({
+        previewText: 'Congratulations — your DesignsLab AI account is ready, on the Free Plan.',
+        greeting: username,
+        paragraphs: [
+          'Congratulations! Your DesignsLab AI account has been created and your <strong>Free Plan</strong> is active.',
+          'Your plan includes:'
+            + '<br>• <strong>' + fmtLimit(projectLimit != null ? projectLimit : null, 'project', 'projects') + '</strong>'
+            + '<br>• <strong>' + fmtLimit(modifyLimit != null ? modifyLimit : null, 'design modification', 'design modifications') + '</strong>'
+            + '<br>• <strong>' + fmtLimit(editLimit != null ? editLimit : null, 'image edit', 'image edits') + '</strong>',
+          'Your username is <strong>' + username + '</strong>. Your administrator will share your password with you separately — once you have it, sign in and start designing.',
+        ],
+        ctaLabel: 'Open DesignsLab AI',
+        ctaUrl: 'https://designslab.ai/login.html',
+        footnote: 'You are receiving this because a DesignsLab AI account was created for this address. If this was unexpected, you can ignore this email.',
+      });
+      const sendResult = await sendTransactionalEmail({
+        toEmail: cleanEmail,
+        toName: username,
+        subject: 'Welcome to DesignsLab AI — your Free Plan is active',
+        html: welcomeHtml,
+      });
+      emailSent = sendResult.sent;
+      if (!sendResult.sent) console.error('admin-users: welcome email failed (non-fatal):', sendResult.error);
+    }
+
+    res.status(200).json({ ok: true, id, emailSent });
     return;
   }
 
