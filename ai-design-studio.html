@@ -3467,13 +3467,11 @@ Replace only the materials and graphics."></textarea>
           <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;" data-i18n="btn.downloadImage">Download image</button>
           <button class="ghost small" onclick="openModifyDesignPanel()" data-i18n="btn.modifyDesign">Modify design</button>
           <button class="primary small" id="approveDesignBtn" onclick="approveDesign()" data-i18n="btn.approve">Approve</button>
-          <!-- "Other option" removed from this bar (owner request: sat beside Other Design and
-               read as a duplicate). regenerateOtherOption() and all otherOptionBtn references
-               are null-guarded, so no JS changes were needed. -->
-          <div class="other-design-wrap" style="margin-left:auto;">
-            <button type="button" class="ghost small" onclick="toggleOtherDesignMenu(event, 'otherDesignMenuBooth')">Other Design</button>
-            <div class="other-design-dropdown" id="otherDesignMenuBooth"></div>
-          </div>
+          <!-- Owner decision: ONE button here. Labeled "Other Design", and it produces another
+               design option (the Other option flow, whose popup now carries the Change Design
+               Settings selectors) — it does NOT open the old category menu (that menu showed
+               Event/Display Stand switches, which is not what "Other Design" should mean). -->
+          <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()" style="margin-left:auto;">Other Design</button>
         </div>
         <div class="free-modification-note" id="freeModificationNote" style="display:none;" data-i18n="note.freeModification">
           ✦ Your first modification or other option on this design is on us — occasionally the initial render needs a quick adjustment, and that one won't count against your usage.
@@ -3563,6 +3561,18 @@ Replace only the materials and graphics."></textarea>
       <div class="gen-notice-eyebrow">Other Option</div>
       <h3>Generate another option?</h3>
       <p id="otherOptionNoticeText"></p>
+      <div style="text-align:left;margin:2px 0 12px;">
+        <div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">Change Design Settings (optional)</div>
+        <div style="font-size:11px;opacity:.55;margin-bottom:8px;">Pick a new value and the next option applies it to the whole design. Leave on "Keep as designed" to change nothing.</div>
+        <label style="display:block;font-size:12px;font-weight:600;margin:7px 0 3px;">Architectural style <span class="required-mark">*</span></label>
+        <select id="md_archStyle" style="width:100%;"></select>
+        <label style="display:block;font-size:12px;font-weight:600;margin:7px 0 3px;">Ceiling &amp; Rigging <span class="required-mark">*</span></label>
+        <select id="md_ceilingRigging" style="width:100%;"></select>
+        <label style="display:block;font-size:12px;font-weight:600;margin:7px 0 3px;">Brand personality <span class="required-mark">*</span></label>
+        <select id="md_brandPersonality" style="width:100%;"></select>
+        <label style="display:block;font-size:12px;font-weight:600;margin:7px 0 3px;">Rigging Finish</label>
+        <select id="md_riggingFinish" style="width:100%;"></select>
+      </div>
       <div style="text-align:left;margin:2px 0 14px;">
         <label for="otherOptionDislikeInput" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px;" data-i18n="oo.dislikeLabel">What would you like to change? (optional)</label>
         <textarea id="otherOptionDislikeInput" rows="3" maxlength="600" data-i18n-placeholder="ph.ooDislike" placeholder="e.g. the colors feel too dark, remove the hanging banner, fewer closed rooms..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:9px 11px;border:1.5px solid var(--line);border-radius:2px;box-sizing:border-box;"></textarea>
@@ -3745,24 +3755,6 @@ Replace only the materials and graphics."></textarea>
         <button type="button" class="markup-color-swatch" data-color="#E8B923" style="background:#E8B923;" onclick="setModifyDesignMarkupColor('#E8B923', this)" title="Yellow"></button>
       </div>
       <span class="hint" style="margin:0;">Draw around the area to be redesigned. Multiple colors mark separate areas — DesignsLab reconsiders each independently.</span>
-    </div>
-    <div class="section-headline" style="margin-top:16px;">Change Design Settings</div>
-    <div class="hint" style="margin-top:0;margin-bottom:10px;">Optional — pick a new value for any of these and it is applied to the WHOLE design in this modification (everything else stays as approved). Leave on "Keep as designed" to change nothing. With a setting change selected, marking an area becomes optional.</div>
-    <div class="field">
-      <label>Architectural style <span class="required-mark">*</span></label>
-      <select id="md_archStyle"></select>
-    </div>
-    <div class="field">
-      <label>Ceiling &amp; Rigging <span class="required-mark">*</span></label>
-      <select id="md_ceilingRigging"></select>
-    </div>
-    <div class="field">
-      <label>Brand personality <span class="required-mark">*</span></label>
-      <select id="md_brandPersonality"></select>
-    </div>
-    <div class="field">
-      <label>Rigging Finish</label>
-      <select id="md_riggingFinish"></select>
     </div>
     <textarea id="modifyDesignText" placeholder="Optional — give DesignsLab a direction if you have one (e.g. 'make this feel more open', 'add a small lounge here'). Leave blank to let DesignsLab decide freely, guided only by your original brief and the established theme."></textarea>
     <div class="field" id="modifyDesignAttachField" style="margin-top:10px;">
@@ -19595,6 +19587,8 @@ async function regenerateOtherOption(){
   // over into a new request the user never re-read.
   const dislikeField = document.getElementById('otherOptionDislikeInput');
   if(dislikeField) dislikeField.value = '';
+  // Fresh "Keep as designed" defaults on every open — same reasoning as the feedback field.
+  populateModifyStyleSelects();
 
   const statusEl = document.getElementById('actionStatus');
 
@@ -19666,7 +19660,23 @@ async function confirmRegenerateOtherOption(){
     const dislikeBlock = dislikeText
       ? '\n\nCLIENT FEEDBACK ON THE PREVIOUS OPTION (highest priority, must be respected): The client reviewed the previous design and did not like the following: "' + dislikeText.replace(/"/g, "'") + '". Generate a clearly different design option that completely avoids these disliked elements and choices, while still satisfying every requirement and constraint stated above.'
       : '';
-    const otherOptionBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX + dislikeBlock, isUserInitiatedEdit: true, isFreeFirstModification, aspectRatio: otherOptionAspectRatio };
+    // Change Design Settings (owner request — lives in this popup now): picked values are
+    // client-mandated changes applied to the WHOLE new option, and are written back to the
+    // main form so later regenerations inherit them (brand personality stays prompt-only —
+    // the form's ranked P/S/A selector is a different data model).
+    const ooStyleChanges = collectModifyStyleChanges();
+    const ooChangesBlock = ooStyleChanges.length
+      ? '\n\nCLIENT-MANDATED DESIGN CHANGES (highest priority — apply to the ENTIRE design): ' + ooStyleChanges.map(c => c.label + ' → ' + c.value).join('; ') + '. Apply each change consistently and professionally across the whole booth while preserving every requirement and constraint stated above that these changes do not affect.'
+      : '';
+    ooStyleChanges.forEach(c => {
+      try{
+        if(c.label === 'Architectural style'){ const el = document.getElementById('f_archStyle'); if(el){ el.value = c.value; if(typeof updateArchStyleHint === 'function') updateArchStyleHint(el); } }
+        if(c.label === 'Ceiling & Rigging'){ const el = document.getElementById('f_ceilingRigging'); if(el){ el.value = c.value; if(typeof toggleRiggingSubfields === 'function') toggleRiggingSubfields(el); } }
+        if(c.label === 'Rigging Finish'){ const el = document.getElementById('f_riggingFinish'); if(el){ el.value = c.value; if(typeof toggleRiggingFabricColor === 'function') toggleRiggingFabricColor(el); } }
+      }catch(err){ console.error('Could not sync style change to the form:', err); }
+    });
+
+    const otherOptionBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX + dislikeBlock + ooChangesBlock, isUserInitiatedEdit: true, isFreeFirstModification, aspectRatio: otherOptionAspectRatio };
     if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
       otherOptionBody.referenceImage = logoDataUrl.split(',')[1];
       otherOptionBody.referenceMimeType = logoMediaType;
@@ -20227,7 +20237,6 @@ function openModifyDesignPanel(){
 
   document.getElementById('modifyDesignText').value = '';
   document.getElementById('modifyDesignStatus').textContent = '';
-  populateModifyStyleSelects();
   modifyPenModeOn = true;
   document.getElementById('modifyPenOnBtn').classList.add('active');
   document.getElementById('modifyPanOnBtn').classList.remove('active');
@@ -20361,8 +20370,8 @@ async function submitModifyDesign(){
   const canvas = document.getElementById('modifyDesignMarkupCanvas');
   const hasMarkup = modifyDesignCanvasHasMarkup(canvas);
 
-  if(!hasMarkup && collectModifyStyleChanges().length === 0){
-    await customAlert('Mark the area you want DesignsLab to redesign, or pick a change under Change Design Settings, before submitting.', 'Modify Design');
+  if(!hasMarkup){
+    await customAlert('Mark the area you want DesignsLab to redesign before submitting.', 'Modify Design');
     return;
   }
 
@@ -20404,8 +20413,9 @@ async function confirmSubmitModifyDesign(){
     ? `The attached image has hand-drawn markings in ${colorsUsedList.length} different colors (${colorsUsedList.join(', ')}) — each color marks a SEPARATE area to reconsider independently.`
     : `The attached image has a hand-drawn ${colorsUsedList[0] || 'red'} marking around the area to reconsider.`;
 
-  // Change Design Settings (owner request): picked values apply to the WHOLE design.
-  const styleChanges = collectModifyStyleChanges();
+  // Change Design Settings moved to the Other option popup (owner request) — Modify
+  // Design ignores those selects entirely; the machinery below then no-ops.
+  const styleChanges = [];
   const hasAreaMarkup = modifyDesignCanvasHasMarkup(canvas);
   const globalChangesText = styleChanges.length
     ? `\n\nGLOBAL DESIGN CHANGES (client-mandated — these apply to the ENTIRE design, and are the ONE exception to any "unchanged" rule above, but only as far as each change genuinely requires): ${styleChanges.map(c => `${c.label} → ${c.value}`).join('; ')}. Apply each change consistently and professionally across the whole booth while preserving the established layout, dimensions, spatial program, branding, and every element these changes don't affect.`
