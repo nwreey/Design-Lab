@@ -23121,6 +23121,13 @@ function sidebarSwitchMode(m){
   document.getElementById('showFormBar').style.display = 'none';
   const dsWrap = document.getElementById('dsFormFields');
   if(dsWrap) dsWrap.style.display = '';
+  // Owner report: with a project open, sidebar-switching to Event Concept showed the shared
+  // form still LOCKED from that project (Display Stand looked fine only because its lock is
+  // the separate lockDsForm). Choosing a design type from Create means "start working on
+  // this type" — the form must come back writable. Any billing stays protected by the
+  // Generate confirm popup (regenerates charge the modify quota as usual).
+  unlockForm();
+  if(typeof unlockDsForm === 'function') unlockDsForm();
   setMode(m);
 }
 
