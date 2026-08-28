@@ -3746,6 +3746,24 @@ Replace only the materials and graphics."></textarea>
       </div>
       <span class="hint" style="margin:0;">Draw around the area to be redesigned. Multiple colors mark separate areas — DesignsLab reconsiders each independently.</span>
     </div>
+    <div class="section-headline" style="margin-top:16px;">Change Design Settings</div>
+    <div class="hint" style="margin-top:0;margin-bottom:10px;">Optional — pick a new value for any of these and it is applied to the WHOLE design in this modification (everything else stays as approved). Leave on "Keep as designed" to change nothing. With a setting change selected, marking an area becomes optional.</div>
+    <div class="field">
+      <label>Architectural style <span class="required-mark">*</span></label>
+      <select id="md_archStyle"></select>
+    </div>
+    <div class="field">
+      <label>Ceiling &amp; Rigging <span class="required-mark">*</span></label>
+      <select id="md_ceilingRigging"></select>
+    </div>
+    <div class="field">
+      <label>Brand personality <span class="required-mark">*</span></label>
+      <select id="md_brandPersonality"></select>
+    </div>
+    <div class="field">
+      <label>Rigging Finish</label>
+      <select id="md_riggingFinish"></select>
+    </div>
     <textarea id="modifyDesignText" placeholder="Optional — give DesignsLab a direction if you have one (e.g. 'make this feel more open', 'add a small lounge here'). Leave blank to let DesignsLab decide freely, guided only by your original brief and the established theme."></textarea>
     <div class="field" id="modifyDesignAttachField" style="margin-top:10px;">
       <div class="logo-upload" id="modifyDesignAttachBox" onclick="document.getElementById('modifyDesignAttachInput').click()">
@@ -20167,6 +20185,37 @@ let modifyMarkupColorsUsed = new Set();
 let modifyMarkupUndoStack = []; // each entry: { imageData, colorsUsed } snapshotted right before a stroke (or a full clear) begins
 let modifyDesignAttachedFile = null; // { dataUrl, mimeType, name } — optional reference image attached alongside the markup
 
+/* ---- Modify Design "Change Design Settings" (owner request) ----
+   Four quick-change selectors inside the Modify Design panel: Architectural style,
+   Ceiling & Rigging, Brand personality, Rigging Finish. Options are cloned from the main
+   form's own selects at open time (single source of truth — they can never drift out of
+   sync), with "Keep as designed" (empty value) meaning no change. Any picked value is
+   applied to the WHOLE design in the modification prompt and written back to the main
+   form fields so later regenerations inherit it. */
+function populateModifyStyleSelects(){
+  [['md_archStyle', 'f_archStyle'],
+   ['md_ceilingRigging', 'f_ceilingRigging'],
+   ['md_brandPersonality', 'f_mdBrandPersonality'],
+   ['md_riggingFinish', 'f_riggingFinish']].forEach(([destId, srcId]) => {
+    const dest = document.getElementById(destId);
+    const src = document.getElementById(srcId);
+    if(!dest || !src) return;
+    dest.innerHTML = '<option value="">Keep as designed</option>' +
+      Array.from(src.options).filter(o => o.value).map(o =>
+        '<option value="' + o.value.replace(/"/g, '&quot;') + '">' + o.textContent + '</option>').join('');
+    dest.value = '';
+  });
+}
+
+function collectModifyStyleChanges(){
+  return [['Architectural style', 'md_archStyle'],
+          ['Ceiling & Rigging', 'md_ceilingRigging'],
+          ['Brand personality', 'md_brandPersonality'],
+          ['Rigging Finish', 'md_riggingFinish']]
+    .map(([label, id]) => ({ label, value: ((document.getElementById(id) || {}).value || '').trim() }))
+    .filter(p => p.value);
+}
+
 function openModifyDesignPanel(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
@@ -20178,6 +20227,7 @@ function openModifyDesignPanel(){
 
   document.getElementById('modifyDesignText').value = '';
   document.getElementById('modifyDesignStatus').textContent = '';
+  populateModifyStyleSelects();
   modifyPenModeOn = true;
   document.getElementById('modifyPenOnBtn').classList.add('active');
   document.getElementById('modifyPanOnBtn').classList.remove('active');
@@ -20311,8 +20361,8 @@ async function submitModifyDesign(){
   const canvas = document.getElementById('modifyDesignMarkupCanvas');
   const hasMarkup = modifyDesignCanvasHasMarkup(canvas);
 
-  if(!hasMarkup){
-    await customAlert('Mark the area you want DesignsLab to redesign before submitting.', 'Modify Design');
+  if(!hasMarkup && collectModifyStyleChanges().length === 0){
+    await customAlert('Mark the area you want DesignsLab to redesign, or pick a change under Change Design Settings, before submitting.', 'Modify Design');
     return;
   }
 
@@ -20354,7 +20404,29 @@ async function confirmSubmitModifyDesign(){
     ? `The attached image has hand-drawn markings in ${colorsUsedList.length} different colors (${colorsUsedList.join(', ')}) — each color marks a SEPARATE area to reconsider independently.`
     : `The attached image has a hand-drawn ${colorsUsedList[0] || 'red'} marking around the area to reconsider.`;
 
-  const prompt = `You are the same world-class exhibition stand designer who produced this approved booth design, working from the exact same original client brief below. Reconsider ONLY the marked area(s) of the attached image using your own professional design judgment — you have creative freedom within the marked area to reallocate, resize, add, or remove elements as you see fit, based on what would genuinely make the best use of that space. ${areaDescription} ${guidance ? `The client's direction for this area: "${guidance}".` : "The client has not given specific direction for this area — decide freely based on the brief and what best serves the design."} Everywhere OUTSIDE the marked area(s) must remain exactly as shown, completely unchanged. The redesigned area must use the exact same theme, materials, color palette, branding, and architectural style already established in the rest of this design — it must read as one coherent design, not a mismatched addition.${modifyDesignAttachedFile ? ' The client has also attached a separate reference image (provided after this one) — draw on it for inspiration (material, lighting, layout, or style, as appropriate) for the redesigned area specifically, without copying it wholesale or letting it override the established theme.' : ''}
+  // Change Design Settings (owner request): picked values apply to the WHOLE design.
+  const styleChanges = collectModifyStyleChanges();
+  const hasAreaMarkup = modifyDesignCanvasHasMarkup(canvas);
+  const globalChangesText = styleChanges.length
+    ? `\n\nGLOBAL DESIGN CHANGES (client-mandated — these apply to the ENTIRE design, and are the ONE exception to any "unchanged" rule above, but only as far as each change genuinely requires): ${styleChanges.map(c => `${c.label} → ${c.value}`).join('; ')}. Apply each change consistently and professionally across the whole booth while preserving the established layout, dimensions, spatial program, branding, and every element these changes don't affect.`
+    : '';
+  // Write the changes back to the main form so later regenerations inherit them (brand
+  // personality is prompt-only — the main form's ranked Primary/Secondary/Accent selector
+  // is a different data model and must not be silently overwritten by a single value).
+  styleChanges.forEach(c => {
+    try{
+      if(c.label === 'Architectural style'){ const el = document.getElementById('f_archStyle'); if(el){ el.value = c.value; if(typeof updateArchStyleHint === 'function') updateArchStyleHint(el); } }
+      if(c.label === 'Ceiling & Rigging'){ const el = document.getElementById('f_ceilingRigging'); if(el){ el.value = c.value; if(typeof toggleRiggingSubfields === 'function') toggleRiggingSubfields(el); } }
+      if(c.label === 'Rigging Finish'){ const el = document.getElementById('f_riggingFinish'); if(el){ el.value = c.value; if(typeof toggleRiggingFabricColor === 'function') toggleRiggingFabricColor(el); } }
+    }catch(err){ console.error('Could not sync style change to the form:', err); }
+  });
+
+  const markedAreaLead = `Reconsider ONLY the marked area(s) of the attached image using your own professional design judgment — you have creative freedom within the marked area to reallocate, resize, add, or remove elements as you see fit, based on what would genuinely make the best use of that space. ${areaDescription} ${guidance ? `The client's direction for this area: "${guidance}".` : "The client has not given specific direction for this area — decide freely based on the brief and what best serves the design."} Everywhere OUTSIDE the marked area(s) must remain exactly as shown, completely unchanged. The redesigned area must use the exact same theme, materials, color palette, branding, and architectural style already established in the rest of this design — it must read as one coherent design, not a mismatched addition.`;
+  const settingsOnlyLead = `Re-render this exact approved design with ONLY the client's mandated design changes below applied — the layout, dimensions, spatial program, branding, and every element those changes don't touch must remain exactly as shown in the attached image.${guidance ? ` The client's additional direction: "${guidance}".` : ''}`;
+
+  const prompt = `You are the same world-class exhibition stand designer who produced this approved booth design, working from the exact same original client brief below. ${hasAreaMarkup ? markedAreaLead : settingsOnlyLead}${modifyDesignAttachedFile ? ' The client has also attached a separate reference image (provided after this one) — draw on it for inspiration (material, lighting, layout, or style, as appropriate) for the redesigned area specifically, without copying it wholesale or letting it override the established theme.' : ''}
+
+${globalChangesText}
 
 ORIGINAL CLIENT BRIEF THIS DESIGN WAS BUILT FROM:
 ${lastGeneratedBrief || '(brief not available — infer the established style, materials, and theme directly from the reference image itself.)'}
