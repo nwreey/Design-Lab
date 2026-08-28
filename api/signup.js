@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
 import { sendTransactionalEmail, buildAccessRequestReceivedEmail, buildAccessApprovedEmail } from '../lib/email.js';
-import { verifyRecaptcha, RECAPTCHA_FAIL_MESSAGE } from '../lib/recaptcha.js';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* ================= Access Request endpoint (Early Access Program) =================
@@ -131,14 +130,6 @@ export default async function handler(req, res) {
     }
 
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
-
-    // reCAPTCHA v3 (owner request: all public forms) — see lib/recaptcha.js.
-    const captcha = await verifyRecaptcha(body.recaptchaToken, 'signup', ip);
-    if (!captcha.ok) {
-      console.error('signup: recaptcha rejected:', captcha.reason);
-      res.status(403).json({ error: { message: RECAPTCHA_FAIL_MESSAGE } });
-      return;
-    }
 
     try {
       const allowed = await checkSubmitRateLimit(ip);

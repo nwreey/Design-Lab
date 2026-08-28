@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
-import { verifyRecaptcha, RECAPTCHA_FAIL_MESSAGE } from '../lib/recaptcha.js';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* ================= Password hashing ================= */
@@ -113,18 +112,6 @@ export default async function handler(req, res) {
   if (typeof username !== 'string' || typeof password !== 'string') {
     res.status(401).json({ error: { message: 'Incorrect username or password.' } });
     return;
-  }
-
-  // reCAPTCHA v3 (owner request: all public forms incl. login) — skipped until
-  // RECAPTCHA_SECRET_KEY exists; the lockout system below stays as the second layer.
-  {
-    const captchaIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
-    const captcha = await verifyRecaptcha((req.body || {}).recaptchaToken, 'login', captchaIp);
-    if (!captcha.ok) {
-      console.error('login: recaptcha rejected:', captcha.reason);
-      res.status(403).json({ error: { message: RECAPTCHA_FAIL_MESSAGE } });
-      return;
-    }
   }
 
   const signingSecret = process.env.SITE_PASSWORD || '';

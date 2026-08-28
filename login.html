@@ -250,7 +250,6 @@
     html[dir="rtl"] .logo-side{order:0;}
   }
 </style>
-<script src="/recaptcha-config.js"></script>
 </head>
 <body>
 
@@ -582,7 +581,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     const response = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: usernameEl.value, password: passwordEl.value, remember, recaptchaToken: typeof getRecaptchaToken === 'function' ? await getRecaptchaToken('login') : null })
+      body: JSON.stringify({ username: usernameEl.value, password: passwordEl.value, remember })
     });
 
     if(response.ok){
