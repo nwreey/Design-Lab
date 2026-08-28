@@ -58,6 +58,7 @@
   .sidebar-brand-logo{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:16.5px;letter-spacing:.5px;color:var(--navy);}
   .sidebar-brand-logo span{color:var(--gold);}
   .sidebar-brand-sub{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--ink);opacity:.5;margin-top:3px;}
+  .sidebar-brand-plan{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:#fff;background:var(--navy);border-radius:2px;padding:2px 8px;margin-top:7px;}
   .sidebar-eyebrow{flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--ink);opacity:.45;margin:0 4px 8px;}
   .sidebar-create{flex-shrink:0;display:flex;flex-direction:column;gap:4px;margin-bottom:16px;}
   .create-item{
@@ -758,6 +759,7 @@
     <div class="sidebar-brand">
       <div class="sidebar-brand-logo">DESIGNSLAB<span>.</span></div>
       <div class="sidebar-brand-sub" data-i18n="sidebar.brandSub">AI Design Studio</div>
+      <div class="sidebar-brand-plan" id="sidebarBrandPlan" style="display:none;"></div>
     </div>
 
     <div class="sidebar-eyebrow" data-i18n="sidebar.createEyebrow">Create</div>
@@ -10642,6 +10644,9 @@ async function startCheckout(){
     if(!response.ok || !data.ok) throw new Error((data.error && data.error.message) || 'Could not process your upgrade. Please try again.');
     document.getElementById('upgradeChoose').style.display = 'none';
     document.getElementById('upgradeSuccessText').textContent = t('up.reservedText').replace('{plan}', selectedUpgradePlan);
+    // Owner request: the moment the purchase goes through, the plan name appears under the
+    // DESIGNSLAB. brand in the sidebar (it re-confirms from /api/me on the next load too).
+    renderSidebarBrandPlan(selectedUpgradePlan);
     document.getElementById('upgradeSuccess').style.display = 'block';
   }catch(err){
     statusEl.style.color = '#c0432b';
@@ -10705,10 +10710,24 @@ async function checkAdminAccess(){
    /api/me payload for the My-information modal. */
 let currentAccountInfo = null;
 
+/* Shows the purchased plan name under the DESIGNSLAB. brand (owner request) — visible only
+   once the account actually has a plan; trial users see nothing here. */
+function renderSidebarBrandPlan(planName){
+  const el = document.getElementById('sidebarBrandPlan');
+  if(!el) return;
+  if(planName){
+    el.textContent = planName + ' Plan';
+    el.style.display = 'inline-block';
+  }else{
+    el.style.display = 'none';
+  }
+}
+
 function renderSidebarAccountSection(data){
   const section = document.getElementById('sidebarAccountSection');
   if(!section || !data.username) return;
   currentAccountInfo = data;
+  renderSidebarBrandPlan(data.plan || null);
   document.getElementById('sidebarAccountName').textContent = data.username;
   document.getElementById('sidebarAccountRole').textContent = data.role === 'admin' ? 'Administrator' : 'Team member';
   document.getElementById('sidebarAccountInitial').textContent = data.username.charAt(0).toUpperCase();
@@ -10820,13 +10839,17 @@ function updateUsageSummaryVisibility(){
   const hasContent = rows.some(el => el.textContent !== '');
   panel.style.display = hasContent ? 'block' : 'none';
 
-  // The Upgrade-your-plan widget is now the ONE place a purchase actually happens (the
-  // public pricing page is information-only, per explicit product decision), so it shows
-  // whenever the account has usage limits at all — not only when running low. Admins
-  // (no limits, hasContent false) never see it.
+  // The Upgrade-your-plan widget is still the ONE place a purchase happens, but per owner
+  // request it only appears once the account has ZERO project slots remaining — while the
+  // user still has projects available it stays hidden. Admins (no limits) never see it.
   const buyMoreEl = document.getElementById('buyMorePrompt');
   if(buyMoreEl){
-    buyMoreEl.style.display = hasContent ? 'block' : 'none';
+    const outOfProjects = !isAdminUser
+      && projectLimitInfoLoaded
+      && lastKnownProjectCount !== null
+      && currentUserProjectLimit != null
+      && lastKnownProjectCount >= currentUserProjectLimit;
+    buyMoreEl.style.display = outOfProjects ? 'block' : 'none';
   }
 }
 
