@@ -76,12 +76,15 @@
   /* Sized to show exactly 3 project rows (each ~50px including its 6px gap) before
      scrolling kicks in — 1 or 2 saved projects just take their own natural, smaller
      height; a 4th and beyond scroll within this same fixed area instead of pushing the
-     rest of the sidebar (upload-existing, account/usage section) further down the page. */
+     rest of the sidebar (account/usage section) further down the page. */
   .sidebar-projects-scroll-wrap{flex:0 1 auto;display:flex;flex-direction:column;}
   .sidebar-projects-scroll{
     max-height:162px;min-height:0;overflow-y:scroll;padding-right:2px;
     scrollbar-width:thin;scrollbar-color:var(--navy) var(--navy-soft);
   }
+  /* Admins get 6 visible project rows before scrolling (owner request) — body gets the
+     is-admin class from checkAdminAccess() once /api/me confirms the role. */
+  body.is-admin .sidebar-projects-scroll{max-height:324px;}
   /* A visible, "always there" scrollbar rather than the OS's auto-hiding overlay one — the
      whole point is that a 4th+ project is unmistakably reachable by scrolling, not just
      something you'd discover by accidentally hovering over the list. Webkit browsers (Chrome,
@@ -10663,6 +10666,11 @@ async function checkAdminAccess(){
     const data = await response.json();
     if(data.role === 'admin'){
       isAdminUser = true;
+      // Admin-only sidebar sizing: 6 visible project rows instead of 3 (owner request) —
+      // the CSS hook body.is-admin .sidebar-projects-scroll does the actual resizing, and
+      // the scroll arrows recalc against the new taller area.
+      document.body.classList.add('is-admin');
+      if(typeof updateProjectScrollArrows === 'function') updateProjectScrollArrows();
       const link = document.getElementById('adminPanelLink');
       if(link) link.style.display = 'inline-block';
       // Event Concept and Display Stand tabs are now visible to ALL users (per explicit
