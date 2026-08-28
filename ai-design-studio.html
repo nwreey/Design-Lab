@@ -27,7 +27,10 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
-  @media(min-width:900px){ html{zoom:1.2;} }
+  /* Global page scale (owner request): 90% — fonts and controls read large at native size,
+     so the whole desktop layout renders slightly reduced. Was 1.2 (120%), which is what made
+     everything look oversized. */
+  @media(min-width:900px){ html{zoom:0.9;} }
   body{
     background:var(--paper);
     color:var(--ink);
