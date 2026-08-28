@@ -41,6 +41,25 @@
   .app-layout{display:flex;min-height:100vh;align-items:flex-start;}
   .sidebar{width:250px;flex-shrink:0;background:#fff;border-right:1.5px solid var(--navy);padding:24px 16px;box-sizing:border-box;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
   .sidebar-top-fixed{flex-shrink:0;}
+  /* ---------- Professional sidebar chrome (owner request) ---------- */
+  .sidebar-brand{flex-shrink:0;padding:2px 4px 14px;border-bottom:1.5px solid var(--line);margin-bottom:14px;}
+  .sidebar-brand-logo{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:16.5px;letter-spacing:.5px;color:var(--navy);}
+  .sidebar-brand-logo span{color:var(--gold);}
+  .sidebar-brand-sub{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--ink);opacity:.5;margin-top:3px;}
+  .sidebar-eyebrow{flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--ink);opacity:.45;margin:0 4px 8px;}
+  .sidebar-create{flex-shrink:0;display:flex;flex-direction:column;gap:4px;margin-bottom:16px;}
+  .create-item{
+    display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:transparent;border:1.5px solid transparent;
+    border-radius:3px;padding:8px 10px;font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:600;color:var(--ink);
+    cursor:pointer;transition:.14s ease;
+  }
+  .create-item:hover{background:var(--navy-soft);}
+  .create-item.active{border-color:var(--navy);background:#fff;box-shadow:2px 2px 0 var(--navy-soft);}
+  .create-item .ci-ico{width:20px;height:20px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid var(--navy);border-radius:3px;font-size:10px;background:#fff;}
+  .create-item.active .ci-ico{background:var(--navy);color:#fff;}
+  .project-count-chip{font-family:'IBM Plex Mono',monospace;font-size:10px;background:var(--navy);color:#fff;border-radius:9px;padding:1px 7px;margin-left:7px;vertical-align:2px;}
+  html[dir="rtl"] .create-item{text-align:right;}
+  html[dir="rtl"] .project-count-chip{margin-left:0;margin-right:7px;}
   /* Sized to show exactly 3 project rows (each ~50px including its 6px gap) before
      scrolling kicks in — 1 or 2 saved projects just take their own natural, smaller
      height; a 4th and beyond scroll within this same fixed area instead of pushing the
@@ -66,7 +85,9 @@
   .project-scroll-arrow:first-child{margin-bottom:5px;}
   .project-scroll-arrow:last-child{margin-top:5px;}
   .project-scroll-arrow:hover{background:var(--navy-soft);border-color:var(--navy);}
-  .sidebar-bottom-fixed{flex-shrink:0;padding-top:16px;}
+  /* margin-top:auto pins the account block to the very bottom of the bar even when the
+     content above is short — professional-app convention (owner request). */
+  .sidebar-bottom-fixed{flex-shrink:0;margin-top:auto;padding-top:14px;border-top:1.5px solid var(--line);}
 
   .buy-more-prompt{
     margin-top:10px;font-size:11px;line-height:1.4;color:var(--ink);opacity:.8;font-weight:600;text-align:center;
@@ -722,9 +743,21 @@
 <body>
 <div class="app-layout">
   <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-logo">DESIGNSLAB<span>.</span></div>
+      <div class="sidebar-brand-sub" data-i18n="sidebar.brandSub">AI Design Studio</div>
+    </div>
+
+    <div class="sidebar-eyebrow" data-i18n="sidebar.createEyebrow">Create</div>
+    <div class="sidebar-create" id="sidebarCreate">
+      <button type="button" class="create-item" id="createModeBooth" onclick="sidebarSwitchMode('booth')"><span class="ci-ico">▦</span><span data-i18n="sidebar.createBooth">Exhibition Booth</span></button>
+      <button type="button" class="create-item" id="createModeEvent" onclick="sidebarSwitchMode('event')"><span class="ci-ico">✦</span><span data-i18n="sidebar.createEvent">Event Concept</span></button>
+      <button type="button" class="create-item" id="createModeDisplaystand" onclick="sidebarSwitchMode('displaystand')"><span class="ci-ico">▤</span><span data-i18n="sidebar.createDs">Display Stand</span></button>
+    </div>
+
     <div class="sidebar-top-fixed">
       <div class="sidebar-header">
-        <h2 data-i18n="sidebar.projectsHeading">Projects</h2>
+        <h2><span data-i18n="sidebar.projectsHeading">Projects</span><span class="project-count-chip" id="projectCountChip" style="display:none;"></span></h2>
         <button class="ghost small" onclick="startNewProject()" data-i18n="sidebar.newProject">+ New</button>
       </div>
       <div id="projectSaveError" class="project-save-error" style="display:none;"></div>
@@ -3798,6 +3831,11 @@ const LANGUAGE_OPTIONS = [
 
 const I18N_EN = {
   'sidebar.projectsHeading': 'Projects',
+  'sidebar.brandSub': 'AI Design Studio',
+  'sidebar.createEyebrow': 'Create',
+  'sidebar.createBooth': 'Exhibition Booth',
+  'sidebar.createEvent': 'Event Concept',
+  'sidebar.createDs': 'Display Stand',
   'sidebar.newProject': '+ New',
   'sidebar.autoSaveNote': 'Projects save automatically and sync across devices.',
   'sidebar.or': 'or',
@@ -3965,6 +4003,11 @@ const I18N_EN = {
 
 const I18N_AR = {
   'sidebar.projectsHeading': 'المشاريع',
+  'sidebar.brandSub': 'استوديو التصميم بالذكاء الاصطناعي',
+  'sidebar.createEyebrow': 'إنشاء',
+  'sidebar.createBooth': 'جناح معرض',
+  'sidebar.createEvent': 'مفهوم فعالية',
+  'sidebar.createDs': 'ستاند عرض',
   'sidebar.newProject': '+ جديد',
   'sidebar.autoSaveNote': 'يتم حفظ المشاريع تلقائيًا ومزامنتها عبر الأجهزة.',
   'sidebar.or': 'أو',
@@ -4132,6 +4175,11 @@ const I18N_AR = {
 
 const I18N_FR = {
   'sidebar.projectsHeading': 'Projets',
+  'sidebar.brandSub': 'Studio de design IA',
+  'sidebar.createEyebrow': 'Créer',
+  'sidebar.createBooth': 'Stand d\'exposition',
+  'sidebar.createEvent': 'Concept d\'événement',
+  'sidebar.createDs': 'Présentoir',
   'sidebar.newProject': '+ Nouveau',
   'sidebar.autoSaveNote': 'Les projets sont enregistrés automatiquement et synchronisés entre les appareils.',
   'sidebar.or': 'ou',
@@ -4299,6 +4347,11 @@ const I18N_FR = {
 
 const I18N_DE = {
   'sidebar.projectsHeading': 'Projekte',
+  'sidebar.brandSub': 'KI-Design-Studio',
+  'sidebar.createEyebrow': 'Erstellen',
+  'sidebar.createBooth': 'Messestand',
+  'sidebar.createEvent': 'Event-Konzept',
+  'sidebar.createDs': 'Display-Ständer',
   'sidebar.newProject': '+ Neu',
   'sidebar.autoSaveNote': 'Projekte werden automatisch gespeichert und geräteübergreifend synchronisiert.',
   'sidebar.or': 'oder',
@@ -4466,6 +4519,11 @@ const I18N_DE = {
 
 const I18N_ES = {
   'sidebar.projectsHeading': 'Proyectos',
+  'sidebar.brandSub': 'Estudio de diseño IA',
+  'sidebar.createEyebrow': 'Crear',
+  'sidebar.createBooth': 'Stand de exposición',
+  'sidebar.createEvent': 'Concepto de evento',
+  'sidebar.createDs': 'Expositor',
   'sidebar.newProject': '+ Nuevo',
   'sidebar.autoSaveNote': 'Los proyectos se guardan automáticamente y se sincronizan entre dispositivos.',
   'sidebar.or': 'o',
@@ -4633,6 +4691,11 @@ const I18N_ES = {
 
 const I18N_IT = {
   'sidebar.projectsHeading': 'Progetti',
+  'sidebar.brandSub': 'Studio di design IA',
+  'sidebar.createEyebrow': 'Crea',
+  'sidebar.createBooth': 'Stand fieristico',
+  'sidebar.createEvent': 'Concept evento',
+  'sidebar.createDs': 'Espositore',
   'sidebar.newProject': '+ Nuovo',
   'sidebar.autoSaveNote': 'I progetti vengono salvati automaticamente e sincronizzati tra i dispositivi.',
   'sidebar.or': 'oppure',
@@ -4800,6 +4863,11 @@ const I18N_IT = {
 
 const I18N_ZH = {
   'sidebar.projectsHeading': '项目',
+  'sidebar.brandSub': 'AI 设计工作室',
+  'sidebar.createEyebrow': '创建',
+  'sidebar.createBooth': '展会展台',
+  'sidebar.createEvent': '活动概念',
+  'sidebar.createDs': '展示架',
   'sidebar.newProject': '+ 新建',
   'sidebar.autoSaveNote': '项目会自动保存并在设备间同步。',
   'sidebar.or': '或',
@@ -4967,6 +5035,11 @@ const I18N_ZH = {
 
 const I18N_JA = {
   'sidebar.projectsHeading': 'プロジェクト',
+  'sidebar.brandSub': 'AIデザインスタジオ',
+  'sidebar.createEyebrow': '作成',
+  'sidebar.createBooth': '展示ブース',
+  'sidebar.createEvent': 'イベントコンセプト',
+  'sidebar.createDs': 'ディスプレイスタンド',
   'sidebar.newProject': '+ 新規',
   'sidebar.autoSaveNote': 'プロジェクトは自動保存され、デバイス間で同期されます。',
   'sidebar.or': 'または',
@@ -22824,10 +22897,44 @@ function scrollProjectList(direction){
   area.scrollBy({ top: direction * 54, behavior: 'smooth' });
 }
 
+/* ---------- Sidebar "Create" quick-switch (owner request: professional sidebar) ----------
+   Three always-visible entries for the three design types — same setMode() the Other Design
+   dropdown uses, with the same mid-generation guard openProject() has. */
+function sidebarSwitchMode(m){
+  if(typeof blockIfGenerating === 'function' && blockIfGenerating()) return;
+  setMode(m);
+}
+
+function updateSidebarModeHighlight(m){
+  const map = { booth: 'createModeBooth', event: 'createModeEvent', displaystand: 'createModeDisplaystand' };
+  ['createModeBooth', 'createModeEvent', 'createModeDisplaystand'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle('active', map[m] === id);
+  });
+}
+
+/* Keep the Create highlight in sync with EVERY mode change (Other Design dropdown, project
+   open, etc.), not just clicks on the sidebar itself — wraps setMode rather than editing its
+   body, so the wrap is trivially removable and the original stays untouched. */
+(function(){
+  const __origSetMode = setMode;
+  setMode = function(m){
+    __origSetMode(m);
+    updateSidebarModeHighlight(m);
+  };
+  updateSidebarModeHighlight(typeof mode !== 'undefined' ? mode : 'booth');
+})();
+
 function renderProjectSidebar(){
   return dbGetAllProjects()
     .then(projects => {
       projects.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+      // Count chip next to the "Projects" heading (professional-sidebar redesign).
+      const countChip = document.getElementById('projectCountChip');
+      if(countChip){
+        countChip.textContent = projects.length;
+        countChip.style.display = projects.length ? 'inline-block' : 'none';
+      }
       const wrap = document.getElementById('projectList');
       if(projects.length === 0){
         wrap.innerHTML = '<div class="project-empty-hint">No saved projects yet. Fill in the form and click Generate to start one.</div>';
