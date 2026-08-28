@@ -13,6 +13,7 @@
 <meta name="description" content="Sign in to DesignsLab AI — your AI design studio for exhibition booths, event concepts, and display stands.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="/recaptcha-config.js"></script>
 <style>
   :root{
     --gold:#C9992E;
@@ -280,7 +281,19 @@
 
           <button type="submit" class="submit" id="submitBtn" data-i18n="lg.submit">Sign In</button>
           <div class="status-msg" id="statusMsg"></div>
+          <div class="signup-note" style="margin-top:10px;"><a href="#" id="forgotLink" onclick="toggleForgot(event)" data-i18n="lg.forgot">Forgot password?</a></div>
           <div class="signup-note"><span data-i18n="lg.noAccount">Don't have an account?</span> <a href="/signup.html" data-i18n="lg.requestAccess">Request access</a></div>
+        </form>
+
+        <!-- Forgot password mini-form: hidden until the link above is clicked. Posts to
+             /api/forgot-password, which always answers generically — the UI just relays it. -->
+        <form id="forgotForm" style="display:none; margin-top:18px; padding-top:18px; border-top:1px solid #E5E2D9;">
+          <div class="field">
+            <label for="forgotEmail" data-i18n="lg.forgotLabel">Enter your account email</label>
+            <input type="text" id="forgotEmail" name="forgotEmail" placeholder="you@company.com" autocomplete="email" required>
+          </div>
+          <button type="submit" class="submit" id="forgotBtn" data-i18n="lg.forgotSubmit">Send Reset Link</button>
+          <div class="status-msg" id="forgotStatus"></div>
         </form>
       </div>
     </div>
@@ -327,6 +340,7 @@ const I18N_EN = {
   'lg.remember': 'Remember me for 30 days',
   'lg.submit': 'Sign In',
   'lg.noAccount': "Don't have an account?",
+  'lg.forgot': 'Forgot password?', 'lg.forgotLabel': 'Enter your account email', 'lg.forgotSubmit': 'Send Reset Link',
   'lg.requestAccess': 'Request access',
   'lg.statusSigningIn': 'Signing in...',
   'lg.statusSuccess': 'Success — redirecting...',
@@ -350,6 +364,7 @@ const I18N_AR = {
   'lg.remember': 'تذكرني لمدة 30 يومًا',
   'lg.submit': 'تسجيل الدخول',
   'lg.noAccount': 'ليس لديك حساب؟',
+  'lg.forgot': 'نسيت كلمة المرور؟', 'lg.forgotLabel': 'أدخل بريدك الإلكتروني', 'lg.forgotSubmit': 'إرسال رابط الاستعادة',
   'lg.requestAccess': 'اطلب حساباً',
   'lg.statusSigningIn': 'جارٍ تسجيل الدخول...',
   'lg.statusSuccess': 'تم بنجاح — جارٍ إعادة التوجيه...',
@@ -373,6 +388,7 @@ const I18N_FR = {
   'lg.remember': 'Se souvenir de moi pendant 30 jours',
   'lg.submit': 'Se connecter',
   'lg.noAccount': "Vous n'avez pas de compte ?",
+  'lg.forgot': 'Mot de passe oublié ?', 'lg.forgotLabel': "Entrez l'e-mail de votre compte", 'lg.forgotSubmit': 'Envoyer le lien',
   'lg.requestAccess': "Demander l'accès",
   'lg.statusSigningIn': 'Connexion en cours...',
   'lg.statusSuccess': 'Succès — redirection en cours...',
@@ -396,6 +412,7 @@ const I18N_DE = {
   'lg.remember': '30 Tage angemeldet bleiben',
   'lg.submit': 'Anmelden',
   'lg.noAccount': 'Noch kein Konto?',
+  'lg.forgot': 'Passwort vergessen?', 'lg.forgotLabel': 'Konto-E-Mail eingeben', 'lg.forgotSubmit': 'Link senden',
   'lg.requestAccess': 'Zugang anfragen',
   'lg.statusSigningIn': 'Anmeldung läuft...',
   'lg.statusSuccess': 'Erfolgreich — Weiterleitung läuft...',
@@ -419,6 +436,7 @@ const I18N_ES = {
   'lg.remember': 'Recordarme durante 30 días',
   'lg.submit': 'Iniciar sesión',
   'lg.noAccount': '¿No tienes una cuenta?',
+  'lg.forgot': '¿Olvidaste tu contraseña?', 'lg.forgotLabel': 'Introduce el correo de tu cuenta', 'lg.forgotSubmit': 'Enviar enlace',
   'lg.requestAccess': 'Solicitar acceso',
   'lg.statusSigningIn': 'Iniciando sesión...',
   'lg.statusSuccess': 'Éxito — redirigiendo...',
@@ -442,6 +460,7 @@ const I18N_IT = {
   'lg.remember': 'Ricordami per 30 giorni',
   'lg.submit': 'Accedi',
   'lg.noAccount': 'Non hai un account?',
+  'lg.forgot': 'Password dimenticata?', 'lg.forgotLabel': "Inserisci l'email del tuo account", 'lg.forgotSubmit': 'Invia link',
   'lg.requestAccess': 'Richiedi accesso',
   'lg.statusSigningIn': 'Accesso in corso...',
   'lg.statusSuccess': 'Riuscito — reindirizzamento in corso...',
@@ -465,6 +484,7 @@ const I18N_ZH = {
   'lg.remember': '记住我 30 天',
   'lg.submit': '登录',
   'lg.noAccount': '还没有账户？',
+  'lg.forgot': '忘记密码？', 'lg.forgotLabel': '输入您的账户邮箱', 'lg.forgotSubmit': '发送重置链接',
   'lg.requestAccess': '申请访问',
   'lg.statusSigningIn': '正在登录...',
   'lg.statusSuccess': '登录成功 — 正在跳转...',
@@ -488,6 +508,7 @@ const I18N_JA = {
   'lg.remember': '30日間ログイン状態を保持する',
   'lg.submit': 'サインイン',
   'lg.noAccount': 'アカウントをお持ちでないですか？',
+  'lg.forgot': 'パスワードをお忘れですか？', 'lg.forgotLabel': 'アカウントのメールアドレスを入力', 'lg.forgotSubmit': 'リセットリンクを送信',
   'lg.requestAccess': 'アクセスをリクエスト',
   'lg.statusSigningIn': 'サインイン中...',
   'lg.statusSuccess': '成功しました — リダイレクト中...',
@@ -564,6 +585,42 @@ function getRedirectTarget(){
   if(next && next.startsWith('/') && !next.startsWith('//')) return next;
   return '/ai-design-studio.html';
 }
+
+function toggleForgot(e){
+  if(e) e.preventDefault();
+  const f = document.getElementById('forgotForm');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  if(f.style.display === 'block') document.getElementById('forgotEmail').focus();
+}
+
+document.getElementById('forgotForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const btn = document.getElementById('forgotBtn');
+  const status = document.getElementById('forgotStatus');
+  const email = document.getElementById('forgotEmail').value.trim();
+  status.textContent = '';
+  status.style.color = '';
+  btn.disabled = true;
+  try{
+    const response = await fetch('/api/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        recaptchaToken: typeof getRecaptchaToken === 'function' ? await getRecaptchaToken('forgot') : null,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not send the reset link. Please try again.');
+    status.style.color = '#1E8A4C';
+    status.textContent = data.message || "If an account exists for that email, we've sent a password reset link.";
+  }catch(err){
+    status.style.color = '#C0432B';
+    status.textContent = err.message;
+  }finally{
+    btn.disabled = false;
+  }
+});
 
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();

@@ -22,6 +22,10 @@ const PUBLIC_PATHS = [
   '/api/signup',
   '/api/contact', // public POST — the Contact form; rate-limited + validated inside the endpoint
   '/api/login', '/api/logout',
+  // Forgot-password request — reached, by definition, by people who can't sign in.
+  // Rate-limited + reCAPTCHA-verified inside the endpoint; always returns a generic
+  // response so it can't be used to probe which emails have accounts.
+  '/api/forgot-password',
   // reCAPTCHA v3 client config — must load on the public form pages (login, signup,
   // contact, enterprise) before any sign-in exists. Contains only the PUBLIC site key.
   '/recaptcha-config.js',
