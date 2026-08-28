@@ -2,7 +2,7 @@
    The SITE key below is public by design (it appears in every visitor's browser).
    The SECRET key lives ONLY in the RECAPTCHA_SECRET_KEY Vercel env var — never here.
    Keys admin: https://www.google.com/recaptcha/admin (label: DesignsLab AI, v3). */
-window.RECAPTCHA_SITE_KEY = '6LevQp0tAAAAAIr9nJi8cQrUWCnfoQtjiutCgHAN';
+window.RECAPTCHA_SITE_KEY = '6Le5450tAAAAAMgVzUUoKoOu5XKYM80gEONMd3x3';
 
 // Loads Google's api.js once, only when a key is configured — pages keep working with an
 // empty key (server-side verification also skips when its secret is absent).
