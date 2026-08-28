@@ -599,7 +599,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     // not from the UI dictionary — same principle as internal values never being translated
     // in the main app), falling back to the localized generic message when the server didn't
     // supply one of its own.
-    statusEl.textContent = data.error || t('lg.statusDefaultError');
+    statusEl.textContent = (data.error && data.error.message) || (typeof data.error === 'string' ? data.error : '') || t('lg.statusDefaultError');
   }catch(err){
     statusEl.className = 'status-msg error';
     statusEl.textContent = t('lg.statusNetworkError');
