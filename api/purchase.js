@@ -50,7 +50,10 @@ function parseCookie(cookieHeader, name) {
 // Plans + add-on quota packs (owner request): packs go through the same request/approval
 // flow — the admin activates them by raising the user's limits in Users List.
 // Edits are priced at $0.35 each (owner rule) -> 20-edit pack = $7.
-const VALID_PLANS = ['Starter', 'Studio', 'Pro', 'Edits Pack', 'Modifications Pack'];
+const VALID_PLANS = ['Starter', 'Studio', 'Pro',
+  // Add-on packs, volume-discounted (owner rule: base $0.35/edit, $0.70/modification):
+  'Edits Pack 20', 'Edits Pack 50', 'Edits Pack 100',
+  'Modifications Pack 10', 'Modifications Pack 25', 'Modifications Pack 50'];
 
 async function ensureSchema() {
   await sql`

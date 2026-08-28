@@ -3609,6 +3609,19 @@ Replace only the materials and graphics."></textarea>
     </div>
   </div>
 
+  <!-- Add-on pack chooser (owner request): tiered packs, bigger = cheaper per unit. -->
+  <div class="gen-notice-overlay" id="addonPackOverlay">
+    <div class="gen-notice-card">
+      <div class="gen-notice-eyebrow">Top Up</div>
+      <h3 id="addonPackTitle">Not Enough Edits</h3>
+      <p id="addonPackMsg"></p>
+      <div id="addonPackList" style="text-align:left;"></div>
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="ghost" onclick="document.getElementById('addonPackOverlay').style.display='none';" style="flex:1;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <div class="gen-notice-overlay" id="approveNoticeOverlay">
     <div class="gen-notice-card">
       <div class="gen-notice-eyebrow">Approve Design</div>
@@ -22286,9 +22299,25 @@ function markFreeModUsed(){
    When an action needs more edits/modifications than the user has left, we say exactly
    what it needs and offer the matching pack. A purchase goes through the same request
    flow as plans (/api/purchase): recorded, emailed, and activated by the admin. */
+/* Owner pricing: base rates $0.35/edit and $0.70/modification, with volume discounts —
+   the more you buy, the lower the per-unit price. */
 const ADDON_PACKS = {
-  edit: { plan: 'Edits Pack', label: 'Image Edits Pack', price: '$7', amount: '20 image edits ($0.35 per edit)' },
-  modify: { plan: 'Modifications Pack', label: 'Modifications Pack', price: '$7', amount: '10 design modifications ($0.70 per modification)' },
+  edit: {
+    noun: 'image edits', unit: 'edit',
+    tiers: [
+      { plan: 'Edits Pack 20', qty: 20, price: '$7', per: '$0.35' },
+      { plan: 'Edits Pack 50', qty: 50, price: '$15', per: '$0.30' },
+      { plan: 'Edits Pack 100', qty: 100, price: '$25', per: '$0.25' },
+    ],
+  },
+  modify: {
+    noun: 'design modifications', unit: 'modification',
+    tiers: [
+      { plan: 'Modifications Pack 10', qty: 10, price: '$7', per: '$0.70' },
+      { plan: 'Modifications Pack 25', qty: 25, price: '$15', per: '$0.60' },
+      { plan: 'Modifications Pack 50', qty: 50, price: '$25', per: '$0.50' },
+    ],
+  },
 };
 
 function editsRemaining(){
@@ -22302,17 +22331,23 @@ function modsRemaining(){
 }
 
 async function offerAddonPurchase(kind, needed, remaining){
-  const pack = ADDON_PACKS[kind];
-  const noun = kind === 'edit' ? 'image edits' : 'modifications';
-  const ok = await customConfirm(
-    `This needs ${needed} ${noun} and you have ${remaining} remaining. Purchase the ${pack.label} (${pack.price} for ${pack.amount}) to continue?`,
-    'Not Enough ' + (kind === 'edit' ? 'Edits' : 'Modifications'), 'Purchase');
-  if(!ok) return;
+  const cfg = ADDON_PACKS[kind];
+  document.getElementById('addonPackTitle').textContent = 'Not Enough ' + (kind === 'edit' ? 'Edits' : 'Modifications');
+  document.getElementById('addonPackMsg').textContent =
+    `This needs ${needed} ${cfg.noun} and you have ${remaining} remaining. Purchase a pack to continue — the bigger the pack, the less each ${cfg.unit} costs:`;
+  document.getElementById('addonPackList').innerHTML = cfg.tiers.map(t =>
+    `<button class="primary" style="width:100%;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;" onclick="buyAddonPack('${t.plan}')">` +
+    `<span>${t.qty} ${cfg.noun}</span><span>${t.price} <span style="opacity:.75;font-size:11px;">(${t.per} each)</span></span></button>`).join('');
+  document.getElementById('addonPackOverlay').style.display = 'flex';
+}
+
+async function buyAddonPack(plan){
+  document.getElementById('addonPackOverlay').style.display = 'none';
   try{
-    const resp = await fetch('/api/purchase', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan: pack.plan }) });
+    const resp = await fetch('/api/purchase', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan }) });
     const data = await resp.json().catch(() => ({}));
     if(resp.ok){
-      await customAlert(`Your ${pack.label} request has been received. It will be activated on your account shortly, and you can then continue right where you left off.`, 'Purchase Requested');
+      await customAlert(`Your ${plan} request has been received. It will be activated on your account shortly, and you can then continue right where you left off.`, 'Purchase Requested');
     }else{
       await customAlert((data.error && data.error.message) || 'Could not submit the purchase request. Please try again.', 'Purchase');
     }
