@@ -17614,7 +17614,10 @@ async function generateDesign(){
   // a harmless no-op here whenever the form was never locked to begin with.
   // Admins keep the form writable after generating (owner request: easier testing);
   // real users get the normal post-generation lock.
-  if(mode === 'event' && !isAdminUser) lockForm();
+  // Owner rule: the Generate CLICK closes the form in event mode too (same as booth) —
+  // it returns under the results, visible-but-locked, when the board renders
+  // (renderEventConceptBoardResult), and disappears for good after approval.
+  if(mode === 'event' && !isAdminUser){ lockForm(); hideFormAndTabs(); }
   // Owner rule (Exhibition): the moment Generate is confirmed — i.e. the click that
   // deducts a project (or a modification on a regenerate) — the form CLOSES for regular
   // users; loading + results take over, same "results only" view approval uses. It
@@ -18208,6 +18211,7 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
       errBox.textContent = 'Generation failed: ' + (err && err.message ? err.message : String(err));
       errBox.style.display = 'block';
       unlockForm();
+      if(mode === 'event' && !isAdminUser) showFormAndTabs(); // form was auto-closed on Generate — bring it back so the error is visible and fixable
       projectSwitchLocked = false;
       document.getElementById('loading').style.display = 'none';
     }
