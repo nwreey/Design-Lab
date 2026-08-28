@@ -10751,7 +10751,8 @@ function renderSidebarBrandPlan(planName){
     el.style.display = 'none';
     return;
   }
-  el.textContent = (planName || 'Free') + ' Plan';
+  // Admins show "Administrator" in the same spot users see their plan (owner request).
+  el.textContent = planName === 'Administrator' ? 'Administrator' : (planName || 'Free') + ' Plan';
   el.style.display = 'inline-block';
 }
 
@@ -10759,9 +10760,9 @@ function renderSidebarAccountSection(data){
   const section = document.getElementById('sidebarAccountSection');
   if(!section || !data.username) return;
   currentAccountInfo = data;
-  // Admins carry no plan at all — badge hidden. Members always show one: their purchased
-  // plan, or "Free Plan" right from signup (owner request).
-  renderSidebarBrandPlan(data.role === 'admin' ? null : (data.plan || ''));
+  // Members show their plan ("Free Plan" right from signup, or the purchased one); admins
+  // show "Administrator" in the same spot (owner request).
+  renderSidebarBrandPlan(data.role === 'admin' ? 'Administrator' : (data.plan || ''));
   document.getElementById('sidebarAccountName').textContent = data.username;
   document.getElementById('sidebarAccountRole').textContent = data.role === 'admin' ? 'Administrator' : 'Team member';
   document.getElementById('sidebarAccountInitial').textContent = data.username.charAt(0).toUpperCase();
