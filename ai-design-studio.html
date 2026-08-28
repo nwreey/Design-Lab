@@ -678,7 +678,14 @@
   .viewer3d-card-history-nav button{padding:5px 10px;font-size:11px;}
   .viewer3d-card-history-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink);opacity:.6;white-space:nowrap;}
   .viewer3d-generated-card-label{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12.5px;color:var(--navy);padding:9px 12px;border-bottom:1px solid var(--line);background:#FAF9F6;}
-  .viewer3d-generated-card-light.pending{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:180px;color:var(--ink);opacity:.65;font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center;padding:14px;box-shadow:none;}
+  /* Owner report ("the page reloads on every image"): a 180px pending card grew to a full
+     image card the moment its view arrived, reflowing the whole grid on EVERY completion —
+     the layout jump read as a page re-render. Pending cards now reserve the exact same
+     footprint as a finished card (label + 4/3 image area + action row), so a view arriving
+     changes pixels inside its own card only — nothing moves. */
+  .viewer3d-generated-card-light.pending{box-shadow:none;}
+  .viewer3d-pending-frame{aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--ink);opacity:.65;font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center;padding:14px;box-sizing:border-box;}
+  .viewer3d-pending-footer{height:45px;}
   .viewer3d-building-icon{font-size:28px;animation:viewerBuildingPulse 1.6s ease-in-out infinite;}
   .viewer3d-building-label{opacity:.8;}
   @keyframes viewerBuildingPulse{0%,100%{opacity:.4;transform:scale(1);}50%{opacity:1;transform:scale(1.12);}}
@@ -21839,7 +21846,7 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
 
   if(state === 'pending'){
     card.className = 'viewer3d-generated-card-light pending';
-    card.innerHTML = `<div class="viewer3d-generated-card-label">${label}</div><div class="viewer3d-building-icon">🏗️</div><div class="viewer3d-building-label">Building this view...</div><div class="viewer3d-card-loading-bar"></div>`;
+    card.innerHTML = `<div class="viewer3d-generated-card-label">${label}</div><div class="viewer3d-pending-frame"><div class="viewer3d-building-icon">🏗️</div><div class="viewer3d-building-label">Building this view...</div><div class="viewer3d-card-loading-bar"></div></div><div class="viewer3d-pending-footer"></div>`;
     return;
   }
 
