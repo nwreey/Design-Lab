@@ -51,6 +51,9 @@
     background-position: -1px -1px;
   }
   .app-layout{display:flex;min-height:100vh;align-items:flex-start;}
+  /* Owner rule: on the Studio Home landing view the left bar is INVISIBLE — it appears
+     the moment a section is chosen or a project is opened. */
+  body.home-active .sidebar{display:none;}
   .sidebar{width:250px;flex-shrink:0;background:#fff;border-right:1.5px solid var(--navy);padding:24px 16px;box-sizing:border-box;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
   .sidebar-top-fixed{flex-shrink:0;}
   /* ---------- Professional sidebar chrome (owner request) ---------- */
@@ -507,6 +510,9 @@
   .render-status{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--navy);opacity:.75;margin-bottom:10px;min-height:18px;}
   #formCard.locked{opacity:.55;}
   /* Studio Home (landing view) */
+  .home-account-btn{float:right;display:flex;align-items:center;gap:9px;background:#fff;border:1.5px solid var(--line);border-radius:3px;padding:7px 12px;cursor:pointer;font-family:'Space Grotesk',sans-serif;}
+  .home-account-btn:hover{border-color:var(--navy);}
+  html[dir="rtl"] .home-account-btn{float:left;}
   .home-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:.5;}
   .home-h1{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-top:6px;}
   .home-sub{font-size:14px;opacity:.65;margin-top:6px;max-width:620px;line-height:1.55;}
@@ -535,7 +541,7 @@
   .home-recent-card{background:#fff;border:1.5px solid var(--line);border-radius:3px;overflow:hidden;cursor:pointer;transition:box-shadow .16s ease;}
   .home-recent-card:hover{box-shadow:0 6px 18px rgba(11,20,32,.12);}
   .home-recent-thumb{aspect-ratio:3/2;background:#0B0C10;display:flex;align-items:center;justify-content:center;color:#fff;opacity:.9;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1.5px;overflow:hidden;}
-  .home-recent-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .home-recent-thumb img{width:100%;height:100%;object-fit:cover;display:block;opacity:.75;filter:saturate(.85);pointer-events:none;}
   .home-recent-card .info{padding:11px 13px;}
   .home-recent-card .info b{font-size:13px;}
   .home-recent-card .info span{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;opacity:.5;margin-top:4px;}
@@ -937,6 +943,13 @@
        cards, recent projects, help strip. Shown on load and by 🏠/+ New; hidden the moment
        a section is chosen or a project is opened. -->
   <div id="studioHomeView" style="display:none;">
+    <!-- Account + settings stay reachable on home even with the sidebar hidden (owner rule):
+         same account menu the sidebar button opens. -->
+    <button type="button" class="home-account-btn" id="homeAccountBtn" onclick="toggleAccountMenu(event)">
+      <span class="sidebar-account-avatar" id="homeAccountInitial"></span>
+      <span id="homeAccountName" style="font-weight:700;font-size:12.5px;"></span>
+      <span aria-hidden="true" style="opacity:.6;">⚙</span>
+    </button>
     <div class="home-eyebrow">DesignsLab AI Studio</div>
     <h1 class="home-h1" id="homeWelcomeName">Welcome back 👋</h1>
     <p class="home-sub">Your design studio is ready. Start a new design below, or continue where you left off — everything saves automatically and syncs across your devices.</p>
@@ -984,6 +997,7 @@
   </div>
 
   <div class="tabs" id="modeTabs">
+    <button class="tab" id="tabHome" onclick="startNewProject()" title="Back to the main page">🏠 Home</button>
     <button class="tab active" id="tabBooth" onclick="setMode('booth')" data-i18n="tabs.booth">Exhibition Booth</button>
     <button class="tab" id="tabEvent" onclick="setMode('event')" data-i18n="tabs.event">Event Concept</button>
     <button class="tab" id="tabDisplayStand" onclick="setMode('displaystand')" data-i18n="tabs.displayStand">Display Stand</button>
@@ -11026,6 +11040,13 @@ function renderSidebarAccountSection(data){
   document.getElementById('acctMenuName').textContent = data.username;
   document.getElementById('acctMenuEmail').textContent = data.email && data.email !== data.username ? data.email : (data.email || '');
   section.style.display = 'block';
+  // Mirror into the home page's account chip (sidebar is hidden on home — owner rule).
+  const homeName = document.getElementById('homeAccountName');
+  const homeInit = document.getElementById('homeAccountInitial');
+  if(homeName) homeName.textContent = data.username || '';
+  if(homeInit) homeInit.textContent = (data.username || '?').charAt(0).toUpperCase();
+  const homeBtn = document.getElementById('homeAccountBtn');
+  if(homeBtn) homeBtn.style.display = 'flex';
 }
 
 function toggleAccountMenu(event){
@@ -11477,6 +11498,7 @@ function showStudioHome(){
   });
   const h = document.getElementById('studioHomeView');
   if(h) h.style.display = 'block';
+  document.body.classList.add('home-active'); // sidebar invisible on home (owner rule)
   updateStudioHomeUsage();
   if(typeof updateSidebarModeHighlight === 'function') try{ updateSidebarModeHighlight(null); }catch(e){}
   window.scrollTo({ top: 0 });
@@ -11485,6 +11507,7 @@ function showStudioHome(){
 function hideStudioHome(){
   const h = document.getElementById('studioHomeView');
   if(h) h.style.display = 'none';
+  document.body.classList.remove('home-active'); // sidebar returns in sections/projects
 }
 
 function chooseHomeSection(m){
@@ -11530,7 +11553,10 @@ function renderHomeRecent(projects){
   if(recent.length === 0){ wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
   grid.innerHTML = recent.map(p => {
-    const img = (p.optionResult && p.optionResult.gallery && p.optionResult.gallery[0] && p.optionResult.gallery[0].image)
+    // Owner rule: the box shows the LAST image of the project (latest gallery entry),
+    // dimmed as a preview — the card opens the project, the picture itself is inert.
+    const g = p.optionResult && p.optionResult.gallery;
+    const img = (g && g.length && g[g.length - 1] && g[g.length - 1].image)
       || (p.eventConceptBoard && p.eventConceptBoard.image)
       || (p.dsResult && p.dsResult.image) || null;
     const kind = p.dsResult ? 'Display Stand' : p.eventConceptBoard ? 'Event Concept' : 'Exhibition Booth';
@@ -11555,7 +11581,9 @@ function collapseFormCard(){
   const hint = document.getElementById('formCollapseHint');
   if(hint) hint.textContent = 'Tap to view';
   document.getElementById('modeTabs').style.display = 'none';
-  document.getElementById('showFormBar').style.display = 'none';
+  // Owner rule: the main page stays reachable from every page — the 🏠 Home Page bar
+  // remains visible alongside the collapsed Design Brief.
+  document.getElementById('showFormBar').style.display = 'block';
 }
 
 function toggleFormCollapse(){
