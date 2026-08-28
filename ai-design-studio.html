@@ -6057,6 +6057,15 @@ const HARD_CONSTRAINTS_SUFFIX = `
 
 Non-negotiable rules for this image: never alter, redesign, restyle, distort, recolor, or modify the company logo in any way — it must appear exactly as shown, completely unchanged. Do not add product showcases, display cases, or vitrines unless explicitly requested. Do not add vertical screens or vertical digital displays unless explicitly requested. Do not add touchscreen display stands or interactive touchscreen kiosks unless explicitly requested and written in the client's brief. Do not add TV screens unless explicitly requested and written in the client's brief. Do not add iPad or tablet display stands unless explicitly requested and written in the client's brief. If the booth is open on only one side (typically the front) with the other sides being closed, solid walls, then any view showing the booth from the left or right side from outside — looking at the exterior face of a closed wall — must show that exterior wall face as a plain, flat, single solid color with no added graphics, branding, decorative elements, or texture beyond what is already visible in the reference image. Do not invent decoration on a closed exterior wall face that was not explicitly requested. This image must contain NO people, staff, visitors, or crowds anywhere — not inside the booth, not outside it, not in the background, not as silhouettes, shadows, reflections, or partial body parts. The booth must be completely empty of people; this is a clean architectural visualization only. FULL-BLEED COMPOSITION: the photograph must completely fill the entire frame edge to edge — absolutely no black bars, letterboxing, borders, frames, or empty padding of any color on any side of the image. This is a full-bleed photographic composition, not a presentation slide or cinematic crop; the exhibition hall and booth must extend all the way to every edge of the image. SINGLE IMAGE, SINGLE CAMERA, NO EXCEPTIONS: render exactly ONE photograph taken from ONE single camera position at ONE single moment — never a diptych, collage, split-screen, grid, multi-panel layout, or two (or more) separate images/angles/crops combined, stacked, or tiled into one canvas, even if the booth is large, has multiple zones, or has areas that are hard to see from a single angle. If not everything fits cleanly in one frame from a single believable camera position, choose the single best angle that represents the design as a whole and render only that — never add a second angle, inset, or panel to compensate. The entire output image must read as one continuous, uninterrupted photograph with no internal dividing lines, seams, or borders splitting it into separate sections. FLOOR AWARENESS: the booth has a raised floor platform with a crisp, clearly defined edge separating it from the surrounding exhibition hall's dark gray carpet floor — always keep this boundary sharp and precise, exactly where it already is in the reference image; never blur, shift, extend, shrink, or otherwise misread the booth's actual footprint or corners when making any change. The floor's actual material, color, and finish must exactly match whatever was specified in the client's brief — never substitute a different flooring material or color than what was explicitly requested.`;
 
+/* OWNER HARD RULE — approved-design fidelity. Appended to EVERY high-resolution view
+   request made after approval (booth camera views, DS view renders, event area renders):
+   the model's only job is the SAME approved design from another camera, in high
+   resolution — never a reinterpretation. Added after the owner saw views that differed
+   from the approved design. */
+const SAME_DESIGN_HARD_RULE = `
+
+HARD RULE — SAME DESIGN ONLY (absolute, overrides any creative impulse): The attached reference image IS the approved final design. Your ONLY job is to show THIS EXACT design from the requested camera position, in high resolution. Reproduce every element exactly as approved: identical architecture, geometry, proportions, materials, colors, branding, logo placements, furniture, lighting fixtures, signage, and decorative elements. Do NOT redesign, restyle, improve, simplify, add, remove, resize, recolor, or reinterpret ANYTHING. If an element is visible in the reference, it must appear identically; where a surface becomes visible only from this new angle, render it strictly consistent with the approved design language without inventing new features. Any visible deviation from the approved design is a failure.`;
+
 // MULTI-VIEW RENDER ENGINE (MRE-001, Test Engine only) — appended (never in Special Engine) to
 // the very first Gemini render of a booth, replacing the usual single hero photograph with one
 // image that is itself a four-quadrant presentation sheet: Front / Right / Left / Top, all of the
@@ -8200,7 +8209,7 @@ async function approveDisplayStand(){
           lines.push('- FORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions), maximum detail and sharpness, presentation-grade quality.');
           lines.push('- FINAL SELF-CHECK before returning: one seamless scene, zero dividing lines, every color exactly matches the brand palette stated above with no drift, the stand matches the approved panel exactly. Regenerate otherwise.');
         }
-        const prompt = lines.join('\n');
+        const prompt = lines.join('\n') + SAME_DESIGN_HARD_RULE;
         let data = null;
         for(const size of ['4K', '2K']){
           const response = await fetchWithTimeout('/api/generate-image-gemini', {
@@ -16909,7 +16918,7 @@ async function generateApprovedAreaRenders(){
           lines.push('- COLOR COMPLIANCE (hard rule): only the approved brand colors — ' + briefData.colors.join(', ') + ' — their derived shades/tints, and neutrals (white, black, grey, silver, natural wood, transparent glass) may appear, exactly as in the approved panel. Never introduce any new color.');
         }
         lines.push('- No area names, labels, annotations, arrows, dimensions, callouts, watermarks, or any text beyond what the approved design itself carries on its signage and screens. The board\'s panel caption (the area name written on the board) is a board annotation — do NOT reproduce that caption text inside your photograph.');
-        let prompt = lines.join('\n');
+        let prompt = lines.join('\n') + SAME_DESIGN_HARD_RULE;
         prompt += '\n\nHARD RULE — ONE COMPLETE UNDIVIDED IMAGE: the output is EXACTLY ONE single, continuous, seamless photograph of this one area filling the ENTIRE frame edge to edge. Absolutely NO splitting of the frame: no two sections, no panels, no grid, no collage, no split-screen, no side-by-side views, no picture-in-picture, no borders or dividing lines of any kind anywhere in the image. If any dividing line or second section would appear, recompose as one single continuous scene before returning the result.';
         if(areaRenderExtraRefs.length){
           prompt += '\n\nLOGO REFERENCE: the SECOND attached image is the EXACT and ONLY authoritative company/event logo. Every logo appearance in this render must match it pixel-for-pixel — never a different, older, or remembered version of this company\'s logo, even if the approved board itself shows the logo imperfectly. The attached logo file always wins.';
@@ -20962,7 +20971,7 @@ function computeImageSimilarity(dataUrlA, dataUrlB){
 // part alongside the text prompt), so no separate "Gemini edit" endpoint is needed — it's the
 // exact same endpoint the initial generation used, just called again with a reference photo.
 async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geometryCorrectionReason){
-  const prompt = buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX;
+  const prompt = buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX + SAME_DESIGN_HARD_RULE;
   const useOpenAi = cameraViewsEngine !== 'gemini';
   const endpoint = useOpenAi ? '/api/edit-image-openai' : '/api/generate-image-gemini';
   // Owner billing rule: each camera view costs 1 image edit, charged server-side on the
