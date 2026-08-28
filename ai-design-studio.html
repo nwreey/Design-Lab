@@ -22186,14 +22186,14 @@ function approveDesign(){
   if(isAdminUser){
     showAdminGenerationPreview(opt, cameraPlanResult);
   }else{
-    // Owner redesign: the user picks WHICH camera views to render and pays 1 edit per
-    // selected view (the hero is always included free). All views start checked; he
-    // unchecks what he doesn't want. Quota is checked against the SELECTION at confirm.
+    // Owner rule: the user picks WHICH camera views to render and pays 1 edit per
+    // selected view (the hero is always included free). All views start UNCHECKED —
+    // he actively selects what he wants. Quota is checked against the SELECTION at confirm.
     const list = document.getElementById('viewPickerList');
     list.innerHTML = CAMERA_SPECS.filter(spec => !spec.isHeroImage).map(spec => {
       const label = (VIEWER_CAMERA_LABELS[spec.camId] || spec.name || spec.camId);
       return `<label style="display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;cursor:pointer;">` +
-        `<input type="checkbox" class="view-picker-check" value="${spec.camId}" checked onchange="updateViewPickerCount()">` +
+        `<input type="checkbox" class="view-picker-check" value="${spec.camId}" onchange="updateViewPickerCount()">` +
         `<span>${label}</span></label>`;
     }).join('');
     updateViewPickerCount();
