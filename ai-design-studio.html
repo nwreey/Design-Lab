@@ -21889,14 +21889,11 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
 function approveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
-  // Trial gate: Approve is what unlocks the full camera-view set, and that is exactly
-  // the step reserved for paying customers. Free-trial users (no purchased plan on
-  // their account) get the plans popup with an explanation instead of the approval
-  // flow. Admins and users whose plan the admin has activated pass straight through.
-  if(!isAdminUser && !(currentAccountInfo && currentAccountInfo.plan)){
-    openUpgradeModal('approve');
-    return;
-  }
+  // The old trial gate (plans popup for anyone without a purchased plan) is GONE (owner
+  // report: a Free Plan user with 18 of 20 edits remaining was hitting the payments box on
+  // Approve). Quota is the control now: the edits pre-check below charges 1 edit per
+  // generated camera view and offers the pack chooser only when the balance truly can't
+  // cover the set — a user with granted edits approves normally regardless of plan.
   // Recomputed fresh every time Approve is opened — see recomputeCameraViewPlan's own
   // comment. This has to happen before either branch below, since the admin preview must
   // show the exact same plan the real generation is about to use, not a stale one.
