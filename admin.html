@@ -524,39 +524,20 @@ function svcBytes(n){
   return Math.round(n / 1024) + ' KB';
 }
 
-/* One row per provider: identity + status | usage bar (live usage vs the admin-set monthly
-   limit, editable inline) | key details | a button straight to that provider's billing page.
-   Most providers don't expose their own plan ceiling via API, so the admin states it once
-   (e.g. "OpenAI budget $200/month", "Blob plan 100 GB") and the bar measures live usage
-   against it: green under 70%, amber under 90%, red above. */
-let __svcBudgets = {};
-
-function svcBar(cfg, limit){
-  const used = cfg.used;
-  const usedLabel = cfg.usedLabel;
-  // Owner rule: EVERY provider row states usage and remaining explicitly — never just a bar.
-  if(used == null){
-    const nativeLine = cfg.remainingNativeLabel
-      ? 'Remaining now: <strong>' + cfg.remainingNativeLabel + '</strong> — set the total on the right to see the usage bar.'
-      : 'No live usage figure available from this provider.';
-    return '<div style="height:10px;border-radius:5px;background:rgba(11,12,16,.08);"></div>'
-      + '<div style="margin-top:6px;font-size:13px;">' + nativeLine + '</div>';
-  }
-  if(!limit){
-    const remainingBit = cfg.remainingNativeLabel
-      ? ' — Remaining: <strong>' + cfg.remainingNativeLabel + '</strong>'
-      : ' — <span class="hint" style="margin:0;">set your plan limit on the right to see remaining.</span>';
-    return '<div style="height:10px;border-radius:5px;background:rgba(11,12,16,.08);"></div>'
-      + '<div style="margin-top:6px;font-size:13px;">Used: <strong>' + usedLabel + '</strong>' + remainingBit + '</div>';
-  }
-  const pct = Math.min(100, Math.round(used / limit * 100));
-  const color = pct >= 90 ? '#B02A1E' : pct >= 70 ? '#B07E10' : '#1E7B3C';
-  const remaining = Math.max(0, limit - used);
-  return '<div style="height:10px;border-radius:5px;background:rgba(11,12,16,.08);overflow:hidden;">'
-    + '<div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:5px;transition:width .3s ease;"></div></div>'
-    + '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:13px;">'
-    + '<span>Used: <strong>' + usedLabel + '</strong> of ' + cfg.limitLabel(limit) + ' (' + pct + '%)</span>'
-    + '<span style="color:' + color + ';font-weight:700;">Remaining: ' + cfg.limitLabel(remaining) + '</span></div>';
+/* One row per provider: identity + status | live usage + remaining (where the provider
+   reports it) | key details | a button straight to that provider's billing page. No manual
+   plan-limit inputs (owner decision: "I can not control this") — the row shows exactly what
+   the provider APIs report, nothing the admin has to maintain by hand. */
+function svcBar(cfg){
+  // Live bar where a real denominator exists, derived from the provider account itself —
+  // never a manually-maintained limit (owner decision). cfg.barPct/barColor/line are
+  // precomputed per provider in loadServiceUsage().
+  const hasPct = cfg.barPct != null;
+  const fill = hasPct ? Math.min(100, Math.max(2, Math.round(cfg.barPct))) : 0;
+  const bar = '<div style="height:10px;border-radius:5px;background:rgba(11,12,16,.08);overflow:hidden;">'
+    + (hasPct ? '<div style="height:100%;width:' + fill + '%;background:' + (cfg.barColor || '#1E7B3C') + ';border-radius:5px;transition:width .3s ease;"></div>' : '')
+    + '</div>';
+  return bar + '<div style="margin-top:6px;font-size:13px;">' + (cfg.line || 'No live usage figure available from this provider.') + '</div>';
 }
 
 /* Compact always-visible balance per provider in the dark sidebar — remaining where known,
@@ -566,21 +547,15 @@ function renderSidebarBalances(rowCfgs){
   if(!el) return;
   el.innerHTML = rowCfgs.map(cfg => {
     const svc = cfg.svc || {};
-    const limit = __svcBudgets[cfg.budgetKey];
     let val = '—';
-    let pct = null;
-    if(cfg.used != null && limit){
-      pct = Math.min(100, Math.round(cfg.used / limit * 100));
-      val = cfg.limitLabel(Math.max(0, limit - cfg.used)) + ' left';
-    }else if(cfg.remainingNativeLabel){
+    if(cfg.remainingNativeLabel){
       val = cfg.remainingNativeLabel + ' left';
     }else if(cfg.used != null){
       val = cfg.usedLabel + ' used';
     }
     const dot = (svc.status === 'error') ? '#D9534F'
       : (svc.status === 'not_configured') ? 'rgba(255,255,255,.25)'
-      : (svc.status === 'warning' || (pct != null && pct >= 90)) ? '#E8B93E'
-      : (pct != null && pct >= 70) ? '#E8B93E'
+      : (svc.status === 'warning') ? '#E8B93E'
       : '#57C776';
     return '<a class="bal-row" href="#sec-usage" title="' + cfg.title + ' — open Usage & Billing">'
       + '<span class="bal-dot" style="background:' + dot + ';"></span>'
@@ -591,7 +566,6 @@ function renderSidebarBalances(rowCfgs){
 
 function svcRow(cfg){
   const svc = cfg.svc || { status: 'error' };
-  const budget = __svcBudgets[cfg.budgetKey];
   const note = svc.note ? '<div class="hint" style="margin-top:6px;">' + escapeHtml(svc.note) + '</div>' : '';
   return '<div style="display:grid;grid-template-columns:210px 1fr 150px;gap:20px;align-items:start;border:1px solid var(--line);border-radius:6px;padding:16px 20px;background:#fff;box-shadow:0 1px 2px rgba(11,12,16,.05);">'
     // Column 1: identity + status
@@ -600,38 +574,17 @@ function svcRow(cfg){
     + '<div style="margin-bottom:6px;">' + svcBadge(svc.status) + '</div>'
     + '<div class="hint">' + cfg.sub + '</div>'
     + '</div>'
-    // Column 2: usage bar + details + note
+    // Column 2: usage + remaining + details + note
     + '<div>'
-    + svcBar(cfg, budget)
+    + svcBar(cfg)
     + (cfg.details && cfg.details.length ? '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;font-size:13.5px;">' + cfg.details.map(x => '<span>' + x + '</span>').join('') + '</div>' : '')
     + note
     + '</div>'
-    // Column 3: billing link + inline limit editor
+    // Column 3: billing link only — balance top-ups and plan changes happen at the provider
     + '<div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;">'
     + '<a href="' + cfg.billing + '" target="_blank" rel="noopener" style="display:block;text-align:center;background:var(--navy);color:#fff;border:2px solid var(--navy);padding:8px 10px;border-radius:4px;font-weight:600;font-size:13px;text-decoration:none;">Open billing ↗</a>'
-    + '<div style="display:flex;gap:6px;align-items:center;">'
-    + '<input type="number" min="0" step="any" id="budget_' + cfg.budgetKey + '" value="' + (budget != null ? budget : '') + '" placeholder="limit" style="padding:6px 8px;font-size:12.5px;">'
-    + '<button class="ghost small" onclick="saveSvcBudget(\'' + cfg.budgetKey + '\')">Set</button>'
-    + '</div>'
-    + '<div class="hint" style="margin-top:-2px;text-align:center;">' + cfg.unitHint + '</div>'
     + '</div>'
     + '</div>';
-}
-
-async function saveSvcBudget(budgetKey){
-  const input = document.getElementById('budget_' + budgetKey);
-  const statusEl = document.getElementById('serviceUsageStatus');
-  try{
-    const response = await fetch('/api/admin-service-usage', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind: 'budget', service: budgetKey, amount: input && input.value !== '' ? Number(input.value) : null })
-    });
-    const data = await response.json();
-    if(!response.ok) throw new Error((data.error && data.error.message) || 'Save failed.');
-    await loadServiceUsage();
-  }catch(err){
-    if(statusEl) statusEl.textContent = 'Could not save limit: ' + (err.message || 'unknown error');
-  }
 }
 
 async function loadServiceUsage(){
@@ -643,55 +596,76 @@ async function loadServiceUsage(){
     const data = await response.json();
     if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load service usage.');
     const s = data.services || {};
-    __svcBudgets = {};
-    (data.budgets || []).forEach(b => { __svcBudgets[b.service] = Number(b.amount); });
-
     // Internal per-provider call counts double as the "usage" figure for providers with no
     // billing API of their own (Gemini).
     const counterMap = {};
     ((data.internal && data.internal.perProvider) || []).forEach(row => { counterMap[row.provider] = row; });
     const geminiCallsMonth = counterMap.gemini ? parseInt(counterMap.gemini.calls_month, 10) : null;
+    const geminiCallsPrevMonth = counterMap.gemini ? parseInt(counterMap.gemini.calls_prev_month, 10) || 0 : 0;
     const neonBytes = (s.neon && s.neon.projects && s.neon.projects.length)
       ? s.neon.projects.reduce((sum, p) => sum + (p.storageBytes || 0), 0) : null;
     const GB = 1024 * 1024 * 1024;
-    const gbLabel = v => (Math.round(v * 100) / 100) + ' GB';
+    const paceColor = pct => pct >= 90 ? '#B02A1E' : pct >= 70 ? '#B07E10' : '#1E7B3C';
+
+    // OpenAI live bar: this month's real spend vs LAST month's actual total, both read
+    // directly from the account via the Costs API — a live pace indicator with no manually
+    // maintained numbers anywhere.
+    const oaMonth = s.openai && s.openai.monthUsd != null ? s.openai.monthUsd : null;
+    const oaPrev = s.openai && s.openai.prevMonthUsd != null ? s.openai.prevMonthUsd : 0;
+    const oaPct = (oaMonth != null && oaPrev > 0) ? Math.round(oaMonth / oaPrev * 100) : null;
+
+    // Gemini live bar: same pace idea from our own logged call counts (Google has no billing
+    // API for API keys at all).
+    const gmPct = (geminiCallsMonth != null && geminiCallsPrevMonth > 0) ? Math.round(geminiCallsMonth / geminiCallsPrevMonth * 100) : null;
+
+    // Luma live bar: remaining credits vs the highest balance ever observed on the account
+    // (auto-tracked server-side, peaks right after each top-up) — bar drains as credits burn.
+    const lumaCredits = s.luma && s.luma.credits != null ? s.luma.credits : null;
+    const lumaPeak = s.luma && s.luma.peakCredits ? s.luma.peakCredits : null;
+    const lumaPct = (lumaCredits != null && lumaPeak > 0) ? Math.round(lumaCredits / lumaPeak * 100) : null;
 
     const rowCfgs = [
       ({
         title: 'OpenAI', shortName: 'OpenAI', sub: 'Image edits, autofill, AI text', svc: s.openai,
-        budgetKey: 'openai_monthly_usd', unitHint: 'monthly budget, USD',
         billing: 'https://platform.openai.com/settings/organization/billing/overview',
-        used: s.openai && s.openai.monthUsd != null ? s.openai.monthUsd : null,
-        usedLabel: s.openai && s.openai.monthUsd != null ? '$' + s.openai.monthUsd.toFixed(2) : '',
-        limitLabel: v => '$' + (Math.round(v * 100) / 100),
+        used: oaMonth, usedLabel: oaMonth != null ? '$' + oaMonth.toFixed(2) : '',
+        barPct: oaPct, barColor: oaPct != null ? paceColor(oaPct) : null,
+        line: oaMonth != null
+          ? 'Used this month: <strong>$' + oaMonth.toFixed(2) + '</strong>'
+            + (oaPrev > 0 ? ' — last month total: <strong>$' + oaPrev.toFixed(2) + '</strong> (' + oaPct + '% of it so far)' : '')
+          : null,
         details: s.openai && s.openai.todayUsd != null ? ['Today: <strong>$' + s.openai.todayUsd.toFixed(2) + '</strong>'] : []
       }),
       ({
         title: 'Google Gemini', shortName: 'Gemini', sub: 'All design image generation', svc: s.gemini,
-        budgetKey: 'gemini_monthly_calls', unitHint: 'monthly limit, image calls',
         billing: 'https://console.cloud.google.com/billing',
-        used: geminiCallsMonth,
-        usedLabel: geminiCallsMonth != null ? geminiCallsMonth + ' calls' : '',
-        limitLabel: v => Math.round(v) + ' calls',
-        details: ['<span class="hint">No billing API — bar uses our own logged call count.</span>']
+        used: geminiCallsMonth, usedLabel: geminiCallsMonth != null ? geminiCallsMonth + ' calls' : '',
+        barPct: gmPct, barColor: gmPct != null ? paceColor(gmPct) : null,
+        line: geminiCallsMonth != null
+          ? 'Used this month: <strong>' + geminiCallsMonth + ' image calls</strong>'
+            + (geminiCallsPrevMonth > 0 ? ' — last month: <strong>' + geminiCallsPrevMonth + '</strong> (' + gmPct + '% of it so far)' : '')
+          : null,
+        details: ['<span class="hint">Google has no billing API for API keys — figures are our own logged calls.</span>']
       }),
       ({
         title: 'Luma (video)', shortName: 'Luma', sub: 'Video generation credits', svc: s.luma,
-        budgetKey: 'luma_total_credits', unitHint: 'credits purchased, total',
         billing: 'https://lumalabs.ai/api/billing',
-        used: (s.luma && s.luma.credits != null && __svcBudgets.luma_total_credits) ? Math.max(0, __svcBudgets.luma_total_credits - s.luma.credits) : (s.luma && s.luma.credits != null ? null : null),
-        usedLabel: (s.luma && s.luma.credits != null && __svcBudgets.luma_total_credits) ? Math.round(__svcBudgets.luma_total_credits - s.luma.credits) + ' credits' : '',
-        limitLabel: v => Math.round(v) + ' credits',
-        remainingNativeLabel: s.luma && s.luma.credits != null ? s.luma.credits + ' credits' : null,
-        details: s.luma && s.luma.credits != null ? ['Remaining now: <strong>' + s.luma.credits + '</strong> credits'] : []
+        used: null, usedLabel: '',
+        remainingNativeLabel: lumaCredits != null ? lumaCredits + ' credits' : null,
+        // Remaining-style bar: full after a top-up, drains toward zero — so LOW is red.
+        barPct: lumaPct, barColor: lumaPct != null ? (lumaPct <= 10 ? '#B02A1E' : lumaPct <= 30 ? '#B07E10' : '#1E7B3C') : null,
+        line: lumaCredits != null
+          ? 'Remaining now: <strong>' + lumaCredits + ' credits</strong>'
+            + (lumaPeak > lumaCredits ? ' of <strong>' + lumaPeak + '</strong> at last top-up (' + lumaPct + '% left)' : '')
+          : null,
+        details: []
       }),
       ({
         title: 'Mandrill (email)', shortName: 'Mandrill', sub: 'All notification emails', svc: s.mandrill,
-        budgetKey: 'mandrill_monthly_sends', unitHint: 'monthly limit, emails',
         billing: 'https://mandrillapp.com/settings',
         used: s.mandrill && s.mandrill.sentThisMonth != null ? s.mandrill.sentThisMonth : null,
         usedLabel: s.mandrill && s.mandrill.sentThisMonth != null ? s.mandrill.sentThisMonth + ' sent' : '',
-        limitLabel: v => Math.round(v) + ' emails',
+        line: s.mandrill && s.mandrill.sentThisMonth != null ? 'Used: <strong>' + s.mandrill.sentThisMonth + ' emails</strong> sent in the last 30 days' : null,
         details: s.mandrill && s.mandrill.hourlyQuota != null ? [
           'Hourly quota: <strong>' + s.mandrill.hourlyQuota + '</strong>',
           'Reputation: <strong>' + (s.mandrill.reputation != null ? s.mandrill.reputation : '—') + '</strong>' + (s.mandrill.backlog ? ' — backlog: ' + s.mandrill.backlog : '')
@@ -699,20 +673,18 @@ async function loadServiceUsage(){
       }),
       ({
         title: 'Vercel Blob (image storage)', shortName: 'Blob storage', sub: 'All project render images', svc: s.blob,
-        budgetKey: 'blob_plan_gb', unitHint: 'plan storage, GB',
         billing: 'https://vercel.com/dashboard',
         used: s.blob && s.blob.totalBytes != null ? s.blob.totalBytes / GB : null,
         usedLabel: s.blob && s.blob.totalBytes != null ? svcBytes(s.blob.totalBytes) + (s.blob.partial ? ' (partial)' : '') : '',
-        limitLabel: gbLabel,
+        line: s.blob && s.blob.totalBytes != null ? 'Used: <strong>' + svcBytes(s.blob.totalBytes) + '</strong> stored' + (s.blob.partial ? ' (partial count)' : '') : null,
         details: s.blob && s.blob.fileCount != null ? ['Files: <strong>' + s.blob.fileCount + '</strong>'] : []
       }),
       ({
         title: 'Neon (database)', shortName: 'Neon DB', sub: 'Accounts, projects, logs', svc: s.neon,
-        budgetKey: 'neon_plan_gb', unitHint: 'plan storage, GB',
         billing: 'https://console.neon.tech/app/billing',
         used: neonBytes != null ? neonBytes / GB : null,
         usedLabel: neonBytes != null ? svcBytes(neonBytes) : '',
-        limitLabel: gbLabel,
+        line: neonBytes != null ? 'Used: <strong>' + svcBytes(neonBytes) + '</strong> database storage' : null,
         details: (s.neon && s.neon.projects) ? s.neon.projects.map(p => escapeHtml(p.name) + ': <strong>' + svcBytes(p.storageBytes) + '</strong>') : []
       })
     ];

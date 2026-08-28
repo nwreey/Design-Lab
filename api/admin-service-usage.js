@@ -89,9 +89,13 @@ async function checkOpenAi() {
   }
   const now = new Date();
   const monthStart = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1) / 1000);
+  // Pull the PREVIOUS month too in the same call — its total becomes the live, auto-derived
+  // denominator for the usage bar (owner: no manually-maintained limits), so the bar reads
+  // "this month's spend vs last month's actual" straight from the OpenAI account.
+  const prevMonthStart = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1) / 1000);
   const dayStart = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000);
   const r = await fetchJson(
-    `https://api.openai.com/v1/organization/costs?start_time=${monthStart}&bucket_width=1d&limit=31`,
+    `https://api.openai.com/v1/organization/costs?start_time=${prevMonthStart}&bucket_width=1d&limit=62`,
     { headers: { Authorization: `Bearer ${adminKey}` } }
   );
   if (!r.ok) {
@@ -114,6 +118,7 @@ async function checkOpenAi() {
     return { status: 'error', note: 'Costs API rejected the admin key: ' + msg + scopeHint };
   }
   let monthUsd = 0;
+  let prevMonthUsd = 0;
   let todayUsd = 0;
   (r.data.data || []).forEach((bucket) => {
     let bucketTotal = 0;
@@ -121,10 +126,16 @@ async function checkOpenAi() {
       const amt = item.amount && typeof item.amount.value === 'number' ? item.amount.value : 0;
       bucketTotal += amt;
     });
-    monthUsd += bucketTotal;
+    if (bucket.start_time >= monthStart) monthUsd += bucketTotal;
+    else prevMonthUsd += bucketTotal;
     if (bucket.start_time >= dayStart) todayUsd += bucketTotal;
   });
-  return { status: 'ok', monthUsd: Math.round(monthUsd * 100) / 100, todayUsd: Math.round(todayUsd * 100) / 100 };
+  return {
+    status: 'ok',
+    monthUsd: Math.round(monthUsd * 100) / 100,
+    prevMonthUsd: Math.round(prevMonthUsd * 100) / 100,
+    todayUsd: Math.round(todayUsd * 100) / 100,
+  };
 }
 
 async function checkGemini() {
@@ -154,7 +165,26 @@ async function checkLuma() {
       if (r.ok && r.data) {
         const credits = r.data.credit_balance != null ? r.data.credit_balance : (r.data.credits != null ? r.data.credits : null);
         if (credits != null) {
-          return { status: credits <= 0 ? 'error' : (credits < 500 ? 'warning' : 'ok'), credits, note: credits <= 0 ? 'NO CREDITS LEFT — video generation is down.' : (credits < 500 ? 'Credits running low.' : '') };
+          // Auto-learn the bar's denominator from the account itself: remember the HIGHEST
+          // balance ever observed (i.e. right after a top-up) — remaining vs that peak makes
+          // a live bar with no manually-maintained totals (owner: no manual limits).
+          let peakCredits = credits;
+          if (sql) {
+            try {
+              await ensureBudgetsSchema();
+              const stored = await sql`SELECT amount FROM service_budgets WHERE service = 'luma_peak_credits_auto';`;
+              const prevPeak = stored.rows.length ? Number(stored.rows[0].amount) : 0;
+              peakCredits = Math.max(prevPeak, credits);
+              if (credits > prevPeak) {
+                await sql`
+                  INSERT INTO service_budgets (service, amount, updated_at)
+                  VALUES ('luma_peak_credits_auto', ${credits}, NOW())
+                  ON CONFLICT (service) DO UPDATE SET amount = ${credits}, updated_at = NOW();
+                `;
+              }
+            } catch (peakErr) { /* peak tracking is best-effort */ }
+          }
+          return { status: credits <= 0 ? 'error' : (credits < 500 ? 'warning' : 'ok'), credits, peakCredits, note: credits <= 0 ? 'NO CREDITS LEFT — video generation is down.' : (credits < 500 ? 'Credits running low.' : '') };
         }
         return { status: 'ok', note: 'Key valid; credits field not present in response.' };
       }
@@ -268,7 +298,8 @@ async function internalCounters() {
       COUNT(*) FILTER (WHERE created_at >= date_trunc('day', NOW())) AS calls_today,
       COUNT(*) FILTER (WHERE created_at >= date_trunc('day', NOW()) AND NOT ok) AS failures_today,
       COUNT(*) FILTER (WHERE created_at >= date_trunc('month', NOW())) AS calls_month,
-      COUNT(*) FILTER (WHERE created_at >= date_trunc('month', NOW()) AND NOT ok) AS failures_month
+      COUNT(*) FILTER (WHERE created_at >= date_trunc('month', NOW()) AND NOT ok) AS failures_month,
+      COUNT(*) FILTER (WHERE created_at >= date_trunc('month', NOW() - interval '1 month') AND created_at < date_trunc('month', NOW())) AS calls_prev_month
     FROM ai_usage_log
     GROUP BY provider
     ORDER BY provider;
