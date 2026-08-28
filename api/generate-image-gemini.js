@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { neon } = require('@neondatabase/serverless');
+const { logAiCall } = require('../lib/usage-log.js');
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* Same token verification duplicated across the auth-aware endpoints in this project —
@@ -196,6 +197,10 @@ module.exports = async (req, res) => {
     });
 
     const data = await geminiResponse.json();
+
+    // Fire-and-forget usage logging for the admin Service Usage & Billing panel — never
+    // awaited, never allowed to affect the actual generation (see lib/usage-log.js).
+    logAiCall({ provider: 'gemini', endpoint: 'generate-image-gemini', ok: geminiResponse.ok, status: geminiResponse.status, message: !geminiResponse.ok ? ((data.error && data.error.message) || '') : '' });
 
     if (!geminiResponse.ok) {
       // Log the full raw error to the Vercel function logs (not shown to the client) so a

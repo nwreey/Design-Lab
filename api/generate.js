@@ -1,3 +1,5 @@
+const { logAiCall } = require('../lib/usage-log.js');
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -68,6 +70,9 @@ module.exports = async (req, res) => {
     });
 
     const data = await openaiResponse.json();
+
+    // Fire-and-forget usage logging for the admin Service Usage & Billing panel (lib/usage-log.js).
+    logAiCall({ provider: 'openai', endpoint: 'generate', ok: openaiResponse.ok, status: openaiResponse.status, message: !openaiResponse.ok ? ((data.error && data.error.message) || '') : '' });
 
     if (!openaiResponse.ok) {
       res.status(openaiResponse.status).json({ error: data.error || { message: 'OpenAI request failed.' } });

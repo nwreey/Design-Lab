@@ -153,6 +153,44 @@
     </div>
 
     <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <h2 style="margin:0;">Service Usage &amp; Billing</h2>
+        <button class="ghost" id="serviceUsageRefreshBtn" onclick="loadServiceUsage()">Refresh</button>
+      </div>
+      <div class="hint" style="margin:10px 0 14px;">Live status of every paid service the platform depends on — the goal is that an expiring key, exhausted balance, or full storage shows up HERE before it takes the site down. Red = broken now, yellow = needs attention, green = healthy.</div>
+      <div id="serviceUsageCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">
+        <div class="hint">Loading service status...</div>
+      </div>
+
+      <h3 style="margin:22px 0 6px;font-size:14px;">Internal call counters (logged by our own servers)</h3>
+      <div class="hint" style="margin-bottom:10px;">Every AI/provider call this platform makes is counted here — works even for providers with no billing API. A failure spike is your earliest warning.</div>
+      <table>
+        <thead><tr><th>Provider</th><th>Calls today</th><th>Failed today</th><th>Calls this month</th><th>Failed this month</th></tr></thead>
+        <tbody id="serviceUsageCountersBody"><tr><td colspan="5" class="hint">Loading...</td></tr></tbody>
+      </table>
+
+      <h3 style="margin:22px 0 6px;font-size:14px;">Recent failures</h3>
+      <table>
+        <thead><tr><th>When</th><th>Provider</th><th>Feature</th><th>Kind</th><th>Message</th></tr></thead>
+        <tbody id="serviceUsageFailuresBody"><tr><td colspan="5" class="hint">Loading...</td></tr></tbody>
+      </table>
+
+      <h3 style="margin:22px 0 6px;font-size:14px;">Renewal dates (manual)</h3>
+      <div class="hint" style="margin-bottom:10px;">For services with no billing API (Vercel plan, domain, any prepaid subscription): record the renewal date once and the panel counts down — yellow at 30 days, red at 7.</div>
+      <table>
+        <thead><tr><th>Service</th><th>Renews on</th><th>Days left</th><th>Note</th><th></th></tr></thead>
+        <tbody id="serviceRenewalsBody"><tr><td colspan="5" class="hint">Loading...</td></tr></tbody>
+      </table>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;">
+        <input type="text" id="renewalService" placeholder="Service (e.g. Vercel Pro, designslab.ai domain)" style="max-width:280px;">
+        <input type="date" id="renewalDate" style="max-width:170px;">
+        <input type="text" id="renewalNote" placeholder="Note (optional)" style="max-width:220px;">
+        <button class="ghost" onclick="saveRenewal()">Save renewal date</button>
+      </div>
+      <div class="status-msg" id="serviceUsageStatus"></div>
+    </div>
+
+    <div class="card">
       <h2>Signup Requests</h2>
       <div class="hint" style="margin-bottom:14px;">Access requests submitted through the public signup page (Early Access Program). Clicking "Approve &amp; email" does the full onboarding in one click: it creates the account automatically (username = their email, trial quotas 1 project / 1 AI auto-fill / 2 design modifications / 3 image edits — adjust in Users List), emails them a personal Set-Password link (valid 7 days), and removes the request from this list — the person then lives under Users List only. If the email fails, the request stays here so you can retry.</div>
       <table>
@@ -358,8 +396,147 @@ async function init(){
     await loadFeedback();
     await loadLockouts();
     await loadRatings();
+    // Deliberately NOT awaited: this one fans out to several external provider APIs and can
+    // take a few seconds — the rest of the panel should never wait on it.
+    loadServiceUsage();
   }catch(err){
     showGate('Could not verify access: ' + (err.message || 'unknown error'));
+  }
+}
+
+/* ================= Service Usage & Billing ================= */
+
+function svcBadge(status){
+  const color = status === 'ok' ? '#1E7B3C' : status === 'warning' ? '#B07E10' : status === 'not_configured' ? '#777' : '#B02A1E';
+  const label = status === 'ok' ? 'OK' : status === 'warning' ? 'ATTENTION' : status === 'not_configured' ? 'NOT SET UP' : 'PROBLEM';
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:2px;font-size:10.5px;font-weight:700;letter-spacing:.4px;color:#fff;background:' + color + ';">' + label + '</span>';
+}
+
+function svcBytes(n){
+  if(n == null) return '—';
+  if(n >= 1024 * 1024 * 1024) return (n / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+  if(n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  return Math.round(n / 1024) + ' KB';
+}
+
+function svcCard(title, svc, lines){
+  const note = svc && svc.note ? '<div class="hint" style="margin-top:6px;">' + escapeHtml(svc.note) + '</div>' : '';
+  return '<div style="border:1.5px solid var(--line);padding:12px 14px;background:#fff;">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">'
+    + '<div style="font-weight:700;font-size:13px;">' + title + '</div>' + svcBadge(svc ? svc.status : 'error') + '</div>'
+    + (lines || []).map(l => '<div style="font-size:12.5px;margin-top:2px;">' + l + '</div>').join('')
+    + note + '</div>';
+}
+
+async function loadServiceUsage(){
+  const cardsEl = document.getElementById('serviceUsageCards');
+  const btn = document.getElementById('serviceUsageRefreshBtn');
+  if(btn) btn.disabled = true;
+  try{
+    const response = await fetch('/api/admin-service-usage');
+    const data = await response.json();
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load service usage.');
+    const s = data.services || {};
+
+    cardsEl.innerHTML = [
+      svcCard('OpenAI', s.openai, s.openai && s.openai.status === 'ok' ? [
+        'Spend today: <strong>$' + (s.openai.todayUsd != null ? s.openai.todayUsd.toFixed(2) : '—') + '</strong>',
+        'Spend this month: <strong>$' + (s.openai.monthUsd != null ? s.openai.monthUsd.toFixed(2) : '—') + '</strong>'
+      ] : []),
+      svcCard('Google Gemini', s.gemini, []),
+      svcCard('Luma (video)', s.luma, s.luma && s.luma.credits != null ? ['Credits remaining: <strong>' + s.luma.credits + '</strong>'] : []),
+      svcCard('Mandrill (email)', s.mandrill, s.mandrill && s.mandrill.status !== 'not_configured' && s.mandrill.status !== 'error' ? [
+        'Hourly quota: <strong>' + (s.mandrill.hourlyQuota != null ? s.mandrill.hourlyQuota : '—') + '</strong>',
+        'Sent last 30 days: <strong>' + (s.mandrill.sentThisMonth != null ? s.mandrill.sentThisMonth : '—') + '</strong>',
+        'Reputation: <strong>' + (s.mandrill.reputation != null ? s.mandrill.reputation : '—') + '</strong>' + (s.mandrill.backlog ? ' — backlog: ' + s.mandrill.backlog : '')
+      ] : []),
+      svcCard('Vercel Blob (image storage)', s.blob, s.blob && s.blob.totalBytes != null ? [
+        'Stored: <strong>' + svcBytes(s.blob.totalBytes) + '</strong>' + (s.blob.partial ? ' (partial)' : ''),
+        'Files: <strong>' + (s.blob.fileCount != null ? s.blob.fileCount : '—') + '</strong>'
+      ] : []),
+      svcCard('Neon (database)', s.neon, s.neon && s.neon.projects ? s.neon.projects.map(p =>
+        escapeHtml(p.name) + ': <strong>' + svcBytes(p.storageBytes) + '</strong>'
+      ) : [])
+    ].join('');
+
+    const counters = (data.internal && data.internal.perProvider) || [];
+    const countersBody = document.getElementById('serviceUsageCountersBody');
+    countersBody.innerHTML = counters.length ? counters.map(row => {
+      const failToday = parseInt(row.failures_today, 10) || 0;
+      const failMonth = parseInt(row.failures_month, 10) || 0;
+      const warn = failToday > 0 ? ' style="color:#B02A1E;font-weight:700;"' : '';
+      return '<tr><td>' + escapeHtml(row.provider) + '</td><td>' + row.calls_today + '</td><td' + warn + '>' + failToday + '</td><td>' + row.calls_month + '</td><td>' + failMonth + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="hint">No calls logged yet — counters fill up as the studio is used.</td></tr>';
+
+    const failures = (data.internal && data.internal.recentFailures) || [];
+    const failuresBody = document.getElementById('serviceUsageFailuresBody');
+    failuresBody.innerHTML = failures.length ? failures.map(f => {
+      const kindColor = (f.error_kind === 'auth' || f.error_kind === 'billing') ? '#B02A1E' : '#B07E10';
+      return '<tr><td class="master-note">' + new Date(f.created_at).toLocaleString() + '</td><td>' + escapeHtml(f.provider) + '</td><td>' + escapeHtml(f.endpoint) + '</td>'
+        + '<td style="color:' + kindColor + ';font-weight:700;">' + escapeHtml(f.error_kind || '') + '</td>'
+        + '<td class="master-note">' + escapeHtml((f.error_message || '').slice(0, 120)) + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="hint">No failures logged — that is exactly what you want to see.</td></tr>';
+
+    renderRenewals(data.renewals || []);
+    document.getElementById('serviceUsageStatus').textContent = 'Checked ' + new Date(data.generatedAt).toLocaleString();
+  }catch(err){
+    cardsEl.innerHTML = '<div class="hint" style="color:#B02A1E;">Could not load service usage: ' + escapeHtml(err.message || 'unknown error') + '</div>';
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+
+function renderRenewals(renewals){
+  const body = document.getElementById('serviceRenewalsBody');
+  if(!renewals.length){
+    body.innerHTML = '<tr><td colspan="5" class="hint">No renewal dates recorded yet — add your Vercel plan, domain, and any prepaid subscriptions below.</td></tr>';
+    return;
+  }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  body.innerHTML = renewals.map(r => {
+    const renewDate = new Date(r.renew_at);
+    const daysLeft = Math.round((renewDate - today) / (24 * 3600 * 1000));
+    const color = daysLeft <= 7 ? '#B02A1E' : daysLeft <= 30 ? '#B07E10' : '#1E7B3C';
+    return '<tr><td>' + escapeHtml(r.service) + '</td><td>' + renewDate.toLocaleDateString() + '</td>'
+      + '<td style="color:' + color + ';font-weight:700;">' + (daysLeft < 0 ? 'OVERDUE ' + Math.abs(daysLeft) + 'd' : daysLeft + ' days') + '</td>'
+      + '<td class="master-note">' + escapeHtml(r.note || '') + '</td>'
+      + '<td><button class="ghost small" onclick="deleteRenewal(\'' + escapeHtml(r.service).replace(/'/g, "\\'") + '\')">Remove</button></td></tr>';
+  }).join('');
+}
+
+async function saveRenewal(){
+  const service = (document.getElementById('renewalService').value || '').trim();
+  const renewAt = document.getElementById('renewalDate').value;
+  const note = (document.getElementById('renewalNote').value || '').trim();
+  const statusEl = document.getElementById('serviceUsageStatus');
+  if(!service || !renewAt){ statusEl.textContent = 'Enter both a service name and a renewal date.'; return; }
+  try{
+    const response = await fetch('/api/admin-service-usage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service, renewAt, note })
+    });
+    const data = await response.json();
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Save failed.');
+    document.getElementById('renewalService').value = '';
+    document.getElementById('renewalDate').value = '';
+    document.getElementById('renewalNote').value = '';
+    await loadServiceUsage();
+  }catch(err){
+    statusEl.textContent = 'Could not save renewal date: ' + (err.message || 'unknown error');
+  }
+}
+
+async function deleteRenewal(service){
+  try{
+    const response = await fetch('/api/admin-service-usage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service, renewAt: null })
+    });
+    const data = await response.json();
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Delete failed.');
+    await loadServiceUsage();
+  }catch(err){
+    document.getElementById('serviceUsageStatus').textContent = 'Could not remove: ' + (err.message || 'unknown error');
   }
 }
 

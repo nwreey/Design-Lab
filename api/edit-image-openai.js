@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
+import { logAiCall } from '../lib/usage-log.js';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* Same token verification duplicated across the auth-aware endpoints in this project —
@@ -129,6 +130,10 @@ export default async function handler(req, res) {
     const rawText = await response.text();
     let data = {};
     try { data = JSON.parse(rawText); } catch (parseErr) { /* leave data as {} */ }
+
+    // Fire-and-forget usage logging for the admin Service Usage & Billing panel — never
+    // awaited, never allowed to affect the actual edit (see lib/usage-log.js).
+    logAiCall({ provider: 'openai', endpoint: 'edit-image-openai', ok: response.ok, status: response.status, message: !response.ok ? ((data.error && data.error.message) || rawText.slice(0, 300)) : '' });
 
     if (!response.ok) {
       const detail = (data.error && data.error.message) || rawText.slice(0, 300) || `HTTP ${response.status}`;

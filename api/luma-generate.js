@@ -1,3 +1,5 @@
+const { logAiCall } = require('../lib/usage-log.js');
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -108,6 +110,9 @@ module.exports = async (req, res) => {
     const rawText = await lumaResponse.text();
     let data = {};
     try { data = JSON.parse(rawText); } catch (e) { /* leave as {} */ }
+
+    // Fire-and-forget usage logging for the admin Service Usage & Billing panel (lib/usage-log.js).
+    logAiCall({ provider: 'luma', endpoint: 'luma-generate', ok: !!(lumaResponse.ok && data.id), status: lumaResponse.status, message: !(lumaResponse.ok && data.id) ? ((data && (data.message || data.error)) || rawText.slice(0, 300)) : '' });
 
     if (!lumaResponse.ok || !data.id) {
       res.status(lumaResponse.status || 500).json({
