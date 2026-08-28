@@ -516,7 +516,10 @@
   .home-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:.5;}
   .home-h1{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-top:6px;}
   .home-sub{font-size:14px;opacity:.65;margin-top:6px;max-width:620px;line-height:1.55;}
-  .home-usage-strip{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;}
+  /* Owner request: the usage strip under the welcome message spans the full width,
+     aligned from the left edge to the right edge, chips sharing the row evenly. */
+  .home-usage-strip{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:space-between;width:100%;}
+  .home-usage-strip .home-chip{flex:1 1 0;min-width:170px;justify-content:space-between;}
   .home-chip{background:#fff;border:1.5px solid var(--line);border-radius:3px;padding:9px 14px;display:flex;align-items:center;gap:9px;}
   .home-chip.gold{border-color:#E8B923;background:#FFF7D6;}
   .home-chip .num{font-weight:800;font-size:15px;}
