@@ -128,6 +128,7 @@
   .sidebar-account-section{margin-top:14px;padding-top:14px;border-top:1.5px solid var(--line);position:relative;}
   /* Account settings popover — anchored to the account button, opens upward (the button
      sits at the very bottom of the sidebar). */
+  .acct-menu.from-header{bottom:auto;top:calc(100% + 8px);left:auto;right:0;min-width:240px;box-shadow:0 10px 30px rgba(11,12,16,0.18);}
   .acct-menu{
     display:none;position:absolute;bottom:calc(100% + 6px);left:0;right:0;z-index:300;
     background:#fff;border:1.5px solid var(--navy);border-radius:4px;
@@ -510,9 +511,8 @@
   .render-status{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--navy);opacity:.75;margin-bottom:10px;min-height:18px;}
   #formCard.locked{opacity:.55;}
   /* Studio Home (landing view) */
-  .home-account-btn{float:right;display:flex;align-items:center;gap:9px;background:#fff;border:1.5px solid var(--line);border-radius:3px;padding:7px 12px;cursor:pointer;font-family:'Space Grotesk',sans-serif;}
+  .home-account-btn{display:flex;align-items:center;gap:9px;background:#fff;border:1.5px solid var(--line);border-radius:3px;padding:7px 12px;cursor:pointer;font-family:'Space Grotesk',sans-serif;}
   .home-account-btn:hover{border-color:var(--navy);}
-  html[dir="rtl"] .home-account-btn{float:left;}
   .home-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:.5;}
   .home-h1{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-top:6px;}
   .home-sub{font-size:14px;opacity:.65;margin-top:6px;max-width:620px;line-height:1.55;}
@@ -933,6 +933,16 @@
         </div>
         <div class="ref">REV. AI‑01</div>
       </div>
+      <!-- Owner rule: username + settings sit BESIDE Log out. The chip opens the same
+           account menu as the sidebar button — the popover is reparented here on demand so
+           it works even while the sidebar is hidden (Studio Home). -->
+      <div id="headerAccountWrap" style="position:relative;">
+        <button type="button" class="home-account-btn" id="homeAccountBtn" style="display:none;" onclick="toggleAccountMenuHeader(event)">
+          <span class="sidebar-account-avatar" id="homeAccountInitial"></span>
+          <span id="homeAccountName" style="font-weight:700;font-size:12.5px;"></span>
+          <span aria-hidden="true" style="opacity:.6;">⚙</span>
+        </button>
+      </div>
       <a href="/admin.html" class="logout-btn" id="adminPanelLink" style="display:none;text-decoration:none;" data-i18n="app.adminPanel">Admin panel</a>
       <button type="button" class="logout-btn primary-action" onclick="logOut()" data-i18n="app.logout">Log out</button>
     </div>
@@ -943,13 +953,6 @@
        cards, recent projects, help strip. Shown on load and by 🏠/+ New; hidden the moment
        a section is chosen or a project is opened. -->
   <div id="studioHomeView" style="display:none;">
-    <!-- Account + settings stay reachable on home even with the sidebar hidden (owner rule):
-         same account menu the sidebar button opens. -->
-    <button type="button" class="home-account-btn" id="homeAccountBtn" onclick="toggleAccountMenu(event)">
-      <span class="sidebar-account-avatar" id="homeAccountInitial"></span>
-      <span id="homeAccountName" style="font-weight:700;font-size:12.5px;"></span>
-      <span aria-hidden="true" style="opacity:.6;">⚙</span>
-    </button>
     <div class="home-eyebrow">DesignsLab AI Studio</div>
     <h1 class="home-h1" id="homeWelcomeName">Welcome back 👋</h1>
     <p class="home-sub">Your design studio is ready. Start a new design below, or continue where you left off — everything saves automatically and syncs across your devices.</p>
@@ -11052,6 +11055,26 @@ function renderSidebarAccountSection(data){
 function toggleAccountMenu(event){
   if(event) event.stopPropagation();
   const menu = document.getElementById('acctMenu');
+  // If the header chip borrowed the menu, hand it back to the sidebar first.
+  const home = document.getElementById('sidebarAccountSection');
+  if(menu && home && menu.parentElement !== home){
+    home.insertBefore(menu, home.firstChild);
+    menu.classList.remove('from-header');
+  }
+  menu.classList.toggle('open', !menu.classList.contains('open'));
+}
+
+// Header chip version (owner rule: username + settings beside Log out): the same menu,
+// reparented under the chip so it opens correctly even while the sidebar is hidden.
+function toggleAccountMenuHeader(event){
+  if(event) event.stopPropagation();
+  const menu = document.getElementById('acctMenu');
+  const wrap = document.getElementById('headerAccountWrap');
+  if(!menu || !wrap) return;
+  if(menu.parentElement !== wrap){
+    wrap.appendChild(menu);
+    menu.classList.add('from-header');
+  }
   menu.classList.toggle('open', !menu.classList.contains('open'));
 }
 // Any click outside the menu closes it — standard popover behavior.
