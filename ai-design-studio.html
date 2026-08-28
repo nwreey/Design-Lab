@@ -21918,7 +21918,6 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
       <span>${hist.activeIndex + 1} of ${hist.images.length}</span>
       <button class="ghost small" onclick="goToNextCardView('${camId}')">Forward ›</button>
     </div>
-    <div style="padding:0 12px;"><button class="primary small" style="width:100%;margin-top:8px;" onclick="approveCardVersion('${camId}')">Approve this version (clears earlier edits)</button></div>
   ` : '';
 
   card.innerHTML = `
