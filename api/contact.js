@@ -3,7 +3,12 @@ import { neon } from '@neondatabase/serverless';
 import { sendTransactionalEmail, buildContactMessageEmail, buildBrandedEmail } from '../lib/email.js';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
-/* ================= Contact / Get help endpoint =================
+/* ================= Contact / Get help / Enterprise endpoint =================
+   Handles TWO public forms, distinguished by body.kind:
+   - 'help' (default): the Get help / Contact form.
+   - 'enterprise': the Enterprise access request form (company, phone, size, industry,
+     expected users) — same triple pipeline below, with enterprise-specific email copy.
+
    Public POST — a submitted help request now does THREE things at once (owner request):
    1. Is stored in contact_messages so it appears in the admin panel's Help Requests
       section (nothing depends on email delivery alone anymore).
@@ -65,6 +70,11 @@ async function ensureMessagesSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `;
+  // Enterprise-request columns (idempotent migrations — the table may pre-exist without them).
+  await sql`ALTER TABLE contact_messages ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'help';`;
+  await sql`ALTER TABLE contact_messages ADD COLUMN IF NOT EXISTS company TEXT;`;
+  await sql`ALTER TABLE contact_messages ADD COLUMN IF NOT EXISTS phone TEXT;`;
+  await sql`ALTER TABLE contact_messages ADD COLUMN IF NOT EXISTS meta JSONB;`;
 }
 
 async function checkSubmitRateLimit(ip) {
@@ -108,7 +118,7 @@ export default async function handler(req, res) {
     try {
       await ensureMessagesSchema();
       if (req.method === 'GET') {
-        const result = await sql`SELECT id, name, email, subject, message, status, created_at FROM contact_messages ORDER BY created_at DESC LIMIT 200;`;
+        const result = await sql`SELECT id, name, email, subject, message, status, kind, company, phone, meta, created_at FROM contact_messages ORDER BY created_at DESC LIMIT 200;`;
         res.status(200).json({ messages: result.rows });
         return;
       }
@@ -143,13 +153,25 @@ export default async function handler(req, res) {
   }
 
   const body = req.body || {};
+  const kind = body.kind === 'enterprise' ? 'enterprise' : 'help';
   const name = cleanText(body.name, 120);
   const email = cleanText(body.email, 200);
   const subject = cleanText(body.subject, 200);
   const message = cleanText(body.message, 5000);
+  const company = cleanText(body.company, 200);
+  const phone = cleanText(body.phone, 60);
+  const meta = kind === 'enterprise' ? {
+    companySize: cleanText(body.companySize, 40),
+    industry: cleanText(body.industry, 120),
+    expectedUsers: cleanText(body.expectedUsers, 40),
+  } : null;
 
   if (!name || !email || !message) {
     res.status(400).json({ error: { message: 'Please fill in your name, email, and message.' } });
+    return;
+  }
+  if (kind === 'enterprise' && !company) {
+    res.status(400).json({ error: { message: 'Please fill in your company name.' } });
     return;
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
@@ -174,14 +196,36 @@ export default async function handler(req, res) {
   let stored = false;
   try {
     await ensureMessagesSchema();
-    await sql`INSERT INTO contact_messages (name, email, subject, message) VALUES (${name}, ${email}, ${subject || null}, ${message});`;
+    await sql`INSERT INTO contact_messages (name, email, subject, message, kind, company, phone, meta) VALUES (${name}, ${email}, ${subject || null}, ${message}, ${kind}, ${company || null}, ${phone || null}, ${meta ? JSON.stringify(meta) : null});`;
     stored = true;
   } catch (err) {
     console.error('contact: could not store message (continuing to email):', err);
   }
 
   // 2. Notify our own inboxes — company inbox AND the owner directly (owner request).
-  const emailContent = buildContactMessageEmail({ name, email, subject, message });
+  // Enterprise requests get their own subject + a full details block so the owner's email
+  // contains the entire request at a glance.
+  const emailContent = kind === 'enterprise'
+    ? {
+        subject: 'Enterprise access request — ' + company,
+        html: buildBrandedEmail({
+          previewText: 'New Enterprise access request from ' + company,
+          greeting: 'Enterprise request received',
+          paragraphs: [
+            '<strong>Company:</strong> ' + company
+              + '<br><strong>Contact:</strong> ' + name
+              + '<br><strong>Email:</strong> ' + email
+              + (phone ? '<br><strong>Phone:</strong> ' + phone : '')
+              + (meta && meta.companySize ? '<br><strong>Company size:</strong> ' + meta.companySize : '')
+              + (meta && meta.industry ? '<br><strong>Industry:</strong> ' + meta.industry : '')
+              + (meta && meta.expectedUsers ? '<br><strong>Expected users:</strong> ' + meta.expectedUsers : ''),
+            '<strong>Their message:</strong><br>' + message.replace(/</g, '&lt;').replace(/\n/g, '<br>'),
+            'Reply directly to this email to reach them (Reply-To is set), and the request is also listed under Enterprise Requests in the admin panel.',
+          ],
+          footnote: 'Sent automatically by the Enterprise form on designslab.ai.',
+        }),
+      }
+    : buildContactMessageEmail({ name, email, subject, message });
   const [inboxResult, ownerResult] = await Promise.all([
     sendTransactionalEmail({ toEmail: CONTACT_INBOX, toName: 'DesignsLab AI', subject: emailContent.subject, html: emailContent.html, replyTo: email }),
     sendTransactionalEmail({ toEmail: OWNER_INBOX, toName: 'Moe', subject: emailContent.subject, html: emailContent.html, replyTo: email }),
@@ -189,20 +233,31 @@ export default async function handler(req, res) {
 
   // 3. Branded acknowledgment to the visitor (owner request) — best-effort only.
   try {
-    const ackHtml = buildBrandedEmail({
-      previewText: 'We received your message — the DesignsLab team will get back to you shortly.',
-      greeting: name,
-      paragraphs: [
-        'Thank you for reaching out to DesignsLab AI — your message has been received and is already with our team.',
-        subject ? ('Your subject: "' + subject + '"') : 'We have your full message on file.',
-        'We usually respond within one business day. If anything is urgent in the meantime, you can reach us directly at ' + CONTACT_INBOX + '.',
-      ],
-      footnote: 'You are receiving this one-time confirmation because this address was used on the DesignsLab AI contact form. No reply is needed.',
-    });
+    const ackHtml = kind === 'enterprise'
+      ? buildBrandedEmail({
+          previewText: 'Your Enterprise request is with our team — expect a tailored plan shortly.',
+          greeting: name,
+          paragraphs: [
+            'Thank you for your interest in <strong>DesignsLab AI Enterprise</strong> — we\'ve received your request for ' + company + ' and it\'s already with our team.',
+            'We\'ll review your team size and requirements and come back with a plan sized to fit, usually within one business day.',
+            'If anything is urgent in the meantime, you can reach us directly at ' + CONTACT_INBOX + '.',
+          ],
+          footnote: 'You are receiving this one-time confirmation because this address was used on the DesignsLab AI Enterprise form. No reply is needed.',
+        })
+      : buildBrandedEmail({
+          previewText: 'We received your message — the DesignsLab team will get back to you shortly.',
+          greeting: name,
+          paragraphs: [
+            'Thank you for reaching out to DesignsLab AI — your message has been received and is already with our team.',
+            subject ? ('Your subject: "' + subject + '"') : 'We have your full message on file.',
+            'We usually respond within one business day. If anything is urgent in the meantime, you can reach us directly at ' + CONTACT_INBOX + '.',
+          ],
+          footnote: 'You are receiving this one-time confirmation because this address was used on the DesignsLab AI contact form. No reply is needed.',
+        });
     await sendTransactionalEmail({
       toEmail: email,
       toName: name,
-      subject: 'We received your message — DesignsLab AI',
+      subject: kind === 'enterprise' ? 'We received your Enterprise request — DesignsLab AI' : 'We received your message — DesignsLab AI',
       html: ackHtml,
     });
   } catch (err) {

@@ -166,6 +166,7 @@
         <div class="nav-group">Requests</div>
         <a class="nav-item" href="#sec-signups"><span class="dot"></span>Signup Requests</a>
         <a class="nav-item" href="#sec-plans"><span class="dot"></span>Plans Purchased</a>
+        <a class="nav-item" href="#sec-enterprise"><span class="dot"></span>Enterprise Requests</a>
         <a class="nav-item" href="#sec-help"><span class="dot"></span>Help Requests</a>
         <div class="nav-group">Insights</div>
         <a class="nav-item" href="#sec-feedback"><span class="dot"></span>User Feedback</a>
@@ -327,6 +328,30 @@
         <tbody id="planRequestsBody"></tbody>
       </table>
       <div class="status-msg" id="planRequestsStatus"></div>
+    </div>
+    </section>
+
+    <section class="panel-section" id="sec-enterprise">
+    <div class="card">
+      <h2>Enterprise Requests</h2>
+      <div class="card-desc">Requests from the Enterprise page form. Each one was also emailed to info@designslab.ai and moe@dmrarabia.com with the full details, and the requester automatically received a branded confirmation.</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Contact</th>
+            <th>Email / Phone</th>
+            <th>Size / Users</th>
+            <th>Industry</th>
+            <th>Request</th>
+            <th>Received</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="enterpriseRequestsBody"><tr><td colspan="9" class="hint">Loading...</td></tr></tbody>
+      </table>
+      <div class="status-msg" id="enterpriseRequestsStatus"></div>
     </div>
     </section>
 
@@ -1517,11 +1542,37 @@ function renderRatingsTable(rows){
 
 async function loadHelpRequests(){
   const body = document.getElementById('helpRequestsBody');
+  const entBody = document.getElementById('enterpriseRequestsBody');
   try{
     const response = await fetch('/api/contact');
     const data = await response.json();
     if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load help requests.');
-    const messages = data.messages || [];
+    const all = data.messages || [];
+    const messages = all.filter(m => (m.kind || 'help') !== 'enterprise');
+    const enterprise = all.filter(m => m.kind === 'enterprise');
+
+    // ---- Enterprise Requests table ----
+    if(entBody){
+      entBody.innerHTML = enterprise.length ? enterprise.map(m => {
+        const handled = m.status === 'handled';
+        const meta = m.meta || {};
+        return '<tr' + (handled ? ' style="opacity:.55;"' : '') + '>'
+          + '<td style="font-weight:700;">' + escapeHtml(m.company || '—') + '</td>'
+          + '<td>' + escapeHtml(m.name) + '</td>'
+          + '<td><a href="mailto:' + escapeHtml(m.email) + '">' + escapeHtml(m.email) + '</a>' + (m.phone ? '<div class="master-note">' + escapeHtml(m.phone) + '</div>' : '') + '</td>'
+          + '<td>' + escapeHtml(meta.companySize || '—') + '<div class="master-note">' + escapeHtml(meta.expectedUsers || '') + '</div></td>'
+          + '<td>' + escapeHtml(meta.industry || '—') + '</td>'
+          + '<td style="max-width:300px;white-space:pre-wrap;">' + escapeHtml(m.message) + '</td>'
+          + '<td class="master-note">' + new Date(m.created_at).toLocaleString() + '</td>'
+          + '<td>' + (handled ? '<span class="role-badge">handled</span>' : '<span class="role-badge admin">new</span>') + '</td>'
+          + '<td class="actions-cell">'
+          + '<button class="ghost small" onclick="setHelpRequestStatus(' + m.id + ', \'' + (handled ? 'new' : 'handled') + '\')">' + (handled ? 'Reopen' : 'Mark handled') + '</button>'
+          + '<button class="danger small" onclick="deleteHelpRequest(' + m.id + ')">Remove</button>'
+          + '</td></tr>';
+      }).join('') : '<tr><td colspan="9" class="hint">No enterprise requests yet.</td></tr>';
+    }
+
+    // ---- Help Requests table ----
     if(!messages.length){
       body.innerHTML = '<tr><td colspan="7" class="hint">No help requests yet.</td></tr>';
       return;

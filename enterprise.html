@@ -280,18 +280,71 @@
   <!-- ================= CTA / CONTACT ================= -->
   <section class="section" id="contact">
     <div class="wrap">
-      <div class="cta-block reveal">
-        <div class="eyebrow">Let's Talk</div>
+      <div class="cta-block reveal" style="text-align:left;">
+        <div class="eyebrow" style="color:#C9C9C9;">Let's Talk</div>
         <h2>Request Enterprise access</h2>
-        <p>Tell us about your team and how you're currently producing exhibition and event concepts — we'll follow up with a plan sized to fit.</p>
-        <div class="hero-actions">
-          <a href="#" class="btn btn-primary">Request Enterprise Access</a>
-          <a href="/pricing.html" class="btn btn-secondary">See Standard Pricing</a>
+        <p style="margin-left:0;">Tell us about your team and how you're currently producing exhibition and event concepts — we'll follow up with a plan sized to fit, usually within one business day.</p>
+
+        <form id="enterpriseForm" onsubmit="return submitEnterpriseForm(event)" style="margin-top:34px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+              <label class="ent-label" for="entCompany">Company name <span style="color:#E8B93E;">*</span></label>
+              <input class="ent-input" type="text" id="entCompany" maxlength="200" placeholder="e.g. DMR Arabia" required>
+            </div>
+            <div>
+              <label class="ent-label" for="entName">Contact name <span style="color:#E8B93E;">*</span></label>
+              <input class="ent-input" type="text" id="entName" maxlength="120" placeholder="Your full name" required>
+            </div>
+            <div>
+              <label class="ent-label" for="entEmail">Work email <span style="color:#E8B93E;">*</span></label>
+              <input class="ent-input" type="email" id="entEmail" maxlength="200" placeholder="you@company.com" required>
+            </div>
+            <div>
+              <label class="ent-label" for="entPhone">Phone</label>
+              <input class="ent-input" type="tel" id="entPhone" maxlength="60" placeholder="+966 ...">
+            </div>
+            <div>
+              <label class="ent-label" for="entSize">Company size</label>
+              <select class="ent-input" id="entSize">
+                <option value="">Select...</option>
+                <option>1–10 employees</option>
+                <option>11–50 employees</option>
+                <option>51–200 employees</option>
+                <option>200+ employees</option>
+              </select>
+            </div>
+            <div>
+              <label class="ent-label" for="entUsers">Expected DesignsLab users</label>
+              <select class="ent-input" id="entUsers">
+                <option value="">Select...</option>
+                <option>2–5</option>
+                <option>6–15</option>
+                <option>16–50</option>
+                <option>50+</option>
+              </select>
+            </div>
+            <div style="grid-column:1 / -1;">
+              <label class="ent-label" for="entIndustry">Industry</label>
+              <input class="ent-input" type="text" id="entIndustry" maxlength="120" placeholder="e.g. Exhibition contracting, Events agency, Retail...">
+            </div>
+            <div style="grid-column:1 / -1;">
+              <label class="ent-label" for="entMessage">What do you need? <span style="color:#E8B93E;">*</span></label>
+              <textarea class="ent-input" id="entMessage" rows="5" maxlength="5000" placeholder="Tell us about your team, how many concepts you produce per month, and anything specific you need — custom limits, onboarding, white-labeling..." required></textarea>
+            </div>
+          </div>
+          <div class="hero-actions" style="margin-top:24px;justify-content:flex-start;">
+            <button type="submit" class="btn btn-primary" id="entSubmitBtn">Request Enterprise Access</button>
+            <a href="/pricing.html" class="btn btn-secondary">See Standard Pricing</a>
+          </div>
+          <div id="entFormStatus" style="margin-top:14px;font-size:13.5px;min-height:18px;color:#C9C9C9;"></div>
+        </form>
+
+        <div id="entFormSuccess" style="display:none;margin-top:34px;padding:26px 28px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:14px;">
+          <h3 style="color:#fff;margin:0 0 10px;font-size:20px;">Request received ✓</h3>
+          <p style="margin:0;">Thank you — your Enterprise request is with our team. We've emailed you a confirmation, and we'll come back with a plan sized to fit, usually within one business day.</p>
         </div>
-        <!-- Wire this button to a real contact form / mailto address once one exists — kept as
-             a placeholder link for now rather than an unwired form, matching the same
-             placeholder pattern already used by the homepage's own "Request Access" CTA. -->
-        <div class="fine-print">We'll respond within 1–2 business days.</div>
+
+        <div class="fine-print" style="text-align:left;">We'll respond within 1–2 business days. Your details are used only to prepare your Enterprise proposal.</div>
       </div>
     </div>
   </section>
@@ -378,5 +431,58 @@ if('IntersectionObserver' in window){
 }
 </script>
 
+<style>
+  .ent-label{display:block;font-size:12.5px;font-weight:600;letter-spacing:.04em;color:#C9C9C9;margin-bottom:7px;text-transform:uppercase;}
+  .ent-input{
+    width:100%;box-sizing:border-box;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.22);
+    border-radius:10px;padding:12px 14px;color:#fff;font-family:inherit;font-size:14.5px;transition:border-color .15s ease, background .15s ease;
+  }
+  .ent-input::placeholder{color:rgba(255,255,255,.35);}
+  .ent-input:focus{outline:none;border-color:#fff;background:rgba(255,255,255,.12);}
+  select.ent-input option{color:#111;}
+  @media(max-width:700px){ #enterpriseForm > div{grid-template-columns:1fr !important;} }
+</style>
+<script>
+async function submitEnterpriseForm(e){
+  e.preventDefault();
+  const statusEl = document.getElementById('entFormStatus');
+  const btn = document.getElementById('entSubmitBtn');
+  const payload = {
+    kind: 'enterprise',
+    company: document.getElementById('entCompany').value.trim(),
+    name: document.getElementById('entName').value.trim(),
+    email: document.getElementById('entEmail').value.trim(),
+    phone: document.getElementById('entPhone').value.trim(),
+    companySize: document.getElementById('entSize').value,
+    expectedUsers: document.getElementById('entUsers').value,
+    industry: document.getElementById('entIndustry').value.trim(),
+    message: document.getElementById('entMessage').value.trim()
+  };
+  if(!payload.company || !payload.name || !payload.email || !payload.message){
+    statusEl.style.color = '#E8B93E';
+    statusEl.textContent = 'Please fill in the required fields (company, name, email, and what you need).';
+    return false;
+  }
+  btn.disabled = true;
+  statusEl.style.color = '#C9C9C9';
+  statusEl.textContent = 'Sending your request...';
+  try{
+    const response = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not send your request.');
+    document.getElementById('enterpriseForm').style.display = 'none';
+    document.getElementById('entFormSuccess').style.display = 'block';
+  }catch(err){
+    btn.disabled = false;
+    statusEl.style.color = '#E8B93E';
+    statusEl.textContent = err.message || 'Could not send your request. Please email us at info@designslab.ai.';
+  }
+  return false;
+}
+</script>
 </body>
 </html>
