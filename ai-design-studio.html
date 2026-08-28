@@ -60,6 +60,7 @@
      on the MAIN page alone (language changes are made from there). */
   body:not(.home-active) .header-right .lang-ref-row{display:none;}
   body:not(.home-active) #headerAccountWrap{display:none;}
+  body:not(.home-active) #headerPlanBadge{display:none !important;}
   .sidebar{width:250px;flex-shrink:0;background:#fff;border-right:1.5px solid var(--navy);padding:24px 16px;box-sizing:border-box;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
   .sidebar-top-fixed{flex-shrink:0;}
   /* ---------- Professional sidebar chrome (owner request) ---------- */
@@ -965,6 +966,7 @@
         <button type="button" class="logout-btn" id="headerHomeBtn" onclick="startNewProject()">🏠 Home</button>
         <a href="/admin.html" class="logout-btn" id="adminPanelLink" style="display:none;text-decoration:none;" data-i18n="app.adminPanel">Admin panel</a>
         <button type="button" class="logout-btn primary-action" onclick="logOut()" data-i18n="app.logout">Log out</button>
+        <span class="sidebar-brand-plan" id="headerPlanBadge" style="display:none;"></span>
       </div>
     </div>
   </header>
@@ -975,7 +977,7 @@
        a section is chosen or a project is opened. -->
   <div id="studioHomeView" style="display:none;">
     <div class="home-eyebrow">DesignsLab AI Studio</div>
-    <h1 class="home-h1"><span id="homeWelcomeName">Welcome back 👋</span> <span class="sidebar-brand-plan" id="homePlanBadge" style="display:none;vertical-align:middle;margin-left:10px;"></span></h1>
+    <h1 class="home-h1"><span id="homeWelcomeName">Welcome back 👋</span></h1>
     <p class="home-sub">Your design studio is ready. Start a new design below, or continue where you left off. Everything saves automatically and syncs across your devices.</p>
     <div class="home-usage-strip">
       <div class="home-chip"><span class="num" id="hcProjNum">—</span><span class="lbl">Projects</span><span class="bar"><i id="hcProjBar"></i></span></div>
@@ -11050,13 +11052,12 @@ function renderSidebarBrandPlan(planName){
   el.style.display = 'inline-block';
   // Mirror onto the MAIN page (owner request: the plan name shows there too — the
   // sidebar badge is invisible on home). Same text, same per-plan color class.
-  const homeBadge = document.getElementById('homePlanBadge');
+  const homeBadge = document.getElementById('headerPlanBadge');
   if(homeBadge){
     homeBadge.textContent = el.textContent;
     homeBadge.className = el.className;
     homeBadge.style.display = 'inline-block';
-    homeBadge.style.verticalAlign = 'middle';
-    homeBadge.style.marginLeft = '10px';
+
   }
 }
 
