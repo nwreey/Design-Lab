@@ -497,6 +497,7 @@
   .render-frame img{width:100%;display:block;}
   .render-status{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--navy);opacity:.75;margin-bottom:10px;min-height:18px;}
   #formCard.locked{opacity:.55;}
+  #dsFormFields.locked{opacity:.55;}
 
   /* AI Auto-fill Helper loading bar — shown in the panel while runAiAutofill() is in flight,
      the whole form is locked (see lockForm()/unlockForm()) during this same window. */
@@ -882,6 +883,10 @@
   </div>
 
   <div class="card" id="displayStandCard" style="display:none;">
+    <!-- dsFormFields wraps ONLY the input side of this card so the approved-project view can
+         hide the form while dsResult (which lives in this same card) stays visible — the same
+         "results only" behavior the Exhibition section gets from hideFormAndTabs(). -->
+    <div id="dsFormFields">
     <div class="section-headline" style="margin-top:0;">Project Information</div>
     <div class="field">
       <label>Project Name <span class="required-mark">*</span></label>
@@ -1208,6 +1213,7 @@
     <div class="submit-bar">
       <button class="primary" id="dsSubmitBtn" onclick="generateDisplayStandDesign()">Generate Design</button>
     </div>
+    </div><!-- /#dsFormFields -->
 
     <!-- Display Stand result: same black-frame in-picture loading pattern as the event board. -->
     <div id="dsResult" style="display:none;padding:0 10px 20px;">
@@ -7578,6 +7584,10 @@ async function generateDisplayStandDesign(){
     img.src = data.image;
     img.style.display = 'block';
     document.getElementById('dsActionStatus').textContent = '';
+    // Owner rule (all three sections): after a successful generation the form stays visible
+    // but locked for regular users — regenerating goes through "Other option". Admins stay
+    // writable for testing.
+    if(!isAdminUser) lockDsForm();
     // New project's first save, deferred until here — see this function's own comment above
     // the earlier saveCurrentProject() call for why. A refusal/network failure before this
     // point costs nothing; renderProjectSidebar() (inside saveCurrentProject) is also what
@@ -7590,7 +7600,11 @@ async function generateDisplayStandDesign(){
     if(!dsLastImage){ document.getElementById('dsResult').style.display = 'none'; }
     await customAlert('Could not generate the display stand: ' + (err.message || 'unknown error'), 'Generate Design');
   }finally{
-    btn.disabled = false;
+    // Don't undo the post-generation form lock: if lockDsForm() just ran (success path,
+    // regular user), re-enabling the Generate button here would punch a hole in it. On
+    // failure (or for admins) the form was never locked, so the button re-enables as before.
+    const dsWrapEl = document.getElementById('dsFormFields');
+    if(!(dsWrapEl && dsWrapEl.classList.contains('locked'))) btn.disabled = false;
     projectSwitchLocked = false;
   }
 }
@@ -7966,6 +7980,9 @@ async function approveDisplayStand(){
   }
   const approveBtn = document.getElementById('dsApproveBtn');
   approveBtn.disabled = true;
+  // Owner rule (matches booth's confirmApproveDesign): approval retires the form — the
+  // results (board, view renders, spec sheet) are all that remain on screen.
+  hideDsFormKeepResults();
   projectSwitchLocked = true;
   const statusEl = document.getElementById('dsActionStatus');
   dsViewRenders = [];
@@ -11198,9 +11215,22 @@ function hideFormAndTabs(){
   document.getElementById('showFormBar').style.display = 'block';
 }
 
+/* Display Stand version of hideFormAndTabs(): dsResult lives INSIDE displayStandCard, so
+   only the form half (#dsFormFields) and the mode tabs go away — the results stay. Used on
+   Approve (owner rule: after approval the form is gone) and when reopening an approved DS
+   project. */
+function hideDsFormKeepResults(){
+  document.getElementById('modeTabs').style.display = 'none';
+  const wrap = document.getElementById('dsFormFields');
+  if(wrap) wrap.style.display = 'none';
+  document.getElementById('showFormBar').style.display = 'block';
+}
+
 function showFormAndTabs(){
   document.getElementById('modeTabs').style.display = 'flex';
   document.getElementById('showFormBar').style.display = 'none';
+  const dsWrap = document.getElementById('dsFormFields');
+  if(dsWrap) dsWrap.style.display = '';
   setMode(mode); // re-applies the current mode's own card visibility correctly
 }
 
@@ -16419,6 +16449,9 @@ async function approveEventConceptBoard(){
     if(currentUserEditCount != null){ currentUserEditCount += n; renderEditUsageIndicator(); }
   }
   eventConceptBoard.approved = true;
+  // Owner rule (matches booth's confirmApproveDesign): once approved, this reads as "the
+  // project", not a form in progress — form + tabs step aside, results stay.
+  hideFormAndTabs();
   applyEventConceptBoardApprovalLock();
   saveCurrentProject();
   // Owner request: approval delivers one separate HIGH-RESOLUTION A4-landscape picture
@@ -18481,6 +18514,24 @@ function unlockForm(){
   document.querySelectorAll('#formCard input, #formCard select, #formCard textarea, #formCard button').forEach(el => { el.disabled = false; });
 }
 
+/* Display Stand variant of lockForm()/unlockForm(): scoped to #dsFormFields (the input side
+   of the card only) so the dsResult panel below — Download/Approve/Other option/Edit — stays
+   fully interactive. Owner rule (all three sections): after a successful generation the form
+   stays VISIBLE but is no longer writable for regular users; admins stay writable. */
+function lockDsForm(){
+  const wrap = document.getElementById('dsFormFields');
+  if(!wrap) return;
+  wrap.classList.add('locked');
+  wrap.querySelectorAll('input, select, textarea, button').forEach(el => { el.disabled = true; });
+}
+
+function unlockDsForm(){
+  const wrap = document.getElementById('dsFormFields');
+  if(!wrap) return;
+  wrap.classList.remove('locked');
+  wrap.querySelectorAll('input, select, textarea, button').forEach(el => { el.disabled = false; });
+}
+
 /* ================= BIE-001 — Brand Asset Integrity Engine =================
    Purpose: guarantee every generated design uses the client's ORIGINAL brand assets exactly
    as uploaded, not an AI approximation of them. Gemini's (and every downstream edit's) job is
@@ -18907,6 +18958,12 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
           // generation needs to match, not necessarily this first one.
           optionResults[i].gallery = [{ label: 'Original', image: compressed, engine: firstRenderChosenEngine === 'openai' ? 'openai' : 'gemini' }];
           optionResults[i].activeGalleryIndex = 0;
+          // Owner rule (all three sections): once a design has actually rendered, the form
+          // stays visible but is no longer writable for regular users — changes go through
+          // Other option / Modify Design, which bill correctly. Admins stay writable for
+          // testing. A FAILED render (branch above) unlocks instead, so the brief can be
+          // fixed and resubmitted.
+          if(!isAdminUser) lockForm();
           if(isUserInitiatedEdit && !isAdminUser && currentUserModifyCount != null){
             currentUserModifyCount++;
             renderModifyUsageIndicator();
@@ -22571,6 +22628,7 @@ function restoreDsFormFields(snap){
   // restoreResultsView() further below, same as booth/event results: that runs AFTER
   // currentRatingValue is set from the saved project, so the rating bar shows the right stars
   // instead of whatever was left over from a previously open project.
+  unlockDsForm(); // fresh/empty project: the form is editable again (re-locked below if results restore)
   dsLastImage = null;
   dsViewRenders = [];
   dsCurrentViews = DS_VIEWS_OPEN.slice();
@@ -22699,6 +22757,14 @@ function restoreDsResultsIfSaved(project){
   dsViewRenders = dsResult.renders || [];
   dsCurrentViews = (dsResult.views && dsResult.views.length) ? dsResult.views : DS_VIEWS_OPEN.slice();
   if(panel) panel.style.display = 'block';
+  // Reopening: an APPROVED stand (has view renders) lands on results only — form gone, same
+  // as approving live. A merely-generated one keeps the form visible but locked for users
+  // (admins stay writable).
+  if(dsResult.renders && dsResult.renders.length){
+    hideDsFormKeepResults();
+  }else if(!isAdminUser){
+    lockDsForm();
+  }
   document.getElementById('dsResultTitle').textContent = dsResult.resultTitle || dsVal('f_dsName');
   const img = document.getElementById('dsImg');
   if(img){
@@ -22954,6 +23020,12 @@ function scrollProjectList(direction){
    dropdown uses, with the same mid-generation guard openProject() has. */
 function sidebarSwitchMode(m){
   if(typeof blockIfGenerating === 'function' && blockIfGenerating()) return;
+  // Switching design type from the sidebar counts as leaving the results-only view — bring
+  // the tabs and form chrome back before applying the mode (same restore showFormAndTabs does).
+  document.getElementById('modeTabs').style.display = 'flex';
+  document.getElementById('showFormBar').style.display = 'none';
+  const dsWrap = document.getElementById('dsFormFields');
+  if(dsWrap) dsWrap.style.display = '';
   setMode(m);
 }
 
