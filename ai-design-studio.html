@@ -3425,11 +3425,11 @@ Replace only the materials and graphics."></textarea>
       <button class="ghost small" id="ecbDownloadBtn" onclick="downloadEventConceptBoardImage()">Download</button>
       <button class="ghost small" id="ecbModifyBtn" onclick="openModifyThemePanel()">Modify Theme</button>
       <button class="primary small" id="ecbApproveBtn" onclick="approveEventConceptBoard()">Approve</button>
-      <button class="ghost small" id="ecbOtherThemeBtn" onclick="regenerateEventConceptBoard()" style="margin-left:auto;">Other Theme</button>
-      <div class="other-design-wrap">
-        <button type="button" class="ghost small" onclick="toggleOtherDesignMenu(event, 'otherDesignMenuEvent')">Other Design</button>
-        <div class="other-design-dropdown" id="otherDesignMenuEvent"></div>
-      </div>
+      <!-- Owner decision (mirrors the Exhibition bar): ONE button, labeled Other Design,
+           producing another theme via a popup where the user can change ONLY Core Areas,
+           Event Mood, AI Creative Freedom, and Brand personality — and is told it deducts
+           from modifications. Other Theme and the old category menu are gone. -->
+      <button class="ghost small" id="ecbOtherThemeBtn" onclick="openEventOtherDesignPanel()" style="margin-left:auto;">Other Design</button>
     </div>
     <div class="free-modification-note" id="freeModificationNoteEvent" style="display:none;" data-i18n="note.freeModification">
       ✦ Your first modification or other option on this design is on us — occasionally the initial render needs a quick adjustment, and that one won't count against your usage.
@@ -3612,6 +3612,30 @@ Replace only the materials and graphics."></textarea>
       <div style="display:flex;gap:10px;">
         <button class="ghost" onclick="document.getElementById('otherOptionNoticeOverlay').style.display='none';" style="flex:1;">Cancel</button>
         <button class="primary" onclick="document.getElementById('otherOptionNoticeOverlay').style.display='none'; confirmRegenerateOtherOption();" style="flex:1;">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event "Other Design" popup (owner request): another theme, with ONLY these four
+       things changeable — Core Areas, Event Mood, AI Creative Freedom, Brand personality. -->
+  <div class="gen-notice-overlay" id="eventOtherDesignOverlay">
+    <div class="gen-notice-card" style="max-width:560px;">
+      <div class="gen-notice-eyebrow">Other Design</div>
+      <h3>Generate another design?</h3>
+      <p id="evOdNotice"></p>
+      <div style="text-align:left;">
+        <div style="font-size:12.5px;font-weight:700;margin:6px 0 4px;">Core Areas</div>
+        <div id="evOdAreas" style="max-height:150px;overflow:auto;border:1.5px solid var(--line);border-radius:2px;padding:8px 10px;"></div>
+        <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">Event Mood <span style="font-weight:400;opacity:.6;">(up to 3)</span></div>
+        <div id="evOdMoods" style="max-height:130px;overflow:auto;border:1.5px solid var(--line);border-radius:2px;padding:8px 10px;"></div>
+        <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">AI Creative Freedom</div>
+        <select id="evOdFreedom" style="width:100%;"></select>
+        <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">Brand personality <span class="required-mark">*</span></div>
+        <select id="evOdPersonality" style="width:100%;"></select>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="ghost" onclick="document.getElementById('eventOtherDesignOverlay').style.display='none';" style="flex:1;">Cancel</button>
+        <button class="primary" onclick="confirmEventOtherDesign()" style="flex:1;">Generate</button>
       </div>
     </div>
   </div>
@@ -16962,7 +16986,63 @@ function selectEcbGalleryEntry(i){
   saveCurrentProject();
 }
 
-async function regenerateEventConceptBoard(){
+/* ---- Event "Other Design" popup (owner request) ----
+   Opens with the CURRENT form state mirrored into it; the user may change only Core
+   Areas, Event Mood, AI Creative Freedom, and Brand personality. Confirm writes the
+   choices back to the form (the single source the event pipeline reads) and runs the
+   regenerate flow, which deducts 1 modification (or the free first credit). */
+function openEventOtherDesignPanel(){
+  if(typeof blockIfGenerating === 'function' && blockIfGenerating()) return;
+  if(!isAdminUser && !freeModAvailable()){
+    const rMod = modsRemaining();
+    if(rMod != null && rMod < 1){ offerAddonPurchase('modify', 1, rMod); return; }
+  }
+  const noticeEl = document.getElementById('evOdNotice');
+  if(isAdminUser){
+    noticeEl.textContent = 'Adjust any of these and generate another theme for this event design.';
+  }else if(freeModAvailable()){
+    noticeEl.textContent = 'This one is on us — your first modification or other option on this design is free and won\'t count against your usage.';
+  }else{
+    const r = modsRemaining();
+    noticeEl.textContent = 'Generating another design will use 1 of your modifications' + (r != null ? ' — you have ' + r + ' remaining.' : '.');
+  }
+  const esc = v => String(v).replace(/"/g, '&quot;');
+  document.getElementById('evOdAreas').innerHTML = Array.from(document.querySelectorAll('.event-area-cb')).map(cb =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px;cursor:pointer;"><input type="checkbox" class="ev-od-area" value="${esc(cb.value)}" ${cb.checked ? 'checked' : ''}> <span>${cb.parentElement.textContent.trim()}</span></label>`).join('');
+  document.getElementById('evOdMoods').innerHTML = Array.from(document.querySelectorAll('.event-mood-cb')).map(cb =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px;cursor:pointer;"><input type="checkbox" class="ev-od-mood" value="${esc(cb.value)}" ${cb.checked ? 'checked' : ''}> <span>${cb.value}</span></label>`).join('');
+  const fSrc = document.getElementById('f_aiCreativeFreedom');
+  const fDest = document.getElementById('evOdFreedom');
+  fDest.innerHTML = Array.from(fSrc.options).map(o => `<option value="${esc(o.value)}">${o.textContent}</option>`).join('');
+  fDest.value = fSrc.value;
+  const pSrc = document.getElementById('f_mdBrandPersonality');
+  const pDest = document.getElementById('evOdPersonality');
+  pDest.innerHTML = '<option value="">Keep as designed</option>' + Array.from(pSrc.options).filter(o => o.value).map(o => `<option value="${esc(o.value)}">${o.textContent}</option>`).join('');
+  pDest.value = '';
+  document.getElementById('eventOtherDesignOverlay').style.display = 'flex';
+}
+
+async function confirmEventOtherDesign(){
+  const moods = Array.from(document.querySelectorAll('#evOdMoods .ev-od-mood:checked')).map(c => c.value);
+  if(moods.length > 3){ await customAlert('Event Mood: please select up to 3.', 'Other Design'); return; }
+  const areas = Array.from(document.querySelectorAll('#evOdAreas .ev-od-area:checked')).map(c => c.value);
+  if(areas.length === 0){ await customAlert('Please select at least one core area.', 'Other Design'); return; }
+  document.getElementById('eventOtherDesignOverlay').style.display = 'none';
+  // Write the choices back to the form — the single source the event pipeline reads.
+  document.querySelectorAll('.event-area-cb').forEach(cb => { cb.checked = areas.includes(cb.value); });
+  document.querySelectorAll('.event-mood-cb').forEach(cb => { cb.checked = moods.includes(cb.value); });
+  document.getElementById('f_aiCreativeFreedom').value = document.getElementById('evOdFreedom').value;
+  const p = document.getElementById('evOdPersonality').value;
+  if(p){
+    selectedBrandPersonalities = [p];
+    if(typeof renderBrandPersonalityGrid === 'function') renderBrandPersonalityGrid();
+  }
+  // The popup already stated the cost — regenerate skips its own duplicate confirm.
+  regenerateEventConceptBoard({ skipConfirm: true });
+}
+
+async function regenerateEventConceptBoard(opts){
+  const skipConfirm = !!(opts && opts.skipConfirm);
   if(blockIfGenerating()) return;
   // Every deduction is announced first (owner rule): Other Theme costs 1 modification.
   if(!isAdminUser){
@@ -16977,8 +17057,10 @@ async function regenerateEventConceptBoard(){
       : (currentUserModifyLimit != null && currentUserModifyCount != null)
         ? 'Generating another theme will use 1 of your modifications — you have used ' + currentUserModifyCount + ' of ' + currentUserModifyLimit + '. Continue?'
         : 'Generating another theme will use 1 of your modifications. Continue?';
-    const okOt = await customConfirm(otMsg, 'Other Theme', 'Continue');
-    if(!okOt) return;
+    if(!skipConfirm){
+      const okOt = await customConfirm(otMsg, 'Other Design', 'Continue');
+      if(!okOt) return;
+    }
     if(evFree){ markFreeModUsed(); saveCurrentProject(); }
     else if(currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
   }
