@@ -54,6 +54,13 @@
   .sidebar a.nav-item.active{background:rgba(255,255,255,.1);color:#fff;border-left-color:var(--gold);}
   .sidebar a.nav-item .dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.25);flex-shrink:0;}
   .sidebar .sidebar-foot{padding:14px 24px 0;border-top:1px solid rgba(255,255,255,.12);}
+  /* Live provider balances, always visible while scrolling — fed by loadServiceUsage(). */
+  .sidebar-balances{padding:2px 12px 10px;}
+  a.bal-row{display:flex;align-items:center;gap:8px;text-decoration:none;padding:5px 12px;border-radius:4px;transition:.14s ease;}
+  a.bal-row:hover{background:rgba(255,255,255,.08);}
+  .bal-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .bal-name{font-size:12.5px;color:rgba(255,255,255,.72);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bal-val{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#fff;white-space:nowrap;}
   .back-link{
     display:block;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#fff;
     text-decoration:none;border:1.5px solid rgba(255,255,255,.4);padding:9px 12px;border-radius:4px;transition:.14s ease;
@@ -165,6 +172,10 @@
         <div class="nav-group">System</div>
         <a class="nav-item" href="#sec-security"><span class="dot"></span>Login Security</a>
         <a class="nav-item" href="#sec-email"><span class="dot"></span>Email System</a>
+        <div class="nav-group">Balances</div>
+        <div class="sidebar-balances" id="sidebarBalances">
+          <div class="bal-name" style="padding:0 12px;">Loading…</div>
+        </div>
       </nav>
       <div class="sidebar-foot">
         <a href="/ai-design-studio.html" class="back-link">← Back to Studio</a>
@@ -520,14 +531,23 @@ function svcBytes(n){
    against it: green under 70%, amber under 90%, red above. */
 let __svcBudgets = {};
 
-function svcBar(used, limit, usedLabel, limitLabel){
+function svcBar(cfg, limit){
+  const used = cfg.used;
+  const usedLabel = cfg.usedLabel;
+  // Owner rule: EVERY provider row states usage and remaining explicitly — never just a bar.
   if(used == null){
+    const nativeLine = cfg.remainingNativeLabel
+      ? 'Remaining now: <strong>' + cfg.remainingNativeLabel + '</strong> — set the total on the right to see the usage bar.'
+      : 'No live usage figure available from this provider.';
     return '<div style="height:10px;border-radius:5px;background:rgba(11,12,16,.08);"></div>'
-      + '<div class="hint" style="margin-top:6px;">No live usage figure available from this provider.</div>';
+      + '<div style="margin-top:6px;font-size:13px;">' + nativeLine + '</div>';
   }
   if(!limit){
+    const remainingBit = cfg.remainingNativeLabel
+      ? ' — Remaining: <strong>' + cfg.remainingNativeLabel + '</strong>'
+      : ' — <span class="hint" style="margin:0;">set your plan limit on the right to see remaining.</span>';
     return '<div style="height:10px;border-radius:5px;background:rgba(11,12,16,.08);"></div>'
-      + '<div class="hint" style="margin-top:6px;">Used so far: <strong>' + usedLabel + '</strong> — set your plan limit on the right to see remaining.</div>';
+      + '<div style="margin-top:6px;font-size:13px;">Used: <strong>' + usedLabel + '</strong>' + remainingBit + '</div>';
   }
   const pct = Math.min(100, Math.round(used / limit * 100));
   const color = pct >= 90 ? '#B02A1E' : pct >= 70 ? '#B07E10' : '#1E7B3C';
@@ -535,8 +555,38 @@ function svcBar(used, limit, usedLabel, limitLabel){
   return '<div style="height:10px;border-radius:5px;background:rgba(11,12,16,.08);overflow:hidden;">'
     + '<div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:5px;transition:width .3s ease;"></div></div>'
     + '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:13px;">'
-    + '<span><strong>' + usedLabel + '</strong> used of ' + limitLabel(limit) + ' (' + pct + '%)</span>'
-    + '<span style="color:' + color + ';font-weight:700;">' + limitLabel(remaining) + ' remaining</span></div>';
+    + '<span>Used: <strong>' + usedLabel + '</strong> of ' + cfg.limitLabel(limit) + ' (' + pct + '%)</span>'
+    + '<span style="color:' + color + ';font-weight:700;">Remaining: ' + cfg.limitLabel(remaining) + '</span></div>';
+}
+
+/* Compact always-visible balance per provider in the dark sidebar — remaining where known,
+   usage otherwise, with a health dot. Clicking any line jumps to the Usage section. */
+function renderSidebarBalances(rowCfgs){
+  const el = document.getElementById('sidebarBalances');
+  if(!el) return;
+  el.innerHTML = rowCfgs.map(cfg => {
+    const svc = cfg.svc || {};
+    const limit = __svcBudgets[cfg.budgetKey];
+    let val = '—';
+    let pct = null;
+    if(cfg.used != null && limit){
+      pct = Math.min(100, Math.round(cfg.used / limit * 100));
+      val = cfg.limitLabel(Math.max(0, limit - cfg.used)) + ' left';
+    }else if(cfg.remainingNativeLabel){
+      val = cfg.remainingNativeLabel + ' left';
+    }else if(cfg.used != null){
+      val = cfg.usedLabel + ' used';
+    }
+    const dot = (svc.status === 'error') ? '#D9534F'
+      : (svc.status === 'not_configured') ? 'rgba(255,255,255,.25)'
+      : (svc.status === 'warning' || (pct != null && pct >= 90)) ? '#E8B93E'
+      : (pct != null && pct >= 70) ? '#E8B93E'
+      : '#57C776';
+    return '<a class="bal-row" href="#sec-usage" title="' + cfg.title + ' — open Usage & Billing">'
+      + '<span class="bal-dot" style="background:' + dot + ';"></span>'
+      + '<span class="bal-name">' + cfg.shortName + '</span>'
+      + '<span class="bal-val">' + val + '</span></a>';
+  }).join('');
 }
 
 function svcRow(cfg){
@@ -552,7 +602,7 @@ function svcRow(cfg){
     + '</div>'
     // Column 2: usage bar + details + note
     + '<div>'
-    + svcBar(cfg.used, budget, cfg.usedLabel, cfg.limitLabel)
+    + svcBar(cfg, budget)
     + (cfg.details && cfg.details.length ? '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;font-size:13.5px;">' + cfg.details.map(x => '<span>' + x + '</span>').join('') + '</div>' : '')
     + note
     + '</div>'
@@ -606,9 +656,9 @@ async function loadServiceUsage(){
     const GB = 1024 * 1024 * 1024;
     const gbLabel = v => (Math.round(v * 100) / 100) + ' GB';
 
-    cardsEl.innerHTML = [
-      svcRow({
-        title: 'OpenAI', sub: 'Image edits, autofill, AI text', svc: s.openai,
+    const rowCfgs = [
+      ({
+        title: 'OpenAI', shortName: 'OpenAI', sub: 'Image edits, autofill, AI text', svc: s.openai,
         budgetKey: 'openai_monthly_usd', unitHint: 'monthly budget, USD',
         billing: 'https://platform.openai.com/settings/organization/billing/overview',
         used: s.openai && s.openai.monthUsd != null ? s.openai.monthUsd : null,
@@ -616,8 +666,8 @@ async function loadServiceUsage(){
         limitLabel: v => '$' + (Math.round(v * 100) / 100),
         details: s.openai && s.openai.todayUsd != null ? ['Today: <strong>$' + s.openai.todayUsd.toFixed(2) + '</strong>'] : []
       }),
-      svcRow({
-        title: 'Google Gemini', sub: 'All design image generation', svc: s.gemini,
+      ({
+        title: 'Google Gemini', shortName: 'Gemini', sub: 'All design image generation', svc: s.gemini,
         budgetKey: 'gemini_monthly_calls', unitHint: 'monthly limit, image calls',
         billing: 'https://console.cloud.google.com/billing',
         used: geminiCallsMonth,
@@ -625,17 +675,18 @@ async function loadServiceUsage(){
         limitLabel: v => Math.round(v) + ' calls',
         details: ['<span class="hint">No billing API — bar uses our own logged call count.</span>']
       }),
-      svcRow({
-        title: 'Luma (video)', sub: 'Video generation credits', svc: s.luma,
+      ({
+        title: 'Luma (video)', shortName: 'Luma', sub: 'Video generation credits', svc: s.luma,
         budgetKey: 'luma_total_credits', unitHint: 'credits purchased, total',
         billing: 'https://lumalabs.ai/api/billing',
         used: (s.luma && s.luma.credits != null && __svcBudgets.luma_total_credits) ? Math.max(0, __svcBudgets.luma_total_credits - s.luma.credits) : (s.luma && s.luma.credits != null ? null : null),
         usedLabel: (s.luma && s.luma.credits != null && __svcBudgets.luma_total_credits) ? Math.round(__svcBudgets.luma_total_credits - s.luma.credits) + ' credits' : '',
         limitLabel: v => Math.round(v) + ' credits',
+        remainingNativeLabel: s.luma && s.luma.credits != null ? s.luma.credits + ' credits' : null,
         details: s.luma && s.luma.credits != null ? ['Remaining now: <strong>' + s.luma.credits + '</strong> credits'] : []
       }),
-      svcRow({
-        title: 'Mandrill (email)', sub: 'All notification emails', svc: s.mandrill,
+      ({
+        title: 'Mandrill (email)', shortName: 'Mandrill', sub: 'All notification emails', svc: s.mandrill,
         budgetKey: 'mandrill_monthly_sends', unitHint: 'monthly limit, emails',
         billing: 'https://mandrillapp.com/settings',
         used: s.mandrill && s.mandrill.sentThisMonth != null ? s.mandrill.sentThisMonth : null,
@@ -646,8 +697,8 @@ async function loadServiceUsage(){
           'Reputation: <strong>' + (s.mandrill.reputation != null ? s.mandrill.reputation : '—') + '</strong>' + (s.mandrill.backlog ? ' — backlog: ' + s.mandrill.backlog : '')
         ] : []
       }),
-      svcRow({
-        title: 'Vercel Blob (image storage)', sub: 'All project render images', svc: s.blob,
+      ({
+        title: 'Vercel Blob (image storage)', shortName: 'Blob storage', sub: 'All project render images', svc: s.blob,
         budgetKey: 'blob_plan_gb', unitHint: 'plan storage, GB',
         billing: 'https://vercel.com/dashboard',
         used: s.blob && s.blob.totalBytes != null ? s.blob.totalBytes / GB : null,
@@ -655,8 +706,8 @@ async function loadServiceUsage(){
         limitLabel: gbLabel,
         details: s.blob && s.blob.fileCount != null ? ['Files: <strong>' + s.blob.fileCount + '</strong>'] : []
       }),
-      svcRow({
-        title: 'Neon (database)', sub: 'Accounts, projects, logs', svc: s.neon,
+      ({
+        title: 'Neon (database)', shortName: 'Neon DB', sub: 'Accounts, projects, logs', svc: s.neon,
         budgetKey: 'neon_plan_gb', unitHint: 'plan storage, GB',
         billing: 'https://console.neon.tech/app/billing',
         used: neonBytes != null ? neonBytes / GB : null,
@@ -664,7 +715,9 @@ async function loadServiceUsage(){
         limitLabel: gbLabel,
         details: (s.neon && s.neon.projects) ? s.neon.projects.map(p => escapeHtml(p.name) + ': <strong>' + svcBytes(p.storageBytes) + '</strong>') : []
       })
-    ].join('');
+    ];
+    cardsEl.innerHTML = rowCfgs.map(svcRow).join('');
+    renderSidebarBalances(rowCfgs);
 
     const counters = (data.internal && data.internal.perProvider) || [];
     const countersBody = document.getElementById('serviceUsageCountersBody');
