@@ -351,7 +351,10 @@
 
     <section class="panel-section" id="sec-ratings">
     <div class="card">
-      <h2>Ratings</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <h2 style="margin:0;">Ratings</h2>
+        <button class="danger" onclick="resetRatings()">Reset all ratings</button>
+      </div>
       <div class="hint" style="margin-bottom:14px;">Ratings of each finished design's result — not the platform itself — submitted by users once their project's views finish generating.</div>
       <div id="ratingsSummary" style="display:flex;align-items:baseline;gap:10px;margin-bottom:16px;"></div>
       <table>
@@ -1137,6 +1140,25 @@ async function addUser(){
 
 // ---------- Generic styled confirm/alert, replacing native browser dialogs ----------
 // Native confirm()/alert() can't be styled and don't match the rest of this panel's design.
+/* Wipes every rating (admin-only DELETE on /api/ratings) after an explicit confirm —
+   irreversible, so the popup says so in plain words. */
+async function resetRatings(){
+  const statusEl = document.getElementById('ratingsStatus');
+  const ok = await genericConfirm('This permanently deletes EVERY rating from every user — the average and the whole table start again from zero. This cannot be undone. Reset all ratings?', 'Reset Ratings', 'Yes, delete all');
+  if(!ok) return;
+  try{
+    const response = await fetch('/api/ratings', { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Reset failed.');
+    await loadRatings();
+    statusEl.className = 'status-msg ok';
+    statusEl.textContent = 'All ratings deleted' + (data.deleted != null ? ' (' + data.deleted + ' removed)' : '') + '.';
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = 'Could not reset ratings: ' + (err.message || 'unknown error');
+  }
+}
+
 let __genericConfirmResolve = null;
 
 function genericConfirm(message, eyebrow, okLabel){

@@ -117,5 +117,18 @@ export default async function handler(req, res) {
     return;
   }
 
+  if (req.method === 'DELETE') {
+    // Admin-only full reset (owner request): wipes every rating row so the panel's average
+    // and table start fresh. The client shows a confirm popup before calling this — but the
+    // role check lives HERE, server-side, so a non-admin can never trigger it directly.
+    if (caller.role !== 'admin') {
+      res.status(403).json({ error: { message: 'Admin access required.' } });
+      return;
+    }
+    const result = await sql`DELETE FROM ratings;`;
+    res.status(200).json({ ok: true, deleted: result.rowCount != null ? result.rowCount : null });
+    return;
+  }
+
   res.status(405).json({ error: { message: 'Method not allowed.' } });
 }
