@@ -23223,7 +23223,20 @@ function openProject(id){
         showFormAndTabs();
         if(!isAdminUser) lockForm(); else unlockForm();
       }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Owner request: opening a project from the sidebar lands on the IMAGES/results,
+      // not the top of the form. Falls back to the top only when the project has no
+      // rendered result yet (nothing to land on). Deferred a tick so the layout has
+      // settled after the show/hide calls above before measuring scroll position.
+      const resultTargetEl =
+        project.dsResult ? document.getElementById('dsResult')
+        : project.eventConceptBoard ? document.getElementById('eventConceptResult')
+        : project.optionResult ? document.getElementById('result')
+        : null;
+      if(resultTargetEl && resultTargetEl.style.display !== 'none'){
+        setTimeout(() => resultTargetEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      }else{
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       updateGenerateButtonState();
     })
     .catch(err => {
