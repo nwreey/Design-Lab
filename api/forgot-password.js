@@ -75,7 +75,13 @@ export default async function handler(req, res) {
 
   const captcha = await verifyRecaptcha(body.recaptchaToken, 'forgot', ip);
   if (!captcha.ok) {
-    res.status(400).json({ error: { message: RECAPTCHA_FAIL_MESSAGE } });
+    // TEMPORARY diagnostic passthrough: when the request explicitly asks for it, include
+    // the rejection reason (e.g. 'invalid-input-secret') so the misconfiguration can be
+    // identified without digging through server logs. The reason is a Google config code,
+    // not a secret. Remove once the reCAPTCHA key rotation issue is resolved.
+    const payload = { error: { message: RECAPTCHA_FAIL_MESSAGE } };
+    if (body.__captchaDebug === true) payload.error.debugReason = captcha.reason || 'unknown';
+    res.status(400).json(payload);
     return;
   }
 
