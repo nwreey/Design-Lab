@@ -11,6 +11,7 @@
     "api/fetch-website-text.js": { "maxDuration": 30 }
   },
   "rewrites": [
-    { "source": "/", "destination": "/homepage.html" }
+    { "source": "/", "destination": "/homepage.html" },
+    { "source": "/admin-gate-x7k93qe4", "destination": "/admin-gate-x7k93qe4.html" }
   ]
 }
