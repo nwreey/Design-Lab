@@ -53,6 +53,9 @@
   .sidebar a.nav-item:hover{background:rgba(255,255,255,.08);color:#fff;}
   .sidebar a.nav-item.active{background:rgba(255,255,255,.1);color:#fff;border-left-color:var(--gold);}
   .sidebar a.nav-item .dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.25);flex-shrink:0;}
+  /* Unread-count pill ("3 new") — cleared automatically once the admin actually visits the
+     section (owner request). */
+  .nav-badge{margin-left:auto;background:#D9534F;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;border-radius:9px;padding:1px 8px;white-space:nowrap;}
   .sidebar .sidebar-foot{padding:14px 24px 0;border-top:1px solid rgba(255,255,255,.12);}
   /* Live provider balances, always visible while scrolling — fed by loadServiceUsage(). */
   .sidebar-balances{padding:2px 12px 10px;}
@@ -161,16 +164,16 @@
         <div class="nav-group">Operations</div>
         <a class="nav-item" href="#sec-usage"><span class="dot"></span>Usage &amp; Billing</a>
         <div class="nav-group">Team</div>
-        <a class="nav-item" href="#sec-users"><span class="dot"></span>Users List</a>
         <a class="nav-item" href="#sec-add-user"><span class="dot"></span>Add User</a>
+        <a class="nav-item" href="#sec-users"><span class="dot"></span>Users List</a>
         <div class="nav-group">Requests</div>
         <a class="nav-item" href="#sec-signups"><span class="dot"></span>Signup Requests</a>
         <a class="nav-item" href="#sec-plans"><span class="dot"></span>Plans Purchased</a>
-        <a class="nav-item" href="#sec-enterprise"><span class="dot"></span>Enterprise Requests</a>
-        <a class="nav-item" href="#sec-help"><span class="dot"></span>Help Requests</a>
+        <a class="nav-item" href="#sec-enterprise"><span class="dot"></span>Enterprise Requests<span class="nav-badge" id="navBadge_enterprise" style="display:none;"></span></a>
         <div class="nav-group">Insights</div>
-        <a class="nav-item" href="#sec-feedback"><span class="dot"></span>User Feedback</a>
-        <a class="nav-item" href="#sec-ratings"><span class="dot"></span>Design Ratings</a>
+        <a class="nav-item" href="#sec-help"><span class="dot"></span>Help Requests<span class="nav-badge" id="navBadge_help" style="display:none;"></span></a>
+        <a class="nav-item" href="#sec-feedback"><span class="dot"></span>User Feedback<span class="nav-badge" id="navBadge_feedback" style="display:none;"></span></a>
+        <a class="nav-item" href="#sec-ratings"><span class="dot"></span>Design Ratings<span class="nav-badge" id="navBadge_ratings" style="display:none;"></span></a>
         <div class="nav-group">System</div>
         <a class="nav-item" href="#sec-security"><span class="dot"></span>Login Security</a>
         <a class="nav-item" href="#sec-email"><span class="dot"></span>Email System</a>
@@ -232,28 +235,6 @@
     </div>
     </section>
 
-    <section class="panel-section" id="sec-users">
-    <div class="card">
-      <h2>Users List</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Username</th>
-            <th>Role</th>
-            <th>Plan</th>
-            <th>Projects</th>
-            <th>Edits</th>
-            <th>Modifies</th>
-            <th>AI Fills</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="usersTableBody"></tbody>
-      </table>
-      <div class="status-msg" id="tableStatus"></div>
-    </div>
-    </section>
-
     <section class="panel-section" id="sec-add-user">
     <div class="card">
       <h2>Add User</h2>
@@ -278,6 +259,28 @@
       </div>
       <button class="primary" id="addUserBtn" onclick="addUser()">Add user</button>
       <div class="status-msg" id="addUserStatus"></div>
+    </div>
+    </section>
+
+    <section class="panel-section" id="sec-users">
+    <div class="card">
+      <h2>Users List</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Plan</th>
+            <th>Projects</th>
+            <th>Edits</th>
+            <th>Modifies</th>
+            <th>AI Fills</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="usersTableBody"></tbody>
+      </table>
+      <div class="status-msg" id="tableStatus"></div>
     </div>
     </section>
 
@@ -826,6 +829,7 @@ async function loadFeedback(){
     const data = await response.json().catch(() => ({}));
     if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load feedback.');
     renderFeedbackTable(data.feedback || []);
+    setBadgeDates('feedback', (data.feedback || []).map(f => f.createdAt || f.created_at));
     statusEl.textContent = '';
   }catch(err){
     statusEl.className = 'status-msg error';
@@ -1479,6 +1483,7 @@ async function loadRatings(){
     if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load ratings.');
     renderRatingsSummary(data.average, data.count);
     renderRatingsTable(data.ratings);
+    setBadgeDates('ratings', (data.ratings || []).map(r => r.updatedAt || r.createdAt));
     ratingsStatus.textContent = '';
   }catch(err){
     ratingsStatus.className = 'status-msg error';
@@ -1524,6 +1529,45 @@ function renderRatingsTable(rows){
   }).join('');
 }
 
+/* ================= "N new" nav badges (owner request) =================
+   Ratings, User Feedback, Help Requests, and Enterprise Requests each show a red
+   "N new" pill in the sidebar when items arrived since the admin last VISITED that
+   section. "Read" = the section becoming active (clicked in the nav or scrolled to);
+   the per-section last-seen timestamp lives in localStorage, so counts survive
+   reloads and clear only for this admin's own browser. */
+const ADMIN_SEEN_KEY = 'designslab_admin_section_seen_v1';
+let __badgeDates = { enterprise: [], help: [], feedback: [], ratings: [] };
+
+function getSectionSeen(){
+  try{ return JSON.parse(localStorage.getItem(ADMIN_SEEN_KEY)) || {}; }catch(e){ return {}; }
+}
+
+function markSectionSeen(key){
+  const seen = getSectionSeen();
+  seen[key] = Date.now();
+  try{ localStorage.setItem(ADMIN_SEEN_KEY, JSON.stringify(seen)); }catch(e){ /* private mode etc. */ }
+  renderNavBadges();
+}
+
+function setBadgeDates(key, dates){
+  __badgeDates[key] = (dates || []).map(d => new Date(d).getTime()).filter(n => !isNaN(n));
+  renderNavBadges();
+}
+
+function renderNavBadges(){
+  const seen = getSectionSeen();
+  Object.keys(__badgeDates).forEach(key => {
+    const el = document.getElementById('navBadge_' + key);
+    if(!el) return;
+    const since = seen[key] || 0;
+    const count = __badgeDates[key].filter(t => t > since).length;
+    el.textContent = count + ' new';
+    el.style.display = count > 0 ? 'inline-block' : 'none';
+  });
+}
+
+const SECTION_BADGE_KEYS = { 'sec-enterprise': 'enterprise', 'sec-help': 'help', 'sec-feedback': 'feedback', 'sec-ratings': 'ratings' };
+
 /* ================= Help Requests (Get help / Contact form submissions) ================= */
 
 async function loadHelpRequests(){
@@ -1536,6 +1580,8 @@ async function loadHelpRequests(){
     const all = data.messages || [];
     const messages = all.filter(m => (m.kind || 'help') !== 'enterprise');
     const enterprise = all.filter(m => m.kind === 'enterprise');
+    setBadgeDates('help', messages.map(m => m.created_at));
+    setBadgeDates('enterprise', enterprise.map(m => m.created_at));
 
     // ---- Enterprise Requests table ----
     if(entBody){
@@ -1619,9 +1665,17 @@ async function deleteHelpRequest(id){
     const fromTop = window.scrollY + 130;
     sections.forEach(sec => { if(sec.offsetTop <= fromTop) current = sec; });
     links.forEach(a => a.classList.toggle('active', current && a.getAttribute('href') === '#' + current.id));
+    // Visiting a badge-carrying section counts as reading it — its "N new" pill clears
+    // and stays cleared for everything received up to now (owner request).
+    if(current && SECTION_BADGE_KEYS[current.id]) markSectionSeen(SECTION_BADGE_KEYS[current.id]);
   }
   window.addEventListener('scroll', updateActive, { passive: true });
   updateActive();
+  // Clicking the nav item clears its badge instantly, without waiting for the scroll.
+  links.forEach(a => {
+    const key = SECTION_BADGE_KEYS[(a.getAttribute('href') || '').slice(1)];
+    if(key) a.addEventListener('click', () => markSectionSeen(key));
+  });
 })();
 
 init();
