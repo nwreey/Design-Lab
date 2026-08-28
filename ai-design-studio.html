@@ -739,22 +739,9 @@
     </div>
     <div class="sidebar-note" data-i18n="sidebar.autoSaveNote">Projects save automatically and sync across devices.</div>
 
-    <!-- Admin-only — hidden here by default and revealed only for data.role === 'admin' in
-         checkAdminAccess(). Regular users never see this section. -->
-    <div class="sidebar-upload-existing" id="sidebarUploadExisting" style="display:none;">
-      <div class="sidebar-upload-divider" data-i18n="sidebar.or">or</div>
-      <div class="sidebar-upload-dims-label" data-i18n="sidebar.boothSizeRequired">Booth size (required)</div>
-      <div class="sidebar-upload-dims-row">
-        <input type="number" id="uploadExistingWidth" placeholder="W (m)" data-i18n-placeholder="ph.widthShort" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
-        <input type="number" id="uploadExistingDepth" placeholder="D (m)" data-i18n-placeholder="ph.depthShort" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
-        <input type="number" id="uploadExistingHeight" placeholder="H (m)" data-i18n-placeholder="ph.heightShort" min="1" step="0.1" oninput="updateUploadExistingButtonState()">
-      </div>
-      <input type="text" id="uploadExistingProjectName" placeholder="Project name" data-i18n-placeholder="ph.projectNameShort" style="margin-top:8px;" oninput="updateUploadExistingButtonState()">
-      <input type="file" id="existingDesignUpload" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleExistingDesignUpload(this)">
-      <button class="ghost small" id="uploadExistingBtn" style="width:100%;" disabled onclick="document.getElementById('existingDesignUpload').click()" data-i18n="sidebar.uploadExistingBtn">Upload an existing design</button>
-      <div class="hint" style="margin-top:4px;" data-i18n="sidebar.uploadExistingHint">Enter the booth size and a project name above to enable upload.</div>
-      <div class="sidebar-note" data-i18n="sidebar.uploadExistingNote">Already have a finished design? Upload it to skip the form and jump straight to camera views.</div>
-    </div>
+    <!-- "Upload an existing design" section removed entirely (owner request) — the JS that
+         powered it (updateUploadExistingButtonState/handleExistingDesignUpload) is retained
+         but guards on the missing elements, in case the feature ever comes back. -->
 
     <div class="sidebar-bottom-fixed">
       <div class="usage-summary" id="usageSummaryPanel" style="display:none;">
