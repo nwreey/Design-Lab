@@ -1,3 +1,4 @@
+const { scrubProviderText } = require('../lib/safe-error.js');
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -15,7 +16,7 @@ module.exports = async (req, res) => {
 
   const apiKey = process.env.LUMA_AGENTS_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: { message: 'Server is missing LUMA_AGENTS_API_KEY. Set it in your Vercel project environment variables.' } });
+    res.status(500).json({ error: { message: 'The video service is not configured on the server. Please contact the administrator.' } });
     return;
   }
 
@@ -35,7 +36,7 @@ module.exports = async (req, res) => {
 
     if (!lumaResponse.ok || !data.id) {
       res.status(lumaResponse.status || 500).json({
-        error: { message: (data && (data.message || data.error)) || rawText.slice(0, 300) || 'Luma status check failed.' },
+        error: { message: scrubProviderText((data && (data.message || data.error)) || rawText.slice(0, 300)) || 'The video engine status check failed.' },
       });
       return;
     }
@@ -48,6 +49,6 @@ module.exports = async (req, res) => {
       failureReason: data.failure_reason || null,
     });
   } catch (err) {
-    res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });
+    res.status(500).json({ error: { message: scrubProviderText(err && err.message) || 'Unexpected server error.' } });
   }
 };

@@ -42,6 +42,7 @@ function parseCookie(cookieHeader, name) {
 }
 
 const { logAiCall } = require('../lib/usage-log.js');
+const { scrubProviderText, GENERIC_TEXT_ERROR } = require('../lib/safe-error.js');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -89,7 +90,7 @@ module.exports = async (req, res) => {
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: { message: 'Server is missing OPENAI_API_KEY. Set it in your Vercel project environment variables.' } });
+    res.status(500).json({ error: { message: 'The design service is not configured on the server. Please contact the administrator.' } });
     return;
   }
 
@@ -160,7 +161,8 @@ module.exports = async (req, res) => {
     logAiCall({ provider: 'openai', endpoint: 'autofill', ok: openaiResponse.ok, status: openaiResponse.status, message: !openaiResponse.ok ? ((data.error && data.error.message) || '') : '' });
 
     if (!openaiResponse.ok) {
-      res.status(openaiResponse.status).json({ error: data.error || { message: 'OpenAI request failed.' } });
+      console.error('OpenAI autofill failed:', openaiResponse.status, JSON.stringify(data.error || {}).slice(0, 500));
+      res.status(openaiResponse.status).json({ error: { message: GENERIC_TEXT_ERROR } });
       return;
     }
 
@@ -187,7 +189,8 @@ module.exports = async (req, res) => {
       return;
     }
     if (!outputText) {
-      res.status(502).json({ error: { message: 'OpenAI returned no usable output text.' }, raw: data });
+      console.error('OpenAI autofill returned no output text:', JSON.stringify(data).slice(0, 500));
+      res.status(502).json({ error: { message: 'The assistant returned no usable result. Please run Auto Fill again.' } });
       return;
     }
 
@@ -198,7 +201,8 @@ module.exports = async (req, res) => {
       // Structured Outputs' strict mode is specifically designed to make this unreachable in
       // practice — surfaced as a real error rather than silently swallowed, so a genuine API-side
       // anomaly is never mistaken for a clean empty result.
-      res.status(502).json({ error: { message: 'OpenAI returned output that was not valid JSON despite a strict schema.' }, raw: outputText.slice(0, 2000) });
+      console.error('OpenAI autofill returned invalid JSON:', outputText.slice(0, 500));
+      res.status(502).json({ error: { message: 'The assistant returned an unreadable result. Please run Auto Fill again.' } });
       return;
     }
 

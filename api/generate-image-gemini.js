@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { neon } = require('@neondatabase/serverless');
 const { logAiCall } = require('../lib/usage-log.js');
+const { scrubProviderText, GENERIC_IMAGE_ERROR } = require('../lib/safe-error.js');
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* Same token verification duplicated across the auth-aware endpoints in this project —
@@ -112,7 +113,7 @@ module.exports = async (req, res) => {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: { message: 'Server is missing GEMINI_API_KEY.' } });
+    res.status(500).json({ error: { message: 'The image service is not configured on the server. Please contact the administrator.' } });
     return;
   }
 
@@ -181,54 +182,74 @@ module.exports = async (req, res) => {
     }
     requestParts.push({ text: prompt });
 
-    const geminiResponse = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        contents: [{ parts: requestParts }],
-        generationConfig: {
-          responseModalities: ['TEXT', 'IMAGE'],
-          imageConfig: { imageSize: resolvedImageSize, aspectRatio: resolvedAspectRatio },
+    const callModel = async (parts, modalities) => {
+      const geminiResponse = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
         },
-      }),
-    });
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: {
+            responseModalities: modalities,
+            imageConfig: { imageSize: resolvedImageSize, aspectRatio: resolvedAspectRatio },
+          },
+        }),
+      });
+      const data = await geminiResponse.json();
+      // Fire-and-forget usage logging for the admin Service Usage & Billing panel — never
+      // awaited, never allowed to affect the actual generation (see lib/usage-log.js).
+      logAiCall({ provider: 'gemini', endpoint: 'generate-image-gemini', ok: geminiResponse.ok, status: geminiResponse.status, message: !geminiResponse.ok ? ((data.error && data.error.message) || '') : '' });
+      return { geminiResponse, data };
+    };
 
-    const data = await geminiResponse.json();
-
-    // Fire-and-forget usage logging for the admin Service Usage & Billing panel — never
-    // awaited, never allowed to affect the actual generation (see lib/usage-log.js).
-    logAiCall({ provider: 'gemini', endpoint: 'generate-image-gemini', ok: geminiResponse.ok, status: geminiResponse.status, message: !geminiResponse.ok ? ((data.error && data.error.message) || '') : '' });
+    let { geminiResponse, data } = await callModel(requestParts, ['TEXT', 'IMAGE']);
 
     if (!geminiResponse.ok) {
-      // Log the full raw error to the Vercel function logs (not shown to the client) so a
-      // failure like "Requested entity was not found" can actually be diagnosed later —
-      // that specific message is Google's generic NOT_FOUND wrapper and could mean several
-      // different things (wrong model string for this API version, the API key's project
-      // missing access/billing for this model, or the model temporarily unavailable), so the
-      // raw status and body are what actually distinguish between those causes.
+      // Full raw error to the Vercel function logs only — the client gets a provider-free
+      // message (OWNER RULE: users must never see which providers power DesignsLab). The
+      // raw status/body distinguish wrong-model vs billing vs availability causes.
       console.error('Gemini image request failed:', geminiResponse.status, model, JSON.stringify(data));
-      const detail = (data.error && data.error.message) || 'Gemini image request failed.';
-      res.status(geminiResponse.status).json({ error: { message: `${detail} (HTTP ${geminiResponse.status}, model: ${model})` } });
+      res.status(geminiResponse.status).json({ error: { message: GENERIC_IMAGE_ERROR } });
       return;
     }
 
-    const parts =
-      (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-    const imagePart = parts.find((p) => p.inlineData && p.inlineData.data);
+    const extractImagePart = (d) => {
+      const parts = (d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts) || [];
+      return { imagePart: parts.find((p) => p.inlineData && p.inlineData.data), textPart: parts.find((p) => p.text) };
+    };
+
+    let { imagePart, textPart } = extractImagePart(data);
+
+    // The model occasionally ANSWERS the brief in prose ("I have rendered the stand…")
+    // instead of returning the render — seen in the wild on Modify Design with global
+    // design changes. One automatic retry with an image-only response modality and an
+    // explicit output instruction recovers nearly all of these without the user ever
+    // seeing a failure (the quota was already spent, so the retry protects the user's
+    // credit as much as the experience).
+    if (!imagePart) {
+      console.error('Gemini returned text instead of an image — retrying image-only. Text was:', textPart ? textPart.text.slice(0, 300) : '(none)');
+      const retryParts = requestParts.slice(0, -1).concat([{
+        text: requestParts[requestParts.length - 1].text +
+          '\n\nOUTPUT REQUIREMENT — ABSOLUTE: Respond with the rendered IMAGE ONLY. Do NOT describe the design, do NOT summarize what you did, do NOT reply with any text. Your entire response must be a single generated image.',
+      }]);
+      ({ geminiResponse, data } = await callModel(retryParts, ['IMAGE']));
+      if (geminiResponse.ok) ({ imagePart, textPart } = extractImagePart(data));
+    }
 
     if (!imagePart) {
-      const textPart = parts.find((p) => p.text);
-      const detail = textPart ? ` Model responded with text instead of an image: "${textPart.text.slice(0, 200)}"` : '';
-      res.status(500).json({ error: { message: 'No image data returned by Gemini.' + detail } });
+      // Both attempts failed to produce an image. Provider name and the model's own prose
+      // stay in the server logs only.
+      console.error('Gemini produced no image after retry. Last text:', textPart ? textPart.text.slice(0, 300) : '(none)');
+      res.status(500).json({ error: { message: 'The design engine responded without an image this time. Please submit again — your request itself was fine.' } });
       return;
     }
 
     const mime = imagePart.inlineData.mimeType || 'image/png';
     res.status(200).json({ image: `data:${mime};base64,${imagePart.inlineData.data}` });
   } catch (err) {
-    res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });
+    console.error('generate-image-gemini unexpected error:', err);
+    res.status(500).json({ error: { message: scrubProviderText(err && err.message) || 'Unexpected server error.' } });
   }
 };

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
 import { logAiCall } from '../lib/usage-log.js';
+import { scrubProviderText, GENERIC_IMAGE_ERROR, GENERIC_TEXT_ERROR } from '../lib/safe-error.js';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* Same token verification duplicated across the auth-aware endpoints in this project —
@@ -152,7 +153,7 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: { message: 'Server misconfiguration: OPENAI_API_KEY is not set.' } });
+    res.status(500).json({ error: { message: 'The image service is not configured on the server. Please contact the administrator.' } });
     return;
   }
 
@@ -235,18 +236,21 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const detail = (data.error && data.error.message) || rawText.slice(0, 300) || `HTTP ${response.status}`;
-      res.status(response.status).json({ error: { message: detail } });
+      console.error('OpenAI image request failed:', response.status, detail);
+      res.status(response.status).json({ error: { message: GENERIC_IMAGE_ERROR } });
       return;
     }
 
     const b64 = data.data && data.data[0] && data.data[0].b64_json;
     if (!b64) {
-      res.status(502).json({ error: { message: 'OpenAI did not return an image.' }, raw: data });
+      console.error('OpenAI returned no image:', JSON.stringify(data).slice(0, 500));
+      res.status(502).json({ error: { message: 'The design engine responded without an image this time. Please submit again — your request itself was fine.' } });
       return;
     }
 
     res.status(200).json({ image: `data:image/png;base64,${b64}` });
   } catch (err) {
-    res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });
+    console.error('generate-image-openai unexpected error:', err);
+    res.status(500).json({ error: { message: scrubProviderText(err && err.message) || 'Unexpected server error.' } });
   }
 }
