@@ -55,6 +55,11 @@
      the moment a section is chosen or a project is opened. */
   body.home-active .sidebar{display:none;}
   body.home-active #headerHomeBtn{display:none;}
+  /* Owner rule: inside the sections/projects the header carries ONLY 🏠 Home, Admin panel,
+     and Log out — the language selector + REV. AI-01 and the username/settings chip live
+     on the MAIN page alone (language changes are made from there). */
+  body:not(.home-active) .header-right .lang-ref-row{display:none;}
+  body:not(.home-active) #headerAccountWrap{display:none;}
   .sidebar{width:250px;flex-shrink:0;background:#fff;border-right:1.5px solid var(--navy);padding:24px 16px;box-sizing:border-box;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
   .sidebar-top-fixed{flex-shrink:0;}
   /* ---------- Professional sidebar chrome (owner request) ---------- */
