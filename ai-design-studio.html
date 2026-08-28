@@ -17350,6 +17350,12 @@ async function generateDesign(){
   // Admins keep the form writable after generating (owner request: easier testing);
   // real users get the normal post-generation lock.
   if(mode === 'event' && !isAdminUser) lockForm();
+  // Owner rule (Exhibition): the moment Generate is confirmed — i.e. the click that
+  // deducts a project (or a modification on a regenerate) — the form CLOSES for regular
+  // users; loading + results take over, same "results only" view approval uses. It
+  // auto-reopens on any failure below so the brief can be fixed and resubmitted, and the
+  // "Show form" bar can always bring it back (read-only via lockForm on success).
+  if(mode === 'booth' && !isAdminUser) hideFormAndTabs();
   // Captured once, here, before Stage 1 runs (see this global's own comment) — read later by
   // approvePrompts() when it calls startRenderSession(), since isNewProject itself isn't in
   // scope there (approvePrompts is a separate top-level function, not nested inside this one).
@@ -18081,6 +18087,7 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
     errBox.textContent = 'Generation failed: ' + (err && err.message ? err.message : String(err));
     errBox.style.display = 'block';
     unlockForm();
+    if(mode === 'booth' && !isAdminUser) showFormAndTabs(); // form was auto-closed on Generate — bring it back so the error is visible and fixable
     projectSwitchLocked = false;
     document.getElementById('loading').style.display = 'none';
   }
@@ -18954,6 +18961,7 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
           // user can just click Generate again (e.g. after fixing an API key/billing issue)
           // without re-entering the whole brief from scratch.
           unlockForm();
+          if(mode === 'booth' && !isAdminUser) showFormAndTabs(); // auto-closed on Generate — reopen so it can be resubmitted
         }else{
           const correctedImage = await runBrandAssetIntegrityEngine(data.image);
           const compressed = await compressDataUrlToTarget(correctedImage);
@@ -18985,6 +18993,7 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
         optionResults[i].status = 'error';
         optionResults[i].errorMsg = err && err.message ? err.message : 'Unexpected error.';
         unlockForm();
+        if(mode === 'booth' && !isAdminUser) showFormAndTabs(); // auto-closed on Generate — reopen so it can be resubmitted
         renderOptionTabsV2();
         if(activeOptionIndex === i) showOptionV2(i);
         saveCurrentProject();
