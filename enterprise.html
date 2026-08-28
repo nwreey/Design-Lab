@@ -458,7 +458,7 @@ async function submitEnterpriseForm(e){
     expectedUsers: document.getElementById('entUsers').value,
     industry: document.getElementById('entIndustry').value.trim(),
     message: document.getElementById('entMessage').value.trim(),
-    recaptchaToken: await getRecaptchaToken('enterprise')
+    recaptchaToken: typeof getRecaptchaToken === 'function' ? await getRecaptchaToken('enterprise') : null
   };
   if(!payload.company || !payload.name || !payload.email || !payload.message){
     statusEl.style.color = '#E8B93E';

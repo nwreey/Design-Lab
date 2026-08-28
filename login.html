@@ -582,7 +582,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     const response = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: usernameEl.value, password: passwordEl.value, remember, recaptchaToken: await getRecaptchaToken('login') })
+      body: JSON.stringify({ username: usernameEl.value, password: passwordEl.value, remember, recaptchaToken: typeof getRecaptchaToken === 'function' ? await getRecaptchaToken('login') : null })
     });
 
     if(response.ok){

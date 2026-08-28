@@ -274,7 +274,7 @@ document.getElementById('contactForm').addEventListener('submit', async function
         email: document.getElementById('cf-email').value.trim(),
         subject: document.getElementById('cf-subject').value.trim(),
         message: document.getElementById('cf-message').value.trim(),
-        recaptchaToken: await getRecaptchaToken('contact'),
+        recaptchaToken: typeof getRecaptchaToken === 'function' ? await getRecaptchaToken('contact') : null,
       }),
     });
     const data = await response.json().catch(() => ({}));
