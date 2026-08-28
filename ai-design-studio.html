@@ -10710,24 +10710,27 @@ async function checkAdminAccess(){
    /api/me payload for the My-information modal. */
 let currentAccountInfo = null;
 
-/* Shows the purchased plan name under the DESIGNSLAB. brand (owner request) — visible only
-   once the account actually has a plan; trial users see nothing here. */
+/* Shows the account's plan under the DESIGNSLAB. brand (owner request): "Starter Plan" /
+   "Studio Plan" / "Pro Plan" once purchased, and "Free Plan" automatically for anyone who
+   just signed up with no purchase yet. Pass null (admins) to hide it entirely. */
 function renderSidebarBrandPlan(planName){
   const el = document.getElementById('sidebarBrandPlan');
   if(!el) return;
-  if(planName){
-    el.textContent = planName + ' Plan';
-    el.style.display = 'inline-block';
-  }else{
+  if(planName === null){
     el.style.display = 'none';
+    return;
   }
+  el.textContent = (planName || 'Free') + ' Plan';
+  el.style.display = 'inline-block';
 }
 
 function renderSidebarAccountSection(data){
   const section = document.getElementById('sidebarAccountSection');
   if(!section || !data.username) return;
   currentAccountInfo = data;
-  renderSidebarBrandPlan(data.plan || null);
+  // Admins carry no plan at all — badge hidden. Members always show one: their purchased
+  // plan, or "Free Plan" right from signup (owner request).
+  renderSidebarBrandPlan(data.role === 'admin' ? null : (data.plan || ''));
   document.getElementById('sidebarAccountName').textContent = data.username;
   document.getElementById('sidebarAccountRole').textContent = data.role === 'admin' ? 'Administrator' : 'Team member';
   document.getElementById('sidebarAccountInitial').textContent = data.username.charAt(0).toUpperCase();
