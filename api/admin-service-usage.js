@@ -76,7 +76,9 @@ async function fetchJson(url, opts, timeoutMs) {
 /* ---------- Layer 1: live provider checks (each fully independent) ---------- */
 
 async function checkOpenAi() {
-  const adminKey = process.env.OPENAI_ADMIN_KEY;
+  // trim(): a key pasted into Vercel env with a stray trailing space/newline is otherwise
+  // sent verbatim in the Authorization header and rejected.
+  const adminKey = (process.env.OPENAI_ADMIN_KEY || '').trim() || null;
   if (!adminKey) {
     return {
       status: process.env.OPENAI_API_KEY ? 'warning' : 'not_configured',
@@ -94,9 +96,21 @@ async function checkOpenAi() {
   );
   if (!r.ok) {
     const msg = (r.data && r.data.error && r.data.error.message) || `HTTP ${r.status}`;
-    const scopeHint = (r.status === 401 || r.status === 403)
-      ? ' This usually means the key is not an Admin key or was created without the Usage/Costs read permission — create a NEW Admin key with full/read-all permissions (platform.openai.com → Settings → Organization → Admin keys) and replace OPENAI_ADMIN_KEY in Vercel env.'
-      : '';
+    let scopeHint = '';
+    if (r.status === 401 || r.status === 403) {
+      // Disambiguate the two very different causes of a 401/403 here by probing a second
+      // admin-scoped endpoint that needs a DIFFERENT permission (org read, not usage read):
+      //  - probe also fails  → the key isn't an Admin key at all (or wrong/stale env value)
+      //  - probe succeeds    → the key IS an Admin key, but was created with restricted
+      //                        permissions that exclude Usage/Costs read
+      try {
+        const probe = await fetchJson('https://api.openai.com/v1/organization/projects?limit=1', { headers: { Authorization: `Bearer ${adminKey}` } });
+        scopeHint = probe.ok
+          ? ' DIAGNOSIS: the key IS a valid Admin key, but it was created with restricted permissions that exclude Usage/Costs read. Create a new Admin key and in the creation dialog set Permissions to ALL (or at least Read access to Usage and Billing), then replace OPENAI_ADMIN_KEY in Vercel env and REDEPLOY — env changes only apply to new deployments.'
+          : ' DIAGNOSIS: the key is not being accepted as an Admin key at all. Check: (1) it must start with sk-admin-, created under Settings → Organization → Admin keys (only visible to organization Owners) — a normal sk-/sk-proj- key can never read billing; (2) it was saved to the Production environment in Vercel env; (3) you REDEPLOYED after saving it — env changes only apply to new deployments.';
+      } catch (probeErr) { /* leave generic hint below */ }
+      if (!scopeHint) scopeHint = ' Create a NEW Admin key with full/read-all permissions (platform.openai.com → Settings → Organization → Admin keys), replace OPENAI_ADMIN_KEY in Vercel env, and redeploy.';
+    }
     return { status: 'error', note: 'Costs API rejected the admin key: ' + msg + scopeHint };
   }
   let monthUsd = 0;
