@@ -27,10 +27,17 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
-  /* Global page scale (owner request): 90% — fonts and controls read large at native size,
-     so the whole desktop layout renders slightly reduced. Was 1.2 (120%), which is what made
-     everything look oversized. */
-  @media(min-width:900px){ html{zoom:0.9;} }
+  /* Desktop scaling (owner-tuned across several rounds):
+     - The page overall renders at 90% (html zoom 0.9) — the compact left sidebar the owner
+       approved lives at this scale.
+     - The MAIN content area (.wrap: header + form + results) gets an inner 1.2 zoom, so it
+       nets out at ~108% — the form reads big and comfortable (owner: "the form so small")
+       while the sidebar stays compact. Zoom nests multiplicatively in Chromium/Safari/
+       modern Firefox. Mobile (<900px) stays fully unscaled. */
+  @media(min-width:900px){
+    html{zoom:0.9;}
+    .wrap{zoom:1.2;}
+  }
   body{
     background:var(--paper);
     color:var(--ink);
