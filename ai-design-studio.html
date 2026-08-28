@@ -24106,6 +24106,26 @@ if(typeof document.addEventListener === 'function'){
             <span class="up-pick" data-i18n="up.select">Select</span>
           </button>
         </div>
+        <!-- Add-on top-up packs (owner request): buyable straight from this modal, not only
+             from the out-of-quota popups. Same request pipeline (buyAddonPack -> /api/purchase). -->
+        <div style="margin-top:18px;text-align:left;">
+          <div style="font-weight:800;font-size:14px;">Need only a top-up?</div>
+          <div style="font-size:12px;opacity:.65;margin:3px 0 10px;">Buy extra edits or modifications for your current plan — bigger packs cost less per unit.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div style="border:1.5px solid var(--line);border-radius:3px;padding:12px 14px;">
+              <div style="font-weight:700;font-size:12.5px;margin-bottom:8px;">Image Edits Packs</div>
+              <button type="button" class="ghost small" style="width:100%;display:flex;justify-content:space-between;margin-bottom:6px;" onclick="buyAddonPack('Edits Pack 20')"><span>20 edits</span><span>$7 <span style="opacity:.6;font-size:10.5px;">($0.35 ea)</span></span></button>
+              <button type="button" class="ghost small" style="width:100%;display:flex;justify-content:space-between;margin-bottom:6px;" onclick="buyAddonPack('Edits Pack 50')"><span>50 edits</span><span>$15 <span style="opacity:.6;font-size:10.5px;">($0.30 ea)</span></span></button>
+              <button type="button" class="ghost small" style="width:100%;display:flex;justify-content:space-between;" onclick="buyAddonPack('Edits Pack 100')"><span>100 edits</span><span>$25 <span style="opacity:.6;font-size:10.5px;">($0.25 ea)</span></span></button>
+            </div>
+            <div style="border:1.5px solid var(--line);border-radius:3px;padding:12px 14px;">
+              <div style="font-weight:700;font-size:12.5px;margin-bottom:8px;">Modification Packs</div>
+              <button type="button" class="ghost small" style="width:100%;display:flex;justify-content:space-between;margin-bottom:6px;" onclick="buyAddonPack('Modifications Pack 10')"><span>10 modifications</span><span>$7 <span style="opacity:.6;font-size:10.5px;">($0.70 ea)</span></span></button>
+              <button type="button" class="ghost small" style="width:100%;display:flex;justify-content:space-between;margin-bottom:6px;" onclick="buyAddonPack('Modifications Pack 25')"><span>25 modifications</span><span>$15 <span style="opacity:.6;font-size:10.5px;">($0.60 ea)</span></span></button>
+              <button type="button" class="ghost small" style="width:100%;display:flex;justify-content:space-between;" onclick="buyAddonPack('Modifications Pack 50')"><span>50 modifications</span><span>$25 <span style="opacity:.6;font-size:10.5px;">($0.50 ea)</span></span></button>
+            </div>
+          </div>
+        </div>
         <div class="up-footer">
           <button type="button" class="no" onclick="document.getElementById('upgradeOverlay').classList.remove('open')" data-i18n="set.cancel">Cancel</button>
           <button type="button" class="go" id="upgradeContinueBtn" onclick="startCheckout()" data-i18n="up.continue">Continue to payment</button>
