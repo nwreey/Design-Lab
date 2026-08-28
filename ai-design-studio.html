@@ -3614,6 +3614,7 @@ Replace only the materials and graphics."></textarea>
       <div class="gen-notice-eyebrow">Approve Design</div>
       <h3>Approve this design?</h3>
       <p>Are you sure you want to approve this design? Once approved, no further changes can be made to the concept itself — only the rendered views can still be edited afterward, using Modify Design or Other option.</p>
+      <p id="approveNoticeQuotaText" style="font-weight:700;"></p>
       <div style="display:flex;gap:10px;">
         <button class="ghost" onclick="document.getElementById('approveNoticeOverlay').style.display='none';" style="flex:1;">Cancel</button>
         <button class="primary" onclick="document.getElementById('approveNoticeOverlay').style.display='none'; confirmApproveDesign();" style="flex:1;">OK, approve</button>
@@ -7780,7 +7781,7 @@ async function regenerateDsOtherOption(){
 
   if(adminCheckPromise) await adminCheckPromise;
   if(!isAdminUser && currentUserModifyLimit != null && currentUserModifyCount != null && currentUserModifyCount >= currentUserModifyLimit){
-    await customAlert('You\'ve reached your modify limit (' + currentUserModifyLimit + '). Please contact your administrator to increase this limit.', 'Other Option');
+    await offerAddonPurchase('modify', 1, Math.max(0, currentUserModifyLimit - currentUserModifyCount));
     return;
   }
 
@@ -8022,13 +8023,21 @@ async function approveDisplayStand(){
   // the Dimensions & Specifications sheet generated after the views (owner request).
   const viewCount = dsCurrentViews.length;
   const totalImages = viewCount + 1;
+  // Owner billing rule: charge the VIEWS only — a closed-back stand (2 views) uses 2 edits,
+  // an open stand (4 views) uses 4; the Dimensions & Specifications sheet is on us.
+  const chargedEdits = viewCount;
   if(!isAdminUser){
-    const msg = 'Approving will generate ' + totalImages + ' images — ' + viewCount + ' high-resolution view renders (' + dsCurrentViews.join(', ') + ') plus 1 Dimensions & Specifications sheet — and will use ' + totalImages + ' of your edits'
-      + ((currentUserEditLimit != null && currentUserEditCount != null) ? ' — you have used ' + currentUserEditCount + ' of ' + currentUserEditLimit : '')
+    const remainingDs = editsRemaining();
+    if(remainingDs != null && remainingDs < chargedEdits){
+      offerAddonPurchase('edit', chargedEdits, remainingDs);
+      return;
+    }
+    const msg = 'Approving will generate ' + totalImages + ' images — ' + viewCount + ' high-resolution view renders (' + dsCurrentViews.join(', ') + ') plus 1 Dimensions & Specifications sheet (on us) — and will use ' + chargedEdits + ' of your edits'
+      + (remainingDs != null ? ' — you\'ll have ' + (remainingDs - chargedEdits) + ' remaining after this' : '')
       + '. Continue?';
     const ok = await customConfirm(msg, 'Approve', 'Approve');
     if(!ok) return;
-    if(currentUserEditCount != null){ currentUserEditCount += totalImages; renderEditUsageIndicator(); }
+    if(currentUserEditCount != null){ currentUserEditCount += chargedEdits; renderEditUsageIndicator(); }
   }
   const approveBtn = document.getElementById('dsApproveBtn');
   approveBtn.disabled = true;
@@ -8162,7 +8171,7 @@ async function approveDisplayStand(){
         const response = await fetchWithTimeout('/api/generate-image-gemini', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: specPrompt, referenceImage: specBoardParts.base64, referenceMimeType: specBoardParts.mime, additionalReferenceImages: extraRefs, isUserInitiatedEdit: size === '4K', quotaKind: 'edit', aspectRatio: '4:3', imageSize: size })
+          body: JSON.stringify({ prompt: specPrompt, referenceImage: specBoardParts.base64, referenceMimeType: specBoardParts.mime, additionalReferenceImages: extraRefs, isUserInitiatedEdit: false /* owner rule: the Dimensions & Specifications sheet is on us — views alone are charged */, aspectRatio: '4:3', imageSize: size })
         }, 190000);
         const rawText = await response.text();
         let parsed = {};
@@ -16501,6 +16510,13 @@ async function approveEventConceptBoard(){
   const approveAreas = (eventConceptBoard.areas && eventConceptBoard.areas.length) ? eventConceptBoard.areas : getSelectedEventAreas();
   if(!isAdminUser && approveAreas.length){
     const n = approveAreas.length;
+    // Owner rule: if the user can't afford one edit per selected area, don't start —
+    // explain what's needed and offer the Edits Pack purchase instead.
+    const remainingEv = editsRemaining();
+    if(remainingEv != null && remainingEv < n){
+      offerAddonPurchase('edit', n, remainingEv);
+      return;
+    }
     const apMsg = 'Approving will generate ' + n + ' high-resolution area render' + (n === 1 ? '' : 's') + ' (one per selected area) and will use ' + n + ' of your edits'
       + ((currentUserEditLimit != null && currentUserEditCount != null) ? ' — you have used ' + currentUserEditCount + ' of ' + currentUserEditLimit : '')
       + '. Continue?';
@@ -16916,6 +16932,10 @@ async function regenerateEventConceptBoard(){
   if(!isAdminUser){
     // Owner rule: the FIRST modification/other-option on this design is on us.
     const evFree = freeModAvailable();
+    if(!evFree){
+      const rMod = modsRemaining();
+      if(rMod != null && rMod < 1){ offerAddonPurchase('modify', 1, rMod); return; }
+    }
     const otMsg = evFree
       ? 'This one is on us — your first modification or other option on this design is free and won\'t count against your usage. Continue?'
       : (currentUserModifyLimit != null && currentUserModifyCount != null)
@@ -17366,10 +17386,9 @@ async function generateDesign(){
   // there. Blocked here, before Stage 1 even runs, for the same reason the project-limit check
   // above is: a user already at their modify limit shouldn't burn a real generation only to have
   // it fail at the image-render step after the cost was already spent for nothing.
-  if(!isAdminUser && mode === 'booth' && !isNewProject && currentUserModifyLimit != null && currentUserModifyCount != null && currentUserModifyCount >= currentUserModifyLimit){
-    errBox.textContent = `You've reached your modify limit (${currentUserModifyLimit}). Please contact your administrator to increase this limit.`;
-    errBox.style.display = 'block';
-    errBox.scrollIntoView({behavior:'smooth', block:'center'});
+  if(!isAdminUser && mode === 'booth' && !isNewProject && currentUserModifyLimit != null && currentUserModifyCount != null && currentUserModifyCount >= currentUserModifyLimit && !freeModAvailable()){
+    // Owner rule: out of modifications -> offer the Modifications Pack right here.
+    offerAddonPurchase('modify', 1, 0);
     return;
   }
 
@@ -19644,6 +19663,12 @@ async function regenerateOtherOption(){
     return;
   }
 
+  // Owner rule: out of modifications -> offer the Modifications Pack instead of failing later.
+  if(!isAdminUser && !freeModAvailable()){
+    const rMod = modsRemaining();
+    if(rMod != null && rMod < 1){ offerAddonPurchase('modify', 1, rMod); return; }
+  }
+
   // Other option counts against the modify quota on the backend, same as Modify Design's
   // Submit — so it gets the same "this will use 1 of your modifications" confirmation
   // before it runs, not just Modify Design.
@@ -20433,6 +20458,11 @@ async function submitModifyDesign(){
   }
 
   const opt = optionResults[activeOptionIndex];
+  // Owner rule: out of edits -> offer the Edits Pack instead of failing at submit.
+  if(!isAdminUser && !freeModAvailable()){
+    const rEd = editsRemaining();
+    if(rEd != null && rEd < 1){ offerAddonPurchase('edit', 1, rEd); return; }
+  }
   const noticeText = document.getElementById('modifyNoticeText');
   if(isAdminUser){
     noticeText.textContent = 'Submit this modification?';
@@ -20696,9 +20726,13 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geo
   const prompt = buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX;
   const useOpenAi = cameraViewsEngine !== 'gemini';
   const endpoint = useOpenAi ? '/api/edit-image-openai' : '/api/generate-image-gemini';
+  // Owner billing rule: each camera view costs 1 image edit, charged server-side on the
+  // FIRST attempt only — automatic similarity retries and geometry-correction passes are
+  // on us (the user asked for one view, not our internal QA loop). Admins uncharged.
+  const chargeThisCall = !isAdminUser && !isWiderRetry && !geometryCorrectionReason;
   const body = useOpenAi
-    ? { prompt, referenceImage: base64, referenceMimeType: mime, size: '1536x1024', isUserInitiatedEdit: false }
-    : { prompt, referenceImage: base64, referenceMimeType: mime, isUserInitiatedEdit: false, aspectRatio: '3:2' };
+    ? { prompt, referenceImage: base64, referenceMimeType: mime, size: '1536x1024', isUserInitiatedEdit: chargeThisCall }
+    : { prompt, referenceImage: base64, referenceMimeType: mime, isUserInitiatedEdit: chargeThisCall, quotaKind: 'edit', aspectRatio: '3:2' };
   // Camera views default to OpenAI's edit endpoint (useOpenAi above) unless the hero itself
   // was rendered on Gemini — that endpoint is now allowed 180s server-side (see vercel.json),
   // but this call was still cutting off at the old 100s client timeout, which is exactly what
@@ -21857,6 +21891,20 @@ function approveDesign(){
   if(isAdminUser){
     showAdminGenerationPreview(opt, cameraPlanResult);
   }else{
+    // Owner rule: approval generates one camera view per real request (the hero is free),
+    // each costing 1 image edit. If the user can't afford the full set, DON'T start —
+    // tell them exactly what it needs and offer the Edits Pack purchase instead.
+    const requiredEdits = Math.max(0, CAMERA_SPECS.length - 1);
+    const remaining = editsRemaining();
+    if(remaining != null && remaining < requiredEdits){
+      offerAddonPurchase('edit', requiredEdits, remaining);
+      return;
+    }
+    const quotaEl = document.getElementById('approveNoticeQuotaText');
+    if(quotaEl){
+      quotaEl.textContent = `This will use ${requiredEdits} of your image edits (one per generated camera view)` +
+        (remaining != null ? ` — you'll have ${remaining - requiredEdits} remaining after this.` : '.');
+    }
     document.getElementById('approveNoticeOverlay').style.display = 'flex';
   }
 }
@@ -22133,6 +22181,14 @@ async function confirmApproveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
 
+  // Reflect the full camera-view cost in the sidebar immediately (owner rule: one edit per
+  // generated view; the server charges per view as each renders — see
+  // requestCameraViewFromOpenAI's chargeThisCall).
+  if(!isAdminUser && currentUserEditCount != null){
+    currentUserEditCount += Math.max(0, CAMERA_SPECS.length - 1);
+    renderEditUsageIndicator();
+  }
+
   // Approving locks in the design — from here on this reads as "the project," not "a form
   // in progress," so the form and tabs step aside the same way they do when reopening an
   // already-finished saved project.
@@ -22224,6 +22280,45 @@ function freeModAvailable(){
 function markFreeModUsed(){
   currentProjectFreeModUsed = true;
   updateFreeModNotes();
+}
+
+/* ---- Add-on quota packs (owner request) ----
+   When an action needs more edits/modifications than the user has left, we say exactly
+   what it needs and offer the matching pack. A purchase goes through the same request
+   flow as plans (/api/purchase): recorded, emailed, and activated by the admin. */
+const ADDON_PACKS = {
+  edit: { plan: 'Edits Pack', label: 'Image Edits Pack', price: '$7', amount: '20 image edits ($0.35 per edit)' },
+  modify: { plan: 'Modifications Pack', label: 'Modifications Pack', price: '$7', amount: '10 design modifications ($0.70 per modification)' },
+};
+
+function editsRemaining(){
+  return (currentUserEditLimit != null && currentUserEditCount != null)
+    ? Math.max(0, currentUserEditLimit - currentUserEditCount) : null;
+}
+
+function modsRemaining(){
+  return (currentUserModifyLimit != null && currentUserModifyCount != null)
+    ? Math.max(0, currentUserModifyLimit - currentUserModifyCount) : null;
+}
+
+async function offerAddonPurchase(kind, needed, remaining){
+  const pack = ADDON_PACKS[kind];
+  const noun = kind === 'edit' ? 'image edits' : 'modifications';
+  const ok = await customConfirm(
+    `This needs ${needed} ${noun} and you have ${remaining} remaining. Purchase the ${pack.label} (${pack.price} for ${pack.amount}) to continue?`,
+    'Not Enough ' + (kind === 'edit' ? 'Edits' : 'Modifications'), 'Purchase');
+  if(!ok) return;
+  try{
+    const resp = await fetch('/api/purchase', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan: pack.plan }) });
+    const data = await resp.json().catch(() => ({}));
+    if(resp.ok){
+      await customAlert(`Your ${pack.label} request has been received. It will be activated on your account shortly, and you can then continue right where you left off.`, 'Purchase Requested');
+    }else{
+      await customAlert((data.error && data.error.message) || 'Could not submit the purchase request. Please try again.', 'Purchase');
+    }
+  }catch(e){
+    await customAlert('Could not submit the purchase request. Please try again.', 'Purchase');
+  }
 }
 
 // Shows/hides the yellow "first one on us" note in whichever section(s) are on screen.
