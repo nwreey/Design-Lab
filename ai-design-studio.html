@@ -940,18 +940,20 @@
       <!-- Owner rule: username + settings sit BESIDE Log out. The chip opens the same
            account menu as the sidebar button — the popover is reparented here on demand so
            it works even while the sidebar is hidden (Studio Home). -->
-      <div id="headerAccountWrap" style="position:relative;">
-        <button type="button" class="home-account-btn" id="homeAccountBtn" style="display:none;" onclick="toggleAccountMenuHeader(event)">
-          <span class="sidebar-account-avatar" id="homeAccountInitial"></span>
-          <span id="homeAccountName" style="font-weight:700;font-size:12.5px;"></span>
-          <span aria-hidden="true" style="opacity:.6;">⚙</span>
-        </button>
+      <!-- One ROW (owner rule): username+settings · 🏠 Home · Admin panel · Log out —
+           all on the same line, Home immediately before Log out. -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div id="headerAccountWrap" style="position:relative;">
+          <button type="button" class="home-account-btn" id="homeAccountBtn" style="display:none;" onclick="toggleAccountMenuHeader(event)">
+            <span class="sidebar-account-avatar" id="homeAccountInitial"></span>
+            <span id="homeAccountName" style="font-weight:700;font-size:12.5px;"></span>
+            <span aria-hidden="true" style="opacity:.6;">⚙</span>
+          </button>
+        </div>
+        <button type="button" class="logout-btn" id="headerHomeBtn" onclick="startNewProject()">🏠 Home</button>
+        <a href="/admin.html" class="logout-btn" id="adminPanelLink" style="display:none;text-decoration:none;" data-i18n="app.adminPanel">Admin panel</a>
+        <button type="button" class="logout-btn primary-action" onclick="logOut()" data-i18n="app.logout">Log out</button>
       </div>
-      <!-- Owner rule: the Home button lives in the header beside Log out on the three
-           section pages (hidden while already on the home page). -->
-      <button type="button" class="logout-btn" id="headerHomeBtn" onclick="startNewProject()">🏠 Home</button>
-      <a href="/admin.html" class="logout-btn" id="adminPanelLink" style="display:none;text-decoration:none;" data-i18n="app.adminPanel">Admin panel</a>
-      <button type="button" class="logout-btn primary-action" onclick="logOut()" data-i18n="app.logout">Log out</button>
     </div>
   </header>
 
