@@ -3447,8 +3447,20 @@ Replace only the materials and graphics."></textarea>
     <div class="result-layout-grid" id="resultLayoutGrid">
       <div class="grid-area-approved">
         <div class="render-status" id="renderSlotStatus"></div>
-        <div class="render-frame" id="renderSlotFrame">
+        <div class="render-frame" id="renderSlotFrame" style="position:relative;">
           <img id="renderSlotImg" alt="AI rendered concept" style="display:none;" onclick="openImageLightbox(this.src)">
+          <!-- Other Design in-frame loading (owner request): the progress bar sits ON the
+               previous design inside this box while the new option generates — the picture
+               stays visible underneath instead of the bar living below the action bar. -->
+          <div id="renderFrameLoadingOverlay" style="display:none;position:absolute;left:0;right:0;bottom:0;padding:14px 16px 16px;background:linear-gradient(transparent, rgba(11,12,16,.88) 30%);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span id="renderFrameLoadingMsg" style="color:#fff;font-size:12.5px;font-weight:600;"></span>
+              <span id="renderFrameLoadingPct" style="color:#fff;font-size:12.5px;font-weight:700;">0%</span>
+            </div>
+            <div style="height:6px;border-radius:3px;background:rgba(255,255,255,.25);overflow:hidden;">
+              <div id="renderFrameLoadingFill" style="height:100%;width:0%;background:#fff;border-radius:3px;transition:width .4s ease;"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -19638,6 +19650,12 @@ async function confirmRegenerateOtherOption(){
   if(activeOptionIndex === idx){
     setStatusError(statusEl, '');
     const otherOptionProgressMsg = 'Generating another option... this can take up to a minute. Your existing pictures and views are untouched.';
+    // Owner request: during Other Design the progress lives ON the previous design inside
+    // the render box — the in-frame overlay shows (previous image visible underneath) and
+    // the below-the-bar progress block stays hidden for this flow only.
+    const frameOverlayEl = document.getElementById('renderFrameLoadingOverlay');
+    if(frameOverlayEl) frameOverlayEl.style.display = 'block';
+    window.__suppressBelowBarProgress = true;
     updateApproveProgress(15, otherOptionProgressMsg);
     // Creeps from 15% toward 92% over ~45s while the single generation call is in flight —
     // see startSimulatedProgress's comment for why this replaces the old frozen-then-jump
@@ -21869,16 +21887,32 @@ function updateApproveProgress(percent, message){
   const pct = document.getElementById('approveProgressPercent');
   const msg = document.getElementById('approveProgressMessage');
   if(!wrap) return;
-  wrap.style.display = 'block';
+  // While the Other Design in-frame overlay owns the progress display, every tick of the
+  // simulated progress would otherwise re-show this below-the-bar block — suppress it.
+  wrap.style.display = window.__suppressBelowBarProgress ? 'none' : 'block';
   const clamped = Math.max(0, Math.min(100, Math.round(percent)));
   if(fill) fill.style.width = clamped + '%';
   if(pct) pct.textContent = clamped + '%';
   if(msg) msg.textContent = message;
+  // Mirror into the Other Design in-frame overlay whenever it's showing (owner request:
+  // the bar rides ON the previous design in the render box during Other Design).
+  const frameOverlay = document.getElementById('renderFrameLoadingOverlay');
+  if(frameOverlay && frameOverlay.style.display !== 'none'){
+    const fFill = document.getElementById('renderFrameLoadingFill');
+    const fPct = document.getElementById('renderFrameLoadingPct');
+    const fMsg = document.getElementById('renderFrameLoadingMsg');
+    if(fFill) fFill.style.width = clamped + '%';
+    if(fPct) fPct.textContent = clamped + '%';
+    if(fMsg) fMsg.textContent = message;
+  }
 }
 
 function hideApproveProgress(){
   const wrap = document.getElementById('approveProgress');
   if(wrap) wrap.style.display = 'none';
+  const frameOverlay = document.getElementById('renderFrameLoadingOverlay');
+  if(frameOverlay) frameOverlay.style.display = 'none';
+  window.__suppressBelowBarProgress = false;
 }
 
 // Real reported problem: "Other option" (and any other single-blocking-call flow) set the
