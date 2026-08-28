@@ -16566,14 +16566,18 @@ function renderEventConceptBoardResult(skipScroll){
     showEcbGoodLuckAndRating(false);
   }
   if(!skipScroll) document.getElementById('eventConceptResult').scrollIntoView({behavior:'smooth', block:'start'});
-  // Owner rule (Event section): once a concept board exists the form CLOSES for regular
-  // users — results take over, the 'Show form' bar can bring it back (read-only via
-  // lockForm). After approval it stays gone the same way (approveEventConceptBoard also
-  // calls hideFormAndTabs). Covers live generation, Other Design re-renders, and
-  // reopening a saved event project. Admin exception: form stays open and writable.
+  // Owner rule (Event section, refined): after Generate the form STAYS on screen under
+  // the results but closed — visible and not writable. Only after APPROVAL does it
+  // disappear (approveEventConceptBoard sets .approved and hides; this re-render keeps it
+  // hidden on restore too). Admin exception: form stays open and writable.
   if(!isAdminUser){
-    lockForm();
-    hideFormAndTabs();
+    if(eventConceptBoard.approved){
+      hideFormAndTabs();
+    }else{
+      lockForm();
+      // Bring the form back alongside the results if something earlier hid it.
+      if(document.getElementById('formCard').style.display === 'none') showFormAndTabs();
+    }
   }else{
     unlockForm();
   }
