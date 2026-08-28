@@ -19273,6 +19273,16 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
     // in real use. No-op for Gemini (its branch never runs this) and a no-op here too whenever the
     // prompt is already under the limit, which is every other case.
     if(genEndpoint === '/api/generate-image-openai') requestBody.prompt = capOpenAiPromptLength(requestBody.prompt);
+    // Owner request: the loading bar rides INSIDE the render box for Generate too — the
+    // same in-frame overlay Other Design uses (on a first render the box is empty/dark,
+    // with the bar along its lower edge; on a regenerate it rides the previous image).
+    const genFrameOverlay = document.getElementById('renderFrameLoadingOverlay');
+    if(genFrameOverlay) genFrameOverlay.style.display = 'block';
+    window.__suppressBelowBarProgress = true;
+    const genProgressMsg = 'Rendering your design... this can take up to a minute.';
+    updateApproveProgress(12, genProgressMsg);
+    let stopGenSim = startSimulatedProgress(12, 92, genProgressMsg, 45000);
+    const endGenProgress = () => { if(stopGenSim){ stopGenSim(); stopGenSim = null; } hideApproveProgress(); };
     fetchWithTimeout(genEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -19280,6 +19290,7 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
     }, 190000)
       .then(res => res.json().catch(() => ({})).then(data => ({ ok: res.ok, data })))
       .then(async ({ ok, data }) => {
+        endGenProgress();
         if(!ok || !data.image){
           optionResults[i].status = 'error';
           optionResults[i].errorMsg = (data.error && data.error.message) || 'Image generation failed.';
@@ -19316,6 +19327,7 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
         if(pendingRenderCount === 0) projectSwitchLocked = false;
       })
       .catch(err => {
+        endGenProgress();
         optionResults[i].status = 'error';
         optionResults[i].errorMsg = err && err.message ? err.message : 'Unexpected error.';
         unlockForm();
@@ -20824,6 +20836,11 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
   // and a bare status line made it look frozen. Creeps 15% -> 92% while the request is in
   // flight, then jumps to 100% on completion (owner request).
   const modifyProgressMsg = 'Modifying your design... this can take up to a minute. Everything outside the marked area stays untouched.';
+  // Owner request: the bar rides ON the current design inside the render box during
+  // Modify design too — same overlay as Generate and Other Design.
+  const mdFrameOverlay = document.getElementById('renderFrameLoadingOverlay');
+  if(mdFrameOverlay) mdFrameOverlay.style.display = 'block';
+  window.__suppressBelowBarProgress = true;
   updateApproveProgress(15, modifyProgressMsg);
   let stopModifySim = startSimulatedProgress(15, 92, modifyProgressMsg, 45000);
   // Same protection as every other generation flow — closing the tab, refreshing, or
