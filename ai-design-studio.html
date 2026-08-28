@@ -24161,7 +24161,11 @@ async function deleteProjectPrompt(id){
   dbDeleteProject(id)
     .then(() => {
       if(currentProjectId === id){
-        startNewProject();
+        // Owner rule: deleting the OPEN project must not throw the user back to the home
+        // page — stay on the same section page with a fresh brief (sidebarSwitchMode is
+        // the existing fresh-start-in-this-section flow; it resets state, clears the
+        // deleted project's results, and re-renders the sidebar).
+        sidebarSwitchMode(mode === 'event' ? 'event' : mode === 'displaystand' ? 'displaystand' : 'booth');
       }else{
         renderProjectSidebar();
       }
