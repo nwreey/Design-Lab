@@ -3619,21 +3619,24 @@ Replace only the materials and graphics."></textarea>
   <!-- Event "Other Design" popup (owner request): another theme, with ONLY these four
        things changeable — Core Areas, Event Mood, AI Creative Freedom, Brand personality. -->
   <div class="gen-notice-overlay" id="eventOtherDesignOverlay">
-    <div class="gen-notice-card" style="max-width:560px;">
+    <!-- Owner report: the popup grew taller than the screen and the OK/Cancel buttons were
+         unreachable — the card now caps at 86% of the viewport and scrolls inside itself,
+         and the inner lists are shorter so the buttons are usually visible without scrolling. -->
+    <div class="gen-notice-card" style="max-width:560px;max-height:86vh;overflow-y:auto;">
       <div class="gen-notice-eyebrow">Other Design</div>
       <h3>Generate another design?</h3>
       <p id="evOdNotice"></p>
       <div style="text-align:left;">
         <div style="font-size:12.5px;font-weight:700;margin:6px 0 4px;">Core Areas</div>
-        <div id="evOdAreas" style="max-height:150px;overflow:auto;border:1.5px solid var(--line);border-radius:2px;padding:8px 10px;"></div>
+        <div id="evOdAreas" style="max-height:110px;overflow:auto;border:1.5px solid var(--line);border-radius:2px;padding:8px 10px;"></div>
         <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">Event Mood <span style="font-weight:400;opacity:.6;">(up to 3)</span></div>
-        <div id="evOdMoods" style="max-height:130px;overflow:auto;border:1.5px solid var(--line);border-radius:2px;padding:8px 10px;"></div>
+        <div id="evOdMoods" style="max-height:96px;overflow:auto;border:1.5px solid var(--line);border-radius:2px;padding:8px 10px;"></div>
         <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">AI Creative Freedom</div>
         <select id="evOdFreedom" style="width:100%;"></select>
         <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">Brand personality <span class="required-mark">*</span></div>
         <select id="evOdPersonality" style="width:100%;"></select>
         <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">What didn't you like — and what do you want more of? (optional)</div>
-        <textarea id="evOdFeedback" rows="3" maxlength="600" placeholder="e.g. the stage feels small and the colors too dark — I want more focus on the stage and a warmer, more inviting entrance..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:9px 11px;border:1.5px solid var(--line);border-radius:2px;box-sizing:border-box;"></textarea>
+        <textarea id="evOdFeedback" rows="2" maxlength="600" placeholder="e.g. the stage feels small and the colors too dark — I want more focus on the stage and a warmer, more inviting entrance..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:9px 11px;border:1.5px solid var(--line);border-radius:2px;box-sizing:border-box;"></textarea>
         <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">Upload a sample (optional)</div>
         <div class="logo-upload" onclick="document.getElementById('evOdSampleInput').click()">
           <input type="file" id="evOdSampleInput" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleEvOdSampleUpload(this)">
