@@ -58,7 +58,13 @@
   .sidebar-brand-logo{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:16.5px;letter-spacing:.5px;color:var(--navy);}
   .sidebar-brand-logo span{color:var(--gold);}
   .sidebar-brand-sub{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--ink);opacity:.5;margin-top:3px;}
-  .sidebar-brand-plan{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:#fff;background:var(--navy);border-radius:2px;padding:2px 8px;margin-top:7px;}
+  /* Owner request: plan badge text 1.5x bigger (9px -> 13.5px), and each plan gets its
+     own background color — Free stays black (--navy), the others are set per plan below. */
+  .sidebar-brand-plan{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:13.5px;letter-spacing:1.6px;text-transform:uppercase;color:#fff;background:var(--navy);border-radius:2px;padding:3px 10px;margin-top:7px;}
+  .sidebar-brand-plan.plan-starter{background:#2E6BE1;}   /* blue */
+  .sidebar-brand-plan.plan-studio{background:#7B3FBF;}    /* purple */
+  .sidebar-brand-plan.plan-pro{background:#B8860B;}       /* gold */
+  .sidebar-brand-plan.plan-admin{background:var(--navy);color:#E8B923;}
   .sidebar-eyebrow{flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--ink);opacity:.45;margin:0 4px 8px;}
   .sidebar-create{flex-shrink:0;display:flex;flex-direction:column;gap:4px;margin-bottom:16px;}
   .create-item{
@@ -10799,6 +10805,12 @@ function renderSidebarBrandPlan(planName){
   }
   // Admins show "Administrator" in the same spot users see their plan (owner request).
   el.textContent = planName === 'Administrator' ? 'Administrator' : (planName || 'Free') + ' Plan';
+  // Per-plan badge color (owner request): Free keeps the black base, others get their own.
+  el.classList.remove('plan-starter', 'plan-studio', 'plan-pro', 'plan-admin');
+  if(planName === 'Administrator') el.classList.add('plan-admin');
+  else if(planName === 'Starter') el.classList.add('plan-starter');
+  else if(planName === 'Studio') el.classList.add('plan-studio');
+  else if(planName === 'Pro') el.classList.add('plan-pro');
   el.style.display = 'inline-block';
 }
 
