@@ -541,7 +541,7 @@
   .home-create-card.featured::after{content:'MOST USED';position:absolute;top:-10px;right:14px;background:var(--navy);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;padding:3px 9px;border-radius:2px;}
   .home-recent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px;}
   @media(max-width:860px){.home-recent-grid{grid-template-columns:1fr;}}
-  .home-recent-card{background:#fff;border:1.5px solid var(--line);border-radius:3px;overflow:hidden;cursor:pointer;transition:box-shadow .16s ease;}
+  .home-recent-card{background:#fff;border:1.5px solid var(--navy);border-radius:3px;overflow:hidden;cursor:pointer;transition:box-shadow .16s ease;}
   .home-recent-card:hover{box-shadow:0 6px 18px rgba(11,20,32,.12);}
   .home-recent-thumb{aspect-ratio:3/2;background:#0B0C10;display:flex;align-items:center;justify-content:center;color:#fff;opacity:.9;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1.5px;overflow:hidden;}
   .home-recent-thumb img{width:100%;height:100%;object-fit:cover;display:block;opacity:.75;filter:saturate(.85);pointer-events:none;}
@@ -11623,6 +11623,13 @@ function renderHomeRecent(projects){
           if(badgeEl){
             badgeEl.className = 'home-badge ' + (bApproved ? 'approved' : 'progress');
             badgeEl.textContent = bApproved ? 'Approved' : 'Generated · not approved';
+          }
+          // Correct the section label too (owner report: an event project read
+          // 'Exhibition Booth' until backfill knew better).
+          const infoSpan = c.querySelector('.info span');
+          if(infoSpan){
+            const bLabel = bKind === 'displaystand' ? 'Display Stand' : bKind === 'event' ? 'Event Concept' : 'Exhibition Booth';
+            infoSpan.textContent = bLabel + ' · ' + formatSavedDate(p.savedAt);
           }
         }
       });
@@ -23833,17 +23840,24 @@ async function saveCurrentProject(){
   // and status — stored as columns server-side so the project list shows them cheaply.
   let homeThumb = null, homeKind = 'booth', homeStatus = 'draft';
   try{
-    const latestBooth = (optionResults && optionResults[0] && optionResults[0].gallery && optionResults[0].gallery.length)
-      ? optionResults[0].gallery[optionResults[0].gallery.length - 1].image : null;
-    const latestImage = (typeof dsLastImage !== 'undefined' && dsLastImage) ? dsLastImage
-      : (eventConceptBoard && eventConceptBoard.image) ? eventConceptBoard.image
-      : latestBooth;
-    homeKind = (typeof dsLastImage !== 'undefined' && dsLastImage) ? 'displaystand'
-      : (eventConceptBoard && eventConceptBoard.image) ? 'event' : 'booth';
-    const hasViews = Object.keys(viewCardHistories || {}).some(k => viewCardHistories[k] && viewCardHistories[k].images && viewCardHistories[k].images.length > 0);
-    const dsApproved = typeof dsViewRenders !== 'undefined' && dsViewRenders && dsViewRenders.length > 0;
-    const evApproved = !!(eventConceptBoard && eventConceptBoard.approved);
-    homeStatus = (hasViews || dsApproved || evApproved) ? 'approved' : (latestImage ? 'generated' : 'draft');
+    // Keyed off the project's OWN mode (owner report: an Event Concept card was labeled
+    // Exhibition Booth) — never off leftover globals from another pipeline.
+    let latestImage = null, approvedNow = false;
+    if(mode === 'displaystand'){
+      homeKind = 'displaystand';
+      latestImage = (typeof dsLastImage !== 'undefined' && dsLastImage) || null;
+      approvedNow = typeof dsViewRenders !== 'undefined' && dsViewRenders && dsViewRenders.length > 0;
+    }else if(mode === 'event'){
+      homeKind = 'event';
+      latestImage = (eventConceptBoard && eventConceptBoard.image) || null;
+      approvedNow = !!(eventConceptBoard && eventConceptBoard.approved);
+    }else{
+      homeKind = 'booth';
+      latestImage = (optionResults && optionResults[0] && optionResults[0].gallery && optionResults[0].gallery.length)
+        ? optionResults[0].gallery[optionResults[0].gallery.length - 1].image : null;
+      approvedNow = Object.keys(viewCardHistories || {}).some(k => viewCardHistories[k] && viewCardHistories[k].images && viewCardHistories[k].images.length > 0);
+    }
+    homeStatus = approvedNow ? 'approved' : (latestImage ? 'generated' : 'draft');
     if(latestImage && typeof compressDataUrl === 'function'){
       homeThumb = await compressDataUrl(latestImage, 360, 0.72);
     }
