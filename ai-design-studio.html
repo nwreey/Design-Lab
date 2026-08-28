@@ -517,9 +517,9 @@
   .action-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 6px;padding:12px;background:#fff;border:1.5px solid var(--line);border-radius:2px;}
   .action-bar select{padding:8px 10px;border:1.5px solid var(--line);border-radius:2px;font-family:'Space Grotesk',sans-serif;font-size:12.5px;background:#fff;}
   .free-modification-note{
-    font-size:12.5px;line-height:1.55;color:#7a5c00;
-    border:1.3px solid #E1A13B;border-radius:2px;background:#FFFBF0;
-    padding:10px 14px;margin:10px 0 0;
+    font-size:12.5px;line-height:1.55;color:#6d5200;font-weight:600;
+    border:1.5px solid #E8B923;border-radius:2px;background:#FFF7D6;
+    padding:11px 14px;margin:10px 0 0;
   }
 
   .action-status{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--navy);opacity:.75;min-height:16px;margin:6px 0 14px;}
@@ -1245,6 +1245,9 @@
         <div class="other-design-wrap">
           <button type="button" class="ghost small" onclick="toggleOtherDesignMenu(event, 'otherDesignMenuDs')">Other Design</button>
           <div class="other-design-dropdown" id="otherDesignMenuDs"></div>
+      <div class="free-modification-note" id="freeModificationNoteDs" style="display:none;" data-i18n="note.freeModification">
+        ✦ Your first modification or other option on this design is on us — occasionally the initial render needs a quick adjustment, and that one won't count against your usage.
+      </div>
         </div>
       </div>
       <div class="action-status" id="dsActionStatus"></div>
@@ -3414,6 +3417,9 @@ Replace only the materials and graphics."></textarea>
         <button type="button" class="ghost small" onclick="toggleOtherDesignMenu(event, 'otherDesignMenuEvent')">Other Design</button>
         <div class="other-design-dropdown" id="otherDesignMenuEvent"></div>
       </div>
+    </div>
+    <div class="free-modification-note" id="freeModificationNoteEvent" style="display:none;" data-i18n="note.freeModification">
+      ✦ Your first modification or other option on this design is on us — occasionally the initial render needs a quick adjustment, and that one won't count against your usage.
     </div>
     <div class="action-status" id="ecbActionStatus"></div>
 
@@ -7570,6 +7576,7 @@ async function generateDisplayStandDesign(){
   projectSwitchLocked = true;
   const panel = document.getElementById('dsResult');
   panel.style.display = 'block';
+  updateFreeModNotes();
   document.getElementById('dsResultTitle').textContent = dsVal('f_dsName');
   // A fresh board means any Good Luck/rating still showing belongs to a design that no longer
   // exists — hide it until this new board is approved again.
@@ -7642,6 +7649,10 @@ async function generateDisplayStandDesign(){
 // shared by both the first Generate and "Other option" (regenerateDsOtherOption), which read
 // the exact same live form fields and only differ in their quota billing / surrounding UI. Sets
 // dsCurrentViews as a side effect (Open vs Closed back changes the camera set), same as before.
+// Set by regenerateDsOtherOption when the free first modification applies — consumed by
+// the next buildDsGenerationRequestBody call so the server can verify + waive the charge.
+let dsNextCallIsFreeFirst = false;
+
 async function buildDsGenerationRequestBody(){
     const type = dsVal('f_dsType') === 'Custom' ? (dsVal('f_dsTypeCustom') || 'Custom') : dsVal('f_dsType');
     const colors = [dsVal('f_dsColorPrimaryHex'), dsVal('f_dsColorSecondaryHex'), dsVal('f_dsColorAccentHex')].filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
@@ -7730,6 +7741,7 @@ async function buildDsGenerationRequestBody(){
     if(additionalReferenceImages.length) prompt += '\n\nPRODUCT REFERENCE IMAGES: the additional attached images show the REAL product — the products on the stand must match them exactly (packaging, shape, colors), never invented substitutes.';
 
     const body = { prompt, isUserInitiatedEdit: !isAdminUser, aspectRatio: '4:3' };
+    if(dsNextCallIsFreeFirst){ body.isFreeFirstModification = true; body.projectId = currentProjectId; dsNextCallIsFreeFirst = false; }
     if(logoData && logoData.dataUrl && String(logoData.type).indexOf('image/') === 0){
       body.referenceImage = logoData.dataUrl.split(',')[1];
       body.referenceMimeType = logoData.type;
@@ -7768,12 +7780,17 @@ async function regenerateDsOtherOption(){
 
   // Every deduction is announced first (owner rule).
   if(!isAdminUser){
-    const msg = (currentUserModifyLimit != null && currentUserModifyCount != null)
+    // Owner rule: the FIRST modification/other-option on this design is on us.
+    const dsFree = freeModAvailable();
+    const msg = dsFree
+      ? 'This one is on us — your first modification or other option on this design is free and won\'t count against your usage. Continue?'
+      : (currentUserModifyLimit != null && currentUserModifyCount != null)
       ? 'Generating another option for this display stand will use 1 of your modifications — you have used ' + currentUserModifyCount + ' of ' + currentUserModifyLimit + '. Continue?'
       : 'Generating another option for this display stand will use 1 of your modifications. Continue?';
     const ok = await customConfirm(msg, 'Other Option', 'Continue');
     if(!ok) return;
-    if(currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
+    if(dsFree){ markFreeModUsed(); saveCurrentProject(); dsNextCallIsFreeFirst = true; }
+    else if(currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
   }
 
   const otherBtn = document.getElementById('dsOtherOptionBtn');
@@ -16428,6 +16445,7 @@ function renderEventConceptBoardResult(skipScroll){
   document.getElementById('promptReview').style.display = 'none';
   document.getElementById('result').style.display = 'none';
   document.getElementById('eventConceptResult').style.display = 'block';
+  updateFreeModNotes();
   renderEcbGalleryStrip();
   renderEcbAreaRenders(null);
   if(eventConceptBoard.approved && eventConceptBoard.areas && eventConceptBoard.areas.length && eventConceptBoard.areaRenders && eventConceptBoard.areaRenders.length >= eventConceptBoard.areas.length){
@@ -16884,12 +16902,17 @@ async function regenerateEventConceptBoard(){
   if(blockIfGenerating()) return;
   // Every deduction is announced first (owner rule): Other Theme costs 1 modification.
   if(!isAdminUser){
-    const otMsg = (currentUserModifyLimit != null && currentUserModifyCount != null)
-      ? 'Generating another theme will use 1 of your modifications — you have used ' + currentUserModifyCount + ' of ' + currentUserModifyLimit + '. Continue?'
-      : 'Generating another theme will use 1 of your modifications. Continue?';
+    // Owner rule: the FIRST modification/other-option on this design is on us.
+    const evFree = freeModAvailable();
+    const otMsg = evFree
+      ? 'This one is on us — your first modification or other option on this design is free and won\'t count against your usage. Continue?'
+      : (currentUserModifyLimit != null && currentUserModifyCount != null)
+        ? 'Generating another theme will use 1 of your modifications — you have used ' + currentUserModifyCount + ' of ' + currentUserModifyLimit + '. Continue?'
+        : 'Generating another theme will use 1 of your modifications. Continue?';
     const okOt = await customConfirm(otMsg, 'Other Theme', 'Continue');
     if(!okOt) return;
-    if(currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
+    if(evFree){ markFreeModUsed(); saveCurrentProject(); }
+    else if(currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
   }
   if(!isAdminUser) lockForm(); // admins stay writable for quick testing (owner request)
   projectSwitchLocked = true;
@@ -19320,7 +19343,7 @@ function showOptionV2(i){
     dlBtn.style.display = 'inline-block';
     actionBar.style.display = 'flex';
     actionStatus.textContent = '';
-    document.getElementById('freeModificationNote').style.display = 'none'; // free-first exemption removed — every modification counts
+    updateFreeModNotes(); // owner rule restored: first modification/other-option per design is free — yellow note shows until it's used
     status.textContent = '';
     renderGalleryStrip();
     renderGalleryNav();
@@ -19615,6 +19638,8 @@ async function regenerateOtherOption(){
   const noticeText = document.getElementById('otherOptionNoticeText');
   if(isAdminUser){
     noticeText.textContent = 'This will generate a new variation of the current design.';
+  }else if(freeModAvailable()){
+    noticeText.textContent = 'This one is on us — your first modification or other option on this design is free and won\'t count against your usage.';
   }else if(currentUserModifyLimit == null){
     noticeText.textContent = `This will use 1 of your modifications — you've used ${currentUserModifyCount != null ? currentUserModifyCount : 0} so far, with no set limit.`;
   }else{
@@ -19625,15 +19650,17 @@ async function regenerateOtherOption(){
 }
 
 async function confirmRegenerateOtherOption(){
-  // The modification is charged the moment the user clicks OK (the server now
-  // increments before generating) — reflect that immediately in the sidebar.
-  if(!isAdminUser && currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
+  // Owner rule: the FIRST modification/other-option on this design is on us — no charge,
+  // client or server. Otherwise the modification is charged the moment the user clicks OK.
+  const freeThisTime = freeModAvailable();
+  if(freeThisTime){ markFreeModUsed(); saveCurrentProject(); }
+  else if(!isAdminUser && currentUserModifyCount != null){ currentUserModifyCount++; renderModifyUsageIndicator(); }
   const idx = activeOptionIndex;
   const opt = optionResults[idx];
   if(!opt) return;
 
   const statusEl = document.getElementById('actionStatus');
-  const isFreeFirstModification = false; // Every modification counts now — the free-first exemption was removed by owner decision.
+  const isFreeFirstModification = freeThisTime; // server verifies + consumes atomically (lib/free-mod.js)
 
   const btn = document.getElementById('otherOptionBtn');
   const approveBtn = document.getElementById('approveDesignBtn');
@@ -19694,7 +19721,7 @@ async function confirmRegenerateOtherOption(){
       }catch(err){ console.error('Could not sync style change to the form:', err); }
     });
 
-    const otherOptionBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX + dislikeBlock + ooChangesBlock, isUserInitiatedEdit: true, isFreeFirstModification, aspectRatio: otherOptionAspectRatio };
+    const otherOptionBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX + dislikeBlock + ooChangesBlock, isUserInitiatedEdit: true, isFreeFirstModification, projectId: currentProjectId, aspectRatio: otherOptionAspectRatio };
     if(mode === 'booth' && logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
       otherOptionBody.referenceImage = logoDataUrl.split(',')[1];
       otherOptionBody.referenceMimeType = logoMediaType;
@@ -20397,6 +20424,8 @@ async function submitModifyDesign(){
   const noticeText = document.getElementById('modifyNoticeText');
   if(isAdminUser){
     noticeText.textContent = 'Submit this modification?';
+  }else if(freeModAvailable()){
+    noticeText.textContent = 'This one is on us — your first modification or other option on this design is free and won\'t count against your usage.';
   }else if(currentUserEditLimit == null){
     noticeText.textContent = `This will use 1 of your edits — you've used ${currentUserEditCount != null ? currentUserEditCount : 0} so far, with no set limit.`;
   }else{
@@ -20407,9 +20436,11 @@ async function submitModifyDesign(){
 }
 
 async function confirmSubmitModifyDesign(){
-  // Modify Design charges the EDIT quota (owner decision), spent the moment the user
-  // clicks OK (the server increments before generating) — reflect it immediately.
-  if(!isAdminUser && currentUserEditCount != null){ currentUserEditCount++; renderEditUsageIndicator(); }
+  // Owner rule: the FIRST modification/other-option on this design is free. Otherwise
+  // Modify Design charges the EDIT quota, spent the moment the user clicks OK.
+  const mdFreeThisTime = freeModAvailable();
+  if(mdFreeThisTime){ markFreeModUsed(); saveCurrentProject(); }
+  else if(!isAdminUser && currentUserEditCount != null){ currentUserEditCount++; renderEditUsageIndicator(); }
   const opt = optionResults[activeOptionIndex];
   if(!opt) return;
   const idx = activeOptionIndex;
@@ -20542,7 +20573,7 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
     const response = await fetchWithTimeout(modifyEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: modifyPrompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: true, quotaKind: 'edit', aspectRatio: modifyAspectRatio })
+      body: JSON.stringify({ prompt: modifyPrompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: true, quotaKind: 'edit', isFreeFirstModification: mdFreeThisTime, projectId: currentProjectId, aspectRatio: modifyAspectRatio })
     });
     const rawText = await response.text();
     let data = {};
@@ -22167,6 +22198,30 @@ async function confirmApproveDesign(){
    next save after that will re-upload everything once, then be fast again after that. */
 
 let currentProjectId = null;
+
+/* ---- First modification / other option on us (owner rule, all three sections) ----
+   One free modification or other-option per design/project. The server (lib/free-mod.js)
+   is the atomic source of truth; this client flag mirrors it for UI (yellow note, popup
+   wording, skipping the local counter) and persists with the project. */
+let currentProjectFreeModUsed = false;
+
+function freeModAvailable(){
+  return !isAdminUser && !currentProjectFreeModUsed;
+}
+
+function markFreeModUsed(){
+  currentProjectFreeModUsed = true;
+  updateFreeModNotes();
+}
+
+// Shows/hides the yellow "first one on us" note in whichever section(s) are on screen.
+function updateFreeModNotes(){
+  const show = freeModAvailable();
+  ['freeModificationNote', 'freeModificationNoteEvent', 'freeModificationNoteDs'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = show ? 'block' : 'none';
+  });
+}
 const blobRefCache = new Map(); // data URL string -> "blob:<pathname>" string
 
 function substituteCachedBlobRefs(node){
@@ -23056,6 +23111,7 @@ async function saveCurrentProject(){
   }
 
   const project = {
+    freeModificationUsed: currentProjectFreeModUsed,
     id: currentProjectId,
     name: projectName,
     savedAt: new Date().toISOString(),
@@ -23243,6 +23299,8 @@ function openProject(id){
       // "Untitled Project" in the database on the very next save, without the person ever
       // touching rename.
       currentProjectName = project.name || currentProjectName;
+      currentProjectFreeModUsed = !!project.freeModificationUsed;
+      updateFreeModNotes();
       // Modify design/Approve/Other option are the same three DOM elements every project
       // reuses — unlock them before rendering this project's own view; restoreResultsView
       // (via restoreGeneratedViewsIfSaved) re-locks them immediately after if this
@@ -23454,6 +23512,8 @@ function handleExistingDesignUpload(input){
 function startNewProject(){
   if(blockIfGenerating()) return;
   currentProjectId = null;
+  currentProjectFreeModUsed = false;
+  updateFreeModNotes();
   pendingPromptResult = null;
   optionResults = [];
   activeOptionIndex = 0;

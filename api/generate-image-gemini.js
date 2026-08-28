@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { neon } = require('@neondatabase/serverless');
 const { logAiCall } = require('../lib/usage-log.js');
 const { scrubProviderText, GENERIC_IMAGE_ERROR } = require('../lib/safe-error.js');
+const { tryConsumeFreeFirstModification } = require('../lib/free-mod.js');
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* Same token verification duplicated across the auth-aware endpoints in this project —
@@ -153,17 +154,25 @@ module.exports = async (req, res) => {
     // exemption is gone, and since it lived server-side there is no client flag that can
     // reinstate it.
     if (isUserInitiatedEdit) {
-      const chargesEditQuota = quotaKind === 'edit';
-      const quotaError = chargesEditQuota ? await checkEditQuota(caller) : await checkModifyQuota(caller);
-      if (quotaError) {
-        res.status(403).json({ error: { message: quotaError } });
-        return;
+      // Owner rule: the FIRST modification/other-option per project is on us (lib/free-mod.js
+      // is the atomic source of truth). When granted, no quota check and no increment.
+      const body = req.body || {};
+      const freeApplied = body.isFreeFirstModification
+        ? await tryConsumeFreeFirstModification(sql, caller.userId, body.projectId)
+        : false;
+      if (!freeApplied) {
+        const chargesEditQuota = quotaKind === 'edit';
+        const quotaError = chargesEditQuota ? await checkEditQuota(caller) : await checkModifyQuota(caller);
+        if (quotaError) {
+          res.status(403).json({ error: { message: quotaError } });
+          return;
+        }
+        // Owner decision: the credit is spent the moment the user commits (clicks OK),
+        // not when the image finishes rendering — so charge it up front, before the
+        // model call. Modify Design sends quotaKind 'edit' (edit quota); Other option
+        // sends nothing and stays on the modify quota.
+        if (chargesEditQuota) await incrementEditCount(caller); else await incrementModifyCount(caller);
       }
-      // Owner decision: the credit is spent the moment the user commits (clicks OK),
-      // not when the image finishes rendering — so charge it up front, before the
-      // model call. Modify Design sends quotaKind 'edit' (edit quota); Other option
-      // sends nothing and stays on the modify quota.
-      if (chargesEditQuota) await incrementEditCount(caller); else await incrementModifyCount(caller);
     }
 
     const model = 'gemini-3.1-flash-image';

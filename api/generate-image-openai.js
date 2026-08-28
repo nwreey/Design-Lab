@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
 import { logAiCall } from '../lib/usage-log.js';
 import { scrubProviderText, GENERIC_IMAGE_ERROR, GENERIC_TEXT_ERROR } from '../lib/safe-error.js';
+import { tryConsumeFreeFirstModification } from '../lib/free-mod.js';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* Same token verification duplicated across the auth-aware endpoints in this project —
@@ -165,8 +166,12 @@ export default async function handler(req, res) {
     }
 
     if (isUserInitiatedEdit) {
+      // Owner rule: first modification/other-option per project is free (lib/free-mod.js).
+      const freeApplied = (req.body || {}).isFreeFirstModification
+        ? await tryConsumeFreeFirstModification(sql, caller.userId, (req.body || {}).projectId)
+        : false;
       const chargesEditQuota = quotaKind === 'edit';
-      const quotaError = chargesEditQuota ? await checkEditQuota(caller) : await checkModifyQuota(caller);
+      const quotaError = freeApplied ? null : (chargesEditQuota ? await checkEditQuota(caller) : await checkModifyQuota(caller));
       if (quotaError) {
         res.status(403).json({ error: { message: quotaError } });
         return;
@@ -175,7 +180,7 @@ export default async function handler(req, res) {
       // not when the image finishes rendering — so charge it up front, before the
       // model call. Modify Design sends quotaKind 'edit' (edit quota); Other option
       // sends nothing and stays on the modify quota.
-      if (chargesEditQuota) await incrementEditCount(caller); else await incrementModifyCount(caller);
+      if (!freeApplied) { if (chargesEditQuota) await incrementEditCount(caller); else await incrementModifyCount(caller); }
     }
 
     const size = sizeFromAspectRatio(aspectRatio);
