@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>المدونة — أدلة تصميم المعارض والفعاليات | DesignsLab AI</title>
+<meta name="description" content="أدلة عملية بالعربية عن تصميم أجنحة المعارض والفعاليات بالذكاء الاصطناعي وتكاليف السوق الخليجي.">
+<meta property="og:title" content="المدونة — أدلة تصميم المعارض والفعاليات | DesignsLab AI">
+<meta property="og:description" content="أدلة عملية بالعربية عن تصميم أجنحة المعارض والفعاليات بالذكاء الاصطناعي وتكاليف السوق الخليجي.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="DesignsLab AI">
+<link rel="canonical" href="https://designslab.ai/ar/blog">
+<link rel="alternate" hreflang="en" href="https://designslab.ai/blog">
+<link rel="alternate" hreflang="ar" href="https://designslab.ai/ar/blog">
+<link rel="alternate" hreflang="x-default" href="https://designslab.ai/blog">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#FFFFFF; --ink:#111111; --muted:#666666; --line:#EAEAEA; --radius:14px; }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  @media(min-width:900px){ html{zoom:1.08;} }
+  body{ margin:0; font-family:'IBM Plex Sans Arabic','Inter',sans-serif; color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
+  h1,h2{font-weight:800;letter-spacing:-0.01em;margin:0;}
+  a{color:inherit;}
+  .eyebrow{font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+  .reveal{ opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+  button, .btn{
+    font-family:'IBM Plex Sans Arabic','Inter',sans-serif; font-weight:700; font-size:15px; padding:15px 30px;
+    border-radius:var(--radius); cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+    text-decoration:none; transition:transform .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+    border:2px solid var(--ink);
+  }
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 24px -8px rgba(17,17,17,0.35);}
+  .btn-secondary{background:#fff;color:var(--ink);}
+  .nav-signin{ font-family:'IBM Plex Sans Arabic','Inter',sans-serif; font-size:13.5px; font-weight:700; color:var(--ink); background:#fff; padding:9px 18px; border-radius:10px; border:2px solid var(--ink); text-decoration:none; white-space:nowrap; }
+  .nav-signup{ font-family:'IBM Plex Sans Arabic','Inter',sans-serif; font-size:13.5px; font-weight:700; color:#fff; background:var(--ink); padding:9px 18px; border-radius:10px; border:2px solid var(--ink); text-decoration:none; white-space:nowrap; }
+  .site-header{ position:sticky; top:0; z-index:50; background:rgba(255,255,255,0.9); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-bottom:1px solid transparent; transition:border-color .25s ease, box-shadow .25s ease; }
+  .site-header.scrolled{ border-bottom-color:var(--line); box-shadow:0 4px 24px -16px rgba(17,17,17,0.18); }
+  .site-header-inner{ max-width:1180px; margin:0 auto; padding:14px 32px; display:flex; align-items:center; gap:30px; }
+  .site-logo{ display:flex; align-items:center; gap:9px; text-decoration:none; flex-shrink:0; }
+  .site-logo img{ height:36px; width:auto; display:block; }
+  .site-logo span{ font-weight:800; font-size:14.5px; color:var(--ink); }
+  .site-nav{ display:flex; align-items:center; gap:28px; margin-inline-end:auto; }
+  .site-nav a{ font-size:14px; font-weight:600; color:var(--muted); text-decoration:none; padding:5px 0; transition:color .15s ease; }
+  .site-nav a:hover, .site-nav a.active{ color:var(--ink); }
+  .site-header-actions{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
+  .nav-menu-toggle{ display:none; background:none; border:1.5px solid var(--line); border-radius:8px; width:36px; height:36px; font-size:16px; cursor:pointer; color:var(--ink); }
+  .mobile-nav{ display:none; flex-direction:column; gap:2px; padding:6px 32px 16px; border-top:1px solid var(--line); }
+  .mobile-nav a{ padding:11px 4px; font-size:14.5px; font-weight:600; color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line); }
+  .mobile-nav a:last-child{ border-bottom:none; }
+  .site-header.nav-open .mobile-nav{ display:flex; }
+  @media(max-width:860px){ .site-nav{ display:none; } .nav-menu-toggle{ display:inline-flex; align-items:center; justify-content:center; } }
+  footer{ border-top:1px solid var(--line); padding:56px 0 30px; margin-top:60px; }
+  .footer-grid{ display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:26px; text-align:start; }
+  @media(max-width:760px){ .footer-grid{ grid-template-columns:1fr 1fr; } }
+  @media(max-width:480px){ .footer-grid{ grid-template-columns:1fr; } }
+  .footer-brand .footer-logo{ height:85px; width:auto; margin-bottom:12px; opacity:.9; display:block; }
+  .footer-brand .footer-tag{ font-size:13px; font-weight:600; color:var(--ink); max-width:230px; line-height:1.6; }
+  .footer-col-title{ font-size:11.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--ink); margin-bottom:14px; }
+  .footer-col{ display:flex; flex-direction:column; gap:11px; }
+  .footer-col a{ font-size:13.5px; color:var(--muted); text-decoration:none; }
+  .footer-col a:hover{ color:var(--ink); }
+  .footer-bottom{ margin-top:44px; padding-top:22px; border-top:1px solid var(--line); text-align:center; }
+  footer .footer-copy{ font-size:11.5px; color:#9A9A9A; }
+  .seo-hero{padding:72px 0 44px;}
+  .seo-hero h1{font-size:40px;line-height:1.25;max-width:860px;}
+  .seo-hero p.lead{font-size:17.5px;color:var(--muted);line-height:1.9;max-width:780px;margin:18px 0 26px;}
+  .seo-cta-row{display:flex;gap:14px;flex-wrap:wrap;}
+  .seo-section{padding:34px 0;}
+  .seo-section h2{font-size:26px;margin-bottom:18px;}
+  .seo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  @media(max-width:860px){.seo-grid{grid-template-columns:1fr;} .seo-hero h1{font-size:30px;}}
+  .seo-card{border:1px solid var(--line);border-radius:var(--radius);padding:22px;}
+  .seo-card h3{margin:0 0 8px;font-size:16.5px;}
+  .seo-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.85;}
+  .seo-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  @media(max-width:860px){.seo-steps{grid-template-columns:1fr;}}
+  .seo-step{border:1px solid var(--line);border-radius:var(--radius);padding:22px;}
+  .seo-step .num{font-weight:800;font-size:13px;color:var(--muted);letter-spacing:.06em;}
+  .seo-step h3{margin:8px 0 8px;font-size:16px;}
+  .seo-step p{margin:0;color:var(--muted);font-size:14px;line-height:1.85;}
+  .seo-band{background:#111;color:#fff;border-radius:var(--radius);padding:40px 36px;margin:40px 0 20px;display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap;}
+  .seo-band h2{font-size:24px;margin:0;}
+  .seo-band .btn{background:#fff;color:#111;border-color:#fff;}
+  .seo-prose{max-width:820px;}
+  .seo-prose p{color:#3d3d3d;line-height:2;font-size:15.5px;}
+  .seo-prose h2{font-size:23px;margin:34px 0 12px;}
+  .seo-prose ul{color:#3d3d3d;line-height:2;font-size:15.5px;padding-inline-start:22px;}
+  .blog-meta{font-size:13px;color:var(--muted);margin:6px 0 22px;}
+  .post-card{border:1.5px solid var(--line);border-radius:18px;padding:26px;display:block;text-decoration:none;transition:transform .25s ease, box-shadow .25s ease;}
+  .post-card:hover{transform:translateY(-4px);box-shadow:0 18px 40px -20px rgba(17,17,17,0.25);}
+  .post-card h3{margin:8px 0 10px;font-size:18px;line-height:1.5;}
+  .post-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.9;}
+  .post-list{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  @media(max-width:820px){.post-list{grid-template-columns:1fr;}}
+</style>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "الرئيسية",
+   "item": "https://designslab.ai/ar"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "المدونة",
+   "item": "https://designslab.ai/ar/blog"
+  }
+ ]
+}
+</script>
+</head>
+<body>
+
+  <header class="site-header" id="siteHeader">
+    <div class="site-header-inner">
+      <a href="/ar" class="site-logo">
+        <img src="/logo-black-transparent.png" alt="DesignsLab AI">
+        <span>DesignsLab AI</span>
+      </a>
+      <nav class="site-nav">
+        <a href="/ar" >الرئيسية</a>
+        <a href="/ar/ai-exhibition-booth-designer">تصميم أجنحة المعارض</a>
+        <a href="/ar/ai-event-concept-generator">تصميم الفعاليات</a>
+        <a href="/pricing.html">الأسعار</a>
+        <a href="/ar/blog" class="active">المدونة</a>
+        <a href="/blog" style="font-weight:700;">English</a>
+      </nav>
+      <div class="site-header-actions">
+        <a href="/login.html" class="nav-signin">تسجيل الدخول</a>
+        <a href="/signup.html" class="nav-signup">إنشاء حساب</a>
+        <button type="button" class="nav-menu-toggle" onclick="toggleMobileNav()" aria-label="القائمة">☰</button>
+      </div>
+    </div>
+    <nav class="mobile-nav" id="mobileNav">
+      <a href="/ar">الرئيسية</a>
+      <a href="/ar/ai-exhibition-booth-designer">تصميم أجنحة المعارض</a>
+      <a href="/ar/ai-event-concept-generator">تصميم الفعاليات</a>
+      <a href="/ar/ai-display-stand-designer">تصميم ستاندات العرض</a>
+      <a href="/pricing.html">الأسعار</a>
+      <a href="/ar/blog">المدونة</a>
+      <a href="/blog">English</a>
+      <a href="/login.html">تسجيل الدخول</a>
+      <a href="/signup.html">إنشاء حساب</a>
+    </nav>
+  </header>
+
+
+  <section class="wrap seo-hero reveal" style="padding-bottom:20px;">
+    <span class="eyebrow">المدونة</span>
+    <h1>مدونة DesignsLab AI</h1>
+    <p class="lead">أدلة عملية عن تصميم أجنحة المعارض والفعاليات بالذكاء الاصطناعي، وتكاليف السوق الخليجي، وأفضل الممارسات.</p>
+  </section>
+  <section class="wrap seo-section reveal"><div class="post-list" style="padding-bottom:60px;"><a class="post-card reveal" href="/ar/blog/ai-exhibition-booth-design-guide"><span class="eyebrow">دليل</span><h3>دليل تصميم أجنحة المعارض بالذكاء الاصطناعي (2026)</h3><p>كيف تحوّل وصفاً مكتوباً إلى جناح معرض متكامل: خطوات العمل، وما الذي يجعل التصميم قابلاً للتنفيذ، وكيف تحافظ على هوية علامتك.</p></a><a class="post-card reveal" href="/ar/blog/exhibition-booth-cost-saudi-uae"><span class="eyebrow">دليل التكاليف</span><h3>كم تكلفة تصميم وبناء جناح معرض في السعودية والإمارات؟ (2026)</h3><p>أسعار السوق الفعلية للمتر المربع، والعوامل الخمسة التي ترفع التكلفة، وكيف تتحكم قرارات التصميم في الميزانية قبل البناء.</p></a></div></section>
+
+
+  <footer>
+    <div class="wrap footer-grid">
+      <div class="footer-brand">
+        <img src="/logo-black-transparent.png" alt="DesignsLab AI" class="footer-logo" loading="lazy">
+        <div class="footer-tag">استوديو التصميم بالذكاء الاصطناعي للمعارض والفعاليات</div>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">أدوات الذكاء الاصطناعي</div>
+        <a href="/ar/ai-exhibition-booth-designer">تصميم أجنحة المعارض</a>
+        <a href="/ar/ai-event-concept-generator">تصميم أفكار الفعاليات</a>
+        <a href="/ar/ai-display-stand-designer">تصميم ستاندات العرض</a>
+        <a href="/ar/ai-image-editor">محرر صور التصاميم</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">الموقع</div>
+        <a href="/ar">الرئيسية</a>
+        <a href="/pricing.html">الأسعار</a>
+        <a href="/ar/blog">المدونة</a>
+        <a href="/contact.html">تواصل معنا</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">قانوني</div>
+        <a href="/terms.html">شروط الاستخدام</a>
+        <a href="/privacy.html">سياسة الخصوصية</a>
+        <a href="/cookie-policy.html">سياسة ملفات الارتباط</a>
+      </div>
+    </div>
+    <div class="wrap footer-bottom">
+      <div class="footer-copy">© 2026 DMR Arabia. جميع الحقوق محفوظة.</div>
+    </div>
+  </footer>
+
+
+<script>
+function toggleMobileNav(){ document.getElementById('siteHeader').classList.toggle('nav-open'); }
+window.addEventListener('scroll', function(){
+  document.getElementById('siteHeader').classList.toggle('scrolled', window.scrollY > 8);
+}, { passive: true });
+if('IntersectionObserver' in window){
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){ if(entry.isIntersecting){ entry.target.classList.add('in'); io.unobserve(entry.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+} else {
+  document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); });
+}
+</script>
+
+</body>
+</html>

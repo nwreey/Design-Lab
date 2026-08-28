@@ -100,6 +100,46 @@
     {
       "source": "/blog/exhibition-stand-cost-drivers-and-how-design-controls-them",
       "destination": "/blog/exhibition-stand-cost-drivers-and-how-design-controls-them.html"
+    },
+    {
+      "source": "/ar",
+      "destination": "/ar/index.html"
+    },
+    {
+      "source": "/ar/ai-exhibition-booth-designer",
+      "destination": "/ar/ai-exhibition-booth-designer.html"
+    },
+    {
+      "source": "/ar/ai-event-concept-generator",
+      "destination": "/ar/ai-event-concept-generator.html"
+    },
+    {
+      "source": "/ar/ai-display-stand-designer",
+      "destination": "/ar/ai-display-stand-designer.html"
+    },
+    {
+      "source": "/ar/ai-image-editor",
+      "destination": "/ar/ai-image-editor.html"
+    },
+    {
+      "source": "/ar/blog",
+      "destination": "/ar/blog/index.html"
+    },
+    {
+      "source": "/ar/blog/ai-exhibition-booth-design-guide",
+      "destination": "/ar/blog/ai-exhibition-booth-design-guide.html"
+    },
+    {
+      "source": "/ar/blog/exhibition-booth-cost-saudi-uae",
+      "destination": "/ar/blog/exhibition-booth-cost-saudi-uae.html"
+    },
+    {
+      "source": "/blog/exhibition-stand-cost-dubai-saudi-arabia",
+      "destination": "/blog/exhibition-stand-cost-dubai-saudi-arabia.html"
+    },
+    {
+      "source": "/blog/exhibition-booth-design-trends-2026",
+      "destination": "/blog/exhibition-booth-design-trends-2026.html"
     }
   ]
 }
