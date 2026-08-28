@@ -315,8 +315,9 @@ export default async function handler(req, res) {
   if (req.method === 'PATCH') {
     // Lightweight rename — touches only the name column, never re-walks or re-uploads images.
     const { id, name } = req.body || {};
-    if (!id || !name) {
-      res.status(400).json({ error: { message: 'Rename requires id and name.' } });
+    const hasCardFields = req.body && (typeof req.body.thumb === 'string' || typeof req.body.kind === 'string' || typeof req.body.status === 'string');
+    if (!id || (!name && !hasCardFields)) {
+      res.status(400).json({ error: { message: 'PATCH requires id plus a name or card fields.' } });
       return;
     }
     const existing = await sql`SELECT user_id FROM projects WHERE id = ${id};`;
@@ -328,7 +329,16 @@ export default async function handler(req, res) {
       res.status(403).json({ error: { message: 'You do not have access to this project.' } });
       return;
     }
-    await sql`UPDATE projects SET name = ${name} WHERE id = ${id};`;
+    if (name) await sql`UPDATE projects SET name = ${name} WHERE id = ${id};`;
+    // Home-card backfill (owner report: old projects showed black boxes): the client may
+    // send just the card columns for projects saved before thumb/kind/status existed.
+    const cardCols = req.body || {};
+    if (typeof cardCols.thumb === 'string' || typeof cardCols.kind === 'string' || typeof cardCols.status === 'string') {
+      const tVal = typeof cardCols.thumb === 'string' ? cardCols.thumb.slice(0, 200000) : null;
+      const kVal = typeof cardCols.kind === 'string' ? cardCols.kind.slice(0, 40) : null;
+      const sVal = typeof cardCols.status === 'string' ? cardCols.status.slice(0, 40) : null;
+      await sql`UPDATE projects SET thumb = COALESCE(${tVal}, thumb), kind = COALESCE(${kVal}, kind), status = COALESCE(${sVal}, status) WHERE id = ${id};`;
+    }
     res.status(200).json({ ok: true });
     return;
   }

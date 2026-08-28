@@ -967,7 +967,7 @@
     <div style="font-size:11.5px;opacity:.55;margin-top:8px;">✦ First modification on every design is on us</div>
     <div class="home-create-head">
       <h2>What would you like to design today?</h2>
-      <span class="home-eyebrow" id="homeRemainingLine"></span>
+
     </div>
     <div class="home-create-grid">
       <div class="home-create-card featured" onclick="chooseHomeSection('booth')">
@@ -11561,16 +11561,7 @@ function updateStudioHomeUsage(){
   setChip('hcProjNum', 'hcProjBar', lastKnownProjectCount, currentUserProjectLimit);
   setChip('hcModNum', 'hcModBar', currentUserModifyCount, currentUserModifyLimit);
   setChip('hcEditNum', 'hcEditBar', currentUserEditCount, currentUserEditLimit);
-  const rem = document.getElementById('homeRemainingLine');
-  if(rem){
-    if(isAdminUser){ rem.textContent = 'Administrator — unlimited'; }
-    else if(currentUserProjectLimit != null && lastKnownProjectCount != null){
-      const r = Math.max(0, currentUserProjectLimit - lastKnownProjectCount);
-      rem.textContent = r + ' project' + (r === 1 ? '' : 's') + ' remaining on your plan';
-    }else{
-      rem.textContent = '';
-    }
-  }
+
 }
 
 function renderHomeRecent(projects){
@@ -11603,6 +11594,42 @@ function renderHomeRecent(projects){
       '<div class="home-recent-thumb">' + thumb + '</div>' +
       '<div class="info"><b>' + escapeHtml(p.name) + '</b><span>' + kind + ' · ' + formatSavedDate(p.savedAt) + '</span>' + badge + '</div></div>';
   }).join('');
+
+  // Backfill (owner report: projects saved before the thumb columns showed black boxes):
+  // for cards with no picture, fetch the full project ONCE, show its last image, and
+  // persist the small thumb server-side (PATCH card columns) so later loads are instant.
+  window.__homeThumbBackfilled = window.__homeThumbBackfilled || {};
+  recent.forEach(async p => {
+    const hasPic = p.thumb || (p.optionResult && p.optionResult.gallery && p.optionResult.gallery.length) || (p.eventConceptBoard && p.eventConceptBoard.image) || (p.dsResult && p.dsResult.image);
+    if(hasPic || window.__homeThumbBackfilled[p.id]) return;
+    window.__homeThumbBackfilled[p.id] = true;
+    try{
+      const full = await dbGetProject(p.id);
+      if(!full) return;
+      const fg = full.optionResult && full.optionResult.gallery;
+      const latest = (full.dsResult && full.dsResult.image)
+        || (full.eventConceptBoard && full.eventConceptBoard.image)
+        || (fg && fg.length && fg[fg.length - 1].image) || null;
+      if(!latest) return;
+      const bKind = full.dsResult ? 'displaystand' : full.eventConceptBoard ? 'event' : 'booth';
+      const hasViews = full.viewCardHistories && Object.keys(full.viewCardHistories).some(k => full.viewCardHistories[k] && full.viewCardHistories[k].images && full.viewCardHistories[k].images.length > 0);
+      const bApproved = hasViews || (full.eventConceptBoard && full.eventConceptBoard.approved) || (full.dsResult && full.dsResult.renders && full.dsResult.renders.length > 0);
+      const bThumb = typeof compressDataUrl === 'function' ? await compressDataUrl(latest, 360, 0.72) : latest;
+      grid.querySelectorAll('.home-recent-card').forEach(c => {
+        if((c.getAttribute('onclick') || '').includes(p.id)){
+          const t = c.querySelector('.home-recent-thumb');
+          if(t) t.innerHTML = '<img src="' + bThumb + '" alt="">';
+          const badgeEl = c.querySelector('.home-badge');
+          if(badgeEl){
+            badgeEl.className = 'home-badge ' + (bApproved ? 'approved' : 'progress');
+            badgeEl.textContent = bApproved ? 'Approved' : 'Generated · not approved';
+          }
+        }
+      });
+      fetch('/api/projects', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: p.id, thumb: bThumb, kind: bKind, status: bApproved ? 'approved' : 'generated' }) }).catch(() => {});
+    }catch(err){ console.error('Home thumb backfill failed for', p.id, err); }
+  });
 }
 
 function collapseFormCard(){
