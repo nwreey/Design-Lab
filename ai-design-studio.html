@@ -20885,6 +20885,21 @@ function stopCameraViewsGeneration(){
   if(cameraViewsAbortController) cameraViewsAbortController.abort();
 }
 
+/* Owner report ("the page flashes on every image"): saving the WHOLE project — every
+   image re-serialized into a multi-MB JSON body — after EACH finished camera view froze
+   the main thread for a beat per view, which reads as a page flash. Mid-run saves are now
+   debounced (one save at most every few seconds, trailing), keeping the crash-resilience
+   the per-view save was added for while the visible stutter is gone. The final save at
+   the end of the run stays immediate. */
+let __projectSaveTimer = null;
+function scheduleProjectSave(delayMs){
+  if(__projectSaveTimer) return;
+  __projectSaveTimer = setTimeout(() => {
+    __projectSaveTimer = null;
+    saveCurrentProject();
+  }, delayMs || 4000);
+}
+
 async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPromptText){
   const compressedHero = await compressDataUrl(heroImage, 1536, 0.88);
   const { mime, base64 } = dataUrlParts(compressedHero);
@@ -20920,7 +20935,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   // view (this one included) means a refresh mid-generation only ever loses the ONE view
   // that was in flight at that exact moment — everything already finished survives, and
   // that one in-flight view just becomes another card the person can hit Retry on.
-  saveCurrentProject();
+  scheduleProjectSave(4000);
 
   let stoppedEarly = false;
   for(let i = 1; i < CAMERA_SPECS.length; i++){
@@ -20975,7 +20990,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
     }
     // Saved after every view, success or failure — see the comment above the first save
     // call for why this can't just wait until the whole batch finishes.
-    saveCurrentProject();
+    scheduleProjectSave(4000);
   }
 
   if(stopBtn) stopBtn.style.display = 'none';
