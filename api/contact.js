@@ -1,28 +1,71 @@
+import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
-import { sendTransactionalEmail, buildContactMessageEmail } from '../lib/email.js';
+import { sendTransactionalEmail, buildContactMessageEmail, buildBrandedEmail } from '../lib/email.js';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
-/* ================= Contact form endpoint =================
-   Public POST — delivers the visitor's message to the company inbox
-   (info@designslab.ai) via Mandrill, per explicit product decision. The email's
-   Reply-To is the visitor's own address, so answering from the inbox goes straight
-   back to them.
+/* ================= Contact / Get help endpoint =================
+   Public POST — a submitted help request now does THREE things at once (owner request):
+   1. Is stored in contact_messages so it appears in the admin panel's Help Requests
+      section (nothing depends on email delivery alone anymore).
+   2. Is emailed to the company inbox (info@designslab.ai) AND directly to the owner
+      (moe@dmrarabia.com), Reply-To set to the visitor so answering goes straight back.
+   3. Sends the visitor a branded acknowledgment email ("we got your message") — owner
+      decision, overriding the earlier no-auto-reply stance; the per-IP rate limit is the
+      spam guard for that. The acknowledgment is best-effort: its failure never fails the
+      submission itself.
 
-   No customer-facing acknowledgment email is sent on purpose: the recipient address
-   is visitor-typed and unverified, so auto-replying to it would make this endpoint a
-   backscatter-spam relay (anyone could make us email an arbitrary address). The one
-   email that IS sent goes only to our own fixed inbox.
+   Admin-only methods for the panel: GET lists messages, PUT {id,status} marks
+   new/handled, DELETE ?id= removes one.
 
-   Rate limited per IP (same table-based approach as api/signup.js — no external
-   store on serverless): max 5 messages per IP per hour. If Mandrill itself fails,
-   the visitor gets an honest error pointing them at info@designslab.ai directly —
-   nothing is silently dropped. */
+   Rate limited per IP (same table-based approach as api/signup.js): max 5 messages
+   per IP per hour. If delivery to our own inboxes fails, the visitor gets an honest
+   error pointing them at info@designslab.ai — but the message is still saved for the
+   admin panel, and the response says so. */
 
 const CONTACT_INBOX = 'info@designslab.ai';
+const OWNER_INBOX = 'moe@dmrarabia.com';
 
 /* TEMPORARY — RATE LIMIT DISABLED FOR OWNER TESTING (set back to false to re-enable).
    Same flag/reason as api/signup.js. */
 const RATE_LIMIT_DISABLED = true;
+
+/* Same admin re-verification as the other admin-aware endpoints (see api/admin-users.js). */
+function getCaller(req) {
+  const signingSecret = process.env.SITE_PASSWORD || '';
+  if (!signingSecret) return null;
+  const cookieHeader = req.headers.cookie || '';
+  const match = cookieHeader.match(/(?:^|; )design_lab_auth=([^;]*)/);
+  const token = match ? decodeURIComponent(match[1]) : null;
+  if (!token) return null;
+  const separatorIndex = token.indexOf('.');
+  if (separatorIndex === -1) return null;
+  const payloadB64 = token.substring(0, separatorIndex);
+  const signature = token.substring(separatorIndex + 1);
+  const expectedSignature = crypto.createHmac('sha256', signingSecret).update(payloadB64).digest('hex');
+  if (signature !== expectedSignature) return null;
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf8'));
+  } catch (err) {
+    return null;
+  }
+  if (!payload.expiry || payload.expiry < Math.floor(Date.now() / 1000)) return null;
+  return payload;
+}
+
+async function ensureMessagesSchema() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS contact_messages (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      subject TEXT,
+      message TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `;
+}
 
 async function checkSubmitRateLimit(ip) {
   if (RATE_LIMIT_DISABLED) return true;
@@ -55,6 +98,45 @@ function cleanText(value, maxLen) {
 }
 
 export default async function handler(req, res) {
+  /* ---------- Admin panel methods ---------- */
+  if (req.method === 'GET' || req.method === 'PUT' || req.method === 'DELETE') {
+    const caller = getCaller(req);
+    if (!caller || caller.role !== 'admin') {
+      res.status(403).json({ error: { message: 'Admin access required.' } });
+      return;
+    }
+    try {
+      await ensureMessagesSchema();
+      if (req.method === 'GET') {
+        const result = await sql`SELECT id, name, email, subject, message, status, created_at FROM contact_messages ORDER BY created_at DESC LIMIT 200;`;
+        res.status(200).json({ messages: result.rows });
+        return;
+      }
+      if (req.method === 'PUT') {
+        const { id, status } = req.body || {};
+        if (!id || !['new', 'handled'].includes(status)) {
+          res.status(400).json({ error: { message: 'Body must include id and status (new|handled).' } });
+          return;
+        }
+        await sql`UPDATE contact_messages SET status = ${status} WHERE id = ${id};`;
+        res.status(200).json({ ok: true });
+        return;
+      }
+      // DELETE ?id=N
+      const id = parseInt((req.query && req.query.id) || '', 10);
+      if (!id) {
+        res.status(400).json({ error: { message: 'id query parameter required.' } });
+        return;
+      }
+      await sql`DELETE FROM contact_messages WHERE id = ${id};`;
+      res.status(200).json({ ok: true });
+      return;
+    } catch (err) {
+      res.status(500).json({ error: { message: err && err.message ? err.message : 'Unexpected server error.' } });
+      return;
+    }
+  }
+
   if (req.method !== 'POST') {
     res.status(405).json({ error: { message: 'Method not allowed. Use POST.' } });
     return;
@@ -87,18 +169,48 @@ export default async function handler(req, res) {
     console.error('contact: rate-limit check failed (continuing):', err);
   }
 
-  const emailContent = buildContactMessageEmail({ name, email, subject, message });
-  const result = await sendTransactionalEmail({
-    toEmail: CONTACT_INBOX,
-    toName: 'DesignsLab AI',
-    subject: emailContent.subject,
-    html: emailContent.html,
-    replyTo: email,
-  });
+  // 1. Store for the admin panel FIRST — the record must exist even if every email below
+  // fails, so a help request can never silently vanish.
+  let stored = false;
+  try {
+    await ensureMessagesSchema();
+    await sql`INSERT INTO contact_messages (name, email, subject, message) VALUES (${name}, ${email}, ${subject || null}, ${message});`;
+    stored = true;
+  } catch (err) {
+    console.error('contact: could not store message (continuing to email):', err);
+  }
 
-  if (!result.sent) {
-    // Honest failure — the message was NOT delivered anywhere, so tell the visitor
-    // exactly how to still reach us rather than pretending it worked.
+  // 2. Notify our own inboxes — company inbox AND the owner directly (owner request).
+  const emailContent = buildContactMessageEmail({ name, email, subject, message });
+  const [inboxResult, ownerResult] = await Promise.all([
+    sendTransactionalEmail({ toEmail: CONTACT_INBOX, toName: 'DesignsLab AI', subject: emailContent.subject, html: emailContent.html, replyTo: email }),
+    sendTransactionalEmail({ toEmail: OWNER_INBOX, toName: 'Moe', subject: emailContent.subject, html: emailContent.html, replyTo: email }),
+  ]);
+
+  // 3. Branded acknowledgment to the visitor (owner request) — best-effort only.
+  try {
+    const ackHtml = buildBrandedEmail({
+      previewText: 'We received your message — the DesignsLab team will get back to you shortly.',
+      greeting: name,
+      paragraphs: [
+        'Thank you for reaching out to DesignsLab AI — your message has been received and is already with our team.',
+        subject ? ('Your subject: "' + subject + '"') : 'We have your full message on file.',
+        'We usually respond within one business day. If anything is urgent in the meantime, you can reach us directly at ' + CONTACT_INBOX + '.',
+      ],
+      footnote: 'You are receiving this one-time confirmation because this address was used on the DesignsLab AI contact form. No reply is needed.',
+    });
+    await sendTransactionalEmail({
+      toEmail: email,
+      toName: name,
+      subject: 'We received your message — DesignsLab AI',
+      html: ackHtml,
+    });
+  } catch (err) {
+    console.error('contact: acknowledgment email failed (non-fatal):', err);
+  }
+
+  if (!inboxResult.sent && !ownerResult.sent && !stored) {
+    // Truly nothing worked — honest failure with a direct way to reach us.
     res.status(502).json({ error: { message: 'Sorry, your message could not be sent right now. Please email us directly at ' + CONTACT_INBOX + '.' } });
     return;
   }

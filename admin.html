@@ -162,10 +162,11 @@
         <a class="nav-item" href="#sec-usage"><span class="dot"></span>Usage &amp; Billing</a>
         <div class="nav-group">Team</div>
         <a class="nav-item" href="#sec-users"><span class="dot"></span>Users List</a>
-        <a class="nav-item" href="#sec-add-user"><span class="dot"></span>Add Team Member</a>
+        <a class="nav-item" href="#sec-add-user"><span class="dot"></span>Add User</a>
         <div class="nav-group">Requests</div>
         <a class="nav-item" href="#sec-signups"><span class="dot"></span>Signup Requests</a>
         <a class="nav-item" href="#sec-plans"><span class="dot"></span>Plans Purchased</a>
+        <a class="nav-item" href="#sec-help"><span class="dot"></span>Help Requests</a>
         <div class="nav-group">Insights</div>
         <a class="nav-item" href="#sec-feedback"><span class="dot"></span>User Feedback</a>
         <a class="nav-item" href="#sec-ratings"><span class="dot"></span>Design Ratings</a>
@@ -254,7 +255,7 @@
 
     <section class="panel-section" id="sec-add-user">
     <div class="card">
-      <h2>Add a team member</h2>
+      <h2>Add User</h2>
       <div class="card-desc">Create a full account directly. New users are regular team members by default — grant admin from the Users List if needed.</div>
       <div class="row4">
         <div class="field">
@@ -326,6 +327,28 @@
         <tbody id="planRequestsBody"></tbody>
       </table>
       <div class="status-msg" id="planRequestsStatus"></div>
+    </div>
+    </section>
+
+    <section class="panel-section" id="sec-help">
+    <div class="card">
+      <h2>Help Requests</h2>
+      <div class="card-desc">Messages from the Get help / Contact form. Each one was also emailed to info@designslab.ai and moe@dmrarabia.com the moment it arrived, and the sender automatically received a branded confirmation email.</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Subject</th>
+            <th>Message</th>
+            <th>Received</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="helpRequestsBody"><tr><td colspan="7" class="hint">Loading...</td></tr></tbody>
+      </table>
+      <div class="status-msg" id="helpRequestsStatus"></div>
     </div>
     </section>
 
@@ -504,6 +527,7 @@ async function init(){
     await loadFeedback();
     await loadLockouts();
     await loadRatings();
+    await loadHelpRequests();
     // Deliberately NOT awaited: this one fans out to several external provider APIs and can
     // take a few seconds — the rest of the panel should never wait on it.
     loadServiceUsage();
@@ -1483,6 +1507,64 @@ function renderRatingsTable(rows){
       </tr>
     `;
   }).join('');
+}
+
+/* ================= Help Requests (Get help / Contact form submissions) ================= */
+
+async function loadHelpRequests(){
+  const body = document.getElementById('helpRequestsBody');
+  try{
+    const response = await fetch('/api/contact');
+    const data = await response.json();
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load help requests.');
+    const messages = data.messages || [];
+    if(!messages.length){
+      body.innerHTML = '<tr><td colspan="7" class="hint">No help requests yet.</td></tr>';
+      return;
+    }
+    body.innerHTML = messages.map(m => {
+      const handled = m.status === 'handled';
+      return '<tr' + (handled ? ' style="opacity:.55;"' : '') + '>'
+        + '<td>' + escapeHtml(m.name) + '</td>'
+        + '<td><a href="mailto:' + escapeHtml(m.email) + '">' + escapeHtml(m.email) + '</a></td>'
+        + '<td>' + escapeHtml(m.subject || '—') + '</td>'
+        + '<td style="max-width:340px;white-space:pre-wrap;">' + escapeHtml(m.message) + '</td>'
+        + '<td class="master-note">' + new Date(m.created_at).toLocaleString() + '</td>'
+        + '<td>' + (handled ? '<span class="role-badge">handled</span>' : '<span class="role-badge admin">new</span>') + '</td>'
+        + '<td class="actions-cell">'
+        + '<button class="ghost small" onclick="setHelpRequestStatus(' + m.id + ', \'' + (handled ? 'new' : 'handled') + '\')">' + (handled ? 'Reopen' : 'Mark handled') + '</button>'
+        + '<button class="danger small" onclick="deleteHelpRequest(' + m.id + ')">Remove</button>'
+        + '</td></tr>';
+    }).join('');
+  }catch(err){
+    body.innerHTML = '<tr><td colspan="7" class="hint" style="color:#B02A1E;">' + escapeHtml(err.message || 'Could not load help requests.') + '</td></tr>';
+  }
+}
+
+async function setHelpRequestStatus(id, status){
+  const statusEl = document.getElementById('helpRequestsStatus');
+  try{
+    const response = await fetch('/api/contact', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) });
+    const data = await response.json();
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Update failed.');
+    await loadHelpRequests();
+  }catch(err){
+    statusEl.textContent = 'Could not update: ' + (err.message || 'unknown error');
+  }
+}
+
+async function deleteHelpRequest(id){
+  const ok = await genericConfirm('Remove this help request from the panel? (The emails already sent are unaffected.)', 'Help Requests', 'Remove');
+  if(!ok) return;
+  const statusEl = document.getElementById('helpRequestsStatus');
+  try{
+    const response = await fetch('/api/contact?id=' + id, { method: 'DELETE' });
+    const data = await response.json();
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Delete failed.');
+    await loadHelpRequests();
+  }catch(err){
+    statusEl.textContent = 'Could not remove: ' + (err.message || 'unknown error');
+  }
 }
 
 /* Sidebar scroll-spy: highlights the nav item of the section currently in view. */
