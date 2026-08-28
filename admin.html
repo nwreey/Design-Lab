@@ -257,18 +257,10 @@
     <section class="panel-section" id="sec-add-user">
     <div class="card">
       <h2>Add User</h2>
-      <div class="card-desc">Create a full account directly. New users are regular team members by default — grant admin from the Users List if needed.</div>
+      <div class="card-desc">Enter the email and limits only — the email IS the username. The person receives a branded welcome email (Free Plan + their exact limits) with a personal Set Your Password link (valid 7 days); setting it signs them straight in. New users are regular team members by default — grant admin from the Users List if needed.</div>
       <div class="row4">
         <div class="field">
-          <label for="newUsername">Username</label>
-          <input type="text" id="newUsername" placeholder="e.g. sara">
-        </div>
-        <div class="field">
-          <label for="newPassword">Password</label>
-          <input type="password" id="newPassword" placeholder="min. 6 characters">
-        </div>
-        <div class="field">
-          <label for="newEmail">Email <span style="font-weight:400;opacity:.6;">(for notifications)</span></label>
+          <label for="newEmail">Email (= username) <span style="color:#B02A1E;">*</span></label>
           <input type="text" id="newEmail" placeholder="e.g. sara@company.com">
         </div>
         <div class="field">
@@ -1137,8 +1129,6 @@ function escapeHtml(s){
 }
 
 async function addUser(){
-  const username = document.getElementById('newUsername').value.trim();
-  const password = document.getElementById('newPassword').value;
   const email = document.getElementById('newEmail').value.trim();
   const projectLimitRaw = document.getElementById('newProjectLimit').value;
   const editLimitRaw = document.getElementById('newEditLimit').value;
@@ -1146,9 +1136,9 @@ async function addUser(){
   const statusEl = document.getElementById('addUserStatus');
   const btn = document.getElementById('addUserBtn');
 
-  if(!username || !password){
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){
     statusEl.className = 'status-msg error';
-    statusEl.textContent = 'Username and password are required.';
+    statusEl.textContent = 'A valid email address is required — it becomes the username.';
     return;
   }
 
@@ -1161,7 +1151,7 @@ async function addUser(){
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username, password, email: email || null,
+        email,
         projectLimit: projectLimitRaw === '' ? null : parseInt(projectLimitRaw, 10),
         editLimit: editLimitRaw === '' ? null : parseInt(editLimitRaw, 10),
         modifyLimit: modifyLimitRaw === '' ? null : parseInt(modifyLimitRaw, 10)
@@ -1170,18 +1160,14 @@ async function addUser(){
     const data = await response.json().catch(() => ({}));
     if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not add user.');
 
-    document.getElementById('newUsername').value = '';
-    document.getElementById('newPassword').value = '';
     document.getElementById('newEmail').value = '';
     document.getElementById('newProjectLimit').value = '';
     document.getElementById('newEditLimit').value = '';
     document.getElementById('newModifyLimit').value = '';
     statusEl.className = 'status-msg ok';
-    // The backend reports whether the Free Plan welcome email actually went out (only
-    // attempted when an email address was filled in).
-    statusEl.textContent = email
-      ? (data.emailSent ? 'User added — welcome email sent to ' + email + '.' : 'User added, but the welcome email could not be sent (check Mandrill in Usage & Billing).')
-      : 'User added.';
+    // The backend rolls the account back if the email fails, so reaching here means both
+    // the account AND the Set-Password welcome email succeeded.
+    statusEl.textContent = 'User added — welcome email with the Set Password link sent to ' + email + '.';
     await loadUsers();
   }catch(err){
     statusEl.className = 'status-msg error';

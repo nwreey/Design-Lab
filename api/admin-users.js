@@ -144,29 +144,37 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { username, password, email, role, projectLimit, editLimit, modifyLimit, autofillLimit } = req.body || {};
-    const cleanEmail = (typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) ? email.trim().slice(0, 200) : null;
-    if (!username || !password) {
-      res.status(400).json({ error: { message: 'Username and password are required.' } });
+    /* Owner flow (latest revision): the admin fills ONLY the email + limits.
+       - The username IS the email (lowercased) — no separate username field.
+       - No admin-set password: the account gets an unusable random placeholder, and the
+         welcome email carries a single-use Set Your Password link (7 days, same
+         password_setup_tokens machinery as the signup-approval flow) — the user sets
+         their own password and is signed in directly.
+       - The welcome email congratulates them on their Free Plan and states exactly the
+         limits the admin filled (projects / modifications / edits).
+       If the email cannot be sent, the just-created account is rolled back and the admin
+       gets an honest error — an account nobody can ever reach must not linger. */
+    const { email, role, projectLimit, editLimit, modifyLimit, autofillLimit } = req.body || {};
+    const cleanEmail = (typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) ? email.trim().toLowerCase().slice(0, 200) : null;
+    if (!cleanEmail) {
+      res.status(400).json({ error: { message: 'A valid email address is required — it becomes the username.' } });
       return;
     }
-    if (password.length < 6) {
-      res.status(400).json({ error: { message: 'Password must be at least 6 characters.' } });
-      return;
-    }
+    const username = cleanEmail;
     const finalRole = role === 'admin' ? 'admin' : 'member';
     const id = generateUserId();
-    const passwordHash = hashPassword(password);
+    const placeholderSalt = crypto.randomBytes(16).toString('hex');
+    const placeholderHash = crypto.scryptSync(crypto.randomBytes(32).toString('hex'), placeholderSalt, 64).toString('hex');
 
     try {
       await sql`
         INSERT INTO users (id, username, password_hash, email, role, project_limit, edit_limit, modify_limit, autofill_limit)
-        VALUES (${id}, ${username}, ${passwordHash}, ${cleanEmail}, ${finalRole},
+        VALUES (${id}, ${username}, ${placeholderSalt + ':' + placeholderHash}, ${cleanEmail}, ${finalRole},
                 ${projectLimit != null ? projectLimit : null}, ${editLimit != null ? editLimit : null}, ${modifyLimit != null ? modifyLimit : null}, ${autofillLimit != null ? autofillLimit : null});
       `;
     } catch (err) {
       if (String(err.message || '').includes('duplicate key')) {
-        res.status(409).json({ error: { message: 'That username is already taken.' } });
+        res.status(409).json({ error: { message: 'An account with that email already exists.' } });
         return;
       }
       console.error('Could not create user:', err);
@@ -174,40 +182,57 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Welcome email (owner request): when the admin filled an email for the new account,
-    // congratulate them on their Free Plan and state exactly the allowances the admin set —
-    // projects, modifications, and edits. Best-effort via Mandrill: a delivery failure never
-    // fails the account creation (the response reports emailSent so the panel can say so).
-    // The password is deliberately NOT emailed — credentials are shared by the admin directly.
-    let emailSent = false;
-    if (cleanEmail) {
+    try {
+      // Single-use set-password token — same table + hashing as the signup approval flow.
+      await sql`
+        CREATE TABLE IF NOT EXISTS password_setup_tokens (
+          token_hash TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          used_at TIMESTAMPTZ
+        );
+      `;
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      await sql`INSERT INTO password_setup_tokens (token_hash, user_id, expires_at) VALUES (${tokenHash}, ${id}, NOW() + INTERVAL '7 days');`;
+      const setupUrl = 'https://designslab.ai/set-password.html?token=' + rawToken;
+
       const fmtLimit = (v, singular, plural) => v != null ? (v + ' ' + (v === 1 ? singular : plural)) : ('unlimited ' + plural);
       const welcomeHtml = buildBrandedEmail({
         previewText: 'Congratulations — your DesignsLab AI account is ready, on the Free Plan.',
-        greeting: username,
+        greeting: cleanEmail,
         paragraphs: [
           'Congratulations! Your DesignsLab AI account has been created and your <strong>Free Plan</strong> is active.',
           'Your plan includes:'
-            + '<br>• <strong>' + fmtLimit(projectLimit != null ? projectLimit : null, 'project', 'projects') + '</strong>'
-            + '<br>• <strong>' + fmtLimit(modifyLimit != null ? modifyLimit : null, 'design modification', 'design modifications') + '</strong>'
-            + '<br>• <strong>' + fmtLimit(editLimit != null ? editLimit : null, 'image edit', 'image edits') + '</strong>',
-          'Your username is <strong>' + username + '</strong>. Your administrator will share your password with you separately — once you have it, sign in and start designing.',
+            + '<br>\u2022 <strong>' + fmtLimit(projectLimit != null ? projectLimit : null, 'project', 'projects') + '</strong>'
+            + '<br>\u2022 <strong>' + fmtLimit(modifyLimit != null ? modifyLimit : null, 'design modification', 'design modifications') + '</strong>'
+            + '<br>\u2022 <strong>' + fmtLimit(editLimit != null ? editLimit : null, 'image edit', 'image edits') + '</strong>',
+          'Your username is your email address: <strong>' + cleanEmail + '</strong>. Click below to set your password — the link is personal to you and valid for 7 days, and setting your password signs you straight in.',
         ],
-        ctaLabel: 'Open DesignsLab AI',
-        ctaUrl: 'https://designslab.ai/login.html',
+        ctaLabel: 'Set Your Password',
+        ctaUrl: setupUrl,
         footnote: 'You are receiving this because a DesignsLab AI account was created for this address. If this was unexpected, you can ignore this email.',
       });
       const sendResult = await sendTransactionalEmail({
         toEmail: cleanEmail,
-        toName: username,
-        subject: 'Welcome to DesignsLab AI — your Free Plan is active',
+        toName: cleanEmail,
+        subject: 'Welcome to DesignsLab AI \u2014 your Free Plan is active',
         html: welcomeHtml,
       });
-      emailSent = sendResult.sent;
-      if (!sendResult.sent) console.error('admin-users: welcome email failed (non-fatal):', sendResult.error);
+      if (!sendResult.sent) throw new Error(sendResult.error || 'email send failed');
+    } catch (err) {
+      // Roll back: an account whose owner never received the set-password email is
+      // unreachable — remove it so the admin can simply retry cleanly.
+      console.error('admin-users: welcome/set-password email failed, rolling back user:', err);
+      try {
+        await sql`DELETE FROM password_setup_tokens WHERE user_id = ${id};`;
+        await sql`DELETE FROM users WHERE id = ${id};`;
+      } catch (rollbackErr) { console.error('admin-users: rollback failed:', rollbackErr); }
+      res.status(502).json({ error: { message: 'The account could not be emailed its Set Password link (check Mandrill in Usage & Billing) \u2014 nothing was created. Please try again.' } });
+      return;
     }
 
-    res.status(200).json({ ok: true, id, emailSent });
+    res.status(200).json({ ok: true, id, emailSent: true });
     return;
   }
 
