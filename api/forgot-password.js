@@ -53,7 +53,10 @@ async function checkRateLimit(ip) {
   return true;
 }
 
-const GENERIC_OK = { ok: true, message: "If an account exists for that email, we've sent a password reset link. Please check your inbox (and spam folder)." };
+/* Owner decision: honest responses over anti-enumeration. An unknown email gets a clear
+   "not found — please sign up" instead of a generic maybe; the per-IP rate limit (3/hour)
+   and reCAPTCHA remain the guard against someone scripting this to map registered emails. */
+const OK_SENT = { ok: true, message: "We've emailed you a confirmation link. Open it to set a new password — then sign in again. (Check spam if you don't see it within a minute.)" };
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -90,8 +93,7 @@ export default async function handler(req, res) {
     // Usernames ARE email addresses for self-served accounts. Case-insensitive match.
     const result = await sql`SELECT id, username FROM users WHERE LOWER(username) = ${email};`;
     if (result.rows.length === 0) {
-      // No account (or it's the env-based master admin) — same response either way.
-      res.status(200).json(GENERIC_OK);
+      res.status(404).json({ error: { message: 'No account found for this email. Please sign up first at designslab.ai/signup.html.' } });
       return;
     }
     const user = result.rows[0];
@@ -138,7 +140,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    res.status(200).json(GENERIC_OK);
+    res.status(200).json(OK_SENT);
   } catch (err) {
     console.error('forgot-password: failed:', err);
     res.status(500).json({ error: { message: 'Something went wrong. Please try again.' } });

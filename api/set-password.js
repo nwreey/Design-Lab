@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
+import { sendTransactionalEmail, buildBrandedEmail } from '../lib/email.js';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* ================= Set-password endpoint (approval onboarding) =================
@@ -109,6 +110,34 @@ export default async function handler(req, res) {
     };
     const authToken = signToken(tokenPayload, signingSecret);
     res.setHeader('Set-Cookie', `design_lab_auth=${authToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAgeSeconds}`);
+
+    // Owner request: confirm a successful password change by email (via Mandrill, same
+    // branded template as everything else). Best-effort and AFTER the response state is
+    // decided — an email hiccup must never fail the actual password change. Also a
+    // security courtesy: if someone ELSE changed the password, the real owner finds out.
+    try {
+      const confirmationHtml = buildBrandedEmail({
+        previewText: 'Your DesignsLab AI password was changed successfully.',
+        greeting: found.username,
+        paragraphs: [
+          'Your DesignsLab AI password was just <strong>changed successfully</strong>, and you were signed in.',
+          'If this was you, no action is needed — enjoy designing.',
+          'If this was <strong>not</strong> you, contact us immediately at info@designslab.ai and we will secure your account.',
+        ],
+        ctaLabel: 'Go to the Studio',
+        ctaUrl: 'https://designslab.ai/ai-design-studio.html',
+        footnote: 'You are receiving this because the password for your account on designslab.ai was changed.',
+      });
+      sendTransactionalEmail({
+        toEmail: found.username,
+        toName: found.username,
+        subject: 'Your DesignsLab AI password was changed',
+        html: confirmationHtml,
+      }).catch(err => console.error('set-password: confirmation email failed:', err));
+    } catch (err) {
+      console.error('set-password: could not build confirmation email:', err);
+    }
+
     res.status(200).json({ ok: true, username: found.username });
   } catch (err) {
     console.error('set-password: could not set password:', err);
