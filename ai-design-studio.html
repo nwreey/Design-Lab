@@ -3629,6 +3629,22 @@ Replace only the materials and graphics."></textarea>
     </div>
   </div>
 
+  <!-- Owner redesign: after Approve the USER CHOOSES which camera views to render — one
+       edit per selected view, the approved hero view is always included free. -->
+  <div class="gen-notice-overlay" id="approveViewPickerOverlay">
+    <div class="gen-notice-card" style="max-width:520px;">
+      <div class="gen-notice-eyebrow">Approve Design</div>
+      <h3>Choose your camera views</h3>
+      <p>Once approved, no further changes can be made to the concept itself. Your approved hero view is included free — pick which additional camera views to render. Each view uses 1 image edit.</p>
+      <div id="viewPickerList" style="text-align:left;max-height:280px;overflow:auto;border:1.5px solid var(--line);border-radius:2px;padding:10px 12px;"></div>
+      <p id="viewPickerCount" style="font-weight:700;margin:12px 0 0;"></p>
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="ghost" onclick="document.getElementById('approveViewPickerOverlay').style.display='none';" style="flex:1;">Cancel</button>
+        <button class="primary" id="viewPickerConfirmBtn" onclick="confirmApproveViewSelection()" style="flex:1;">Approve &amp; Generate</button>
+      </div>
+    </div>
+  </div>
+
   <div class="gen-notice-overlay" id="approveNoticeOverlay">
     <div class="gen-notice-card">
       <div class="gen-notice-eyebrow">Approve Design</div>
@@ -20891,6 +20907,10 @@ function stopCameraViewsGeneration(){
    debounced (one save at most every few seconds, trailing), keeping the crash-resilience
    the per-view save was added for while the visible stutter is gone. The final save at
    the end of the run stays immediate. */
+/* Owner redesign: the set of camId strings the user chose to render on Approve (hero
+   always included implicitly). null = no filter (admin flow / legacy) = render all. */
+let approveSelectedCamIds = null;
+
 let __projectSaveTimer = null;
 function scheduleProjectSave(delayMs){
   if(__projectSaveTimer) return;
@@ -20916,7 +20936,10 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   document.getElementById('goodLuckMessage').style.display = 'none';
   document.getElementById('techBoardActions').style.display = 'none';
   document.getElementById('rateUsBar').style.display = 'none';
-  CAMERA_SPECS.forEach(spec => renderGeneratedViewCard(spec.camId, 'pending', null));
+  const isViewWanted = spec => spec.isHeroImage || !approveSelectedCamIds || approveSelectedCamIds.has(spec.camId);
+  CAMERA_SPECS.filter(isViewWanted).forEach(spec => renderGeneratedViewCard(spec.camId, 'pending', null));
+  const plannedViewCount = CAMERA_SPECS.filter(isViewWanted).length;
+  let viewsDoneCount = 1; // the hero counts as done immediately
   document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
 
   const SIMILARITY_THRESHOLD = 0.8;
@@ -20927,7 +20950,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   initCardHistory(heroCamId, compressedFront);
   renderGeneratedViewCard(heroCamId, 'done', compressedFront);
   let previousViewDataUrl = compressedFront;
-  updateApproveProgress(10, `Creating All Views — 1 of ${CAMERA_SPECS.length}...`);
+  updateApproveProgress(10, `Creating Your Views — 1 of ${plannedViewCount}...`);
   // Real reported problem: only ever saving once, at the very end of this whole loop, meant
   // a page refresh (or a lost connection, or just closing the tab) partway through a
   // multi-minute run wiped out every view already generated — restoreGeneratedViewsIfSaved
@@ -20941,6 +20964,10 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   for(let i = 1; i < CAMERA_SPECS.length; i++){
     const spec = CAMERA_SPECS[i];
 
+    // Owner redesign: only the views the user selected (and paid for) are generated —
+    // unselected views get no card, no request, and no charge.
+    if(!isViewWanted(spec)) continue;
+
     // Checked BEFORE starting the next view (not just relying on the in-flight request's own
     // abort) so a Stop click that lands between views doesn't fire one more request first —
     // and every still-pending card gets an explicit, retryable "stopped" state instead of
@@ -20951,7 +20978,8 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
       continue;
     }
 
-    updateApproveProgress(10 + (i / CAMERA_SPECS.length) * 85, `Creating All Views — ${i + 1} of ${CAMERA_SPECS.length}...`);
+    viewsDoneCount++;
+    updateApproveProgress(10 + (viewsDoneCount / Math.max(1, plannedViewCount)) * 85, `Creating Your Views — ${viewsDoneCount} of ${plannedViewCount}...`);
     try{
       let resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false);
 
@@ -21020,6 +21048,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   document.getElementById('rateUsBar').style.display = 'flex';
   saveCurrentProject();
   updateApproveProgress(100, stoppedEarly ? 'Stopped — the remaining views can be generated individually via Retry.' : 'All views are ready.');
+  approveSelectedCamIds = null; // one-shot filter — never leaks into a later run
 }
 
 // Regenerates a single camera view — used both for the "Retry" button on a failed card
@@ -21923,22 +21952,50 @@ function approveDesign(){
   if(isAdminUser){
     showAdminGenerationPreview(opt, cameraPlanResult);
   }else{
-    // Owner rule: approval generates one camera view per real request (the hero is free),
-    // each costing 1 image edit. If the user can't afford the full set, DON'T start —
-    // tell them exactly what it needs and offer the Edits Pack purchase instead.
-    const requiredEdits = Math.max(0, CAMERA_SPECS.length - 1);
-    const remaining = editsRemaining();
-    if(remaining != null && remaining < requiredEdits){
-      offerAddonPurchase('edit', requiredEdits, remaining);
-      return;
-    }
-    const quotaEl = document.getElementById('approveNoticeQuotaText');
-    if(quotaEl){
-      quotaEl.textContent = `This will use ${requiredEdits} of your image edits (one per generated camera view)` +
-        (remaining != null ? ` — you'll have ${remaining - requiredEdits} remaining after this.` : '.');
-    }
-    document.getElementById('approveNoticeOverlay').style.display = 'flex';
+    // Owner redesign: the user picks WHICH camera views to render and pays 1 edit per
+    // selected view (the hero is always included free). All views start checked; he
+    // unchecks what he doesn't want. Quota is checked against the SELECTION at confirm.
+    const list = document.getElementById('viewPickerList');
+    list.innerHTML = CAMERA_SPECS.filter(spec => !spec.isHeroImage).map(spec => {
+      const label = (VIEWER_CAMERA_LABELS[spec.camId] || spec.name || spec.camId);
+      return `<label style="display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;cursor:pointer;">` +
+        `<input type="checkbox" class="view-picker-check" value="${spec.camId}" checked onchange="updateViewPickerCount()">` +
+        `<span>${label}</span></label>`;
+    }).join('');
+    updateViewPickerCount();
+    document.getElementById('approveViewPickerOverlay').style.display = 'flex';
   }
+}
+
+function updateViewPickerCount(){
+  const n = document.querySelectorAll('#viewPickerList .view-picker-check:checked').length;
+  const rem = editsRemaining();
+  const el = document.getElementById('viewPickerCount');
+  if(el){
+    el.textContent = n === 0
+      ? 'No extra views selected — you will receive only your approved hero view (no edits used).'
+      : `${n} view${n === 1 ? '' : 's'} selected = ${n} image edit${n === 1 ? '' : 's'}` +
+        (rem != null ? ` — you have ${rem} remaining.` : '.');
+  }
+}
+
+async function confirmApproveViewSelection(){
+  const selected = Array.from(document.querySelectorAll('#viewPickerList .view-picker-check:checked')).map(c => c.value);
+  const needed = selected.length;
+  const rem = editsRemaining();
+  document.getElementById('approveViewPickerOverlay').style.display = 'none';
+  if(rem != null && rem < needed){
+    offerAddonPurchase('edit', needed, rem);
+    return;
+  }
+  // Only the chosen views are generated (generateCameraViewsFromHero filters on this) —
+  // and only the chosen views are charged, client display here + server per rendered view.
+  approveSelectedCamIds = new Set(selected);
+  if(!isAdminUser && currentUserEditCount != null && needed > 0){
+    currentUserEditCount += needed;
+    renderEditUsageIndicator();
+  }
+  confirmApproveDesign();
 }
 
 // Admin-only debug step (see the overlay's own HTML comment for why this exists): builds
@@ -22212,14 +22269,11 @@ async function startAdminLumaVideoComparison(heroImage, designTitle){
 async function confirmApproveDesign(){
   const opt = optionResults[activeOptionIndex];
   if(!opt || opt.status !== 'done') return;
+  // Admins skip the picker and always render the full set.
+  if(isAdminUser) approveSelectedCamIds = null;
 
-  // Reflect the full camera-view cost in the sidebar immediately (owner rule: one edit per
-  // generated view; the server charges per view as each renders — see
-  // requestCameraViewFromOpenAI's chargeThisCall).
-  if(!isAdminUser && currentUserEditCount != null){
-    currentUserEditCount += Math.max(0, CAMERA_SPECS.length - 1);
-    renderEditUsageIndicator();
-  }
+  // The edit deduction happens in confirmApproveViewSelection (owner redesign: user picks
+  // views, pays per selected view). Admins arrive here directly with no charge.
 
   // Approving locks in the design — from here on this reads as "the project," not "a form
   // in progress," so the form and tabs step aside the same way they do when reopening an
