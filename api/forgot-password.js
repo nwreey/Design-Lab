@@ -80,7 +80,13 @@ export default async function handler(req, res) {
     // identified without digging through server logs. The reason is a Google config code,
     // not a secret. Remove once the reCAPTCHA key rotation issue is resolved.
     const payload = { error: { message: RECAPTCHA_FAIL_MESSAGE } };
-    if (body.__captchaDebug === true) payload.error.debugReason = captcha.reason || 'unknown';
+    if (body.__captchaDebug === true) {
+      payload.error.debugReason = captcha.reason || 'unknown';
+      // Which secret is this deployment actually running with? Prefix+suffix only —
+      // enough to tell old key from new key apart, never the full secret.
+      const s = (process.env.RECAPTCHA_SECRET_KEY || '').trim();
+      payload.error.debugSecret = s ? s.slice(0, 8) + '…' + s.slice(-4) + ' (len ' + s.length + ')' : 'NOT SET';
+    }
     res.status(400).json(payload);
     return;
   }
