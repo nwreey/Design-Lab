@@ -94,7 +94,10 @@ async function checkOpenAi() {
   );
   if (!r.ok) {
     const msg = (r.data && r.data.error && r.data.error.message) || `HTTP ${r.status}`;
-    return { status: 'error', note: 'Costs API rejected the admin key: ' + msg };
+    const scopeHint = (r.status === 401 || r.status === 403)
+      ? ' This usually means the key is not an Admin key or was created without the Usage/Costs read permission — create a NEW Admin key with full/read-all permissions (platform.openai.com → Settings → Organization → Admin keys) and replace OPENAI_ADMIN_KEY in Vercel env.'
+      : '';
+    return { status: 'error', note: 'Costs API rejected the admin key: ' + msg + scopeHint };
   }
   let monthUsd = 0;
   let todayUsd = 0;
@@ -126,7 +129,11 @@ async function checkLuma() {
   const apiKey = process.env.LUMA_AGENTS_API_KEY;
   if (!apiKey) return { status: 'not_configured', note: 'LUMA_AGENTS_API_KEY is not set.' };
   // The app calls agents.lumalabs.ai; credits live on the Dream Machine API surface. Try
-  // both hosts — whichever answers first wins; both failing is itself the warning.
+  // BOTH hosts before concluding anything — an Agents-scoped key commonly gets a 403 from
+  // one surface while the other still answers, so a single 403 must not be treated as an
+  // expired key (that false alarm shipped once; the owner's key was working fine for
+  // generation the whole time).
+  const rejections = [];
   for (const url of ['https://agents.lumalabs.ai/v1/credits', 'https://api.lumalabs.ai/dream-machine/v1/credits']) {
     try {
       const r = await fetchJson(url, { headers: { Authorization: `Bearer ${apiKey}` } });
@@ -137,12 +144,14 @@ async function checkLuma() {
         }
         return { status: 'ok', note: 'Key valid; credits field not present in response.' };
       }
-      if (r.status === 401 || r.status === 403) {
-        return { status: 'error', note: 'Luma rejected the key (HTTP ' + r.status + ') — expired or revoked?' };
-      }
-    } catch (err) { /* try next host */ }
+      rejections.push('HTTP ' + r.status);
+    } catch (err) { rejections.push(err && err.message ? err.message : 'network error'); }
   }
-  return { status: 'warning', note: 'Could not read Luma credits from either API host — key may still work for generation; watch the internal failures below.' };
+  // Credits unreadable from both hosts — that is a visibility gap, not proof the key is
+  // dead: this key type may simply not be allowed to read the credits endpoint. Video
+  // generation calls are logged in the internal counters, which is where an actually-dead
+  // key shows up as failures.
+  return { status: 'warning', note: 'Could not read Luma credits (' + rejections.join(', ') + ') — this key type may not have access to the credits endpoint. Video generation may still work; a truly dead key will show as failures in the counters below. Check the real balance at lumalabs.ai.' };
 }
 
 async function checkMandrill() {
@@ -196,18 +205,32 @@ async function checkNeon() {
         : 'DATABASE_URL is not set at all — the database is down.',
     };
   }
-  const r = await fetchJson('https://console.neon.tech/api/v2/projects', {
-    headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
-  });
-  if (!r.ok) {
-    const msg = (r.data && r.data.message) || `HTTP ${r.status}`;
-    return { status: 'error', note: 'Neon API rejected the key: ' + msg };
-  }
-  const projects = (r.data.projects || []).map((p) => ({
+  const headers = { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' };
+  const mapProjects = (arr) => (arr || []).map((p) => ({
     name: p.name,
     storageBytes: p.synthetic_storage_size != null ? p.synthetic_storage_size : null,
   }));
-  return { status: 'ok', projects };
+  const r = await fetchJson('https://console.neon.tech/api/v2/projects', { headers });
+  if (r.ok) return { status: 'ok', projects: mapProjects(r.data.projects) };
+  const msg = (r.data && r.data.message) || `HTTP ${r.status}`;
+  // Org-scoped API keys (the kind Neon issues for Vercel-managed / organization accounts)
+  // reject the bare /projects listing with "org_id is required" — resolve the caller's
+  // organizations first, then list projects per org. This exact error hit the owner's
+  // Vercel-provisioned Neon setup on first connect.
+  if (/org_id/i.test(msg)) {
+    const orgs = await fetchJson('https://console.neon.tech/api/v2/users/me/organizations', { headers });
+    const orgList = (orgs.ok && orgs.data && orgs.data.organizations) || [];
+    if (orgList.length) {
+      const projects = [];
+      for (const org of orgList) {
+        const pr = await fetchJson('https://console.neon.tech/api/v2/projects?org_id=' + encodeURIComponent(org.id), { headers });
+        if (pr.ok) mapProjects(pr.data.projects).forEach((p) => projects.push(p));
+      }
+      if (projects.length) return { status: 'ok', projects };
+    }
+    return { status: 'error', note: 'Neon key is organization-scoped but no readable projects were found under its organizations. Check the key\'s permissions at console.neon.tech.' };
+  }
+  return { status: 'error', note: 'Neon API rejected the key: ' + msg };
 }
 
 /* ---------- Layer 2: internal counters from ai_usage_log ---------- */
@@ -266,6 +289,28 @@ async function listRenewals() {
   return { status: 'ok', renewals: result.rows };
 }
 
+/* Admin-set monthly limits per provider — the denominator for each row's usage bar. Most
+   providers don't expose their own plan limit via API, so the admin states it once ("my
+   OpenAI monthly budget is $200", "Blob plan includes 100 GB") and the bar measures live
+   usage against that. amount unit depends on the provider (USD, calls, credits, sends, GB)
+   and the client knows which is which. */
+async function ensureBudgetsSchema() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS service_budgets (
+      service TEXT PRIMARY KEY,
+      amount NUMERIC NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `;
+}
+
+async function listBudgets() {
+  if (!sql) return { status: 'not_configured', budgets: [] };
+  await ensureBudgetsSchema();
+  const result = await sql`SELECT service, amount FROM service_budgets;`;
+  return { status: 'ok', budgets: result.rows };
+}
+
 export default async function handler(req, res) {
   const caller = getCaller(req);
   if (!caller || caller.role !== 'admin') {
@@ -274,8 +319,36 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    // Upsert / delete a manual renewal date: { service, renewAt (YYYY-MM-DD | null), note }
+    // Two admin write actions share this method:
+    //  - budget upsert/delete: { kind:'budget', service, amount (number | null to delete) }
+    //  - renewal upsert/delete: { service, renewAt (YYYY-MM-DD | null), note }
     try {
+      if (req.body && req.body.kind === 'budget') {
+        const { service, amount } = req.body;
+        if (!service || typeof service !== 'string' || service.length > 100) {
+          res.status(400).json({ error: { message: 'Body must include a service name.' } });
+          return;
+        }
+        if (!sql) { res.status(500).json({ error: { message: 'DATABASE_URL not set.' } }); return; }
+        await ensureBudgetsSchema();
+        if (amount == null || amount === '') {
+          await sql`DELETE FROM service_budgets WHERE service = ${service};`;
+          res.status(200).json({ ok: true, deleted: true });
+          return;
+        }
+        const num = Number(amount);
+        if (!isFinite(num) || num <= 0) {
+          res.status(400).json({ error: { message: 'amount must be a positive number.' } });
+          return;
+        }
+        await sql`
+          INSERT INTO service_budgets (service, amount, updated_at)
+          VALUES (${service}, ${num}, NOW())
+          ON CONFLICT (service) DO UPDATE SET amount = ${num}, updated_at = NOW();
+        `;
+        res.status(200).json({ ok: true });
+        return;
+      }
       const { service, renewAt, note } = req.body || {};
       if (!service || typeof service !== 'string' || service.length > 100) {
         res.status(400).json({ error: { message: 'Body must include a service name.' } });
@@ -312,7 +385,7 @@ export default async function handler(req, res) {
   // Every check runs in parallel and is individually guarded — a slow or broken provider
   // degrades to an 'error' entry for that one card, never the whole report.
   const guard = (promise) => promise.catch((err) => ({ status: 'error', note: err && err.message ? err.message : 'check failed' }));
-  const [openai, gemini, luma, mandrill, blob, neonInfo, internal, renewals] = await Promise.all([
+  const [openai, gemini, luma, mandrill, blob, neonInfo, internal, renewals, budgets] = await Promise.all([
     guard(checkOpenAi()),
     guard(checkGemini()),
     guard(checkLuma()),
@@ -321,6 +394,7 @@ export default async function handler(req, res) {
     guard(checkNeon()),
     guard(internalCounters()),
     guard(listRenewals()),
+    guard(listBudgets()),
   ]);
 
   res.status(200).json({
@@ -328,5 +402,6 @@ export default async function handler(req, res) {
     services: { openai, gemini, luma, mandrill, blob, neon: neonInfo },
     internal,
     renewals: renewals.renewals || [],
+    budgets: budgets.budgets || [],
   });
 }

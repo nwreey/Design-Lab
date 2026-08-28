@@ -186,7 +186,7 @@
         <button class="ghost" id="serviceUsageRefreshBtn" onclick="loadServiceUsage()">Refresh</button>
       </div>
       <div class="hint" style="margin:10px 0 14px;">Live status of every paid service the platform depends on — the goal is that an expiring key, exhausted balance, or full storage shows up HERE before it takes the site down. Red = broken now, yellow = needs attention, green = healthy.</div>
-      <div id="serviceUsageCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">
+      <div id="serviceUsageCards" style="display:flex;flex-direction:column;gap:12px;">
         <div class="hint">Loading service status...</div>
       </div>
 
@@ -513,13 +513,75 @@ function svcBytes(n){
   return Math.round(n / 1024) + ' KB';
 }
 
-function svcCard(title, svc, lines){
-  const note = svc && svc.note ? '<div class="hint" style="margin-top:8px;">' + escapeHtml(svc.note) + '</div>' : '';
-  return '<div style="border:1px solid var(--line);border-radius:6px;padding:16px 18px;background:#fff;box-shadow:0 1px 2px rgba(11,12,16,.05);">'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;">'
-    + '<div style="font-weight:700;font-size:15px;">' + title + '</div>' + svcBadge(svc ? svc.status : 'error') + '</div>'
-    + (lines || []).map(l => '<div style="font-size:14px;margin-top:4px;">' + l + '</div>').join('')
-    + note + '</div>';
+/* One row per provider: identity + status | usage bar (live usage vs the admin-set monthly
+   limit, editable inline) | key details | a button straight to that provider's billing page.
+   Most providers don't expose their own plan ceiling via API, so the admin states it once
+   (e.g. "OpenAI budget $200/month", "Blob plan 100 GB") and the bar measures live usage
+   against it: green under 70%, amber under 90%, red above. */
+let __svcBudgets = {};
+
+function svcBar(used, limit, usedLabel, limitLabel){
+  if(used == null){
+    return '<div style="height:10px;border-radius:5px;background:rgba(11,12,16,.08);"></div>'
+      + '<div class="hint" style="margin-top:6px;">No live usage figure available from this provider.</div>';
+  }
+  if(!limit){
+    return '<div style="height:10px;border-radius:5px;background:rgba(11,12,16,.08);"></div>'
+      + '<div class="hint" style="margin-top:6px;">Used so far: <strong>' + usedLabel + '</strong> — set your plan limit on the right to see remaining.</div>';
+  }
+  const pct = Math.min(100, Math.round(used / limit * 100));
+  const color = pct >= 90 ? '#B02A1E' : pct >= 70 ? '#B07E10' : '#1E7B3C';
+  const remaining = Math.max(0, limit - used);
+  return '<div style="height:10px;border-radius:5px;background:rgba(11,12,16,.08);overflow:hidden;">'
+    + '<div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:5px;transition:width .3s ease;"></div></div>'
+    + '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:13px;">'
+    + '<span><strong>' + usedLabel + '</strong> used of ' + limitLabel(limit) + ' (' + pct + '%)</span>'
+    + '<span style="color:' + color + ';font-weight:700;">' + limitLabel(remaining) + ' remaining</span></div>';
+}
+
+function svcRow(cfg){
+  const svc = cfg.svc || { status: 'error' };
+  const budget = __svcBudgets[cfg.budgetKey];
+  const note = svc.note ? '<div class="hint" style="margin-top:6px;">' + escapeHtml(svc.note) + '</div>' : '';
+  return '<div style="display:grid;grid-template-columns:210px 1fr 150px;gap:20px;align-items:start;border:1px solid var(--line);border-radius:6px;padding:16px 20px;background:#fff;box-shadow:0 1px 2px rgba(11,12,16,.05);">'
+    // Column 1: identity + status
+    + '<div>'
+    + '<div style="font-weight:700;font-size:15.5px;margin-bottom:6px;">' + cfg.title + '</div>'
+    + '<div style="margin-bottom:6px;">' + svcBadge(svc.status) + '</div>'
+    + '<div class="hint">' + cfg.sub + '</div>'
+    + '</div>'
+    // Column 2: usage bar + details + note
+    + '<div>'
+    + svcBar(cfg.used, budget, cfg.usedLabel, cfg.limitLabel)
+    + (cfg.details && cfg.details.length ? '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;font-size:13.5px;">' + cfg.details.map(x => '<span>' + x + '</span>').join('') + '</div>' : '')
+    + note
+    + '</div>'
+    // Column 3: billing link + inline limit editor
+    + '<div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;">'
+    + '<a href="' + cfg.billing + '" target="_blank" rel="noopener" style="display:block;text-align:center;background:var(--navy);color:#fff;border:2px solid var(--navy);padding:8px 10px;border-radius:4px;font-weight:600;font-size:13px;text-decoration:none;">Open billing ↗</a>'
+    + '<div style="display:flex;gap:6px;align-items:center;">'
+    + '<input type="number" min="0" step="any" id="budget_' + cfg.budgetKey + '" value="' + (budget != null ? budget : '') + '" placeholder="limit" style="padding:6px 8px;font-size:12.5px;">'
+    + '<button class="ghost small" onclick="saveSvcBudget(\'' + cfg.budgetKey + '\')">Set</button>'
+    + '</div>'
+    + '<div class="hint" style="margin-top:-2px;text-align:center;">' + cfg.unitHint + '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+async function saveSvcBudget(budgetKey){
+  const input = document.getElementById('budget_' + budgetKey);
+  const statusEl = document.getElementById('serviceUsageStatus');
+  try{
+    const response = await fetch('/api/admin-service-usage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'budget', service: budgetKey, amount: input && input.value !== '' ? Number(input.value) : null })
+    });
+    const data = await response.json();
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Save failed.');
+    await loadServiceUsage();
+  }catch(err){
+    if(statusEl) statusEl.textContent = 'Could not save limit: ' + (err.message || 'unknown error');
+  }
 }
 
 async function loadServiceUsage(){
@@ -531,26 +593,77 @@ async function loadServiceUsage(){
     const data = await response.json();
     if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not load service usage.');
     const s = data.services || {};
+    __svcBudgets = {};
+    (data.budgets || []).forEach(b => { __svcBudgets[b.service] = Number(b.amount); });
+
+    // Internal per-provider call counts double as the "usage" figure for providers with no
+    // billing API of their own (Gemini).
+    const counterMap = {};
+    ((data.internal && data.internal.perProvider) || []).forEach(row => { counterMap[row.provider] = row; });
+    const geminiCallsMonth = counterMap.gemini ? parseInt(counterMap.gemini.calls_month, 10) : null;
+    const neonBytes = (s.neon && s.neon.projects && s.neon.projects.length)
+      ? s.neon.projects.reduce((sum, p) => sum + (p.storageBytes || 0), 0) : null;
+    const GB = 1024 * 1024 * 1024;
+    const gbLabel = v => (Math.round(v * 100) / 100) + ' GB';
 
     cardsEl.innerHTML = [
-      svcCard('OpenAI', s.openai, s.openai && s.openai.status === 'ok' ? [
-        'Spend today: <strong>$' + (s.openai.todayUsd != null ? s.openai.todayUsd.toFixed(2) : '—') + '</strong>',
-        'Spend this month: <strong>$' + (s.openai.monthUsd != null ? s.openai.monthUsd.toFixed(2) : '—') + '</strong>'
-      ] : []),
-      svcCard('Google Gemini', s.gemini, []),
-      svcCard('Luma (video)', s.luma, s.luma && s.luma.credits != null ? ['Credits remaining: <strong>' + s.luma.credits + '</strong>'] : []),
-      svcCard('Mandrill (email)', s.mandrill, s.mandrill && s.mandrill.status !== 'not_configured' && s.mandrill.status !== 'error' ? [
-        'Hourly quota: <strong>' + (s.mandrill.hourlyQuota != null ? s.mandrill.hourlyQuota : '—') + '</strong>',
-        'Sent last 30 days: <strong>' + (s.mandrill.sentThisMonth != null ? s.mandrill.sentThisMonth : '—') + '</strong>',
-        'Reputation: <strong>' + (s.mandrill.reputation != null ? s.mandrill.reputation : '—') + '</strong>' + (s.mandrill.backlog ? ' — backlog: ' + s.mandrill.backlog : '')
-      ] : []),
-      svcCard('Vercel Blob (image storage)', s.blob, s.blob && s.blob.totalBytes != null ? [
-        'Stored: <strong>' + svcBytes(s.blob.totalBytes) + '</strong>' + (s.blob.partial ? ' (partial)' : ''),
-        'Files: <strong>' + (s.blob.fileCount != null ? s.blob.fileCount : '—') + '</strong>'
-      ] : []),
-      svcCard('Neon (database)', s.neon, s.neon && s.neon.projects ? s.neon.projects.map(p =>
-        escapeHtml(p.name) + ': <strong>' + svcBytes(p.storageBytes) + '</strong>'
-      ) : [])
+      svcRow({
+        title: 'OpenAI', sub: 'Image edits, autofill, AI text', svc: s.openai,
+        budgetKey: 'openai_monthly_usd', unitHint: 'monthly budget, USD',
+        billing: 'https://platform.openai.com/settings/organization/billing/overview',
+        used: s.openai && s.openai.monthUsd != null ? s.openai.monthUsd : null,
+        usedLabel: s.openai && s.openai.monthUsd != null ? '$' + s.openai.monthUsd.toFixed(2) : '',
+        limitLabel: v => '$' + (Math.round(v * 100) / 100),
+        details: s.openai && s.openai.todayUsd != null ? ['Today: <strong>$' + s.openai.todayUsd.toFixed(2) + '</strong>'] : []
+      }),
+      svcRow({
+        title: 'Google Gemini', sub: 'All design image generation', svc: s.gemini,
+        budgetKey: 'gemini_monthly_calls', unitHint: 'monthly limit, image calls',
+        billing: 'https://console.cloud.google.com/billing',
+        used: geminiCallsMonth,
+        usedLabel: geminiCallsMonth != null ? geminiCallsMonth + ' calls' : '',
+        limitLabel: v => Math.round(v) + ' calls',
+        details: ['<span class="hint">No billing API — bar uses our own logged call count.</span>']
+      }),
+      svcRow({
+        title: 'Luma (video)', sub: 'Video generation credits', svc: s.luma,
+        budgetKey: 'luma_total_credits', unitHint: 'credits purchased, total',
+        billing: 'https://lumalabs.ai/api/billing',
+        used: (s.luma && s.luma.credits != null && __svcBudgets.luma_total_credits) ? Math.max(0, __svcBudgets.luma_total_credits - s.luma.credits) : (s.luma && s.luma.credits != null ? null : null),
+        usedLabel: (s.luma && s.luma.credits != null && __svcBudgets.luma_total_credits) ? Math.round(__svcBudgets.luma_total_credits - s.luma.credits) + ' credits' : '',
+        limitLabel: v => Math.round(v) + ' credits',
+        details: s.luma && s.luma.credits != null ? ['Remaining now: <strong>' + s.luma.credits + '</strong> credits'] : []
+      }),
+      svcRow({
+        title: 'Mandrill (email)', sub: 'All notification emails', svc: s.mandrill,
+        budgetKey: 'mandrill_monthly_sends', unitHint: 'monthly limit, emails',
+        billing: 'https://mandrillapp.com/settings',
+        used: s.mandrill && s.mandrill.sentThisMonth != null ? s.mandrill.sentThisMonth : null,
+        usedLabel: s.mandrill && s.mandrill.sentThisMonth != null ? s.mandrill.sentThisMonth + ' sent' : '',
+        limitLabel: v => Math.round(v) + ' emails',
+        details: s.mandrill && s.mandrill.hourlyQuota != null ? [
+          'Hourly quota: <strong>' + s.mandrill.hourlyQuota + '</strong>',
+          'Reputation: <strong>' + (s.mandrill.reputation != null ? s.mandrill.reputation : '—') + '</strong>' + (s.mandrill.backlog ? ' — backlog: ' + s.mandrill.backlog : '')
+        ] : []
+      }),
+      svcRow({
+        title: 'Vercel Blob (image storage)', sub: 'All project render images', svc: s.blob,
+        budgetKey: 'blob_plan_gb', unitHint: 'plan storage, GB',
+        billing: 'https://vercel.com/dashboard',
+        used: s.blob && s.blob.totalBytes != null ? s.blob.totalBytes / GB : null,
+        usedLabel: s.blob && s.blob.totalBytes != null ? svcBytes(s.blob.totalBytes) + (s.blob.partial ? ' (partial)' : '') : '',
+        limitLabel: gbLabel,
+        details: s.blob && s.blob.fileCount != null ? ['Files: <strong>' + s.blob.fileCount + '</strong>'] : []
+      }),
+      svcRow({
+        title: 'Neon (database)', sub: 'Accounts, projects, logs', svc: s.neon,
+        budgetKey: 'neon_plan_gb', unitHint: 'plan storage, GB',
+        billing: 'https://console.neon.tech/app/billing',
+        used: neonBytes != null ? neonBytes / GB : null,
+        usedLabel: neonBytes != null ? svcBytes(neonBytes) : '',
+        limitLabel: gbLabel,
+        details: (s.neon && s.neon.projects) ? s.neon.projects.map(p => escapeHtml(p.name) + ': <strong>' + svcBytes(p.storageBytes) + '</strong>') : []
+      })
     ].join('');
 
     const counters = (data.internal && data.internal.perProvider) || [];
