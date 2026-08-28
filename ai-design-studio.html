@@ -11674,9 +11674,9 @@ function collapseFormCard(){
   const hint = document.getElementById('formCollapseHint');
   if(hint) hint.textContent = 'Tap to view';
   document.getElementById('modeTabs').style.display = 'none';
-  // Owner rule: the main page stays reachable from every page — the 🏠 Home Page bar
-  // remains visible alongside the collapsed Design Brief.
-  document.getElementById('showFormBar').style.display = 'block';
+  // The main page stays reachable via the header's Home button (the old in-page bar is
+  // now permanently empty — owner removed the duplicate).
+  document.getElementById('showFormBar').style.display = 'none';
 }
 
 function toggleFormCollapse(){
