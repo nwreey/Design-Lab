@@ -186,17 +186,24 @@ export default async function handler(req, res) {
     }
   }
 
-  // Gate/role mismatch counts as a failed attempt (feeds the lockout) and is
-  // indistinguishable from a wrong password from the outside.
+  // Gate/role mismatch: refused with the same generic 401 as a wrong password, but it
+  // does NOT feed the lockout counter — the credentials were CORRECT, so this is a
+  // legitimate person at the wrong door (owner locked himself out this way on day one),
+  // not a guessing attack. An attacker in this branch already has the real password;
+  // the lockout adds nothing against them.
+  let gateMismatch = false;
   if (tokenPayload && ((tokenPayload.role === 'admin') !== (gate === 'admin'))) {
     tokenPayload = null;
+    gateMismatch = true;
   }
 
   if (!tokenPayload) {
-    try {
-      await recordFailedAttempt(attemptKey);
-    } catch (err) {
-      console.error('Could not record failed attempt:', err);
+    if (!gateMismatch) {
+      try {
+        await recordFailedAttempt(attemptKey);
+      } catch (err) {
+        console.error('Could not record failed attempt:', err);
+      }
     }
     res.status(401).json({ error: { message: 'Incorrect username or password.' } });
     return;
