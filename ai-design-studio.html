@@ -21013,7 +21013,7 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geo
    block or crash a real generation; the two prose anchors above still apply either way. */
 const orientationLockVerificationSystem = `SYSTEM
 
-You are a strict architectural QA inspector reviewing a single rendered camera-angle photo of an exhibition booth against that exact booth's own locked, immutable geometry facts (an "Orientation Lock" JSON object). Your only job is to check whether the geometry actually visible in this image matches the Orientation Lock — never whether it looks good, never style, never lighting, never materials, never branding, never furniture styling, never color. Geometry only.
+You are a strict architectural QA inspector. You receive TWO images: the FIRST image is the client's APPROVED final booth design (the authoritative reference), and the SECOND image is a newly rendered camera-angle view that claims to show that exact same booth from a different position. You also receive the booth's locked, immutable geometry facts (an "Orientation Lock" JSON object). Your job is twofold: verify the second image's visible geometry against the Orientation Lock, AND verify that the second image shows the SAME DESIGN as the approved first image — never judge whether it looks good; only whether it is the same booth.
 
 Check specifically, in this order:
 1. Every side listed in "openSides" must show NO wall, panel, backdrop, or partition anywhere along that side of the booth in this image.
@@ -21022,6 +21022,8 @@ Check specifically, in this order:
 
 DOUBLE DECK CAMERA RULES — Camera Validation Rules (only apply these two additional checks when the Orientation Lock's "isDoubleDeck" field is true; skip both entirely for a single-level booth):
 4. The accompanying text for this image states whether this specific camera "requiresUpperFloorVisible". When it does, a genuine second floor (upper deck) must be visibly present in the image, positioned above the ground floor, with a real guard rail/railing visible along any exposed edge of it (per "guardRailRequired": true) — if the image reads as a single-level booth with no upper floor at all, that is a MISMATCH.
+6. DESIGN FIDELITY (always applies — this protects the client's approval): compare the second image against the approved FIRST image. It must read as the SAME booth: the same hero structure form, the same materials and color palette, the same branding and logo treatment, the same signage, the same general furniture character, the same lighting approach. Elements genuinely hidden in the approved view may appear when the camera reveals them, but they must be consistent with the approved design language. If the second image reads as a REDESIGNED or noticeably DIFFERENT booth (different hero form, different palette, different materials, added/removed major elements), that is a MISMATCH.
+
 5. The accompanying text states whether this image "isStaircaseView". When it is, a staircase connecting the ground floor and the second floor must be clearly visible and appear structurally supported (resting on real posts, a stringer, or a wall — never floating in mid-air with no visible support). If no staircase is visible at all in this specific view, that is a MISMATCH.
 
 If this image's visible geometry is consistent with the Orientation Lock on all applicable checks above, respond MATCH. If ANY check fails, respond MISMATCH and state exactly which check failed and what is visibly wrong, in one short, specific sentence a designer could act on to fix it (e.g. "A curved wall appears on the Left side, which the Orientation Lock lists as an open side." or "No second floor is visible — this double-deck booth renders as a single-level structure.").
@@ -21034,10 +21036,14 @@ async function verifyCameraViewGeometry(dataUrl, spec){
   if(!cameraViewsOrientationLock) return { result: 'MATCH' };
   try{
     const { mime, base64 } = dataUrlParts(await compressDataUrl(dataUrl, 1024, 0.8));
-    const content = [
-      { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
-      { type: 'text', text: `ORIENTATION LOCK (machine-readable, authoritative facts for this exact booth):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThis image is the "${spec.name}" camera view of this exact booth. requiresUpperFloorVisible: ${!!spec.requiresUpperFloorVisible}. isStaircaseView: ${spec.focusZone === 'staircase'}.` }
-    ];
+    const content = [];
+    // FIRST image: the approved design itself — the fidelity check (rule 6) compares
+    // against it directly, so 'same design' is judged from pixels, not prose alone.
+    if(cameraViewsHeroRef && cameraViewsHeroRef.base64){
+      content.push({ type: 'image', source: { type: 'base64', media_type: cameraViewsHeroRef.mime || 'image/jpeg', data: cameraViewsHeroRef.base64 } });
+    }
+    content.push({ type: 'image', source: { type: 'base64', media_type: mime, data: base64 } });
+    content.push({ type: 'text', text: `The FIRST image is the client's APPROVED design. The SECOND image is the newly rendered view under inspection.\n\nORIENTATION LOCK (machine-readable, authoritative facts for this exact booth):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThe second image is the "${spec.name}" camera view of this exact booth. requiresUpperFloorVisible: ${!!spec.requiresUpperFloorVisible}. isStaircaseView: ${spec.focusZone === 'staircase'}.` });
     const analysis = await callPromptWriterApi(orientationLockVerificationSystem, content);
     if(analysis && analysis.result === 'MISMATCH'){
       return { result: 'MISMATCH', reason: (analysis.reason && typeof analysis.reason === 'string') ? analysis.reason : 'Geometry does not match the locked Orientation Lock.' };
