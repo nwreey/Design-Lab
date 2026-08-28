@@ -136,6 +136,7 @@
   html[dir="rtl"] .footer-grid{ text-align:right; }
   html[dir="rtl"] .signup-side-card ol{ padding:0 18px 0 0; }
 </style>
+<script src="/recaptcha-config.js"></script>
 </head>
 <body>
 
@@ -347,6 +348,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
       phone: document.getElementById('su-phone').value.trim(),
       role: document.getElementById('su-role').value,
       useCase: document.getElementById('su-usecase').value.trim(),
+      recaptchaToken: typeof getRecaptchaToken === 'function' ? await getRecaptchaToken('signup') : null,
     };
     const response = await fetch('/api/signup', {
       method: 'POST',
