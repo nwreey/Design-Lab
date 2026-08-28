@@ -3467,8 +3467,10 @@ Replace only the materials and graphics."></textarea>
           <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;" data-i18n="btn.downloadImage">Download image</button>
           <button class="ghost small" onclick="openModifyDesignPanel()" data-i18n="btn.modifyDesign">Modify design</button>
           <button class="primary small" id="approveDesignBtn" onclick="approveDesign()" data-i18n="btn.approve">Approve</button>
-          <button class="ghost small" id="otherOptionBtn" onclick="regenerateOtherOption()" style="margin-left:auto;" data-i18n="btn.otherOption">Other option</button>
-          <div class="other-design-wrap">
+          <!-- "Other option" removed from this bar (owner request: sat beside Other Design and
+               read as a duplicate). regenerateOtherOption() and all otherOptionBtn references
+               are null-guarded, so no JS changes were needed. -->
+          <div class="other-design-wrap" style="margin-left:auto;">
             <button type="button" class="ghost small" onclick="toggleOtherDesignMenu(event, 'otherDesignMenuBooth')">Other Design</button>
             <div class="other-design-dropdown" id="otherDesignMenuBooth"></div>
           </div>
