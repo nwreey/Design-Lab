@@ -23430,27 +23430,28 @@ function scrollProjectList(direction){
    dropdown uses, with the same mid-generation guard openProject() has. */
 function sidebarSwitchMode(m){
   if(typeof blockIfGenerating === 'function' && blockIfGenerating()) return;
-  // Switching design type from the sidebar counts as leaving the results-only view — bring
-  // the tabs and form chrome back before applying the mode (same restore showFormAndTabs does).
+  // Owner rule: clicking a Create category means "start a FRESH brief for this section" —
+  // a full startNewProject (closes whatever project was open, clears its sidebar highlight,
+  // resets and unlocks the form) and then the chosen mode's brief from the beginning.
+  startNewProject();
   document.getElementById('modeTabs').style.display = 'flex';
   document.getElementById('showFormBar').style.display = 'none';
   const dsWrap = document.getElementById('dsFormFields');
   if(dsWrap) dsWrap.style.display = '';
-  // Owner report: with a project open, sidebar-switching to Event Concept showed the shared
-  // form still LOCKED from that project (Display Stand looked fine only because its lock is
-  // the separate lockDsForm). Choosing a design type from Create means "start working on
-  // this type" — the form must come back writable. Any billing stays protected by the
-  // Generate confirm popup (regenerates charge the modify quota as usual).
   unlockForm();
   if(typeof unlockDsForm === 'function') unlockDsForm();
   setMode(m);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function updateSidebarModeHighlight(m){
+  // Owner rule: inside an open project the Create categories carry NO active border —
+  // the highlight only means "you are creating a new design of this type".
+  const insideProject = typeof currentProjectId !== 'undefined' && currentProjectId != null;
   const map = { booth: 'createModeBooth', event: 'createModeEvent', displaystand: 'createModeDisplaystand' };
   ['createModeBooth', 'createModeEvent', 'createModeDisplaystand'].forEach(id => {
     const el = document.getElementById(id);
-    if(el) el.classList.toggle('active', map[m] === id);
+    if(el) el.classList.toggle('active', !insideProject && map[m] === id);
   });
 }
 
