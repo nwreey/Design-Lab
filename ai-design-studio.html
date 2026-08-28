@@ -897,6 +897,9 @@
   </div>
 
   <div class="show-form-bar" id="showFormBar" style="display:none;">
+    <!-- Owner rule: after Generate the form is CLOSED but AVAILABLE — this button brings it
+         back (read-only for users). After APPROVAL the button hides, so the form is gone. -->
+    <button type="button" class="ghost small" id="showBriefBtn" onclick="showFormAndTabs()">📋 Show Brief</button>
     <button type="button" class="ghost small" onclick="startNewProject()">🏠 Home Page</button>
   </div>
 
@@ -11355,12 +11358,22 @@ window.addEventListener('beforeunload', function(e){
 // underneath too. These two functions toggle between that focused "just show me the
 // project" view and the normal "form + tabs" view, without discarding anything: the form
 // fields stay populated the whole time, this only ever hides/shows them.
+function isCurrentDesignApproved(){
+  if(mode === 'event') return !!(eventConceptBoard && eventConceptBoard.approved);
+  if(mode === 'displaystand') return !!(typeof dsViewRenders !== 'undefined' && dsViewRenders && dsViewRenders.length);
+  // Booth: saved camera views only ever exist because Approve ran.
+  return Object.keys(viewCardHistories || {}).some(k => viewCardHistories[k] && viewCardHistories[k].images && viewCardHistories[k].images.length > 0);
+}
+
 function hideFormAndTabs(){
   document.getElementById('modeTabs').style.display = 'none';
   document.getElementById('formCard').style.display = 'none';
   document.getElementById('displayStandCard').style.display = 'none';
   document.getElementById('modifyDesignFormCard').style.display = 'none';
   document.getElementById('showFormBar').style.display = 'block';
+  // Closed-but-available before approval; truly gone after (owner rule).
+  const showBriefBtn = document.getElementById('showBriefBtn');
+  if(showBriefBtn) showBriefBtn.style.display = isCurrentDesignApproved() ? 'none' : '';
 }
 
 /* Display Stand version of hideFormAndTabs(): dsResult lives INSIDE displayStandCard, so
@@ -11372,6 +11385,9 @@ function hideDsFormKeepResults(){
   const wrap = document.getElementById('dsFormFields');
   if(wrap) wrap.style.display = 'none';
   document.getElementById('showFormBar').style.display = 'block';
+  // DS approval path — the form is gone for good (owner rule).
+  const showBriefBtn = document.getElementById('showBriefBtn');
+  if(showBriefBtn) showBriefBtn.style.display = 'none';
 }
 
 function showFormAndTabs(){
@@ -22435,8 +22451,12 @@ async function confirmApproveDesign(){
 
   // Approving locks in the design — from here on this reads as "the project," not "a form
   // in progress," so the form and tabs step aside the same way they do when reopening an
-  // already-finished saved project.
+  // already-finished saved project. The Show Brief button hides too (owner rule: after
+  // approval the form is gone) — explicitly, since the camera views that mark approval
+  // don't exist yet at this moment.
   hideFormAndTabs();
+  const showBriefBtnEl = document.getElementById('showBriefBtn');
+  if(showBriefBtnEl) showBriefBtnEl.style.display = 'none';
   projectSwitchLocked = true;
 
   const statusEl = document.getElementById('actionStatus');
