@@ -83,9 +83,12 @@ export default async function middleware(request) {
   const url = new URL(request.url);
 
   // SEO architecture (owner request): the marketing/content tree is fully public.
-  const PUBLIC_PREFIXES = ['/solutions/', '/industries/', '/blog', '/ar'];
+  // Prefix matching is deliberately strict: '/ar' must match '/ar' or '/ar/...' but
+  // NEVER '/ar<anything-else>' — a bare startsWith('/ar') would silently make any
+  // future path that merely BEGINS with those letters public.
+  const PUBLIC_PREFIXES = ['/solutions', '/industries', '/blog', '/ar'];
   const PUBLIC_SEO_PAGES = ['/ai-exhibition-booth-designer', '/ai-event-concept-generator', '/ai-display-stand-designer', '/ai-image-editor'];
-  if (PUBLIC_PREFIXES.some(p => url.pathname === p || url.pathname.startsWith(p)) ||
+  if (PUBLIC_PREFIXES.some(p => url.pathname === p || url.pathname.startsWith(p + '/')) ||
       PUBLIC_SEO_PAGES.some(p => url.pathname === p || url.pathname === p + '.html')) {
     return;
   }

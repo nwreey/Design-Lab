@@ -1,6 +1,6 @@
 const { scrubProviderText } = require('../lib/safe-error.js');
+const { requireCaller } = require('../lib/require-auth.js');
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -13,6 +13,8 @@ module.exports = async (req, res) => {
     res.status(405).json({ error: { message: 'Method not allowed. Use GET.' } });
     return;
   }
+
+  if (!requireCaller(req, res)) return;
 
   const apiKey = process.env.LUMA_AGENTS_API_KEY;
   if (!apiKey) {

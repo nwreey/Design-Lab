@@ -1,4 +1,49 @@
 import crypto from 'crypto';
+import dns from 'dns';
+
+/* ================= SSRF protection =================
+   This endpoint fetches a user-supplied URL on the server. Without these checks a
+   signed-in user could point it at INTERNAL addresses (cloud metadata services,
+   localhost, private-network hosts) and read back whatever they return — a classic
+   Server-Side Request Forgery. Defense: resolve the hostname and refuse anything
+   that lands in a private/reserved range, and re-validate on EVERY redirect hop
+   (redirect:'manual' below) so a public host can't bounce us to an internal one. */
+function isPrivateIp(ip) {
+  if (!ip) return true;
+  // IPv4-mapped IPv6 (::ffff:10.0.0.1) — strip the prefix and test the IPv4 part.
+  const v4 = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(v4)) {
+    const [a, b] = v4.split('.').map(Number);
+    if (a === 0 || a === 10 || a === 127) return true;            // this-net, private, loopback
+    if (a === 169 && b === 254) return true;                       // link-local / cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true;              // private
+    if (a === 192 && b === 168) return true;                       // private
+    if (a === 100 && b >= 64 && b <= 127) return true;             // CGNAT
+    if (a >= 224) return true;                                     // multicast/reserved
+    return false;
+  }
+  // IPv6: loopback, unspecified, link-local, unique-local.
+  const lower = ip.toLowerCase();
+  return lower === '::1' || lower === '::' || lower.startsWith('fe80:') ||
+         lower.startsWith('fc') || lower.startsWith('fd');
+}
+
+async function assertPublicHost(parsed) {
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') ||
+      host.endsWith('.internal') || host === 'metadata.google.internal') {
+    throw new Error('blocked-host');
+  }
+  // IP literal? Test it directly (URL keeps IPv6 literals in brackets).
+  const bare = host.replace(/^\[|\]$/g, '');
+  if (/^[\d.]+$/.test(bare) || bare.includes(':')) {
+    if (isPrivateIp(bare)) throw new Error('blocked-host');
+    return;
+  }
+  // Hostname: resolve every address it maps to; ANY private result blocks the fetch.
+  const results = await dns.promises.lookup(bare, { all: true, verbatim: true });
+  if (!results.length || results.some(r => isPrivateIp(r.address))) throw new Error('blocked-host');
+}
 
 /* Same token verification duplicated across the auth-aware endpoints in this project — see
    api/projects.js for the fuller explanation of why this isn't a shared import. Route-level
@@ -60,7 +105,6 @@ function extractTitle(html) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -104,21 +148,37 @@ export default async function handler(req, res) {
     const timer = setTimeout(() => controller.abort(), 15000);
     let response;
     try {
-      response = await fetch(parsed.toString(), {
-        signal: controller.signal,
-        redirect: 'follow',
-        headers: {
-          // A generic browser-like UA — some marketing sites block obvious non-browser
-          // clients outright, which would otherwise make this feature fail on exactly the
-          // kind of company website it's meant to read.
-          'User-Agent': 'Mozilla/5.0 (compatible; DesignsLabAI/1.0; +https://designslab.ai)',
-          Accept: 'text/html,application/xhtml+xml',
-        },
-      });
+      // Redirects are followed MANUALLY so each hop's host gets the same SSRF check —
+      // otherwise a public URL could 302 to an internal address and bypass the guard.
+      let currentUrl = parsed;
+      for (let hop = 0; hop <= 3; hop++) {
+        await assertPublicHost(currentUrl);
+        response = await fetch(currentUrl.toString(), {
+          signal: controller.signal,
+          redirect: 'manual',
+          headers: {
+            // A generic browser-like UA — some marketing sites block obvious non-browser
+            // clients outright, which would otherwise make this feature fail on exactly the
+            // kind of company website it's meant to read.
+            'User-Agent': 'Mozilla/5.0 (compatible; DesignsLabAI/1.0; +https://designslab.ai)',
+            Accept: 'text/html,application/xhtml+xml',
+          },
+        });
+        if (response.status >= 300 && response.status < 400) {
+          const loc = response.headers.get('location');
+          if (!loc || hop === 3) break;
+          currentUrl = new URL(loc, currentUrl);
+          if (currentUrl.protocol !== 'http:' && currentUrl.protocol !== 'https:') break;
+          continue;
+        }
+        break;
+      }
     } catch (err) {
-      const message = err && err.name === 'AbortError'
-        ? 'Timed out reading that website.'
-        : 'Could not reach that website: ' + (err && err.message ? err.message : 'unknown error');
+      const message = err && err.message === 'blocked-host'
+        ? 'That address is not reachable from here — please use a public website URL.'
+        : err && err.name === 'AbortError'
+          ? 'Timed out reading that website.'
+          : 'Could not reach that website: ' + (err && err.message ? err.message : 'unknown error');
       res.status(200).json({ text: '', title: '', warning: message });
       return;
     } finally {

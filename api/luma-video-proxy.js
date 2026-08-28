@@ -1,9 +1,9 @@
 const { Readable } = require('stream');
+const { requireCaller } = require('../lib/require-auth.js');
 
 const ALLOWED_HOST_SUFFIXES = ['lumalabs.ai', 'storage.googleapis.com', 'amazonaws.com', 'cloudfront.net'];
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Range');
 
@@ -16,6 +16,8 @@ module.exports = async (req, res) => {
     res.status(405).json({ error: { message: 'Method not allowed. Use GET.' } });
     return;
   }
+
+  if (!requireCaller(req, res)) return;
 
   try {
     const videoUrl = req.query && req.query.url;

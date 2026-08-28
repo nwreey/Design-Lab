@@ -33,7 +33,7 @@ const OWNER_INBOX = 'moe@dmrarabia.com';
 
 /* TEMPORARY — RATE LIMIT DISABLED FOR OWNER TESTING (set back to false to re-enable).
    Same flag/reason as api/signup.js. */
-const RATE_LIMIT_DISABLED = true;
+const RATE_LIMIT_DISABLED = false;
 
 /* Same admin re-verification as the other admin-aware endpoints (see api/admin-users.js). */
 function getCaller(req) {

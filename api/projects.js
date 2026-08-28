@@ -237,6 +237,20 @@ export default async function handler(req, res) {
         res.status(400).json({ error: { message: 'projectId and a data URL are required.' } });
         return;
       }
+      // Storage abuse guards: (1) a caller may only pre-upload into a project THEY own
+      // (or one that doesn't exist yet — the save that follows will create it as theirs);
+      // (2) a single image is capped at ~15MB of base64 — far above any real render,
+      // low enough that the endpoint can't be scripted into a free unlimited file host.
+      if (dataUrl.length > 20_000_000) {
+        res.status(413).json({ error: { message: 'That image is too large to store.' } });
+        return;
+      }
+      const owner = await sql`SELECT user_id FROM projects WHERE id = ${projectId};`;
+      if (owner.rows.length > 0 && caller.role !== 'admin' &&
+          owner.rows[0].user_id && owner.rows[0].user_id !== caller.userId) {
+        res.status(403).json({ error: { message: 'You do not have access to this project.' } });
+        return;
+      }
       try {
         const mimeMatch = dataUrl.match(/^data:([^;]+);base64,/);
         const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';

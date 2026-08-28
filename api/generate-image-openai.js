@@ -132,7 +132,6 @@ async function incrementEditCount(caller) {
    admins. Either way, this never touches the two-call Project Analysis Engine (Stage 1/Stage
    2) — only the final image-rendering step is swapped. */
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 

@@ -1,8 +1,8 @@
 const { logAiCall } = require('../lib/usage-log.js');
 const { scrubProviderText, GENERIC_TEXT_ERROR } = require('../lib/safe-error.js');
+const { requireCaller } = require('../lib/require-auth.js');
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -15,6 +15,8 @@ module.exports = async (req, res) => {
     res.status(405).json({ error: { message: 'Method not allowed. Use POST.' } });
     return;
   }
+
+  if (!requireCaller(req, res)) return;
 
   const apiKey = process.env.LUMA_AGENTS_API_KEY;
   if (!apiKey) {
