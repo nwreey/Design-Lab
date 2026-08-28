@@ -1196,7 +1196,7 @@
       <div class="action-status" id="dsActionStatus"></div>
       <div id="dsViewRenders" style="display:none;margin-top:26px;">
         <div class="eyebrow">Approved View Renders</div>
-        <div id="dsViewRendersGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:12px;"></div>
+        <div id="dsViewRendersGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:12px;"></div>
         <div id="goodLuckDsAnchor"></div>
       </div>
     </div>
@@ -7721,6 +7721,10 @@ async function regenerateDsOtherOption(){
 // stay in sync with whatever board is actually on screen.
 const DS_VIEWS_OPEN = ['Perspective', 'Front', 'Right Side', 'Back'];
 const DS_VIEWS_CLOSED = ['Left Perspective', 'Right Perspective'];
+// Approve also produces one extra sheet after the camera views: a dimensions & materials
+// specification image (owner request) — it renders as the LAST card in the grid and the
+// Good Luck message only appears once it has finished too.
+const DS_SPEC_VIEW = 'Dimensions & Specifications';
 let dsCurrentViews = DS_VIEWS_OPEN.slice();
 let dsViewRenders = []; // { view, image, images, activeIndex } — images/activeIndex hold the edit-history version stack, exhibition/event-area style (see ecbAreaCurrentImage's identical pattern); `image` stays in sync with the active version for anything that still reads it directly.
 let dsViewEditing = null; // { view, stop } — which view card (if any) currently has an in-progress single-picture edit running, so its progress bar renders inside that one card only.
@@ -7773,7 +7777,9 @@ function renderDsViewGrid(inProgressView){
   if(!wrap || !grid) return;
   if(!dsViewRenders.length && !inProgressView){ wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
-  grid.innerHTML = dsCurrentViews.map(view => {
+  // Camera views first, then the Dimensions & Specifications sheet as the LAST card — the
+  // grid is 3 per row, so an Open stand shows 4 views + spec sheet as a 3+2 layout.
+  grid.innerHTML = dsCurrentViews.concat(DS_SPEC_VIEW).map(view => {
     const done = dsViewRenders.find(r => r.view === view);
     // Bind every action to the render's NUMERIC index, not the view name — area/view names
     // carried through generated onclick attributes can break on quotes/slashes (real bug hit
@@ -7863,15 +7869,17 @@ function cropDsPanel(dataUrl, index, totalViews){
 async function approveDisplayStand(){
   if(!dsLastImage) return;
   // Every deduction is announced first (owner rule): one edit per view actually on the board
-  // (4 for an Open/island stand, 2 for a Closed/wall stand — see dsCurrentViews).
+  // (4 for an Open/island stand, 2 for a Closed/wall stand — see dsCurrentViews), PLUS one for
+  // the Dimensions & Specifications sheet generated after the views (owner request).
   const viewCount = dsCurrentViews.length;
+  const totalImages = viewCount + 1;
   if(!isAdminUser){
-    const msg = 'Approving will generate ' + viewCount + ' high-resolution view renders (' + dsCurrentViews.join(', ') + ') and will use ' + viewCount + ' of your edits'
+    const msg = 'Approving will generate ' + totalImages + ' images — ' + viewCount + ' high-resolution view renders (' + dsCurrentViews.join(', ') + ') plus 1 Dimensions & Specifications sheet — and will use ' + totalImages + ' of your edits'
       + ((currentUserEditLimit != null && currentUserEditCount != null) ? ' — you have used ' + currentUserEditCount + ' of ' + currentUserEditLimit : '')
       + '. Continue?';
     const ok = await customConfirm(msg, 'Approve', 'Approve');
     if(!ok) return;
-    if(currentUserEditCount != null){ currentUserEditCount += viewCount; renderEditUsageIndicator(); }
+    if(currentUserEditCount != null){ currentUserEditCount += totalImages; renderEditUsageIndicator(); }
   }
   const approveBtn = document.getElementById('dsApproveBtn');
   approveBtn.disabled = true;
@@ -7900,7 +7908,7 @@ async function approveDisplayStand(){
     if(logoData && logoData.dataUrl && String(logoData.type).indexOf('image/') === 0) extraRefs.push({ data: logoData.dataUrl.split(',')[1], mimeType: logoData.type });
     for(const view of dsCurrentViews){
       renderDsViewGrid(view);
-      if(statusEl) statusEl.textContent = 'Approved — generating high-resolution renders (' + (dsViewRenders.length + 1) + ' of ' + viewCount + ')...';
+      if(statusEl) statusEl.textContent = 'Approved — generating high-resolution renders (' + (dsViewRenders.length + 1) + ' of ' + totalImages + ')...';
       try{
         // Physically crop this ONE panel out of the board first (see cropDsPanel) — Gemini never
         // even receives the other panel(s), so it has nothing left to combine into one image.
@@ -7962,12 +7970,65 @@ async function approveDisplayStand(){
         if(statusEl) statusEl.textContent = 'Could not render the ' + view + ' view: ' + (viewErr.message || 'unknown error') + ' — continuing with the rest.';
       }
     }
+    // Final image (owner request): one Dimensions & Specifications sheet — the approved stand
+    // rendered once as a clean technical presentation sheet with dimension callouts and a
+    // materials/specification panel built from the form data. Runs AFTER all camera views so
+    // it is always the last card in the grid.
+    try{
+      renderDsViewGrid(DS_SPEC_VIEW);
+      if(statusEl) statusEl.textContent = 'Approved — generating the Dimensions & Specifications sheet (' + totalImages + ' of ' + totalImages + ')...';
+      const specLines = [];
+      specLines.push('You are a world-class retail display designer preparing the final TECHNICAL SPECIFICATION SHEET of an approved display stand design.');
+      specLines.push('');
+      specLines.push('The FIRST attached image is the client-APPROVED multi-view board of this display stand — it is the exact design ground truth. Do not redesign, restyle, or alter the stand in any way.');
+      specLines.push('');
+      specLines.push('YOUR TASK: produce ONE clean, presentation-grade landscape A4 specification sheet (297x210 proportions) containing:');
+      specLines.push('1. The stand rendered ONCE in a three-quarter perspective view on a clean light/neutral studio background (no retail environment), matching the approved design exactly.');
+      specLines.push('2. Clean, thin technical dimension lines with labels: overall "W: ' + dsVal('f_dsMaxWidth') + ' cm", "D: ' + dsVal('f_dsMaxDepth') + ' cm", "H: ' + dsVal('f_dsMaxHeight') + ' cm" — like a professional product spec sheet.');
+      specLines.push('3. A neat specifications panel (list) along one side or the bottom, in small clean typography, stating exactly and only the following data:');
+      const specMaterials = dsChecked('ds-material-cb');
+      const specFeatures = dsChecked('ds-feature-cb');
+      const specColors = [dsVal('f_dsColorPrimaryHex'), dsVal('f_dsColorSecondaryHex'), dsVal('f_dsColorAccentHex')].filter(v => /^#([0-9A-Fa-f]{6})$/.test(v));
+      specLines.push('   - Dimensions: ' + dsVal('f_dsMaxWidth') + ' x ' + dsVal('f_dsMaxDepth') + ' x ' + dsVal('f_dsMaxHeight') + ' cm (W x D x H)');
+      if(specMaterials.length) specLines.push('   - Materials: ' + specMaterials.join(', '));
+      if(specColors.length) specLines.push('   - Brand colors: ' + specColors.join(', '));
+      if(dsVal('f_dsShelfCount')) specLines.push('   - Shelves: ' + dsVal('f_dsShelfCount'));
+      if(dsVal('f_dsLevelCount')) specLines.push('   - Display levels: ' + dsVal('f_dsLevelCount'));
+      if(specFeatures.length) specLines.push('   - Features: ' + specFeatures.join(', '));
+      if(dsVal('f_dsProduction')) specLines.push('   - Production type: ' + dsVal('f_dsProduction'));
+      if(dsVal('f_dsBackType')) specLines.push('   - Back side: ' + dsVal('f_dsBackType'));
+      specLines.push('');
+      specLines.push('RULES:');
+      specLines.push('- The stand must match the approved board EXACTLY — same construction, materials, colors, branding, products, back type. This is a documentation sheet, not a redesign.');
+      if(specColors.length) specLines.push('- HARD RULE — BRAND COLOR COMPLIANCE: the stand itself uses ONLY ' + specColors.join(', ') + ', their shades/tints, and neutrals. The sheet layout (background, lines, labels) stays neutral: white/light background, dark grey/black technical text and lines.');
+      specLines.push('- All text on the sheet must be sharp, correctly spelled, and limited to the specification data listed above plus a small title with the project name "' + dsVal('f_dsName').replace(/"/g, "'") + '". No paragraphs, no invented data.');
+      specLines.push('- Clean spec-sheet aesthetic: generous white space, thin leader lines, professional typography — the closing page of a design proposal.');
+      const specPrompt = specLines.join('\n');
+      const specBoardParts = dataUrlParts(dsLastImage);
+      let specData = null;
+      for(const size of ['4K', '2K']){
+        const response = await fetchWithTimeout('/api/generate-image-gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: specPrompt, referenceImage: specBoardParts.base64, referenceMimeType: specBoardParts.mime, additionalReferenceImages: extraRefs, isUserInitiatedEdit: size === '4K', quotaKind: 'edit', aspectRatio: '4:3', imageSize: size })
+        }, 190000);
+        const rawText = await response.text();
+        let parsed = {};
+        try{ parsed = JSON.parse(rawText); }catch(e){ /* leave {} */ }
+        if(response.ok && parsed.image){ specData = parsed; break; }
+        if(size === '2K') throw new Error((parsed.error && parsed.error.message) || 'Specification sheet render failed.');
+      }
+      const storedSpecImage = await compressDsViewImage(specData.image);
+      dsViewRenders.push({ view: DS_SPEC_VIEW, image: storedSpecImage });
+    }catch(specErr){
+      console.error('Dimensions & Specifications sheet failed:', specErr);
+      if(statusEl) statusEl.textContent = 'Could not render the Dimensions & Specifications sheet: ' + (specErr.message || 'unknown error') + '.';
+    }
     renderDsViewGrid(null);
-    if(statusEl) statusEl.textContent = 'Approved — ' + dsViewRenders.length + ' of ' + viewCount + ' high-resolution view renders ready below.';
-    // Good Luck message + rating only appear once every view actually finished — matching the
-    // booth (camera views + technical board) and event (all approved area renders) behavior;
-    // a batch with one or more failed views isn't "done" yet.
-    if(dsViewRenders.length >= viewCount) showDsGoodLuckAndRating(true);
+    if(statusEl) statusEl.textContent = 'Approved — ' + dsViewRenders.length + ' of ' + totalImages + ' images ready below.';
+    // Good Luck message + rating only appear once every image actually finished — all camera
+    // views AND the Dimensions & Specifications sheet; a batch with any failure isn't "done" yet.
+    if(dsViewRenders.length >= totalImages) showDsGoodLuckAndRating(true);
     // Persist the approved view renders (even a partial batch, so a failed view isn't lost on
     // refresh — Retry-equivalent isn't built for DS yet, but at least the successful ones survive).
     saveCurrentProject();
@@ -22533,6 +22594,10 @@ function restoreDsResultsIfSaved(project){
     img.style.display = 'block';
   }
   renderDsViewGrid(null);
+  // goodLuckShown was only persisted as true when the full batch (camera views + the
+  // Dimensions & Specifications sheet) finished — trust the flag rather than re-deriving the
+  // expected count here, so older projects saved before the spec sheet existed still restore
+  // their Good Luck state correctly.
   if(dsResult.goodLuckShown && dsViewRenders.length && dsViewRenders.length >= dsCurrentViews.length){
     // Same saved-rating restoration as the booth path in restoreGeneratedViewsIfSaved — this
     // project has no booth camera views, so nothing else will have set these yet.
