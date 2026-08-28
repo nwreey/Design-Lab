@@ -63,6 +63,11 @@ async function ensureSchema() {
   // deployment. Whichever file actually adds the column first must also be the one that
   // backfills it — otherwise the other file would see the column already exists and skip
   // its own backfill, permanently stranding existing users at project_count = 0.
+  // Home-page card fields (owner request): a small thumbnail + kind + status live as
+  // COLUMNS so the lightweight list can show real pictures without shipping project blobs.
+  await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS thumb TEXT;`;
+  await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS kind TEXT;`;
+  await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS status TEXT;`;
   const colCheck = await sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'project_count';`;
   const columnAlreadyExisted = colCheck.rows.length > 0;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS project_count INTEGER NOT NULL DEFAULT 0;`;
@@ -216,8 +221,8 @@ export default async function handler(req, res) {
     // delete any SPECIFIC project by id (below) is intentionally left alone — that's a
     // legitimate support capability (helping a user with a project they've been given the
     // id/link for), not the same thing as it showing up unsolicited in admin's own list.
-    const result = await sql`SELECT id, name, saved_at, user_id FROM projects WHERE user_id = ${caller.userId} ORDER BY saved_at DESC;`;
-    res.status(200).json(result.rows.map(r => ({ id: r.id, name: r.name, savedAt: r.saved_at })));
+    const result = await sql`SELECT id, name, saved_at, user_id, thumb, kind, status FROM projects WHERE user_id = ${caller.userId} ORDER BY saved_at DESC;`;
+    res.status(200).json(result.rows.map(r => ({ id: r.id, name: r.name, savedAt: r.saved_at, thumb: r.thumb || null, kind: r.kind || null, status: r.status || null })));
     return;
   }
 
@@ -291,9 +296,13 @@ export default async function handler(req, res) {
     const savedAt = project.savedAt || new Date().toISOString();
     const ownerForInsert = isNewProject ? caller.userId : (existing.rows[0].user_id || caller.userId);
     await sql`
-      INSERT INTO projects (id, name, saved_at, data, user_id)
-      VALUES (${project.id}, ${project.name}, ${savedAt}, ${JSON.stringify(storedData)}::jsonb, ${ownerForInsert})
-      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, saved_at = EXCLUDED.saved_at, data = EXCLUDED.data;
+      INSERT INTO projects (id, name, saved_at, data, user_id, thumb, kind, status)
+      VALUES (${project.id}, ${project.name}, ${savedAt}, ${JSON.stringify(storedData)}::jsonb, ${ownerForInsert},
+              ${typeof project.thumb === 'string' ? project.thumb.slice(0, 200000) : null},
+              ${typeof project.kind === 'string' ? project.kind.slice(0, 40) : null},
+              ${typeof project.status === 'string' ? project.status.slice(0, 40) : null})
+      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, saved_at = EXCLUDED.saved_at, data = EXCLUDED.data,
+        thumb = EXCLUDED.thumb, kind = EXCLUDED.kind, status = EXCLUDED.status;
     `;
     if (isNewProject && caller.role !== 'admin') {
       await sql`UPDATE users SET project_count = project_count + 1 WHERE id = ${caller.userId};`;

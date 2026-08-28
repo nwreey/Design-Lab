@@ -11576,16 +11576,19 @@ function renderHomeRecent(projects){
   if(recent.length === 0){ wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
   grid.innerHTML = recent.map(p => {
-    // Owner rule: the box shows the LAST image of the project (latest gallery entry),
-    // dimmed as a preview — the card opens the project, the picture itself is inert.
+    // Owner rule: the box shows the project's LAST picture, dimmed as a preview. The
+    // lightweight list now carries thumb/kind/status columns; full-object fields are the
+    // fallback for anything saved before those columns existed.
     const g = p.optionResult && p.optionResult.gallery;
-    const img = (g && g.length && g[g.length - 1] && g[g.length - 1].image)
+    const img = p.thumb
+      || (g && g.length && g[g.length - 1] && g[g.length - 1].image)
       || (p.eventConceptBoard && p.eventConceptBoard.image)
       || (p.dsResult && p.dsResult.image) || null;
-    const kind = p.dsResult ? 'Display Stand' : p.eventConceptBoard ? 'Event Concept' : 'Exhibition Booth';
+    const kindKey = p.kind || (p.dsResult ? 'displaystand' : p.eventConceptBoard ? 'event' : 'booth');
+    const kind = kindKey === 'displaystand' ? 'Display Stand' : kindKey === 'event' ? 'Event Concept' : 'Exhibition Booth';
     const hasViews = p.viewCardHistories && Object.keys(p.viewCardHistories).some(k => p.viewCardHistories[k] && p.viewCardHistories[k].images && p.viewCardHistories[k].images.length > 0);
-    const approved = hasViews || (p.eventConceptBoard && p.eventConceptBoard.approved) || (p.dsResult && p.dsResult.renders && p.dsResult.renders.length > 0);
-    const hasResult = !!(p.optionResult || p.eventConceptBoard || p.dsResult);
+    const approved = p.status === 'approved' || hasViews || (p.eventConceptBoard && p.eventConceptBoard.approved) || (p.dsResult && p.dsResult.renders && p.dsResult.renders.length > 0);
+    const hasResult = p.status === 'generated' || p.status === 'approved' || !!(p.optionResult || p.eventConceptBoard || p.dsResult) || !!p.thumb;
     const badge = hasResult
       ? (approved ? '<span class="home-badge approved">Approved</span>' : '<span class="home-badge progress">Generated · not approved</span>')
       : '<span class="home-badge progress">Draft</span>';
@@ -23793,7 +23796,30 @@ async function saveCurrentProject(){
     currentProjectName = projectName;
   }
 
+  // Home-page card fields (owner request): the LAST picture as a small thumb, plus kind
+  // and status — stored as columns server-side so the project list shows them cheaply.
+  let homeThumb = null, homeKind = 'booth', homeStatus = 'draft';
+  try{
+    const latestBooth = (optionResults && optionResults[0] && optionResults[0].gallery && optionResults[0].gallery.length)
+      ? optionResults[0].gallery[optionResults[0].gallery.length - 1].image : null;
+    const latestImage = (typeof dsLastImage !== 'undefined' && dsLastImage) ? dsLastImage
+      : (eventConceptBoard && eventConceptBoard.image) ? eventConceptBoard.image
+      : latestBooth;
+    homeKind = (typeof dsLastImage !== 'undefined' && dsLastImage) ? 'displaystand'
+      : (eventConceptBoard && eventConceptBoard.image) ? 'event' : 'booth';
+    const hasViews = Object.keys(viewCardHistories || {}).some(k => viewCardHistories[k] && viewCardHistories[k].images && viewCardHistories[k].images.length > 0);
+    const dsApproved = typeof dsViewRenders !== 'undefined' && dsViewRenders && dsViewRenders.length > 0;
+    const evApproved = !!(eventConceptBoard && eventConceptBoard.approved);
+    homeStatus = (hasViews || dsApproved || evApproved) ? 'approved' : (latestImage ? 'generated' : 'draft');
+    if(latestImage && typeof compressDataUrl === 'function'){
+      homeThumb = await compressDataUrl(latestImage, 360, 0.72);
+    }
+  }catch(err){ console.error('Could not build home thumbnail (saving without it):', err); }
+
   const project = {
+    thumb: homeThumb,
+    kind: homeKind,
+    status: homeStatus,
     freeModificationUsed: currentProjectFreeModUsed,
     id: currentProjectId,
     name: projectName,
