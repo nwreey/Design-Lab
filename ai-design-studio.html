@@ -16533,14 +16533,23 @@ async function generateEventConceptBoard(options){
       errBox.textContent = err.message || 'Could not generate the event concept board.';
       errBox.style.display = 'block';
       errBox.scrollIntoView({behavior:'smooth', block:'center'});
-      // Only unlock on failure, so the user can fix something and retry — a successful board
-      // stays locked exactly like a successful booth render does (see lockForm's own comment).
-      unlockForm();
+      // Only unlock on a REAL failure — no board produced, the user must fix and retry.
+      // If a board EXISTS, the error happened after the picture (a cosmetic/post-render
+      // step) — unlocking then was exactly the owner-reported bug: picture on screen with
+      // a writable form. The finally below re-asserts the lock for that case.
+      if(!(eventConceptBoard && eventConceptBoard.image)) unlockForm();
     }
   }finally{
     if(!inPlace) document.getElementById('loading').style.display = 'none';
     ecbButtons.forEach(b => { b.disabled = false; });
     projectSwitchLocked = false;
+    // Bulletproof owner rule: whenever a board is on screen, a regular user's form is
+    // locked AND closed (same as Exhibition) — success path, partial-failure path, every
+    // path. A real failure with no board leaves the form open to fix and retry.
+    if(!isAdminUser && eventConceptBoard && eventConceptBoard.image){
+      lockForm();
+      hideFormAndTabs();
+    }
   }
 }
 
@@ -16566,18 +16575,13 @@ function renderEventConceptBoardResult(skipScroll){
     showEcbGoodLuckAndRating(false);
   }
   if(!skipScroll) document.getElementById('eventConceptResult').scrollIntoView({behavior:'smooth', block:'start'});
-  // Owner rule (Event section, refined): after Generate the form STAYS on screen under
-  // the results but closed — visible and not writable. Only after APPROVAL does it
-  // disappear (approveEventConceptBoard sets .approved and hides; this re-render keeps it
-  // hidden on restore too). Admin exception: form stays open and writable.
+  // Owner rule (Event section, final): identical to Exhibition — once a board exists,
+  // the form, tabs, and their buttons all CLOSE for regular users (the 'Show form' bar
+  // can bring the form back read-only); after approval it stays gone for good. Admin
+  // exception: form stays open and writable.
   if(!isAdminUser){
-    if(eventConceptBoard.approved){
-      hideFormAndTabs();
-    }else{
-      lockForm();
-      // Bring the form back alongside the results if something earlier hid it.
-      if(document.getElementById('formCard').style.display === 'none') showFormAndTabs();
-    }
+    lockForm();
+    hideFormAndTabs();
   }else{
     unlockForm();
   }
