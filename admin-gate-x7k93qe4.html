@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="robots" content="noindex, nofollow">
+<title>DesignsLab — Administrator Access</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#C9992E;
+    --muted-dark:#9AA0AC;
+    --muted-light:#8A8676;
+    --line-light:#E4E1D8;
+    --error:#C0432B;
+  }
+  *{box-sizing:border-box;}
+  html, body{ height:100%; margin:0; }
+  @media(min-width:900px){ html{zoom:1.08;} }
+  body{
+    font-family:'Space Grotesk',sans-serif;
+    background:#fff;
+    display:flex;
+    min-height:100vh;
+  }
+
+  .split{
+    display:flex;
+    width:100%;
+    min-height:100vh;
+  }
+
+  /* ---------- LEFT: white login panel ---------- */
+  .login-side{
+    flex:1;
+    background:#fff;
+    color:#15181D;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px;
+  }
+  .login-box{
+    width:100%;
+    max-width:360px;
+    margin-top:-58px;
+  }
+
+  .home-link{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:13px;
+    font-weight:600;
+    color:#8A8676;
+    text-decoration:none;
+    margin-bottom:28px;
+  }
+  .home-link:hover{color:#15181D;}
+
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:24px;
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+    color:#15181D;
+  }
+  .sub{
+    font-size:14px;
+    color:var(--muted-light);
+    margin:0 0 22px;
+    line-height:1.5;
+  }
+
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:500;
+    margin:0 0 6px;
+    color:#15181D;
+  }
+  .field{ margin-bottom:18px; }
+  .input-wrap{ position:relative; }
+  input[type=text], input[type=password]{
+    width:100%;
+    padding:12px 14px;
+    border:1.5px solid var(--line-light);
+    border-radius:9px;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14.5px;
+    color:#15181D;
+    background:#fff;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  input[type=text]::placeholder, input[type=password]::placeholder{ color:#B3B0A5; }
+  input[type=text]:focus, input[type=password]:focus{
+    outline:none;
+    border-color:#15181D;
+    box-shadow:0 0 0 3px rgba(21,24,29,0.06);
+  }
+  input.field-error{ border-color:var(--error) !important; }
+  .toggle-pw{
+    position:absolute;
+    right:12px; top:50%;
+    transform:translateY(-50%);
+    background:none; border:none;
+    cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--muted-light);
+    padding:4px;
+  }
+  .toggle-pw:hover{ color:#15181D; }
+
+  .remember{
+    display:flex; align-items:center; gap:7px;
+    margin:2px 0 24px;
+    font-size:13px;
+    color:var(--muted-light);
+  }
+  .remember input{ accent-color:#15181D; }
+
+  button.submit{
+    width:100%;
+    padding:13px;
+    background:#15181D;
+    color:#fff;
+    border:none;
+    border-radius:9px;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:14.5px;
+    cursor:pointer;
+    transition:background .15s ease, transform .1s ease;
+  }
+  button.submit:hover{ background:#2A2E38; }
+  button.submit:active{ transform:scale(0.99); }
+  button.submit:disabled{ background:#9AA0AC; cursor:default; }
+
+  .status-msg{
+    margin-top:14px;
+    font-size:12.5px;
+    font-weight:500;
+    min-height:16px;
+  }
+  .status-msg.error{ color:var(--error); }
+  .status-msg.info{ color:var(--muted-light); }
+
+  .signup-note{ margin-top:18px; font-size:13px; color:var(--muted-light, #666); }
+  .signup-note a{ font-weight:700; color:inherit; }
+
+  .footer-note{
+    margin-top:40px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:#B3B0A5;
+    letter-spacing:.02em;
+  }
+
+  /* ---------- RIGHT: black logo side ---------- */
+  .logo-side{
+    flex:1;
+    background:#0B0C10;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px;
+    position:relative;
+    overflow:hidden;
+    order:-1;
+  }
+  .logo-side::before{
+    content:'';
+    position:absolute;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size:48px 48px;
+    pointer-events:none;
+  }
+  .logo-mark{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    max-width:380px;
+    margin-top:-58px;
+  }
+  .logo-mark img{
+    width:100%;
+    max-width:230px;
+    height:auto;
+    margin-bottom:20px;
+  }
+  .right-heading{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:26px;
+    line-height:1.25;
+    color:#fff;
+    text-align:center;
+    letter-spacing:-0.01em;
+    margin:0 0 10px;
+  }
+  .right-desc{
+    font-size:14px;
+    line-height:1.6;
+    color:#9AA0AC;
+    text-align:center;
+    margin:0 0 22px;
+  }
+  .right-trial-notice{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:#fff;
+    text-align:center;
+    border:1.5px solid #F6E5AE;
+    border-radius:8px;
+    padding:12px 16px;
+    width:100%;
+    letter-spacing:.02em;
+    line-height:1.6;
+  }
+
+  @media (max-width: 760px){
+    .split{ flex-direction:column; }
+    .logo-side{ order:0; min-height:180px; padding:24px; }
+    .logo-mark img{ max-width:90px; margin-bottom:20px; }
+    .right-heading{ font-size:20px; }
+  }
+
+  /* ---------- RTL (Arabic) — mirrors the split layout so the black logo panel moves to the
+     left, and right-aligns form labels/status text. Numeric/latin inputs (username field can
+     contain either) are left as browser-default direction so typed credentials stay readable
+     left-to-right; only surrounding chrome mirrors. Toggled by setLanguage() setting
+     dir="rtl" on <html>. ---------- */
+  html[dir="rtl"] body{direction:rtl;}
+  html[dir="rtl"] .split{flex-direction:row-reverse;}
+  html[dir="rtl"] .logo-side{order:1;}
+  html[dir="rtl"] .toggle-pw{right:auto;left:12px;}
+  @media (max-width:760px){
+    html[dir="rtl"] .split{flex-direction:column;}
+    html[dir="rtl"] .logo-side{order:0;}
+  }
+</style>
+</head>
+<body>
+
+  <div class="split">
+    <div class="login-side">
+      <div class="login-box">
+        <a href="/" class="home-link" data-i18n="lg.backHome">← Back to Home</a>
+        <h1>Administrator Access</h1>
+        <p class="sub">DesignsLab AI — private sign-in. Authorized administrators only.</p>
+
+        <form id="loginForm" autocomplete="on">
+          <div class="field">
+            <label for="username" data-i18n="lg.usernameLabel">Username or email</label>
+            <input type="text" id="username" name="username" placeholder="Enter your username" data-i18n-placeholder="lg.usernamePlaceholder" autocomplete="username" required>
+          </div>
+
+          <div class="field">
+            <label for="password" data-i18n="lg.passwordLabel">Password</label>
+            <div class="input-wrap">
+              <input type="password" id="password" name="password" placeholder="Enter your password" data-i18n-placeholder="lg.passwordPlaceholder" autocomplete="current-password" required>
+              <button type="button" class="toggle-pw" id="togglePwBtn" onclick="togglePw()" data-i18n="lg.showPw">SHOW</button>
+            </div>
+          </div>
+
+          <label class="remember"><input type="checkbox" id="remember"> <span data-i18n="lg.remember">Remember me for 30 days</span></label>
+
+          <button type="submit" class="submit" id="submitBtn" data-i18n="lg.submit">Sign In</button>
+          <div class="status-msg" id="statusMsg"></div>
+          
+        </form>
+      </div>
+    </div>
+
+    <div class="logo-side">
+      <div class="logo-mark">
+        <img src="/logo-white.png" alt="DesignsLab AI">
+
+        <h2 class="right-heading" data-i18n="lg.rightHeading">AI-Powered Event &amp; Exhibition Design Platform</h2>
+        <p class="right-desc" data-i18n="lg.rightDesc">Create exhibition booths, event concepts, display stands, and presentation-ready visuals in minutes — powered by AI, built for events and exhibition professionals.</p>
+
+        <div class="right-trial-notice" data-i18n="lg.trialNotice">⚠️ TRIAL VERSION — access by approval only</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ================= I18N — Localization Engine (login page) =================
+   Same architecture and same localStorage key ("designLabLanguage") as the main app
+   (ai-design-studio.html) and the homepage, so a language choice made on any one of the
+   three pages carries over to the others. Adding a language: copy I18N_EN as a template,
+   add it to I18N_DICTIONARIES, add one entry to LANGUAGE_OPTIONS — no other code changes. */
+const LANGUAGE_OPTIONS = [
+  { code: 'en', name: 'English', dir: 'ltr' },
+  { code: 'ar', name: 'العربية', dir: 'rtl' },
+  { code: 'fr', name: 'Français', dir: 'ltr' },
+  { code: 'de', name: 'Deutsch', dir: 'ltr' },
+  { code: 'es', name: 'Español', dir: 'ltr' },
+  { code: 'it', name: 'Italiano', dir: 'ltr' },
+  { code: 'zh', name: '中文', dir: 'ltr' },
+  { code: 'ja', name: '日本語', dir: 'ltr' },
+];
+
+const I18N_EN = {
+  'lg.backHome': '← Back to Home',
+  'lg.title': 'Sign in to Designs Lab',
+  'lg.subtitle': 'AI Events Design Platform',
+  'lg.usernameLabel': 'Username or email',
+  'lg.usernamePlaceholder': 'Enter your username or email',
+  'lg.passwordLabel': 'Password',
+  'lg.passwordPlaceholder': 'Enter your password',
+  'lg.showPw': 'SHOW',
+  'lg.hidePw': 'HIDE',
+  'lg.remember': 'Remember me for 30 days',
+  'lg.submit': 'Sign In',
+  'lg.noAccount': "Don't have an account?",
+  'lg.requestAccess': 'Request access',
+  'lg.statusSigningIn': 'Signing in...',
+  'lg.statusSuccess': 'Success — redirecting...',
+  'lg.statusDefaultError': 'Incorrect username or password.',
+  'lg.statusNetworkError': 'Could not reach the server. Please try again.',
+  'lg.rightHeading': 'AI-Powered Event & Exhibition Design Platform',
+  'lg.rightDesc': 'Create exhibition booths, event concepts, display stands, and presentation-ready visuals in minutes — powered by AI, built for events and exhibition professionals.',
+  'lg.trialNotice': '⚠️ TRIAL VERSION — access by approval only',
+};
+
+const I18N_AR = {
+  'lg.backHome': '→ العودة إلى الرئيسية',
+  'lg.title': 'تسجيل الدخول إلى Designs Lab',
+  'lg.subtitle': 'منصة تصميم الفعاليات بالذكاء الاصطناعي',
+  'lg.usernameLabel': 'اسم المستخدم أو البريد الإلكتروني',
+  'lg.usernamePlaceholder': 'أدخل اسم المستخدم أو بريدك الإلكتروني',
+  'lg.passwordLabel': 'كلمة المرور',
+  'lg.passwordPlaceholder': 'أدخل كلمة المرور',
+  'lg.showPw': 'إظهار',
+  'lg.hidePw': 'إخفاء',
+  'lg.remember': 'تذكرني لمدة 30 يومًا',
+  'lg.submit': 'تسجيل الدخول',
+  'lg.noAccount': 'ليس لديك حساب؟',
+  'lg.requestAccess': 'اطلب حساباً',
+  'lg.statusSigningIn': 'جارٍ تسجيل الدخول...',
+  'lg.statusSuccess': 'تم بنجاح — جارٍ إعادة التوجيه...',
+  'lg.statusDefaultError': 'اسم المستخدم أو كلمة المرور غير صحيحة.',
+  'lg.statusNetworkError': 'تعذر الوصول إلى الخادم. يرجى المحاولة مرة أخرى.',
+  'lg.rightHeading': 'منصة تصميم فعاليات ومعارض مدعومة بالذكاء الاصطناعي',
+  'lg.rightDesc': 'أنشئ أجنحة معارض ومفاهيم فعاليات وستاندات عرض ومرئيات جاهزة للعرض التقديمي في دقائق — مدعومة بالذكاء الاصطناعي ومصممة لمحترفي الفعاليات والمعارض.',
+  'lg.trialNotice': '⚠️ نسخة تجريبية — الوصول بالموافقة فقط',
+};
+
+const I18N_FR = {
+  'lg.backHome': "← Retour à l'accueil",
+  'lg.title': 'Connexion à Designs Lab',
+  'lg.subtitle': "Plateforme de design d'événements par IA",
+  'lg.usernameLabel': "Nom d'utilisateur ou e-mail",
+  'lg.usernamePlaceholder': "Entrez votre nom d'utilisateur",
+  'lg.passwordLabel': 'Mot de passe',
+  'lg.passwordPlaceholder': 'Entrez votre mot de passe',
+  'lg.showPw': 'AFFICHER',
+  'lg.hidePw': 'MASQUER',
+  'lg.remember': 'Se souvenir de moi pendant 30 jours',
+  'lg.submit': 'Se connecter',
+  'lg.noAccount': "Vous n'avez pas de compte ?",
+  'lg.requestAccess': "Demander l'accès",
+  'lg.statusSigningIn': 'Connexion en cours...',
+  'lg.statusSuccess': 'Succès — redirection en cours...',
+  'lg.statusDefaultError': "Nom d'utilisateur ou mot de passe incorrect.",
+  'lg.statusNetworkError': 'Impossible de contacter le serveur. Veuillez réessayer.',
+  'lg.rightHeading': "Plateforme de design d'événements et de salons propulsée par IA",
+  'lg.rightDesc': "Créez des stands d'exposition, des concepts d'événements, des présentoirs et des visuels prêts pour la présentation en quelques minutes — propulsé par l'IA, conçu pour les professionnels des événements et des salons.",
+  'lg.trialNotice': "⚠️ VERSION D'ESSAI — accès sur approbation uniquement",
+};
+
+const I18N_DE = {
+  'lg.backHome': '← Zurück zur Startseite',
+  'lg.title': 'Anmelden bei Designs Lab',
+  'lg.subtitle': 'KI-Plattform für Veranstaltungsdesign',
+  'lg.usernameLabel': 'Benutzername oder E-Mail',
+  'lg.usernamePlaceholder': 'Benutzernamen eingeben',
+  'lg.passwordLabel': 'Passwort',
+  'lg.passwordPlaceholder': 'Passwort eingeben',
+  'lg.showPw': 'ANZEIGEN',
+  'lg.hidePw': 'VERBERGEN',
+  'lg.remember': '30 Tage angemeldet bleiben',
+  'lg.submit': 'Anmelden',
+  'lg.noAccount': 'Noch kein Konto?',
+  'lg.requestAccess': 'Zugang anfragen',
+  'lg.statusSigningIn': 'Anmeldung läuft...',
+  'lg.statusSuccess': 'Erfolgreich — Weiterleitung läuft...',
+  'lg.statusDefaultError': 'Falscher Benutzername oder falsches Passwort.',
+  'lg.statusNetworkError': 'Server konnte nicht erreicht werden. Bitte erneut versuchen.',
+  'lg.rightHeading': 'KI-gestützte Plattform für Veranstaltungs- und Messedesign',
+  'lg.rightDesc': 'Erstellen Sie Messestände, Veranstaltungskonzepte, Verkaufsständer und präsentationsreife Visualisierungen in Minuten — angetrieben von KI, entwickelt für Veranstaltungs- und Messeprofis.',
+  'lg.trialNotice': '⚠️ TESTVERSION — Zugang nur nach Genehmigung',
+};
+
+const I18N_ES = {
+  'lg.backHome': '← Volver al inicio',
+  'lg.title': 'Iniciar sesión en Designs Lab',
+  'lg.subtitle': 'Plataforma de diseño de eventos con IA',
+  'lg.usernameLabel': 'Usuario o correo electrónico',
+  'lg.usernamePlaceholder': 'Ingrese su nombre de usuario',
+  'lg.passwordLabel': 'Contraseña',
+  'lg.passwordPlaceholder': 'Ingrese su contraseña',
+  'lg.showPw': 'MOSTRAR',
+  'lg.hidePw': 'OCULTAR',
+  'lg.remember': 'Recordarme durante 30 días',
+  'lg.submit': 'Iniciar sesión',
+  'lg.noAccount': '¿No tienes una cuenta?',
+  'lg.requestAccess': 'Solicitar acceso',
+  'lg.statusSigningIn': 'Iniciando sesión...',
+  'lg.statusSuccess': 'Éxito — redirigiendo...',
+  'lg.statusDefaultError': 'Nombre de usuario o contraseña incorrectos.',
+  'lg.statusNetworkError': 'No se pudo conectar con el servidor. Inténtelo de nuevo.',
+  'lg.rightHeading': 'Plataforma de diseño de eventos y exposiciones impulsada por IA',
+  'lg.rightDesc': 'Cree stands de exposición, conceptos de eventos, expositores y visuales listos para presentar en minutos — impulsado por IA, creado para profesionales de eventos y exposiciones.',
+  'lg.trialNotice': '⚠️ VERSIÓN DE PRUEBA — acceso solo por aprobación',
+};
+
+const I18N_IT = {
+  'lg.backHome': '← Torna alla home',
+  'lg.title': 'Accedi a Designs Lab',
+  'lg.subtitle': 'Piattaforma di design eventi con IA',
+  'lg.usernameLabel': 'Nome utente o email',
+  'lg.usernamePlaceholder': 'Inserisci il tuo nome utente',
+  'lg.passwordLabel': 'Password',
+  'lg.passwordPlaceholder': 'Inserisci la tua password',
+  'lg.showPw': 'MOSTRA',
+  'lg.hidePw': 'NASCONDI',
+  'lg.remember': 'Ricordami per 30 giorni',
+  'lg.submit': 'Accedi',
+  'lg.noAccount': 'Non hai un account?',
+  'lg.requestAccess': 'Richiedi accesso',
+  'lg.statusSigningIn': 'Accesso in corso...',
+  'lg.statusSuccess': 'Riuscito — reindirizzamento in corso...',
+  'lg.statusDefaultError': 'Nome utente o password errati.',
+  'lg.statusNetworkError': 'Impossibile raggiungere il server. Riprova.',
+  'lg.rightHeading': 'Piattaforma di design per eventi e fiere basata su IA',
+  'lg.rightDesc': "Crea stand espositivi, concept di eventi, espositori e visual pronti per la presentazione in pochi minuti — basato su IA, pensato per professionisti di eventi e fiere.",
+  'lg.trialNotice': '⚠️ VERSIONE DI PROVA — accesso solo previa approvazione',
+};
+
+const I18N_ZH = {
+  'lg.backHome': '← 返回首页',
+  'lg.title': '登录 Designs Lab',
+  'lg.subtitle': 'AI 活动设计平台',
+  'lg.usernameLabel': '用户名或邮箱',
+  'lg.usernamePlaceholder': '请输入用户名',
+  'lg.passwordLabel': '密码',
+  'lg.passwordPlaceholder': '请输入密码',
+  'lg.showPw': '显示',
+  'lg.hidePw': '隐藏',
+  'lg.remember': '记住我 30 天',
+  'lg.submit': '登录',
+  'lg.noAccount': '还没有账户？',
+  'lg.requestAccess': '申请访问',
+  'lg.statusSigningIn': '正在登录...',
+  'lg.statusSuccess': '登录成功 — 正在跳转...',
+  'lg.statusDefaultError': '用户名或密码不正确。',
+  'lg.statusNetworkError': '无法连接到服务器，请重试。',
+  'lg.rightHeading': 'AI 驱动的活动与展览设计平台',
+  'lg.rightDesc': '使用 AI 在几分钟内创建展览展位、活动概念、展示架和可用于展示的视觉效果 — 专为活动与展览专业人士打造。',
+  'lg.trialNotice': '⚠️ 试用版 — 仅限审核批准后访问',
+};
+
+const I18N_JA = {
+  'lg.backHome': '← ホームに戻る',
+  'lg.title': 'Designs Lab にサインイン',
+  'lg.subtitle': 'AIイベントデザインプラットフォーム',
+  'lg.usernameLabel': 'ユーザー名またはメール',
+  'lg.usernamePlaceholder': 'ユーザー名を入力してください',
+  'lg.passwordLabel': 'パスワード',
+  'lg.passwordPlaceholder': 'パスワードを入力してください',
+  'lg.showPw': '表示',
+  'lg.hidePw': '非表示',
+  'lg.remember': '30日間ログイン状態を保持する',
+  'lg.submit': 'サインイン',
+  'lg.noAccount': 'アカウントをお持ちでないですか？',
+  'lg.requestAccess': 'アクセスをリクエスト',
+  'lg.statusSigningIn': 'サインイン中...',
+  'lg.statusSuccess': '成功しました — リダイレクト中...',
+  'lg.statusDefaultError': 'ユーザー名またはパスワードが正しくありません。',
+  'lg.statusNetworkError': 'サーバーに接続できませんでした。もう一度お試しください。',
+  'lg.rightHeading': 'AI駆動のイベント・展示会デザインプラットフォーム',
+  'lg.rightDesc': '展示ブース、イベントコンセプト、ディスプレイスタンド、プレゼンテーション用ビジュアルを数分で作成 — AIを活用し、イベント・展示会のプロフェッショナルのために構築されました。',
+  'lg.trialNotice': '⚠️ 試用版 — 承認された場合のみアクセス可能',
+};
+
+const I18N_DICTIONARIES = { en: I18N_EN, ar: I18N_AR, fr: I18N_FR, de: I18N_DE, es: I18N_ES, it: I18N_IT, zh: I18N_ZH, ja: I18N_JA };
+
+let currentLanguage = 'en';
+
+function t(key){
+  const dict = I18N_DICTIONARIES[currentLanguage] || I18N_EN;
+  if(dict[key] != null) return dict[key];
+  if(I18N_EN[key] != null) return I18N_EN[key];
+  return key;
+}
+
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder'))); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { el.setAttribute('title', t(el.getAttribute('data-i18n-title'))); });
+  // The show/hide password toggle's label depends on live input state (not just language), so
+  // it's refreshed here rather than via a static data-i18n attribute — otherwise switching
+  // language while the password is visible would silently revert the button back to "SHOW"
+  // text without actually re-hiding the password.
+  const pwField = document.getElementById('password');
+  const toggleBtn = document.getElementById('togglePwBtn');
+  if(pwField && toggleBtn){
+    toggleBtn.textContent = pwField.type === 'password' ? t('lg.showPw') : t('lg.hidePw');
+  }
+}
+
+// This page has no language selector of its own — by design. Language is chosen once, on the
+// homepage (or inside the studio's own form), and login.html just reads that shared choice
+// from localStorage and renders in it. setLanguage() is still here (not just a plain read)
+// because it's also what applyTranslations()/dir-flipping runs through, and because a "next"
+// redirect can land a user on this page mid-session where the language may have just changed
+// on the page they came from.
+function setLanguage(lang, skipPersist){
+  currentLanguage = I18N_DICTIONARIES[lang] ? lang : 'en';
+  const opt = LANGUAGE_OPTIONS.find(o => o.code === currentLanguage) || LANGUAGE_OPTIONS[0];
+  document.documentElement.lang = currentLanguage;
+  document.documentElement.dir = opt.dir;
+  applyTranslations();
+  if(!skipPersist){
+    try{ localStorage.setItem('designLabLanguage', currentLanguage); }catch(e){ /* ignore */ }
+  }
+}
+
+function initLanguage(){
+  let saved = null;
+  try{ saved = localStorage.getItem('designLabLanguage'); }catch(e){ /* ignore */ }
+  setLanguage(saved || 'en', true);
+}
+
+initLanguage();
+
+function togglePw(){
+  const pw = document.getElementById('password');
+  const btn = document.getElementById('togglePwBtn');
+  if(pw.type === 'password'){ pw.type = 'text'; btn.textContent = t('lg.hidePw'); }
+  else{ pw.type = 'password'; btn.textContent = t('lg.showPw'); }
+}
+
+// Redirect target after a successful login — where the client honors it, they land back
+// where they were trying to go; otherwise the app root.
+function getRedirectTarget(){
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get('next');
+  if(next && next.startsWith('/') && !next.startsWith('//')) return next;
+  return '/admin.html';
+}
+
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const usernameEl = document.getElementById('username');
+  const passwordEl = document.getElementById('password');
+  const remember = document.getElementById('remember').checked;
+  const statusEl = document.getElementById('statusMsg');
+  const submitBtn = document.getElementById('submitBtn');
+
+  usernameEl.classList.remove('field-error');
+  passwordEl.classList.remove('field-error');
+  statusEl.className = 'status-msg info';
+  statusEl.textContent = t('lg.statusSigningIn');
+  submitBtn.disabled = true;
+
+  try{
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: usernameEl.value, password: passwordEl.value, remember, gate: 'admin' })
+    });
+
+    if(response.ok){
+      statusEl.className = 'status-msg info';
+      statusEl.textContent = t('lg.statusSuccess');
+      window.location.href = getRedirectTarget();
+      return;
+    }
+
+    const data = await response.json().catch(() => ({}));
+    usernameEl.classList.add('field-error');
+    passwordEl.classList.add('field-error');
+    statusEl.className = 'status-msg error';
+    // The server's own error message is passed through untranslated (it comes from the API,
+    // not from the UI dictionary — same principle as internal values never being translated
+    // in the main app), falling back to the localized generic message when the server didn't
+    // supply one of its own.
+    statusEl.textContent = (data.error && data.error.message) || (typeof data.error === 'string' ? data.error : '') || t('lg.statusDefaultError');
+  }catch(err){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = t('lg.statusNetworkError');
+  }finally{
+    submitBtn.disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>

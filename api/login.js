@@ -108,7 +108,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { username, password, remember } = req.body || {};
+  const body = req.body || {};
+  const { username, password, remember } = body;
   if (typeof username !== 'string' || typeof password !== 'string') {
     res.status(401).json({ error: { message: 'Incorrect username or password.' } });
     return;
@@ -148,6 +149,16 @@ export default async function handler(req, res) {
 
   let tokenPayload = null;
 
+  /* ---- Admin gate (owner request) ----
+     Admin accounts may ONLY sign in through the private admin page (which sends
+     gate:'admin'); the public login page never can, and regular users can't use the
+     admin gate. Enforced AFTER credential verification below, and the rejection is
+     the same generic "Incorrect username or password." either way, so the public
+     page never confirms that an admin account exists. The private page's URL is
+     unguessable and linked from nowhere — but this server-side check is the real
+     enforcement, not the URL secrecy. */
+  const gate = body.gate === 'admin' ? 'admin' : 'public';
+
   // 1. Master admin fallback — the original single shared credential, kept working
   //    exactly as before so the account that's been using it never gets locked out,
   //    regardless of what happens with the new multi-user table.
@@ -173,6 +184,12 @@ export default async function handler(req, res) {
       res.status(500).json({ error: { message: 'Could not verify credentials right now.' } });
       return;
     }
+  }
+
+  // Gate/role mismatch counts as a failed attempt (feeds the lockout) and is
+  // indistinguishable from a wrong password from the outside.
+  if (tokenPayload && ((tokenPayload.role === 'admin') !== (gate === 'admin'))) {
+    tokenPayload = null;
   }
 
   if (!tokenPayload) {

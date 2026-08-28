@@ -10,6 +10,7 @@ export const config = {
 const PUBLIC_PATHS = [
   '/', '/homepage.html', '/product.html', '/pricing.html', '/enterprise.html', '/news.html',
   '/contact.html', '/terms.html', '/privacy.html', '/cookie-policy.html', '/usage-policy.html', '/login.html',
+  '/admin-gate-x7k93qe4.html', // private admin sign-in page (owner-only link; enforcement is server-side in api/login.js)
   '/signup.html',
   // Set-password page + endpoint: reached from the approval email by people who, by
   // definition, can't sign in yet. The single-use token in the link is the credential.
