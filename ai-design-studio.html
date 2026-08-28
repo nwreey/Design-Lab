@@ -23341,7 +23341,22 @@ function restoreGeneratedViewsIfSaved(project){
     const hist = savedHistories[camId];
     return hist && hist.images && hist.images.length > 0;
   });
-  if(!hasSavedViews) return;
+  if(!hasSavedViews){
+    // Owner report: opening a project WITHOUT its own camera views was still showing the
+    // PREVIOUS project's views — this early return used to leave the shared grid and
+    // per-view state exactly as the last project left them. Every project is separate:
+    // no saved views means an emptied, hidden views section and clean per-view state.
+    viewCardHistories = {};
+    approvedDesignDecisions = [];
+    editDesignApprovedCount = 0;
+    const grid = document.getElementById('viewer3dGeneratedGrid');
+    if(grid) grid.innerHTML = '';
+    ['viewer3dGeneratedCard', 'goodLuckMessage', 'techBoardActions'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = 'none';
+    });
+    return;
+  }
 
   viewCardHistories = savedHistories;
   approvedDesignDecisions = project.approvedDesignDecisions || [];
