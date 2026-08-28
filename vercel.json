@@ -1,17 +1,105 @@
 {
   "functions": {
-    "api/generate.js": { "maxDuration": 60 },
-    "api/generate-image-gemini.js": { "maxDuration": 60 },
-    "api/generate-image-openai.js": { "maxDuration": 180 },
-    "api/edit-image-openai.js": { "maxDuration": 180 },
-    "api/luma-generate.js": { "maxDuration": 60 },
-    "api/luma-status.js": { "maxDuration": 30 },
-    "api/luma-video-proxy.js": { "maxDuration": 60 },
-    "api/projects.js": { "maxDuration": 60 },
-    "api/fetch-website-text.js": { "maxDuration": 30 }
+    "api/generate.js": {
+      "maxDuration": 60
+    },
+    "api/generate-image-gemini.js": {
+      "maxDuration": 60
+    },
+    "api/generate-image-openai.js": {
+      "maxDuration": 180
+    },
+    "api/edit-image-openai.js": {
+      "maxDuration": 180
+    },
+    "api/luma-generate.js": {
+      "maxDuration": 60
+    },
+    "api/luma-status.js": {
+      "maxDuration": 30
+    },
+    "api/luma-video-proxy.js": {
+      "maxDuration": 60
+    },
+    "api/projects.js": {
+      "maxDuration": 60
+    },
+    "api/fetch-website-text.js": {
+      "maxDuration": 30
+    }
   },
   "rewrites": [
-    { "source": "/", "destination": "/homepage.html" },
-    { "source": "/admin-gate-x7k93qe4", "destination": "/admin-gate-x7k93qe4.html" }
+    {
+      "source": "/",
+      "destination": "/homepage.html"
+    },
+    {
+      "source": "/admin-gate-x7k93qe4",
+      "destination": "/admin-gate-x7k93qe4.html"
+    },
+    {
+      "source": "/ai-exhibition-booth-designer",
+      "destination": "/ai-exhibition-booth-designer.html"
+    },
+    {
+      "source": "/ai-event-concept-generator",
+      "destination": "/ai-event-concept-generator.html"
+    },
+    {
+      "source": "/ai-display-stand-designer",
+      "destination": "/ai-display-stand-designer.html"
+    },
+    {
+      "source": "/ai-image-editor",
+      "destination": "/ai-image-editor.html"
+    },
+    {
+      "source": "/solutions/exhibition-contractors",
+      "destination": "/solutions/exhibition-contractors.html"
+    },
+    {
+      "source": "/solutions/event-agencies",
+      "destination": "/solutions/event-agencies.html"
+    },
+    {
+      "source": "/solutions/exhibition-designers",
+      "destination": "/solutions/exhibition-designers.html"
+    },
+    {
+      "source": "/solutions/retail-brands",
+      "destination": "/solutions/retail-brands.html"
+    },
+    {
+      "source": "/industries/exhibitions",
+      "destination": "/industries/exhibitions.html"
+    },
+    {
+      "source": "/industries/events",
+      "destination": "/industries/events.html"
+    },
+    {
+      "source": "/industries/retail",
+      "destination": "/industries/retail.html"
+    },
+    {
+      "source": "/industries/experiential-marketing",
+      "destination": "/industries/experiential-marketing.html"
+    },
+    {
+      "source": "/blog",
+      "destination": "/blog/index.html"
+    },
+    {
+      "source": "/blog/how-ai-is-changing-exhibition-booth-design",
+      "destination": "/blog/how-ai-is-changing-exhibition-booth-design.html"
+    },
+    {
+      "source": "/blog/event-concept-design-with-ai-a-practical-guide",
+      "destination": "/blog/event-concept-design-with-ai-a-practical-guide.html"
+    },
+    {
+      "source": "/blog/exhibition-stand-cost-drivers-and-how-design-controls-them",
+      "destination": "/blog/exhibition-stand-cost-drivers-and-how-design-controls-them.html"
+    }
   ]
 }

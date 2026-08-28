@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Retail Brands | DesignsLab AI Solutions</title>
+<meta name="description" content="AI retail design for brands: display stands, kiosks, and activations designed on-brand in minutes, from brief to specification sheet.">
+<meta property="og:title" content="Retail Brands | DesignsLab AI Solutions">
+<meta property="og:description" content="AI retail design for brands: display stands, kiosks, and activations designed on-brand in minutes, from brief to specification sheet.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="DesignsLab AI">
+<link rel="canonical" href="https://designslab.ai/solutions/retail-brands">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFFFFF; --ink:#111111; --muted:#666666; --line:#EAEAEA; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  @media(min-width:900px){ html{zoom:1.08;} }
+  body{ margin:0; font-family:'Inter',sans-serif; color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
+  h1,h2{font-weight:800;letter-spacing:-0.02em;margin:0;}
+  a{color:inherit;}
+  .eyebrow{font-size:12.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+  .reveal{ opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  button, .btn{
+    font-family:'Inter',sans-serif; font-weight:700; font-size:15px; padding:15px 30px;
+    border-radius:var(--radius); cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+    text-decoration:none; transition:transform .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+    border:2px solid var(--ink);
+  }
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 24px -8px rgba(17,17,17,0.35);}
+
+  .nav-signin{
+    font-family:'Inter',sans-serif; font-size:13.5px; font-weight:700; color:var(--ink);
+    background:#fff; padding:9px 18px; border-radius:10px; border:2px solid var(--ink);
+    text-decoration:none; white-space:nowrap; transition:background .15s ease, transform .15s ease;
+  }
+  .nav-signin:hover{ background:#F7F7F7; transform:translateY(-1px); }
+  .nav-signup{
+    font-family:'Inter',sans-serif; font-size:13.5px; font-weight:700; color:#fff;
+    background:var(--ink); padding:9px 18px; border-radius:10px; border:2px solid var(--ink);
+    text-decoration:none; white-space:nowrap; transition:opacity .15s ease, transform .15s ease;
+  }
+  .nav-signup:hover{ opacity:.85; transform:translateY(-1px); }
+
+  .site-header{
+    position:sticky; top:0; z-index:50; background:rgba(255,255,255,0.9);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid transparent; transition:border-color .25s ease, box-shadow .25s ease;
+  }
+  .site-header.scrolled{ border-bottom-color:var(--line); box-shadow:0 4px 24px -16px rgba(17,17,17,0.18); }
+  .site-header-inner{ max-width:1180px; margin:0 auto; padding:14px 32px; display:flex; align-items:center; gap:30px; }
+  .site-logo{ display:flex; align-items:center; gap:9px; text-decoration:none; flex-shrink:0; }
+  .site-logo img{ height:24px; width:auto; display:block; }
+  .site-logo span{ font-weight:800; font-size:14.5px; letter-spacing:-0.01em; color:var(--ink); }
+  .site-nav{ display:flex; align-items:center; gap:28px; margin-right:auto; }
+  .site-nav a{ font-size:14px; font-weight:600; color:var(--muted); text-decoration:none; position:relative; padding:5px 0; transition:color .15s ease; }
+  .site-nav a:hover{ color:var(--ink); }
+  .site-header-actions{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
+  .nav-menu-toggle{ display:none; background:none; border:1.5px solid var(--line); border-radius:8px; width:36px; height:36px; font-size:16px; cursor:pointer; color:var(--ink); }
+  .mobile-nav{ display:none; flex-direction:column; gap:2px; padding:6px 32px 16px; border-top:1px solid var(--line); }
+  .mobile-nav a{ padding:11px 4px; font-size:14.5px; font-weight:600; color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line); }
+  .mobile-nav a:last-child{ border-bottom:none; }
+  .site-header.nav-open .mobile-nav{ display:flex; }
+  @media(max-width:860px){ .site-nav{ display:none; } .nav-menu-toggle{ display:inline-flex; align-items:center; justify-content:center; } }
+
+  .contact-hero{ padding:70px 0 20px; text-align:center; }
+  .contact-hero h1{ font-size:42px; margin-top:14px; }
+  .contact-hero p{ font-size:16px; color:var(--muted); max-width:520px; margin:16px auto 0; line-height:1.6; }
+
+  .contact-layout{ display:grid; grid-template-columns:1fr 1fr; gap:50px; padding:40px 0 100px; align-items:start; }
+  @media(max-width:840px){ .contact-layout{ grid-template-columns:1fr; } }
+
+  .contact-form-card{ border:1.5px solid var(--line); border-radius:20px; padding:34px; }
+  .form-row{ margin-bottom:18px; display:flex; flex-direction:column; gap:7px; }
+  .form-row label{ font-size:13px; font-weight:700; color:var(--ink); }
+  .form-row input, .form-row textarea{
+    font-family:'Inter',sans-serif; font-size:14.5px; padding:12px 14px; border-radius:10px;
+    border:1.5px solid var(--line); outline:none; transition:border-color .15s ease; resize:vertical;
+  }
+  .form-row input:focus, .form-row textarea:focus{ border-color:var(--ink); }
+  .form-status{ margin-top:16px; font-size:13.5px; font-weight:600; color:#1E8A4C; display:none; line-height:1.55; }
+  .form-status.show{ display:block; }
+  .form-status.error{ color:#C0432B; }
+  .form-note{ font-size:11.5px; color:var(--muted); margin-top:14px; line-height:1.5; }
+
+  .contact-side-card{ background:#F7F7F7; border-radius:20px; padding:32px; }
+  .contact-side-card h2{ font-size:18px; margin-bottom:12px; }
+  .contact-side-card p{ font-size:14px; color:#444; line-height:1.65; margin:0 0 18px; }
+  .contact-side-card a.btn{ font-size:13.5px; padding:11px 20px; }
+
+  footer{ border-top:1px solid var(--line); padding:56px 0 30px; }
+  .footer-grid{ display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr; gap:34px; text-align:left; }
+  @media(max-width:760px){ .footer-grid{ grid-template-columns:1fr 1fr; } }
+  @media(max-width:480px){ .footer-grid{ grid-template-columns:1fr; } }
+  .footer-brand .footer-logo{ height:85px; width:auto; margin-bottom:12px; opacity:.9; display:block; }
+  .footer-brand .footer-tag{ font-size:13px; font-weight:600; color:var(--ink); max-width:230px; line-height:1.5; }
+  .footer-col-title{ font-size:11.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink); margin-bottom:14px; }
+  .footer-col{ display:flex; flex-direction:column; gap:11px; }
+  .footer-col a{ font-size:13.5px; color:var(--muted); text-decoration:none; transition:color .15s ease; }
+  .footer-col a:hover{ color:var(--ink); }
+  .footer-bottom{ margin-top:44px; padding-top:22px; border-top:1px solid var(--line); text-align:center; }
+  footer .footer-copy{ font-size:11.5px; color:#9A9A9A; }
+
+  html[dir="rtl"] body{ direction:rtl; }
+  html[dir="rtl"] .site-header-inner{ flex-direction:row-reverse; }
+  html[dir="rtl"] .site-nav{ margin-right:0; margin-left:auto; }
+  html[dir="rtl"] .footer-grid{ text-align:right; }
+</style>
+<script src="/recaptcha-config.js"></script>
+</head>
+<body>
+
+  <header class="site-header" id="siteHeader">
+    <div class="site-header-inner">
+      <a href="/" class="site-logo">
+        <img src="/logo-black-transparent.png" alt="DesignsLab AI">
+        <span>DesignsLab AI</span>
+      </a>
+      <nav class="site-nav">
+        <a href="/homepage.html" data-i18n="nav.home">Home</a>
+      <a href="/product.html" data-i18n="nav.product">Product</a>
+        <a href="/pricing.html" data-i18n="nav.pricing">Pricing</a>
+        <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
+        <a href="/news.html" data-i18n="nav.news">News</a>
+      </nav>
+      <div class="site-header-actions">
+        <a href="/login.html" class="nav-signin" data-i18n="nav.signin">Sign in</a>
+        <a href="/signup.html" class="nav-signup" data-i18n="nav.signup">Sign up</a>
+        <button type="button" class="nav-menu-toggle" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
+      </div>
+    </div>
+    <nav class="mobile-nav" id="mobileNav">
+      <a href="/homepage.html" data-i18n="nav.home">Home</a>
+      <a href="/product.html" data-i18n="nav.product">Product</a>
+      <a href="/pricing.html" data-i18n="nav.pricing">Pricing</a>
+      <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
+      <a href="/news.html" data-i18n="nav.news">News</a>
+      <a href="/login.html" data-i18n="nav.signin">Sign in</a>
+      <a href="/signup.html" data-i18n="nav.signup">Sign up</a>
+    </nav>
+  </header>
+<style>
+  .seo-hero{padding:72px 0 44px;}
+  .seo-hero h1{font-size:42px;line-height:1.12;max-width:820px;}
+  .seo-hero p.lead{font-size:18px;color:var(--muted);line-height:1.65;max-width:760px;margin:18px 0 26px;}
+  .seo-cta-row{display:flex;gap:14px;flex-wrap:wrap;}
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-secondary{background:#fff;color:var(--ink);}
+  .seo-section{padding:34px 0;}
+  .seo-section h2{font-size:26px;margin-bottom:18px;}
+  .seo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  @media(max-width:860px){.seo-grid{grid-template-columns:1fr;} .seo-hero h1{font-size:32px;}}
+  .seo-card{border:1px solid var(--line);border-radius:var(--radius);padding:22px;}
+  .seo-card h3{margin:0 0 8px;font-size:16.5px;}
+  .seo-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.6;}
+  .seo-steps{counter-reset:step;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  @media(max-width:860px){.seo-steps{grid-template-columns:1fr;}}
+  .seo-step{border:1px solid var(--line);border-radius:var(--radius);padding:22px;}
+  .seo-step .num{font-weight:800;font-size:13px;color:var(--muted);letter-spacing:.08em;}
+  .seo-step h3{margin:8px 0 8px;font-size:16px;}
+  .seo-step p{margin:0;color:var(--muted);font-size:14px;line-height:1.6;}
+  .seo-band{background:#111;color:#fff;border-radius:var(--radius);padding:40px 36px;margin:40px 0 64px;display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap;}
+  .seo-band h2{font-size:24px;margin:0;}
+  .seo-band .btn{background:#fff;color:#111;border-color:#fff;}
+  .seo-prose{max-width:820px;}
+  .seo-prose p{color:var(--muted);line-height:1.75;font-size:15.5px;}
+  .seo-prose h2{font-size:24px;margin:30px 0 12px;}
+  .blog-meta{font-size:13px;color:var(--muted);margin:6px 0 22px;}
+</style>
+
+  <section class="wrap seo-hero reveal">
+    <span class="eyebrow">Solutions · Retail Brands</span>
+    <h1>On-brand retail displays, from idea to spec sheet.</h1>
+    <p class="lead">Brand and trade-marketing teams use DesignsLab AI to design display stands, mall kiosks, and in-store activations that respect brand guidelines to the pixel — and hand fabricators a dimensions & specifications sheet, not a moodboard.</p>
+    <div class="seo-cta-row"><a href="/signup.html" class="btn btn-primary">🚀 Try It Free</a><a href="/pricing.html" class="btn btn-secondary">See Pricing</a></div>
+  </section>
+
+  <section class="wrap seo-section reveal"><h2>Why retail brands choose DesignsLab AI</h2><div class="seo-grid"><div class="seo-card"><h3>Brand-guideline enforcement</h3><p>Only approved brand colors appear; logos are reproduced exactly.</p></div><div class="seo-card"><h3>Every side rendered</h3><p>Open-format stands rendered from all four sides; wall units from the two that matter.</p></div><div class="seo-card"><h3>Spec sheet included</h3><p>A free Dimensions & Specifications board with every approved design.</p></div><div class="seo-card"><h3>Product-first design</h3><p>Your products and portfolio images placed and displayed correctly in the design.</p></div><div class="seo-card"><h3>Campaign speed</h3><p>Concepts for a national rollout in an afternoon, not a quarter.</p></div><div class="seo-card"><h3>Simple for non-designers</h3><p>Guided briefs and AI auto-fill — no design software skills required.</p></div></div></section>
+
+  <section class="wrap"><div class="seo-band reveal"><h2>Design your next project with AI today.</h2><a href="/signup.html" class="btn">Start Free</a></div></section>
+  <footer>
+    <div class="wrap footer-grid">
+      <div class="footer-brand">
+        <img src="/logo-black-transparent.png" alt="DesignsLab AI" class="footer-logo">
+        <div class="footer-tag">AI Design Studio for Events &amp; Exhibitions</div>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Product</div>
+        <a href="/product.html#booth-generator">AI Booth Generator</a>
+        <a href="/product.html#events-generator">AI Events Generator</a>
+        <a href="/product.html#display-generator">AI Product Display Generator</a>
+        <a href="/pricing.html" data-i18n="nav.pricing">Pricing</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Company</div>
+        <a href="/enterprise.html" data-i18n="nav.enterprise">Enterprise</a>
+        <a href="/news.html" data-i18n="nav.news">News</a>
+        <a href="/contact.html" data-i18n="nav.contact">Contact us</a>
+        <a href="/login.html" data-i18n="nav.signin">Sign in</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Legal</div>
+        <a href="/terms.html">Terms of Service</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/cookie-policy.html">Cookie Policy</a>
+      </div>
+    </div>
+    <div class="wrap footer-bottom">
+      <div class="footer-copy">© 2026 DMR Arabia. All rights reserved.</div>
+    </div>
+  </footer>
+
+<script>
+const LANGUAGE_OPTIONS = [
+  { code: 'en', dir: 'ltr' }, { code: 'ar', dir: 'rtl' }, { code: 'fr', dir: 'ltr' },
+  { code: 'de', dir: 'ltr' }, { code: 'es', dir: 'ltr' }, { code: 'it', dir: 'ltr' },
+  { code: 'zh', dir: 'ltr' }, { code: 'ja', dir: 'ltr' },
+];
+const I18N_EN = { 'nav.home':'Home','nav.product':'Product','nav.pricing':'Pricing','nav.enterprise':'Enterprise','nav.news':'News','nav.signin':'Sign in','nav.signup':'Sign up','nav.contact':'Contact us' };
+const I18N_AR = { 'nav.home':'الرئيسية','nav.product':'المنتج','nav.pricing':'الأسعار','nav.enterprise':'الشركات','nav.news':'الأخبار','nav.signin':'تسجيل الدخول','nav.signup':'إنشاء حساب','nav.contact':'تواصل معنا' };
+const I18N_FR = { 'nav.home':'Accueil','nav.product':'Produit','nav.pricing':'Tarifs','nav.enterprise':'Entreprise','nav.news':'Actualités','nav.signin':'Connexion','nav.signup':"S'inscrire",'nav.contact':'Nous contacter' };
+const I18N_DE = { 'nav.home':'Startseite','nav.product':'Produkt','nav.pricing':'Preise','nav.enterprise':'Unternehmen','nav.news':'News','nav.signin':'Anmelden','nav.signup':'Registrieren','nav.contact':'Kontakt' };
+const I18N_ES = { 'nav.home':'Inicio','nav.product':'Producto','nav.pricing':'Precios','nav.enterprise':'Empresas','nav.news':'Noticias','nav.signin':'Iniciar sesión','nav.signup':'Regístrate','nav.contact':'Contáctanos' };
+const I18N_IT = { 'nav.home':'Home','nav.product':'Prodotto','nav.pricing':'Prezzi','nav.enterprise':'Aziende','nav.news':'Novità','nav.signin':'Accedi','nav.signup':'Registrati','nav.contact':'Contattaci' };
+const I18N_ZH = { 'nav.home':'首页','nav.product':'产品','nav.pricing':'价格','nav.enterprise':'企业版','nav.news':'新闻','nav.signin':'登录','nav.signup':'注册','nav.contact':'联系我们' };
+const I18N_JA = { 'nav.home':'ホーム','nav.product':'製品','nav.pricing':'料金','nav.enterprise':'法人向け','nav.news':'ニュース','nav.signin':'ログイン','nav.signup':'登録','nav.contact':'お問い合わせ' };
+const I18N_DICTIONARIES = { en: I18N_EN, ar: I18N_AR, fr: I18N_FR, de: I18N_DE, es: I18N_ES, it: I18N_IT, zh: I18N_ZH, ja: I18N_JA };
+let currentLanguage = 'en';
+function t(key){ const d = I18N_DICTIONARIES[currentLanguage] || I18N_EN; return d[key] != null ? d[key] : (I18N_EN[key] != null ? I18N_EN[key] : key); }
+function applyTranslations(){ document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); }); }
+function setLanguage(lang, skipPersist){
+  currentLanguage = I18N_DICTIONARIES[lang] ? lang : 'en';
+  const opt = LANGUAGE_OPTIONS.find(o => o.code === currentLanguage) || LANGUAGE_OPTIONS[0];
+  document.documentElement.lang = currentLanguage;
+  document.documentElement.dir = opt.dir;
+  applyTranslations();
+  if(!skipPersist){ try{ localStorage.setItem('designLabLanguage', currentLanguage); }catch(e){} }
+}
+function initLanguage(){
+  let saved = null;
+  try{ saved = localStorage.getItem('designLabLanguage'); }catch(e){}
+  setLanguage(saved || 'en', true);
+}
+initLanguage();
+
+function toggleMobileNav(){ document.getElementById('siteHeader').classList.toggle('nav-open'); }
+window.addEventListener('scroll', () => {
+  document.getElementById('siteHeader').classList.toggle('scrolled', window.scrollY > 8);
+}, { passive: true });
+
+// Client-side-only confirmation — no backend wired up yet, so we never claim the message was actually delivered anywhere.
+document.getElementById('contactForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const form = this;
+  const status = document.getElementById('formStatus');
+  const btn = form.querySelector('button[type="submit"]');
+  status.className = 'form-status';
+  status.textContent = '';
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Sending…';
+  try{
+    const response = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: document.getElementById('cf-name').value.trim(),
+        email: document.getElementById('cf-email').value.trim(),
+        subject: document.getElementById('cf-subject').value.trim(),
+        message: document.getElementById('cf-message').value.trim(),
+        recaptchaToken: typeof getRecaptchaToken === 'function' ? await getRecaptchaToken('contact') : null,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not send your message. Please email us directly at info@designslab.ai.');
+    status.className = 'form-status show';
+    status.textContent = "Thanks! Your message has been sent to our team. We'll reply to you by email, usually within one business day.";
+    form.reset();
+  }catch(err){
+    status.className = 'form-status show error';
+    status.textContent = err.message || 'Could not send your message. Please email us directly at info@designslab.ai.';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+});
+
+if('IntersectionObserver' in window){
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => { if(entry.isIntersecting){ entry.target.classList.add('in'); io.unobserve(entry.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+} else {
+  document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+}
+</script>
+
+</body>
+</html>
