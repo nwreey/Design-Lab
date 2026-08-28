@@ -23127,11 +23127,23 @@ function openProject(id){
       restoreLogoAndPosters(project);
       restoreResultsView(project);
       renderProjectSidebar();
-      // Only land directly on the results view when there actually IS a finished result —
-      // a project saved before generating, or one stuck mid prompt-review, has nothing to
-      // show there, so the form has to stay visible in those cases.
-      if(project.optionResult){
+      // Owner rule (refined): reopening a project only hides the form when the design was
+      // actually APPROVED — camera views saved with the project are the definitive marker
+      // of approval (they only ever exist because Approve ran; see the identical reasoning
+      // in restoreGeneratedViewsIfSaved's lockApprovedActionBar comment). A project that
+      // was generated but NOT yet approved keeps its form SHOWING alongside the results —
+      // read-only for regular users (changes still go through Modify design), writable for
+      // admins. A project saved before generating anything shows the normal editable form.
+      const savedViewHists = project.viewCardHistories || {};
+      const wasApproved = Object.keys(savedViewHists).some(camId => {
+        const hist = savedViewHists[camId];
+        return hist && hist.images && hist.images.length > 0;
+      });
+      if(project.optionResult && wasApproved){
         hideFormAndTabs();
+      }else if(project.optionResult){
+        showFormAndTabs();
+        if(!isAdminUser) lockForm(); else unlockForm();
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
       updateGenerateButtonState();
