@@ -235,10 +235,10 @@ export default async function handler(req, res) {
   try {
     const ackHtml = kind === 'enterprise'
       ? buildBrandedEmail({
-          previewText: 'Your Enterprise request is with our team — expect a tailored plan shortly.',
+          previewText: 'Your Enterprise request is with our team. Expect a tailored plan shortly.',
           greeting: name,
           paragraphs: [
-            'Thank you for your interest in <strong>DesignsLab AI Enterprise</strong> — we\'ve received your request for ' + company + ' and it\'s already with our team.',
+            'Thank you for your interest in <strong>DesignsLab AI Enterprise</strong>. We\'ve received your request for ' + company + ' and it\'s already with our team.',
             'We\'ll review your team size and requirements and come back with a plan sized to fit, usually within one business day.',
             'If anything is urgent in the meantime, you can reach us directly at ' + CONTACT_INBOX + '.',
           ],
