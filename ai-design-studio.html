@@ -87,9 +87,10 @@
     max-height:162px;min-height:54px;overflow-y:scroll;padding-right:2px;
     scrollbar-width:thin;scrollbar-color:var(--navy) var(--navy-soft);
   }
-  /* Admins get 6 visible project rows before scrolling (owner request) — body gets the
-     is-admin class from checkAdminAccess() once /api/me confirms the role. */
-  body.is-admin .sidebar-projects-scroll{max-height:324px;}
+  /* Admins get 8 visible project rows before scrolling (owner request; was 6, then raised)
+     — body gets the is-admin class from checkAdminAccess() once /api/me confirms the role.
+     On short viewports the list still shrinks first: the account block below is untouchable. */
+  body.is-admin .sidebar-projects-scroll{max-height:432px;}
   /* A visible, "always there" scrollbar rather than the OS's auto-hiding overlay one — the
      whole point is that a 4th+ project is unmistakably reachable by scrolling, not just
      something you'd discover by accidentally hovering over the list. Webkit browsers (Chrome,
