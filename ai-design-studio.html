@@ -19231,7 +19231,13 @@ function showOptionV2(i){
 
   const opt = optionResults[i];
   document.getElementById('resConceptTitle').textContent = currentProjectName;
-  document.getElementById('resConceptSubtitle').textContent = opt.title;
+  // Owner report: the subtitle (opt.title, the AI's design title) often comes back as the
+  // company/project name itself, so the header read "DMR Arabia ... DMR Arabia". Only show
+  // it when it's actually a DIFFERENT title than the line above; hide the duplicate.
+  const subtitleEl = document.getElementById('resConceptSubtitle');
+  const subtitleDuplicatesTitle = (opt.title || '').trim().toLowerCase() === (currentProjectName || '').trim().toLowerCase();
+  subtitleEl.textContent = subtitleDuplicatesTitle ? '' : (opt.title || '');
+  subtitleEl.style.display = subtitleDuplicatesTitle || !(opt.title || '').trim() ? 'none' : '';
 
   // Booth size (W × D × H), shown right under the company name for the whole life of this
   // render slot — including while it's still generating, so the client can see exactly what
