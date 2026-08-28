@@ -350,7 +350,7 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 
 // Client-side-only confirmation — no backend wired up yet, so we never claim the message was actually delivered anywhere.
-document.getElementById('contactForm').addEventListener('submit', async function(e){
+const __contactFormEl = document.getElementById('contactForm'); if(__contactFormEl) __contactFormEl.addEventListener('submit', async function(e){
   e.preventDefault();
   const form = this;
   const status = document.getElementById('formStatus');
