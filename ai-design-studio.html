@@ -3632,6 +3632,14 @@ Replace only the materials and graphics."></textarea>
         <select id="evOdFreedom" style="width:100%;"></select>
         <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">Brand personality <span class="required-mark">*</span></div>
         <select id="evOdPersonality" style="width:100%;"></select>
+        <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">What didn't you like — and what do you want more of? (optional)</div>
+        <textarea id="evOdFeedback" rows="3" maxlength="600" placeholder="e.g. the stage feels small and the colors too dark — I want more focus on the stage and a warmer, more inviting entrance..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:9px 11px;border:1.5px solid var(--line);border-radius:2px;box-sizing:border-box;"></textarea>
+        <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">Upload a sample (optional)</div>
+        <div class="logo-upload" onclick="document.getElementById('evOdSampleInput').click()">
+          <input type="file" id="evOdSampleInput" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleEvOdSampleUpload(this)">
+          <div id="evOdSamplePlaceholder">Click to attach an inspiration / reference image</div>
+          <img id="evOdSamplePreview" alt="Sample preview" style="display:none;max-height:80px;max-width:100%;object-fit:contain;margin-top:8px;">
+        </div>
       </div>
       <div style="display:flex;gap:10px;margin-top:16px;">
         <button class="ghost" onclick="document.getElementById('eventOtherDesignOverlay').style.display='none';" style="flex:1;">Cancel</button>
@@ -16438,11 +16446,24 @@ async function generateEventConceptBoard(options){
     }
     const briefData = buildEventThemeBoardBriefData();
     // Owner decision: the form goes STRAIGHT to Gemini — no intermediate analysis stage.
-    const layoutPrompt = buildEventDirectGeminiPrompt(briefData);
+    let layoutPrompt = buildEventDirectGeminiPrompt(briefData);
+    // Owner request: the Other Design popup carries the client's own words (what they
+    // disliked / want more of) and an optional sample image — both ride this regenerate
+    // only, then clear so a later plain run never reuses them.
+    if(inPlace && eventOtherDesignFeedback){
+      layoutPrompt += '\n\nCLIENT FEEDBACK FOR THIS NEW OPTION (highest priority, must be respected): "' + eventOtherDesignFeedback.replace(/"/g, "'") + '" — generate a clearly different theme that avoids everything the client disliked and gives visibly MORE of what they asked for.';
+    }
+    if(inPlace && eventOtherDesignSample){
+      layoutPrompt += '\n\nThe client also attached a SAMPLE/INSPIRATION image (provided after the logo, if any) — draw on it for mood, palette, materials, or staging as appropriate, without copying it wholesale or letting it override the brief.';
+    }
     const genEndpoint = '/api/generate-image-gemini';
     // Initial Generate is covered by the project quota; Other Theme (inPlace) is a
     // user-initiated modification and charges the modify quota server-side, upfront.
     const eventGenBody = { prompt: layoutPrompt, isUserInitiatedEdit: inPlace, aspectRatio: '4:3' };
+    if(inPlace && eventOtherDesignSample){
+      eventGenBody.additionalReferenceImages = [{ data: eventOtherDesignSample.dataUrl.split(',')[1], mimeType: eventOtherDesignSample.mimeType }];
+    }
+    if(inPlace){ eventOtherDesignFeedback = ''; eventOtherDesignSample = null; }
     // Attach the real company logo, same as the booth pipeline, so signage carries the
     // actual mark instead of a reinvented one.
     if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
@@ -16991,6 +17012,25 @@ function selectEcbGalleryEntry(i){
    Areas, Event Mood, AI Creative Freedom, and Brand personality. Confirm writes the
    choices back to the form (the single source the event pipeline reads) and runs the
    regenerate flow, which deducts 1 modification (or the free first credit). */
+// Free-text feedback + optional sample image from the event Other Design popup — consumed
+// (and cleared) by the next inPlace generateEventConceptBoard run.
+let eventOtherDesignFeedback = '';
+let eventOtherDesignSample = null;
+
+function handleEvOdSampleUpload(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    eventOtherDesignSample = { dataUrl: e.target.result, mimeType: file.type || 'image/png', name: file.name };
+    const preview = document.getElementById('evOdSamplePreview');
+    preview.src = eventOtherDesignSample.dataUrl;
+    preview.style.display = 'block';
+    document.getElementById('evOdSamplePlaceholder').textContent = 'Attached: ' + file.name + ' — click to replace';
+  };
+  reader.readAsDataURL(file);
+}
+
 function openEventOtherDesignPanel(){
   if(typeof blockIfGenerating === 'function' && blockIfGenerating()) return;
   if(!isAdminUser && !freeModAvailable()){
@@ -17019,6 +17059,12 @@ function openEventOtherDesignPanel(){
   const pDest = document.getElementById('evOdPersonality');
   pDest.innerHTML = '<option value="">Keep as designed</option>' + Array.from(pSrc.options).filter(o => o.value).map(o => `<option value="${esc(o.value)}">${o.textContent}</option>`).join('');
   pDest.value = '';
+  // Fresh feedback + sample on every open — same reasoning as the booth popup's reset.
+  eventOtherDesignFeedback = '';
+  eventOtherDesignSample = null;
+  document.getElementById('evOdFeedback').value = '';
+  document.getElementById('evOdSamplePreview').style.display = 'none';
+  document.getElementById('evOdSamplePlaceholder').textContent = 'Click to attach an inspiration / reference image';
   document.getElementById('eventOtherDesignOverlay').style.display = 'flex';
 }
 
@@ -17037,6 +17083,7 @@ async function confirmEventOtherDesign(){
     selectedBrandPersonalities = [p];
     if(typeof renderBrandPersonalityGrid === 'function') renderBrandPersonalityGrid();
   }
+  eventOtherDesignFeedback = document.getElementById('evOdFeedback').value.trim().slice(0, 600);
   // The popup already stated the cost — regenerate skips its own duplicate confirm.
   regenerateEventConceptBoard({ skipConfirm: true });
 }
