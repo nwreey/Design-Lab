@@ -1027,9 +1027,9 @@
     <button class="tab" id="tabEditDesign" onclick="setMode('editdesign')" style="display:none;" data-i18n="tabs.editDesign">Modify Design</button>
   </div>
 
-  <div class="show-form-bar" id="showFormBar" style="display:none;">
-    <button type="button" class="ghost small" onclick="startNewProject()">🏠 Home Page</button>
-  </div>
+  <!-- Owner rule: no duplicate 🏠 button here — the header's Home covers every page.
+       The bar element stays (various flows toggle it) but is permanently empty/invisible. -->
+  <div class="show-form-bar" id="showFormBar" style="display:none;"></div>
 
   <div class="card" id="displayStandCard" style="display:none;">
     <!-- dsFormFields wraps ONLY the input side of this card so the approved-project view can
