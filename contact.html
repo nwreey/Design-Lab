@@ -112,6 +112,7 @@
   html[dir="rtl"] .site-nav{ margin-right:0; margin-left:auto; }
   html[dir="rtl"] .footer-grid{ text-align:right; }
 </style>
+<script src="/recaptcha-config.js"></script>
 </head>
 <body>
 
@@ -273,6 +274,7 @@ document.getElementById('contactForm').addEventListener('submit', async function
         email: document.getElementById('cf-email').value.trim(),
         subject: document.getElementById('cf-subject').value.trim(),
         message: document.getElementById('cf-message').value.trim(),
+        recaptchaToken: await getRecaptchaToken('contact'),
       }),
     });
     const data = await response.json().catch(() => ({}));

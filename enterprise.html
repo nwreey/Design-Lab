@@ -155,6 +155,7 @@
   html[dir="rtl"] .ent-card,
   html[dir="rtl"] .process-item{ text-align:right; }
 </style>
+<script src="/recaptcha-config.js"></script>
 </head>
 <body>
 
@@ -456,7 +457,8 @@ async function submitEnterpriseForm(e){
     companySize: document.getElementById('entSize').value,
     expectedUsers: document.getElementById('entUsers').value,
     industry: document.getElementById('entIndustry').value.trim(),
-    message: document.getElementById('entMessage').value.trim()
+    message: document.getElementById('entMessage').value.trim(),
+    recaptchaToken: await getRecaptchaToken('enterprise')
   };
   if(!payload.company || !payload.name || !payload.email || !payload.message){
     statusEl.style.color = '#E8B93E';

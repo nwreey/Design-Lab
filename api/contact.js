@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
 import { sendTransactionalEmail, buildContactMessageEmail, buildBrandedEmail } from '../lib/email.js';
+import { verifyRecaptcha, RECAPTCHA_FAIL_MESSAGE } from '../lib/recaptcha.js';
 const sql = neon(process.env.DATABASE_URL, { fullResults: true });
 
 /* ================= Contact / Get help / Enterprise endpoint =================
@@ -180,6 +181,16 @@ export default async function handler(req, res) {
   }
 
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+
+  // reCAPTCHA v3 (owner request: all public forms) — skipped automatically until
+  // RECAPTCHA_SECRET_KEY exists in env; see lib/recaptcha.js for the full policy.
+  const captcha = await verifyRecaptcha(body.recaptchaToken, kind === 'enterprise' ? 'enterprise' : 'contact', ip);
+  if (!captcha.ok) {
+    console.error('contact: recaptcha rejected (' + kind + '):', captcha.reason);
+    res.status(403).json({ error: { message: RECAPTCHA_FAIL_MESSAGE } });
+    return;
+  }
+
   try {
     const allowed = await checkSubmitRateLimit(ip);
     if (!allowed) {
