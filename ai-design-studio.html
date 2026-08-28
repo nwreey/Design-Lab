@@ -11216,6 +11216,7 @@ function renderProjectUsageIndicator(){
     el.classList.add('near-limit');
   }
   updateUsageSummaryVisibility();
+  if(typeof updateStudioHomeUsage === 'function') updateStudioHomeUsage(); // keep the home-page credit chips live
 }
 
 function renderModifyUsageIndicator(){
@@ -11241,6 +11242,7 @@ function renderModifyUsageIndicator(){
     el.classList.add('near-limit');
   }
   updateUsageSummaryVisibility();
+  if(typeof updateStudioHomeUsage === 'function') updateStudioHomeUsage(); // keep the home-page credit chips live
 }
 
 function renderEditUsageIndicator(){
@@ -11277,6 +11279,7 @@ async function logOut(){
     // person back to the login page is the safer default over leaving them stuck.
   }
   window.location.href = '/login.html';
+  if(typeof updateStudioHomeUsage === 'function') updateStudioHomeUsage(); // keep the home-page credit chips live
 }
 
 function makeSizeUnknownToggler(widthId, depthId){
