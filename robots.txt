@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /ai-design-studio.html
+Disallow: /admin.html
+Disallow: /admin-gate-x7k93qe4.html
+Disallow: /set-password.html
+Disallow: /api/
+
+Sitemap: https://designslab.ai/sitemap.xml

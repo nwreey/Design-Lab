@@ -25,6 +25,8 @@ const PUBLIC_PATHS = [
   // reCAPTCHA v3 client config — must load on the public form pages (login, signup,
   // contact, enterprise) before any sign-in exists. Contains only the PUBLIC site key.
   '/recaptcha-config.js',
+  // SEO: crawlers must reach these without auth (Google Search Console setup).
+  '/robots.txt', '/sitemap.xml',
   '/logo-white.png', '/logo-black-transparent.png',
   '/favicon.ico', '/favicon-16.png', '/favicon-32.png', '/favicon-48.png', '/favicon-192.png',
   '/favicon-512.png', '/apple-touch-icon.png',
