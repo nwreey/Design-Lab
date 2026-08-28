@@ -217,6 +217,21 @@ export default async function handler(req, res) {
     gateMismatch = true;
   }
 
+  /* ---- Admin IP allowlist (owner request) ----
+     When ADMIN_ALLOWED_IPS is set (comma-separated public IPs in Vercel env), admin
+     sign-in only succeeds from those addresses — even with the right password AND the
+     right gate. Rejection is the same generic 401 (no lockout — credentials were right).
+     Fail-safe: with the env var unset, no restriction, so a mistake in Vercel can be
+     fixed from the Vercel dashboard rather than bricking admin access forever. */
+  if (tokenPayload && tokenPayload.role === 'admin') {
+    const allowedIps = (process.env.ADMIN_ALLOWED_IPS || '').split(',').map(v => v.trim()).filter(Boolean);
+    if (allowedIps.length > 0 && !allowedIps.includes(clientIp)) {
+      console.error('login: admin attempt from non-allowlisted IP', clientIp);
+      tokenPayload = null;
+      gateMismatch = true; // reuse: generic 401, no lockout feeding
+    }
+  }
+
   if (!tokenPayload) {
     if (!gateMismatch) {
       try {

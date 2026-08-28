@@ -97,8 +97,19 @@ export default async function middleware(request) {
     return Response.redirect(loginUrl, 302);
   }
 
-  if (ADMIN_ONLY_PATHS.some(p => url.pathname === p) && payload.role !== 'admin') {
-    return new Response('Forbidden — admin access required.', { status: 403 });
+  if (ADMIN_ONLY_PATHS.some(p => url.pathname === p)) {
+    if (payload.role !== 'admin') {
+      return new Response('Forbidden — admin access required.', { status: 403 });
+    }
+    // Admin IP allowlist (owner request): even a valid admin cookie only works from the
+    // allowlisted IPs — a stolen cookie is useless elsewhere. Unset env = no restriction.
+    const allowedIps = (process.env.ADMIN_ALLOWED_IPS || '').split(',').map(v => v.trim()).filter(Boolean);
+    if (allowedIps.length > 0) {
+      const ip = ((request.headers.get('x-forwarded-for') || '').split(',')[0] || '').trim();
+      if (!allowedIps.includes(ip)) {
+        return new Response('Forbidden — admin access required.', { status: 403 });
+      }
+    }
   }
 
   return;
