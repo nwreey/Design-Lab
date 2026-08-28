@@ -77,9 +77,14 @@
      scrolling kicks in — 1 or 2 saved projects just take their own natural, smaller
      height; a 4th and beyond scroll within this same fixed area instead of pushing the
      rest of the sidebar (account/usage section) further down the page. */
-  .sidebar-projects-scroll-wrap{flex:0 1 auto;display:flex;flex-direction:column;}
+  /* min-height:0 on the wrap is what makes the project list the ONE shrinkable region of
+     the sidebar (owner rule: nothing may ever push or squeeze the account/settings block at
+     the bottom) — flex items otherwise refuse to shrink below their content height, which
+     on short screens would shove the bottom section out of view. The inner list keeps at
+     least one row (54px) visible and scrolls for the rest. */
+  .sidebar-projects-scroll-wrap{flex:0 1 auto;min-height:0;display:flex;flex-direction:column;}
   .sidebar-projects-scroll{
-    max-height:162px;min-height:0;overflow-y:scroll;padding-right:2px;
+    max-height:162px;min-height:54px;overflow-y:scroll;padding-right:2px;
     scrollbar-width:thin;scrollbar-color:var(--navy) var(--navy-soft);
   }
   /* Admins get 6 visible project rows before scrolling (owner request) — body gets the
