@@ -132,11 +132,31 @@ export default async function handler(req, res) {
   const clientIp = getClientIp(req);
   const attemptKey = `${username.toLowerCase()}|${clientIp}`;
 
+  /* ---- Admin lockout exemption (owner request) ----
+     Admin usernames are NEVER time-locked: the owner must be able to sign in at any
+     moment, and the private-gate URL + generic 401s are the protection he has chosen
+     for that account. Failed attempts on admin usernames are still RECORDED below, so
+     they stay visible in the admin panel's Login Security section — they just never
+     block. Regular user accounts keep the full 5-attempt / 15-minute lockout. */
+  let isAdminUsername = false;
+  const masterUsername = process.env.SITE_USERNAME || '';
+  if (masterUsername && username === masterUsername) {
+    isAdminUsername = true;
+  } else {
+    try {
+      const roleResult = await sql`SELECT role FROM users WHERE username = ${username};`;
+      if (roleResult.rows.length > 0 && roleResult.rows[0].role === 'admin') isAdminUsername = true;
+    } catch (err) {
+      // Fail toward normal lockout behavior — a DB hiccup shouldn't disable protection.
+      console.error('Admin-exemption lookup failed:', err);
+    }
+  }
+
   // Checked BEFORE any password comparison — a locked-out attempt should never even reach
   // the (comparatively expensive) scrypt verification, both to genuinely stop the guessing
   // and to avoid giving a timing signal either way.
   try {
-    const lockoutMessage = await checkLockout(attemptKey);
+    const lockoutMessage = isAdminUsername ? null : await checkLockout(attemptKey);
     if (lockoutMessage) {
       res.status(429).json({ error: { message: lockoutMessage } });
       return;
