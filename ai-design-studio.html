@@ -506,6 +506,10 @@
   .render-frame img{width:100%;display:block;}
   .render-status{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--navy);opacity:.75;margin-bottom:10px;min-height:18px;}
   #formCard.locked{opacity:.55;}
+  .form-collapse-header{display:none;cursor:pointer;justify-content:space-between;align-items:center;font-weight:700;font-size:13.5px;padding:2px 0;}
+  #formCard.form-collapsible{opacity:1;}
+  #formCard.form-collapsible .form-collapse-header{display:flex;}
+  #formCard.form-collapsed > :not(.form-collapse-header){display:none !important;}
   #dsFormFields.locked{opacity:.55;}
 
   /* AI Auto-fill Helper loading bar — shown in the panel while runAiAutofill() is in flight,
@@ -897,9 +901,6 @@
   </div>
 
   <div class="show-form-bar" id="showFormBar" style="display:none;">
-    <!-- Owner rule: after Generate the form is CLOSED but AVAILABLE — this button brings it
-         back (read-only for users). After APPROVAL the button hides, so the form is gone. -->
-    <button type="button" class="ghost small" id="showBriefBtn" onclick="showFormAndTabs()">📋 Show Brief</button>
     <button type="button" class="ghost small" onclick="startNewProject()">🏠 Home Page</button>
   </div>
 
@@ -1567,6 +1568,13 @@ Replace only the materials and graphics."></textarea>
   </div>
 
   <div class="card" id="formCard">
+    <!-- Collapsed-brief header (owner rule): after Generate the form stays HERE, above the
+         generated design, as this closed bar — tap to view the brief (read-only for users),
+         tap again to close. Hidden entirely until the design is generated. -->
+    <div class="form-collapse-header" onclick="toggleFormCollapse()">
+      <span>📋 Design Brief</span>
+      <span id="formCollapseHint" style="font-weight:600;opacity:.6;font-size:12px;">Tap to view</span>
+    </div>
 
     <!-- shared -->
     <div class="section-headline" id="eventDetailsHeadline" style="display:none;margin-top:0;" data-i18n="section.eventDetails">Event Details</div>
@@ -11358,6 +11366,34 @@ window.addEventListener('beforeunload', function(e){
 // underneath too. These two functions toggle between that focused "just show me the
 // project" view and the normal "form + tabs" view, without discarding anything: the form
 // fields stay populated the whole time, this only ever hides/shows them.
+/* ---- Collapsed Design Brief (owner rule) ----
+   After Generate the form stays at the TOP of the page, above the generated design, as a
+   closed 'Design Brief' bar. Tapping toggles the (read-only for users) brief open/closed.
+   After approval the whole card hides for good (hideFormAndTabs). */
+function collapseFormCard(){
+  const card = document.getElementById('formCard');
+  if(!card) return;
+  card.style.display = 'block';
+  card.classList.add('form-collapsible', 'form-collapsed');
+  const hint = document.getElementById('formCollapseHint');
+  if(hint) hint.textContent = 'Tap to view';
+  document.getElementById('modeTabs').style.display = 'none';
+  document.getElementById('showFormBar').style.display = 'none';
+}
+
+function toggleFormCollapse(){
+  const card = document.getElementById('formCard');
+  if(!card) return;
+  const collapsed = card.classList.toggle('form-collapsed');
+  const hint = document.getElementById('formCollapseHint');
+  if(hint) hint.textContent = collapsed ? 'Tap to view' : 'Tap to close';
+}
+
+function clearFormCollapse(){
+  const card = document.getElementById('formCard');
+  if(card) card.classList.remove('form-collapsible', 'form-collapsed');
+}
+
 function isCurrentDesignApproved(){
   if(mode === 'event') return !!(eventConceptBoard && eventConceptBoard.approved);
   if(mode === 'displaystand') return !!(typeof dsViewRenders !== 'undefined' && dsViewRenders && dsViewRenders.length);
@@ -11371,9 +11407,6 @@ function hideFormAndTabs(){
   document.getElementById('displayStandCard').style.display = 'none';
   document.getElementById('modifyDesignFormCard').style.display = 'none';
   document.getElementById('showFormBar').style.display = 'block';
-  // Closed-but-available before approval; truly gone after (owner rule).
-  const showBriefBtn = document.getElementById('showBriefBtn');
-  if(showBriefBtn) showBriefBtn.style.display = isCurrentDesignApproved() ? 'none' : '';
 }
 
 /* Display Stand version of hideFormAndTabs(): dsResult lives INSIDE displayStandCard, so
@@ -11385,12 +11418,10 @@ function hideDsFormKeepResults(){
   const wrap = document.getElementById('dsFormFields');
   if(wrap) wrap.style.display = 'none';
   document.getElementById('showFormBar').style.display = 'block';
-  // DS approval path — the form is gone for good (owner rule).
-  const showBriefBtn = document.getElementById('showBriefBtn');
-  if(showBriefBtn) showBriefBtn.style.display = 'none';
 }
 
 function showFormAndTabs(){
+  clearFormCollapse();
   document.getElementById('modeTabs').style.display = 'flex';
   document.getElementById('showFormBar').style.display = 'none';
   const dsWrap = document.getElementById('dsFormFields');
@@ -16560,11 +16591,12 @@ async function generateEventConceptBoard(options){
     ecbButtons.forEach(b => { b.disabled = false; });
     projectSwitchLocked = false;
     // Bulletproof owner rule: whenever a board is on screen, a regular user's form is
-    // locked AND closed (same as Exhibition) — success path, partial-failure path, every
-    // path. A real failure with no board leaves the form open to fix and retry.
+    // locked and collapsed to the 'Design Brief' bar (hidden for good once approved) —
+    // success path, partial-failure path, every path. A real failure with no board
+    // leaves the form open to fix and retry.
     if(!isAdminUser && eventConceptBoard && eventConceptBoard.image){
       lockForm();
-      hideFormAndTabs();
+      if(eventConceptBoard.approved) hideFormAndTabs(); else collapseFormCard();
     }
   }
 }
@@ -16591,13 +16623,12 @@ function renderEventConceptBoardResult(skipScroll){
     showEcbGoodLuckAndRating(false);
   }
   if(!skipScroll) document.getElementById('eventConceptResult').scrollIntoView({behavior:'smooth', block:'start'});
-  // Owner rule (Event section, final): identical to Exhibition — once a board exists,
-  // the form, tabs, and their buttons all CLOSE for regular users (the 'Show form' bar
-  // can bring the form back read-only); after approval it stays gone for good. Admin
-  // exception: form stays open and writable.
+  // Owner rule (Event, final): a generated board collapses the form into the 'Design
+  // Brief' bar at the top (tap to view read-only); an APPROVED board hides it for good.
+  // Admin exception: form stays open and writable.
   if(!isAdminUser){
     lockForm();
-    hideFormAndTabs();
+    if(eventConceptBoard.approved) hideFormAndTabs(); else collapseFormCard();
   }else{
     unlockForm();
   }
@@ -17634,16 +17665,13 @@ async function generateDesign(){
   // a harmless no-op here whenever the form was never locked to begin with.
   // Admins keep the form writable after generating (owner request: easier testing);
   // real users get the normal post-generation lock.
-  // Owner rule: the Generate CLICK closes the form in event mode too (same as booth) —
-  // it returns under the results, visible-but-locked, when the board renders
-  // (renderEventConceptBoardResult), and disappears for good after approval.
-  if(mode === 'event' && !isAdminUser){ lockForm(); hideFormAndTabs(); }
-  // Owner rule (Exhibition): the moment Generate is confirmed — i.e. the click that
-  // deducts a project (or a modification on a regenerate) — the form CLOSES for regular
-  // users; loading + results take over, same "results only" view approval uses. It
-  // auto-reopens on any failure below so the brief can be fixed and resubmitted, and the
-  // "Show form" bar can always bring it back (read-only via lockForm on success).
-  if(mode === 'booth' && !isAdminUser) hideFormAndTabs();
+  // Owner rule (Event, same as Exhibition): the Generate click collapses the form into
+  // the 'Design Brief' bar at the top; it disappears for good after approval.
+  if(mode === 'event' && !isAdminUser){ lockForm(); collapseFormCard(); }
+  // Owner rule (Exhibition, final): the confirmed Generate click collapses the form into
+  // the 'Design Brief' bar that stays at the top, above the design — tap to view (locked
+  // after success), tap to close. Failure paths below reopen it fully for fixing.
+  if(mode === 'booth' && !isAdminUser) collapseFormCard();
   // Captured once, here, before Stage 1 runs (see this global's own comment) — read later by
   // approvePrompts() when it calls startRenderSession(), since isNewProject itself isn't in
   // scope there (approvePrompts is a separate top-level function, not nested inside this one).
@@ -22451,12 +22479,8 @@ async function confirmApproveDesign(){
 
   // Approving locks in the design — from here on this reads as "the project," not "a form
   // in progress," so the form and tabs step aside the same way they do when reopening an
-  // already-finished saved project. The Show Brief button hides too (owner rule: after
-  // approval the form is gone) — explicitly, since the camera views that mark approval
-  // don't exist yet at this moment.
+  // already-finished saved project.
   hideFormAndTabs();
-  const showBriefBtnEl = document.getElementById('showBriefBtn');
-  if(showBriefBtnEl) showBriefBtnEl.style.display = 'none';
   projectSwitchLocked = true;
 
   const statusEl = document.getElementById('actionStatus');
@@ -23739,7 +23763,7 @@ function openProject(id){
         hideFormAndTabs();
       }else if(project.optionResult){
         showFormAndTabs();
-        if(!isAdminUser) lockForm(); else unlockForm();
+        if(!isAdminUser){ lockForm(); collapseFormCard(); } else { unlockForm(); }
       }
       // Owner request: opening a project from the sidebar lands on the IMAGES/results,
       // not the top of the form. Falls back to the top only when the project has no
