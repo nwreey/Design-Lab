@@ -1139,7 +1139,7 @@ function renderUsersTable(){
           <button class="ghost" onclick="showEditLimitsModal('${u.id}', '${escapeHtml(u.username)}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'}, ${u.modify_limit != null ? u.modify_limit : 'null'}, ${u.autofill_limit != null ? u.autofill_limit : 'null'}, '${u.plan ? escapeHtml(u.plan) : ''}')">Edit limits &amp; plan</button>
           <button class="ghost" onclick="showResetPasswordModal('${u.id}', '${escapeHtml(u.username)}')">Reset password</button>
           <button class="ghost" onclick="showUserReport('${u.id}')">Report</button>
-          <button class="danger" onclick="removeUser('${u.id}', '${escapeHtml(u.username)}')">Remove</button>
+          <button class="ghost" style="color:var(--error);" onclick="removeUser('${u.id}', '${escapeHtml(u.username)}')">Remove</button>
         </td>
       </tr>
     `;
