@@ -1129,7 +1129,7 @@ function renderUsersTable(){
       <tr>
         <td style="white-space:nowrap;max-width:340px;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml((u.full_name ? u.full_name + ' — ' : '') + u.username)}">${u.full_name ? '<b>' + escapeHtml(u.full_name) + '</b> — ' : ''}${escapeHtml(u.username)}</td>
         <td style="white-space:nowrap;">${u.role === 'admin' ? '<span class="role-badge admin">Administrator</span>' : '<span class="role-badge ' + (u.plan === 'Starter' ? 'plan-badge-starter' : u.plan === 'Studio' ? 'plan-badge-studio' : u.plan === 'Pro' ? 'plan-badge-pro' : '') + '">' + escapeHtml(u.plan || 'Trial') + '</span>'}</td>
-        <td class="usage ${projOver ? 'over' : ''}" style="white-space:nowrap;">${projLimitText}</td>
+        <td class="usage ${projOver ? 'over' : ''}" style="white-space:nowrap;${projOver && u.role !== 'admin' ? 'color:#B02A1E;font-weight:800;' : ''}">${projLimitText}${projOver && u.role !== 'admin' ? ' \u26a0' : ''}</td>
         <td class="usage ${editOver ? 'over' : ''}" style="white-space:nowrap;">${editLimitText}</td>
         <td class="usage ${modifyOver ? 'over' : ''}" style="white-space:nowrap;">${modifyLimitText}</td>
         <td class="usage ${autofillOver ? 'over' : ''}" style="white-space:nowrap;">${autofillLimitText}</td>
@@ -1140,7 +1140,6 @@ function renderUsersTable(){
           <button class="ghost" onclick="showResetPasswordModal('${u.id}', '${escapeHtml(u.username)}')">Reset password</button>
           <button class="ghost" onclick="showUserReport('${u.id}')">Report</button>
           <button class="danger" onclick="removeUser('${u.id}', '${escapeHtml(u.username)}')">Remove</button>
-          ${projOver && u.role !== 'admin' ? '<span class="usage over" style="white-space:nowrap;font-weight:700;">\u26a0 0 projects left</span>' : ''}
         </td>
       </tr>
     `;
