@@ -127,7 +127,7 @@
   .status-msg.error{color:var(--error);}
   .status-msg.ok{color:#2E6B5E;}
 
-  .actions-cell{display:flex;gap:6px;flex-wrap:wrap;}
+  .actions-cell{display:flex;gap:6px;flex-wrap:nowrap;white-space:nowrap;align-items:center;}
   .hint{font-size:13px;color:var(--ink);opacity:.6;margin-top:4px;line-height:1.5;}
   .master-note{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink);opacity:.55;}
 
@@ -275,7 +275,6 @@
           <tr>
             <th>Username</th>
             <th>Role</th>
-            <th>Plan</th>
             <th>Projects</th>
             <th>Edits</th>
             <th>Modifies</th>
@@ -1126,11 +1125,10 @@ function renderUsersTable(){
       <tr>
         <td style="white-space:nowrap;">${u.full_name ? '<b>' + escapeHtml(u.full_name) + '</b> — ' : ''}${escapeHtml(u.username)}${u.role === 'admin' ? '' : ' <span class="role-badge ' + (u.plan ? 'admin' : '') + '">' + escapeHtml(u.plan || 'Trial') + '</span>'}</td>
         <td><span class="role-badge ${u.role === 'admin' ? 'admin' : ''}">${u.role}</span></td>
-        <td>${u.role === 'admin' ? '<span style="color:#999;">-</span>' : (u.plan ? '<span class="role-badge admin">' + escapeHtml(u.plan) + '</span>' : '<span class="role-badge">Trial</span>')}</td>
-        <td class="usage ${projOver ? 'over' : ''}">${projLimitText}</td>
-        <td class="usage ${editOver ? 'over' : ''}">${editLimitText}</td>
-        <td class="usage ${modifyOver ? 'over' : ''}">${modifyLimitText}</td>
-        <td class="usage ${autofillOver ? 'over' : ''}">${autofillLimitText}</td>
+        <td class="usage ${projOver ? 'over' : ''}" style="white-space:nowrap;">${projLimitText}</td>
+        <td class="usage ${editOver ? 'over' : ''}" style="white-space:nowrap;">${editLimitText}</td>
+        <td class="usage ${modifyOver ? 'over' : ''}" style="white-space:nowrap;">${modifyLimitText}</td>
+        <td class="usage ${autofillOver ? 'over' : ''}" style="white-space:nowrap;">${autofillLimitText}</td>
         <td class="actions-cell">
           <!-- Owner request: only these three actions per user. Make admin/member and the
                three count-reset buttons removed (their functions remain defined, unused). -->
