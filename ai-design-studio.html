@@ -19582,8 +19582,8 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
     }, 190000)
       .then(res => res.json().catch(() => ({})).then(data => ({ ok: res.ok, data })))
       .then(async ({ ok, data }) => {
-        endGenProgress();
         if(!ok || !data.image){
+          endGenProgress();
           optionResults[i].status = 'error';
           optionResults[i].errorMsg = (data.error && data.error.message) || 'Image generation failed.';
           // A failed render leaves nothing to protect — unlock the form immediately so the
@@ -19592,8 +19592,17 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
           unlockForm();
           if(mode === 'booth' && !isAdminUser) showFormAndTabs(); // auto-closed on Generate — reopen so it can be resubmitted
         }else{
+          // Owner report: the bar "reached halfway then disappeared" — because it was hidden
+          // HERE, the moment the raw render arrived, while the brand-asset integrity pass and
+          // compression below (10-20s of real work) still ran with no progress showing. Keep
+          // the same bar alive through both, then hide it only when the image is ready to paint.
+          if(stopGenSim){ stopGenSim(); stopGenSim = null; }
+          updateApproveProgress(94, 'Checking brand details...');
           const correctedImage = await runBrandAssetIntegrityEngine(data.image);
+          updateApproveProgress(98, 'Preparing your design...');
           const compressed = await compressDataUrlToTarget(correctedImage);
+          updateApproveProgress(100, 'Done.');
+          endGenProgress();
           optionResults[i].status = 'done';
           // engine is tagged per gallery entry, not per option — "Other option" can render a
           // later entry with a different engine (see confirmRegenerateOtherOption's
