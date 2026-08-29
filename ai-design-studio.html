@@ -11644,7 +11644,15 @@ function renderHomeRecent(projects){
       const bKind = full.dsResult ? 'displaystand' : full.eventConceptBoard ? 'event' : 'booth';
       const hasViews = full.viewCardHistories && Object.keys(full.viewCardHistories).some(k => full.viewCardHistories[k] && full.viewCardHistories[k].images && full.viewCardHistories[k].images.length > 0);
       const bApproved = hasViews || (full.eventConceptBoard && full.eventConceptBoard.approved) || (full.dsResult && full.dsResult.renders && full.dsResult.renders.length > 0);
-      const bThumb = typeof compressDataUrl === 'function' ? await compressDataUrl(latest, 360, 0.72) : latest;
+      // Same remote-URL fallback as saveCurrentProject's own thumb block — a stored URL
+      // that refuses canvas compression still displays fine used directly as the thumb.
+      let bThumb;
+      try{
+        bThumb = typeof compressDataUrl === 'function' ? await compressDataUrl(latest, 360, 0.72) : latest;
+      }catch(thumbErr){
+        bThumb = /^https?:\/\//.test(latest) ? latest : null;
+      }
+      if(!bThumb) return;
       grid.querySelectorAll('.home-recent-card').forEach(c => {
         if((c.getAttribute('onclick') || '').includes(p.id)){
           const t = c.querySelector('.home-recent-thumb');
@@ -23815,10 +23823,10 @@ function restoreGeneratedViewsIfSaved(project){
   document.getElementById('viewer3dGeneratedCard').style.display = 'block';
   document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
 
-  // Iterate the full expected camera list (when known) instead of only the keys present in
-  // viewCardHistories, so a view that failed or was never reached before a refresh still
-  // shows up as an explicit "not yet generated — click Retry" card rather than silently
-  // being missing from the grid.
+  // Owner rule (changed from the earlier render-every-expected-camera behavior): the user
+  // PICKS which views to render and pays per view — a view he never selected is not a
+  // failure, so a reload must show ONLY the views that actually exist, never a wall of
+  // "Not yet generated — Retry" cards for cameras he deliberately didn't order.
   const expectedCamIds = (CAMERA_SPECS && CAMERA_SPECS.length) ? CAMERA_SPECS.map(s => s.camId) : Object.keys(viewCardHistories);
   const seen = new Set();
   expectedCamIds.forEach(camId => {
@@ -23826,8 +23834,6 @@ function restoreGeneratedViewsIfSaved(project){
     const hist = viewCardHistories[camId];
     if(hist && hist.images && hist.images.length){
       renderGeneratedViewCard(camId, 'done', hist.images[hist.activeIndex]);
-    }else{
-      renderGeneratedViewCard(camId, 'failed', 'Not yet generated — click Retry to generate this view.');
     }
   });
   // Any saved history keys outside the current expected list (e.g. edit-design uploads,
@@ -23916,7 +23922,15 @@ async function saveCurrentProject(){
     }
     homeStatus = approvedNow ? 'approved' : (latestImage ? 'generated' : 'draft');
     if(latestImage && typeof compressDataUrl === 'function'){
-      homeThumb = await compressDataUrl(latestImage, 360, 0.72);
+      // Owner report (home card showed no picture): after a reload the gallery image is a
+      // REMOTE stored URL, and canvas compression can fail on it (CORS taint). The remote
+      // URL itself displays perfectly fine in an <img> — so on any compression failure,
+      // store the URL directly as the thumb instead of giving up on the picture entirely.
+      try{
+        homeThumb = await compressDataUrl(latestImage, 360, 0.72);
+      }catch(thumbErr){
+        homeThumb = /^https?:\/\//.test(latestImage) ? latestImage : null;
+      }
     }
   }catch(err){ console.error('Could not build home thumbnail (saving without it):', err); }
 
