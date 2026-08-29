@@ -488,13 +488,13 @@
       </div>
       <div class="field">
         <label for="editLimitsPlan">Purchased Plan</label>
-        <select id="editLimitsPlan">
+        <select id="editLimitsPlan" onchange="applyPlanQuotasToLimitFields(this.value)">
           <option value="">Trial (no plan yet)</option>
           <option value="Starter">Starter</option>
           <option value="Studio">Studio</option>
           <option value="Pro">Pro</option>
         </select>
-        <div class="hint" style="margin-top:6px;">Trial users cannot Approve a design (they see the plans popup instead). Set the plan here once payment is complete, and raise the limits above to match it.</div>
+        <div class="hint" style="margin-top:6px;">Choosing a plan fills the limits above automatically with that plan's benefits (same numbers as the pricing page) — adjust them after if needed, then Save.</div>
       </div>
       <div class="modal-status" id="editLimitsStatus"></div>
       <div class="modal-buttons">
@@ -1322,6 +1322,23 @@ async function toggleRole(id, currentRole){
 // fixes that structurally: there's no longer a middle step where the whole thing can
 // silently fail.
 let __editLimitsUserId = null;
+
+// Owner rule: picking a plan in Edit limits GRANTS that plan's benefits — the limit
+// fields auto-fill from the pricing page's own numbers (AI Fills = the plan's projects).
+function applyPlanQuotasToLimitFields(plan){
+  const PLAN_QUOTAS = {
+    '':        { project: 1,  modify: 2,  edit: 3,   autofill: 1 },
+    'Starter': { project: 2,  modify: 8,  edit: 30,  autofill: 2 },
+    'Studio':  { project: 5,  modify: 20, edit: 80,  autofill: 5 },
+    'Pro':     { project: 10, modify: 50, edit: 130, autofill: 10 },
+  };
+  const q = PLAN_QUOTAS[plan];
+  if(!q) return;
+  document.getElementById('editLimitsProject').value = q.project;
+  document.getElementById('editLimitsModify').value = q.modify;
+  document.getElementById('editLimitsEdit').value = q.edit;
+  document.getElementById('editLimitsAutofill').value = q.autofill;
+}
 
 function showEditLimitsModal(id, username, currentProjectLimit, currentEditLimit, currentModifyLimit, currentAutofillLimit, currentPlan){
   __editLimitsUserId = id;
