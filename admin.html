@@ -1124,7 +1124,7 @@ function renderUsersTable(){
     const autofillOver = u.autofill_limit != null && (u.autofill_count || 0) >= u.autofill_limit;
     return `
       <tr>
-        <td>${u.full_name ? '<b>' + escapeHtml(u.full_name) + '</b><br>' : ''}${escapeHtml(u.username)}</td>
+        <td style="white-space:nowrap;">${u.full_name ? '<b>' + escapeHtml(u.full_name) + '</b> — ' : ''}${escapeHtml(u.username)}${u.role === 'admin' ? '' : ' <span class="role-badge ' + (u.plan ? 'admin' : '') + '">' + escapeHtml(u.plan || 'Trial') + '</span>'}</td>
         <td><span class="role-badge ${u.role === 'admin' ? 'admin' : ''}">${u.role}</span></td>
         <td>${u.role === 'admin' ? '<span style="color:#999;">-</span>' : (u.plan ? '<span class="role-badge admin">' + escapeHtml(u.plan) + '</span>' : '<span class="role-badge">Trial</span>')}</td>
         <td class="usage ${projOver ? 'over' : ''}">${projLimitText}</td>
