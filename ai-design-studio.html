@@ -798,10 +798,10 @@
   .gallery-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
   .gallery-thumb .thumb-label{position:absolute;bottom:0;left:0;right:0;background:rgba(11,12,16,0.85);color:#fff;font-size:9.5px;padding:2px 4px;text-align:center;font-family:'IBM Plex Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-  /* Owner request: the Edit panel opened under a camera view was filling the whole column
-     and read as one huge popup — capped to a comfortable width, centered, image included. */
-  .edit-panel{background:#fff;border:1.5px solid var(--navy);border-radius:2px;padding:18px;margin:0 auto 20px;max-width:760px;}
-  .edit-canvas-wrap{position:relative;width:100%;max-width:640px;margin:0 auto 14px;background:#0B0C10;border-radius:2px;overflow:hidden;}
+  /* Owner final call: the Edit and Modify Design panels stretch the full column width —
+     aligned flush to both the left and right edges, image included. */
+  .edit-panel{background:#fff;border:1.5px solid var(--navy);border-radius:2px;padding:18px;margin:0 0 20px;width:100%;box-sizing:border-box;}
+  .edit-canvas-wrap{position:relative;width:100%;margin:0 0 14px;background:#0B0C10;border-radius:2px;overflow:hidden;}
   .edit-canvas-wrap img{width:100%;display:block;}
   .edit-canvas-wrap canvas{position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;}
   .edit-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
