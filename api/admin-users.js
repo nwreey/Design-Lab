@@ -265,10 +265,6 @@ export default async function handler(req, res) {
         greeting: cleanEmail,
         paragraphs: [
           'Congratulations! Your DesignsLab AI account has been created and your <strong>' + (quotas.planName || 'Free Trial') + ' plan</strong> is active.',
-          'Your plan includes:'
-            + '<br>\u2022 <strong>' + fmtLimit(projectLimit != null ? projectLimit : null, 'project', 'projects') + '</strong>'
-            + '<br>\u2022 <strong>' + fmtLimit(modifyLimit != null ? modifyLimit : null, 'design modification', 'design modifications') + '</strong>'
-            + '<br>\u2022 <strong>' + fmtLimit(editLimit != null ? editLimit : null, 'image edit', 'image edits') + '</strong>',
           'Your username is your email address: <strong>' + cleanEmail + '</strong>. Click below to set your password — the link is personal to you and valid for 7 days, and setting your password signs you straight in.',
         ],
         ctaLabel: 'Set Your Password',
