@@ -11632,7 +11632,13 @@ function restoreLastViewOnLoad(){
   }
   if(state && state.view === 'section' && state.mode){
     hideStudioHome();
-    try{ sidebarSwitchMode(state.mode); }catch(e){ showStudioHome(); }
+    try{
+      sidebarSwitchMode(state.mode);
+      // Refresh landed back on an in-progress, never-generated brief (not a saved project) —
+      // restore whatever was last typed via the local-only draft autosave (see the
+      // "Draft autosave" block near the bottom of this file) so the refresh loses nothing.
+      if(typeof restoreLocalDraftIfAny === 'function') restoreLocalDraftIfAny(state.mode);
+    }catch(e){ showStudioHome(); }
     return;
   }
   showStudioHome();
@@ -24270,6 +24276,10 @@ async function saveCurrentProject(){
   };
   return dbPutProject(project)
     .then(() => {
+      // A real, permanent save just succeeded — any local-only unsaved-draft copy for this
+      // section (see the "Draft autosave" block) is now stale/superseded. Clear it so a later
+      // fresh "start new" in this same section never resurrects old data by mistake.
+      try{ localStorage.removeItem('designLabDraftSnapshot'); }catch(e){}
       const errEl = document.getElementById('projectSaveError');
       if(errEl) errEl.style.display = 'none';
       // Project count is a PERMANENT, increment-only consumption counter on the backend —
@@ -24631,6 +24641,11 @@ function handleExistingDesignUpload(input){
 function startNewProject(){
   if(blockIfGenerating()) return;
   currentProjectId = null;
+  // Explicit "start fresh" intent (Create-category click, New Project, etc.) — discard any
+  // local-only unsaved draft too, so it can never resurface later and silently refill a form
+  // the user deliberately chose to blank out. A real saved project's own data is untouched;
+  // this only ever holds a NEVER-saved draft's local copy (see the "Draft autosave" block).
+  try{ localStorage.removeItem('designLabDraftSnapshot'); }catch(e){}
   currentProjectFreeModUsed = false;
   updateFreeModNotes();
   pendingPromptResult = null;
@@ -24710,6 +24725,80 @@ if(typeof document.addEventListener === 'function'){
   document.addEventListener('input', updateGenerateButtonState);
   document.addEventListener('change', updateGenerateButtonState);
 }
+
+// Draft autosave (owner report: a page refresh mid-brief silently wiped everything typed
+// since the last Generate/Modify/Approve call, because saveCurrentProject() was previously
+// only ever invoked from those AI-action flows — never just from editing the form). This
+// listens on the same two form containers as the Generate-button safety net above
+// (#formCard for booth/event, #displayStandCard for Display Stand) a couple of seconds after
+// the user stops typing.
+//
+// Two different paths depending on whether this project has ever been saved before:
+//  - currentProjectId already set (an existing/opened project) -> safe to reuse
+//    saveCurrentProject() directly. It's the exact same dbPutProject() write Generate/Modify
+//    already do; isNewProject is false so the PERMANENT project-count slot is NOT touched.
+//  - currentProjectId still null (a brand-new, never-generated draft) -> saveCurrentProject()
+//    must NOT be called here. Its own "PERMANENT, increment-only" logic burns a real project
+//    slot the moment isNewProject's first save succeeds — every existing call site deliberately
+//    defers that first save until Generate actually succeeds (see the booth/DS comments next to
+//    their own `if(!isNewProject || isAdminUser) saveCurrentProject()` calls). Autosaving on
+//    every keystroke would burn a slot before the user ever clicks Generate. So an unsaved
+//    draft is instead kept in localStorage only (never sent to the server) and silently
+//    restored into the empty form the next time this browser opens the same section fresh.
+(function(){
+  const DRAFT_KEY = 'designLabDraftSnapshot';
+  let autosaveTimer = null;
+
+  function draftEligibleTarget(el){
+    if(!el || !/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return null;
+    if(document.body.classList.contains('home-active')) return null; // no form visible
+    if(typeof projectSwitchLocked !== 'undefined' && projectSwitchLocked) return null; // generation in flight — don't race it
+    const formCard = document.getElementById('formCard');
+    const dsCard = document.getElementById('displayStandCard');
+    if(formCard && formCard.contains(el) && formCard.offsetParent !== null) return 'form';
+    if(dsCard && dsCard.contains(el) && dsCard.offsetParent !== null) return 'ds';
+    return null; // ignore modals, settings, feedback, login, etc.
+  }
+
+  function scheduleDraftAutosave(evt){
+    if(!draftEligibleTarget(evt && evt.target)) return;
+    if(autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => {
+      autosaveTimer = null;
+      if(typeof projectSwitchLocked !== 'undefined' && projectSwitchLocked) return; // re-check — generation may have started meanwhile
+      if(currentProjectId){
+        // Already a real, saved project — just keep it current. No quota impact (isNewProject
+        // is false here), and clears any stale unsaved-draft copy since it's now superseded.
+        try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+        Promise.resolve(saveCurrentProject()).then(() => {
+          if(typeof renderProjectSidebar === 'function') renderProjectSidebar();
+        }).catch(err => console.error('Draft autosave failed (will retry on next edit):', err));
+      }else{
+        // Never-saved draft — local only, never burns a project slot.
+        try{
+          localStorage.setItem(DRAFT_KEY, JSON.stringify({
+            mode: typeof mode !== 'undefined' ? mode : 'booth',
+            formSnapshot: collectFormSnapshot(),
+            savedAt: new Date().toISOString()
+          }));
+        }catch(e){ /* private mode / quota — nothing better to do, edits just stay in the DOM */ }
+      }
+    }, 2500);
+  }
+  document.addEventListener('input', scheduleDraftAutosave);
+  document.addEventListener('change', scheduleDraftAutosave);
+
+  // Restores a local-only draft into a freshly opened, still-empty section — never overwrites
+  // an already-open saved project (openProject() restores its own real formSnapshot instead).
+  window.restoreLocalDraftIfAny = function(expectedMode){
+    if(currentProjectId) return; // a real project is open — its own data wins, never a stale draft
+    let draft = null;
+    try{ draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); }catch(e){}
+    if(!draft || !draft.formSnapshot) return;
+    if(expectedMode && draft.mode !== expectedMode) return; // draft belongs to a different section
+    try{ restoreFormSnapshot(draft.formSnapshot); }catch(e){ console.error('Could not restore local draft:', e); }
+  };
+})();
 
 // Owner request: the Edit / Modify Design boxes must align flush with the form column's
 // own left and right edges. They were authored as BODY-level siblings (outside the
