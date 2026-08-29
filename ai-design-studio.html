@@ -7764,17 +7764,31 @@ function updateDsProgress(percent, message){
 }
 
 async function generateDisplayStandDesign(){
-  // Required fields
+  // Required fields — same owner rule as the exhibition and event forms: instead of just
+  // naming what's missing, the page SCROLLS to the first missing field, highlights it,
+  // and focuses it, so the user lands exactly where the gap is.
   const missing = [];
-  if(!dsVal('f_dsName')) missing.push('Project Name');
-  if(!dsVal('f_dsType') && !dsVal('f_dsTypeCustom')) missing.push('Display Stand Type');
-  if(!dsVal('f_dsMaxWidth') || !dsVal('f_dsMaxDepth') || !dsVal('f_dsMaxHeight')) missing.push('Maximum Width / Depth / Height');
-  if(!dsVal('f_dsBackType')) missing.push('Back Side Access (Open or Closed)');
-  if(!dsVal('f_dsDescription')) missing.push('the description of your display stand');
+  if(!dsVal('f_dsName')) missing.push({ id: 'f_dsName', label: 'Project Name' });
+  if(!dsVal('f_dsType') && !dsVal('f_dsTypeCustom')) missing.push({ id: 'f_dsType', label: 'Display Stand Type' });
+  if(!dsVal('f_dsMaxWidth')) missing.push({ id: 'f_dsMaxWidth', label: 'Maximum Width' });
+  if(!dsVal('f_dsMaxDepth')) missing.push({ id: 'f_dsMaxDepth', label: 'Maximum Depth' });
+  if(!dsVal('f_dsMaxHeight')) missing.push({ id: 'f_dsMaxHeight', label: 'Maximum Height' });
+  if(!dsVal('f_dsBackType')) missing.push({ id: 'f_dsBackType', label: 'Back Side Access (Open or Closed)' });
+  if(!dsVal('f_dsDescription')) missing.push({ id: 'f_dsDescription', label: 'the description of your display stand' });
   const logoEntry = (dsFileStorage['dsLogoList'] || [])[0];
-  if(!logoEntry) missing.push('the company logo');
+  if(!logoEntry) missing.push({ id: 'dsLogoUploadBox', label: 'the company logo' });
   if(missing.length){
-    await customAlert('Please enter ' + missing.join(', ') + '.', 'Generate Design');
+    const first = missing[0];
+    const el = document.getElementById(first.id);
+    await customAlert('Please enter ' + first.label + (missing.length > 1 ? ' (and ' + (missing.length - 1) + ' more item' + (missing.length > 2 ? 's' : '') + ' still needed)' : '') + '.', 'Generate Design');
+    if(el){
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('mandatory-field-highlight');
+      setTimeout(() => el.classList.remove('mandatory-field-highlight'), 2200);
+      if(typeof el.focus === 'function'){
+        try{ el.focus({ preventScroll: true }); }catch(e){ el.focus(); }
+      }
+    }
     return;
   }
 
