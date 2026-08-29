@@ -222,7 +222,10 @@ export default async function handler(req, res) {
     // legitimate support capability (helping a user with a project they've been given the
     // id/link for), not the same thing as it showing up unsolicited in admin's own list.
     const result = await sql`SELECT id, name, saved_at, user_id, thumb, kind, status FROM projects WHERE user_id = ${caller.userId} ORDER BY saved_at DESC;`;
-    res.status(200).json(result.rows.map(r => ({ id: r.id, name: r.name, savedAt: r.saved_at, thumb: r.thumb || null, kind: r.kind || null, status: r.status || null })));
+    // Thumbs saved while the client's pre-uploader had already swapped the data URL for its
+    // "blob:<public-url>" storage marker are unrenderable as-is — unwrap to the real URL.
+    const cleanThumb = t => !t ? null : (t.startsWith('blob:http') ? t.slice(5) : (t.startsWith('blob:') ? null : t));
+    res.status(200).json(result.rows.map(r => ({ id: r.id, name: r.name, savedAt: r.saved_at, thumb: cleanThumb(r.thumb), kind: r.kind || null, status: r.status || null })));
     return;
   }
 

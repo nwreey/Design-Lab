@@ -3686,6 +3686,11 @@ Replace only the materials and graphics."></textarea>
     <div class="viewer3d-generated-wrap-light" id="viewer3dGeneratedWrap" style="display:block;">
       <div class="section-label-light">Final Views — click any image to preview full size</div>
       <div class="viewer3d-generated-grid-light" id="viewer3dGeneratedGrid"></div>
+      <!-- Owner request: after approval the user can come back for MORE camera views —
+           same picker, only the not-yet-generated cameras listed, 1 edit each. -->
+      <div id="moreViewsActions" style="display:none;margin-top:14px;">
+        <button class="ghost small" onclick="openMoreViewsPicker()">➕ Get More Views</button>
+      </div>
       <div class="tech-board-actions" id="techBoardActions" style="display:none;margin-top:14px;">
         <button class="ghost small" onclick="generateTechnicalBoard()">Generate Technical Board</button>
       </div>
@@ -3819,9 +3824,9 @@ Replace only the materials and graphics."></textarea>
        edit per selected view, the approved hero view is always included free. -->
   <div class="gen-notice-overlay" id="approveViewPickerOverlay">
     <div class="gen-notice-card" style="max-width:520px;">
-      <div class="gen-notice-eyebrow">Approve Design</div>
-      <h3>Choose your camera views</h3>
-      <p>Once approved, no further changes can be made to the concept itself. Your approved hero view is included free — pick which additional camera views to render. Each view uses 1 image edit.</p>
+      <div class="gen-notice-eyebrow" id="viewPickerEyebrow">Approve Design</div>
+      <h3 id="viewPickerTitle">Choose your camera views</h3>
+      <p id="viewPickerDesc">Once approved, no further changes can be made to the concept itself. Your approved hero view is included free — pick which additional camera views to render. Each view uses 1 image edit.</p>
       <div id="viewPickerList" style="text-align:left;max-height:280px;overflow:auto;border:1.5px solid var(--line);border-radius:2px;padding:10px 12px;"></div>
       <p id="viewPickerCount" style="font-weight:700;margin:12px 0 0;"></p>
       <div style="display:flex;gap:10px;margin-top:14px;">
@@ -11607,10 +11612,16 @@ function renderHomeRecent(projects){
     // lightweight list now carries thumb/kind/status columns; full-object fields are the
     // fallback for anything saved before those columns existed.
     const g = p.optionResult && p.optionResult.gallery;
-    const img = p.thumb
+    let img = p.thumb
       || (g && g.length && g[g.length - 1] && g[g.length - 1].image)
       || (p.eventConceptBoard && p.eventConceptBoard.image)
       || (p.dsResult && p.dsResult.image) || null;
+    // Owner report (broken image icon on the home card): the save pipeline's image
+    // pre-uploader rewrites the thumb data URL into a "blob:https://..." storage marker
+    // before the POST, and that marker string got stored in the thumb column verbatim —
+    // a scheme the browser can't render. The real public URL is right behind the prefix.
+    if(img && img.startsWith('blob:http')) img = img.slice(5);
+    if(img && img.startsWith('blob:')) img = null; // any other blob: form is unrenderable
     const kindKey = p.kind || (p.dsResult ? 'displaystand' : p.eventConceptBoard ? 'event' : 'booth');
     const kind = kindKey === 'displaystand' ? 'Display Stand' : kindKey === 'event' ? 'Event Concept' : 'Exhibition Booth';
     const hasViews = p.viewCardHistories && Object.keys(p.viewCardHistories).some(k => p.viewCardHistories[k] && p.viewCardHistories[k].images && p.viewCardHistories[k].images.length > 0);
@@ -21583,6 +21594,8 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
     await generateTechnicalBoard(true);
   }
 
+  const moreViewsEl = document.getElementById('moreViewsActions');
+  if(moreViewsEl) moreViewsEl.style.display = 'block';
   placeGoodLuckAndRating('booth');
   document.getElementById('goodLuckMessage').style.display = 'block';
   document.getElementById('rateUsLabel').textContent = 'How would you rate this design?';
@@ -22508,6 +22521,11 @@ function approveDesign(){
     // Owner rule: the user picks WHICH camera views to render and pays 1 edit per
     // selected view (the hero is always included free). All views start UNCHECKED —
     // he actively selects what he wants. Quota is checked against the SELECTION at confirm.
+    moreViewsPickerMode = false; // this open is the APPROVE flow — restore its own texts
+    document.getElementById('viewPickerEyebrow').textContent = 'Approve Design';
+    document.getElementById('viewPickerTitle').textContent = 'Choose your camera views';
+    document.getElementById('viewPickerDesc').textContent = 'Once approved, no further changes can be made to the concept itself. Your approved hero view is included free — pick which additional camera views to render. Each view uses 1 image edit.';
+    document.getElementById('viewPickerConfirmBtn').textContent = 'Approve & Generate';
     const list = document.getElementById('viewPickerList');
     list.innerHTML = CAMERA_SPECS.filter(spec => !spec.isHeroImage).map(spec => {
       const label = (VIEWER_CAMERA_LABELS[spec.camId] || spec.name || spec.camId);
@@ -22538,6 +22556,46 @@ function updateViewPickerCount(){
   }
 }
 
+/* ================= Get More Views (post-approval) =================
+   Owner request: after approving and receiving the selected views, the user can come back
+   and order MORE camera views of the same approved design — same picker overlay, listing
+   ONLY the cameras not yet generated, 1 edit deducted per selected view (client display
+   here; the server charges per rendered view exactly as during approval). */
+let moreViewsPickerMode = false;
+
+function openMoreViewsPicker(){
+  if(!cameraViewsHeroRef){
+    customAlert('Approve a design first — additional views are generated from your approved design.', 'More Views');
+    return;
+  }
+  const remainingSpecs = CAMERA_SPECS.filter(spec => !spec.isHeroImage &&
+    !(viewCardHistories[spec.camId] && viewCardHistories[spec.camId].images && viewCardHistories[spec.camId].images.length));
+  const boardHist = viewCardHistories[TECHBOARD_ID];
+  const boardMissing = !(boardHist && boardHist.images && boardHist.images.length);
+  if(!remainingSpecs.length && !boardMissing){
+    customAlert('Every available camera view has already been generated for this design.', 'More Views');
+    return;
+  }
+  moreViewsPickerMode = true;
+  document.getElementById('viewPickerEyebrow').textContent = 'More Views';
+  document.getElementById('viewPickerTitle').textContent = 'Choose additional camera views';
+  document.getElementById('viewPickerDesc').textContent = 'Pick the extra views you want of your approved design. Each view uses 1 image edit.';
+  document.getElementById('viewPickerConfirmBtn').textContent = 'Generate Selected';
+  const list = document.getElementById('viewPickerList');
+  list.innerHTML = remainingSpecs.map(spec => {
+    const label = (VIEWER_CAMERA_LABELS[spec.camId] || spec.name || spec.camId);
+    return `<label style="display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;cursor:pointer;">` +
+      `<input type="checkbox" class="view-picker-check" value="${spec.camId}" onchange="updateViewPickerCount()">` +
+      `<span>${label}</span></label>`;
+  }).join('') + (boardMissing
+    ? `<label style="display:flex;align-items:center;gap:9px;padding:8px 0 5px;font-size:13px;cursor:pointer;border-top:1px dashed var(--line);margin-top:6px;">` +
+      `<input type="checkbox" class="view-picker-tech" value="__techboard">` +
+      `<span>Technical Board — free (technical presentation sheet of your approved design)</span></label>`
+    : '');
+  updateViewPickerCount();
+  document.getElementById('approveViewPickerOverlay').style.display = 'flex';
+}
+
 async function confirmApproveViewSelection(){
   const selected = Array.from(document.querySelectorAll('#viewPickerList .view-picker-check:checked')).map(c => c.value);
   const techEl = document.querySelector('#viewPickerList .view-picker-tech');
@@ -22547,6 +22605,31 @@ async function confirmApproveViewSelection(){
   document.getElementById('approveViewPickerOverlay').style.display = 'none';
   if(rem != null && rem < needed){
     offerAddonPurchase('edit', needed, rem);
+    return;
+  }
+  if(moreViewsPickerMode){
+    // Post-approval More Views run: no re-approval, no full camera batch — each selected
+    // view renders through the same single-view path Retry uses (which also carries the
+    // server-side per-view charge on its first attempt), sequentially so progress reads
+    // clearly. The free Technical Board renders last when ticked.
+    moreViewsPickerMode = false;
+    const wantBoard = approveIncludeTechBoard;
+    approveIncludeTechBoard = false;
+    if(needed === 0 && !wantBoard) return;
+    if(!isAdminUser && currentUserEditCount != null && needed > 0){
+      currentUserEditCount += needed;
+      renderEditUsageIndicator();
+    }
+    projectSwitchLocked = true;
+    try{
+      for(const camId of selected){
+        await retryGeneratedView(camId);
+      }
+      if(wantBoard) await generateTechnicalBoard();
+    }finally{
+      projectSwitchLocked = false;
+    }
+    saveCurrentProject();
     return;
   }
   // Only the chosen views are generated (generateCameraViewsFromHero filters on this) —
@@ -23858,6 +23941,9 @@ function restoreGeneratedViewsIfSaved(project){
   const savedTechBoardHist = viewCardHistories[TECHBOARD_ID];
   const hasTechBoardAlready = savedTechBoardHist && savedTechBoardHist.images && savedTechBoardHist.images.length > 0;
   document.getElementById('techBoardActions').style.display = hasTechBoardAlready ? 'none' : 'flex';
+  // Owner request: an approved project can always come back for MORE camera views (1 edit
+  // each) — the button shows whenever the approved hero reference exists to render from.
+  document.getElementById('moreViewsActions').style.display = cameraViewsHeroRef ? 'block' : 'none';
 
   document.getElementById('goodLuckMessage').style.display = 'block';
   // Restored from whatever was actually saved, instead of unconditionally resetting to 0 —
