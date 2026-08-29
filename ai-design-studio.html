@@ -1391,8 +1391,10 @@
       <div class="action-bar" style="margin-top:10px;">
         <button class="ghost small" id="dsDownloadBtn" onclick="downloadDsImage()">Download</button>
         <button class="primary small" id="dsApproveBtn" onclick="approveDisplayStand()">Approve</button>
-        <button class="ghost small" id="dsOtherOptionBtn" onclick="regenerateDsOtherOption()" style="margin-left:auto;">Other option</button>
-        <div class="other-design-wrap">
+        <!-- "Other option" button removed (owner request) — "Other Design" is the single
+             alternative-design entry point for Display Stands. The JS that referenced
+             dsOtherOptionBtn is null-guarded, so nothing else changes. -->
+        <div class="other-design-wrap" style="margin-left:auto;">
           <button type="button" class="ghost small" onclick="toggleOtherDesignMenu(event, 'otherDesignMenuDs')">Other Design</button>
           <div class="other-design-dropdown" id="otherDesignMenuDs"></div>
       <div class="free-modification-note" id="freeModificationNoteDs" style="display:none;" data-i18n="note.freeModification">
@@ -7822,6 +7824,14 @@ async function generateDisplayStandDesign(){
           : 'Generating this display stand again will use 1 of your modifications. Continue?');
     const ok = await customConfirm(msg, 'Generate Design', 'Continue');
     if(!ok) return;
+    // Same optimistic project-count tick as the booth flow (owner report: the "projects
+    // used" number lagged seconds behind the click). DS's first save runs right below,
+    // so there's no rollback path needed — the slot burns immediately on confirm.
+    if(isNewDsProject && lastKnownProjectCount != null){
+      lastKnownProjectCount++;
+      renderProjectUsageIndicator();
+      if(typeof updateStudioHomeUsage === 'function') updateStudioHomeUsage();
+    }
     // The PROJECT count itself only increments inside saveCurrentProject() on a successful
     // save (see its own "PERMANENT, increment-only" comment) — not here — so a generation
     // that fails never burns a project slot for nothing. The MODIFY count has no equivalent
@@ -18062,6 +18072,17 @@ async function generateDesign(){
   // approvePrompts() when it calls startRenderSession(), since isNewProject itself isn't in
   // scope there (approvePrompts is a separate top-level function, not nested inside this one).
   pendingGenerateIsRegenerate = mode === 'booth' && !isNewProject;
+  // Owner report: the "projects used" number lagged a few seconds behind the Generate
+  // click (it only refreshed once the first save round-tripped). Optimistic UI: count it
+  // the instant the confirmed generation starts. If Stage 1 fails BEFORE the project's
+  // first save (no slot actually burned server-side), the catch below rolls it back.
+  window.__optimisticProjectTick = false;
+  if(!isAdminUser && isNewProject && lastKnownProjectCount != null){
+    lastKnownProjectCount++;
+    window.__optimisticProjectTick = true;
+    renderProjectUsageIndicator();
+    if(typeof updateStudioHomeUsage === 'function') updateStudioHomeUsage();
+  }
   projectSwitchLocked = true;
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('loadingText').textContent = mode === 'event' ? 'Writing your event concept...' : 'Analyzing your brief and generating concept and design...';
@@ -18761,6 +18782,7 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
     // this generation is genuinely proceeding — from here on a mid-generation refresh losing
     // in-progress state is the same acceptable tradeoff it always was for an existing project.
     if(isNewProject && !isAdminUser) saveCurrentProject();
+    window.__optimisticProjectTick = false; // slot genuinely burned now — the optimistic count is real
 
     // Stage 2 — write the final structured prompt strictly from the analysis above, plus the
     // original brief text kept around only for literal facts (exact numbers, hex codes,
@@ -18787,6 +18809,14 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
     document.getElementById('loading').style.display = 'none';
   }catch(err){
     console.error(err);
+    // Roll back the optimistic project tick — Stage 1 failed before the first save, so no
+    // slot was actually burned server-side and the displayed count must agree.
+    if(window.__optimisticProjectTick){
+      window.__optimisticProjectTick = false;
+      if(lastKnownProjectCount != null && lastKnownProjectCount > 0) lastKnownProjectCount--;
+      renderProjectUsageIndicator();
+      if(typeof updateStudioHomeUsage === 'function') updateStudioHomeUsage();
+    }
     errBox.textContent = 'Generation failed: ' + (err && err.message ? err.message : String(err));
     errBox.style.display = 'block';
     unlockForm();
