@@ -21446,6 +21446,9 @@ function stopCameraViewsGeneration(){
 /* Owner redesign: the set of camId strings the user chose to render on Approve (hero
    always included implicitly). null = no filter (admin flow / legacy) = render all. */
 let approveSelectedCamIds = null;
+// Owner request: the Technical Board only renders when the user ticked it in the approve
+// view picker — never automatically. One-shot, reset alongside approveSelectedCamIds.
+let approveIncludeTechBoard = false;
 
 let __projectSaveTimer = null;
 function scheduleProjectSave(delayMs){
@@ -21563,14 +21566,11 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   // instantly without ever reaching the network.
   cameraViewsAbortController = null;
 
-  // The Technical Board used to need a separate manual "Generate Technical Board" click
-  // after every camera view finished — now it's generated automatically as the final step,
-  // right here, so Good Luck/rating only appear once the whole set (camera views + board)
-  // is genuinely complete. Skipped when the admin stopped the batch early on purpose (for
-  // testing) — an intentionally incomplete set isn't "done," so there's nothing finished
-  // yet to build a technical board from; Good Luck/rating still show either way, matching
-  // the existing stopped-early behavior below.
-  if(!stoppedEarly){
+  // Owner rule (changed from the earlier always-automatic behavior): the Technical Board
+  // renders ONLY when the user actively ticked it in the approve view picker — it is one
+  // of the listed choices there, not an automatic final step. Admins use the manual
+  // "Generate Technical Board" button instead.
+  if(!stoppedEarly && approveIncludeTechBoard){
     updateApproveProgress(97, 'Generating the Technical Board...');
     await generateTechnicalBoard(true);
   }
@@ -21585,6 +21585,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   saveCurrentProject();
   updateApproveProgress(100, stoppedEarly ? 'Stopped — the remaining views can be generated individually via Retry.' : 'All views are ready.');
   approveSelectedCamIds = null; // one-shot filter — never leaks into a later run
+  approveIncludeTechBoard = false; // same one-shot rule as the camera selection above
 }
 
 // Regenerates a single camera view — used both for the "Retry" button on a failed card
@@ -22040,13 +22041,22 @@ Include exactly one entry per category listed above, in that exact order, using 
 
 function buildTechnicalBoardEditPrompt(labels){
   const labelBlocks = labels.map(l => `${l.name}\n${l.specs.join('\n')}`).join('\n\n');
+  // Owner request: the board carries the booth's real overall dimensions as CAD-style
+  // dimension lines, read straight from the form fields — exact client numbers, never
+  // guessed from pixels. Skipped cleanly when a dimension is missing (event mode reuse).
+  const tbW = (document.getElementById('f_width') || {value:''}).value.trim();
+  const tbD = (document.getElementById('f_depth') || {value:''}).value.trim();
+  const tbH = (document.getElementById('f_totalHeight') || {value:''}).value.trim();
+  const dimensionBlock = (tbW && tbD && tbH)
+    ? `\n\nOVERALL DIMENSIONS — also add clean architectural dimension lines for the booth's real overall measurements, drawn the way a technical elevation drawing dimensions a building: a thin white dimension line with small end ticks running along the booth's front bottom edge labeled "${tbW} m", one along the visible side bottom edge labeled "${tbD} m", and one vertical dimension line along the booth's tallest edge labeled "${tbH} m H". Use the same thin-line white-text style as the callout labels, kept just outside or along the very edge of the booth so they never cover the design itself.`
+    : '';
   return `Using the attached image as the exact, unchanged reference for this approved exhibition booth design, produce a clean, professional architectural presentation-board version of the SAME image: add thin, precise leader-line arrows pointing from a small label to each element actually visible in the design, with these exact labels and specification lines:
 
-${labelBlocks}
+${labelBlocks}${dimensionBlock}
 
 Style: clean architectural presentation-board / portfolio graphics — thin dark leader lines with a small dot or arrowhead at the exact point on the element being labeled, minimal sans-serif label typography set in solid white text with no background box, panel, or shape of any kind behind it — the white text sits directly over the photo itself, legible purely from its own contrast against the image. Arrange labels so none overlap each other or cover an important part of the design; where several labeled elements sit close together, route the leader lines cleanly so each one stays unambiguous.
 
-Do NOT alter the booth design itself in any way — same materials, same colors, same layout, same camera angle, same lighting, everything already in the reference image stays exactly as it is. The ONLY change allowed is the added arrows, label boxes, and specification text described above. Do not add any people. This is a technical presentation annotation overlay, not a redesign.`;
+Do NOT alter the booth design itself in any way — same materials, same colors, same layout, same camera angle, same lighting, everything already in the reference image stays exactly as it is. The ONLY change allowed is the added arrows, label boxes, dimension lines, and specification text described above. Do not add any people. This is a technical presentation annotation overlay, not a redesign.`;
 }
 
 async function generateTechnicalBoard(isAutomaticAfterCameraViews){
@@ -22496,7 +22506,13 @@ function approveDesign(){
       return `<label style="display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;cursor:pointer;">` +
         `<input type="checkbox" class="view-picker-check" value="${spec.camId}" onchange="updateViewPickerCount()">` +
         `<span>${label}</span></label>`;
-    }).join('');
+    }).join('') +
+      // Owner request: the Technical Board is no longer generated automatically after the
+      // camera views — it's one more item the user actively selects here. Free (it doesn't
+      // count toward the edits total), its own class so the edit-count logic never sees it.
+      `<label style="display:flex;align-items:center;gap:9px;padding:8px 0 5px;font-size:13px;cursor:pointer;border-top:1px dashed var(--line);margin-top:6px;">` +
+      `<input type="checkbox" class="view-picker-tech" value="__techboard">` +
+      `<span>Technical Board — free (technical presentation sheet of your approved design)</span></label>`;
     updateViewPickerCount();
     document.getElementById('approveViewPickerOverlay').style.display = 'flex';
   }
@@ -22516,6 +22532,8 @@ function updateViewPickerCount(){
 
 async function confirmApproveViewSelection(){
   const selected = Array.from(document.querySelectorAll('#viewPickerList .view-picker-check:checked')).map(c => c.value);
+  const techEl = document.querySelector('#viewPickerList .view-picker-tech');
+  approveIncludeTechBoard = !!(techEl && techEl.checked);
   const needed = selected.length;
   const rem = editsRemaining();
   document.getElementById('approveViewPickerOverlay').style.display = 'none';
