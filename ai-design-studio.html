@@ -11601,7 +11601,34 @@ window.addEventListener('beforeunload', function(e){
    closed 'Design Brief' bar. Tapping toggles the (read-only for users) brief open/closed.
    After approval the whole card hides for good (hideFormAndTabs). */
 /* ---- Studio Home (landing view) ---- */
+/* ================= View persistence (owner request) =================
+   A refresh anywhere in the app must land the user back on the SAME view — the project
+   he was inside, the section he was filling, or the home page — instead of always
+   resetting to home. The last view is remembered in localStorage and replayed on load. */
+function rememberLastView(state){
+  try{ localStorage.setItem('designLabLastView', JSON.stringify(state)); }catch(e){ /* private mode etc. — refresh just lands on home */ }
+}
+
+function restoreLastViewOnLoad(){
+  let state = null;
+  try{ state = JSON.parse(localStorage.getItem('designLabLastView') || 'null'); }catch(e){}
+  if(state && state.view === 'project' && state.id){
+    hideStudioHome();
+    // openProject re-remembers itself on success; if the project is gone (deleted on
+    // another device), fall back to home cleanly instead of a broken half-view.
+    Promise.resolve(openProject(state.id)).catch(() => showStudioHome());
+    return;
+  }
+  if(state && state.view === 'section' && state.mode){
+    hideStudioHome();
+    try{ sidebarSwitchMode(state.mode); }catch(e){ showStudioHome(); }
+    return;
+  }
+  showStudioHome();
+}
+
 function showStudioHome(){
+  rememberLastView({ view: 'home' });
   ['modeTabs','formCard','displayStandCard','modifyDesignFormCard','showFormBar','result','eventConceptResult','promptReview','errorBox'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = 'none';
@@ -24249,6 +24276,7 @@ function sidebarSwitchMode(m){
   // resets and unlocks the form) and then the chosen mode's brief from the beginning.
   startNewProject();
   hideStudioHome();
+  rememberLastView({ view: 'section', mode: m }); // refresh lands back on this section's fresh brief
   document.getElementById('modeTabs').style.display = 'flex';
   document.getElementById('showFormBar').style.display = 'none';
   const dsWrap = document.getElementById('dsFormFields');
@@ -24317,6 +24345,10 @@ function renderProjectSidebar(){
 }
 
 function openProject(id){
+  // View persistence (owner request): a refresh inside a project lands back IN that
+  // project. Remembered up front — if the load below fails, restoreLastViewOnLoad's own
+  // catch falls back to home cleanly.
+  rememberLastView({ view: 'project', id: id });
   if(blockIfGenerating()) return;
   dbGetProject(id)
     .then(project => {
@@ -24384,6 +24416,9 @@ function openProject(id){
     .catch(err => {
       console.error('Could not open project:', err);
       customAlert('Could not open that project: ' + (err.message || 'unknown error'), 'Open Project');
+      // Land somewhere real instead of a blank half-view — also covers the refresh-restore
+      // path when the remembered project has since been deleted on another device.
+      showStudioHome();
     });
 }
 
@@ -24642,8 +24677,9 @@ if(typeof document.addEventListener === 'function'){
   });
 })();
 
-// Land on the Studio Home view (owner-approved) — sections/projects hide it on entry.
-showStudioHome();
+// Land on the LAST view the user was on (owner request: refresh must not reset to home) —
+// falls back to the Studio Home view for a first visit or when the last view is gone.
+restoreLastViewOnLoad();
 </script>
   <!-- Upgrade plan modal: choose a plan, then continue to payment. The checkout step is
        a deliberate stub (startCheckout) until the payment-gateway contract is signed —
