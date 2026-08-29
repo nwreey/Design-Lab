@@ -278,7 +278,7 @@
         <thead>
           <tr>
             <th>Username</th>
-            <th>Role</th>
+            <th>Plan</th>
             <th>Projects</th>
             <th>Edits</th>
             <th>Modifies</th>
@@ -1127,8 +1127,8 @@ function renderUsersTable(){
     const autofillOver = u.autofill_limit != null && (u.autofill_count || 0) >= u.autofill_limit;
     return `
       <tr>
-        <td style="white-space:nowrap;max-width:340px;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml((u.full_name ? u.full_name + ' — ' : '') + u.username)}">${u.full_name ? '<b>' + escapeHtml(u.full_name) + '</b> — ' : ''}${escapeHtml(u.username)}${u.role === 'admin' ? '' : ' <span class="role-badge ' + (u.plan === 'Starter' ? 'plan-badge-starter' : u.plan === 'Studio' ? 'plan-badge-studio' : u.plan === 'Pro' ? 'plan-badge-pro' : '') + '">' + escapeHtml(u.plan || 'Trial') + '</span>'}</td>
-        <td><span class="role-badge ${u.role === 'admin' ? 'admin' : ''}">${u.role}</span></td>
+        <td style="white-space:nowrap;max-width:340px;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml((u.full_name ? u.full_name + ' — ' : '') + u.username)}">${u.full_name ? '<b>' + escapeHtml(u.full_name) + '</b> — ' : ''}${escapeHtml(u.username)}</td>
+        <td style="white-space:nowrap;">${u.role === 'admin' ? '<span class="role-badge admin">Administrator</span>' : '<span class="role-badge ' + (u.plan === 'Starter' ? 'plan-badge-starter' : u.plan === 'Studio' ? 'plan-badge-studio' : u.plan === 'Pro' ? 'plan-badge-pro' : '') + '">' + escapeHtml(u.plan || 'Trial') + '</span>'}</td>
         <td class="usage ${projOver ? 'over' : ''}" style="white-space:nowrap;">${projLimitText}</td>
         <td class="usage ${editOver ? 'over' : ''}" style="white-space:nowrap;">${editLimitText}</td>
         <td class="usage ${modifyOver ? 'over' : ''}" style="white-space:nowrap;">${modifyLimitText}</td>
