@@ -227,6 +227,7 @@ export default async function handler(req, res) {
       let emailResult = { sent: false };
       let accountCreated = false;
       if (notify && status === 'reviewed') {
+        await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT;`;
         const rows = await sql`SELECT name, email FROM signup_requests WHERE id = ${id};`;
         if (rows.rows.length > 0) {
           const reqRow = rows.rows[0];
@@ -247,8 +248,8 @@ export default async function handler(req, res) {
             // Trial quotas for every approved user, per explicit product decision:
             // 1 project, 1 AI auto-fill, 2 design modifications, 3 image edits.
             await sql`
-              INSERT INTO users (id, username, password_hash, email, role, project_limit, edit_limit, modify_limit, autofill_limit)
-              VALUES (${userId}, ${usernameEmail}, ${placeholderSalt + ':' + placeholderHash}, ${usernameEmail}, 'member', 1, 3, 2, 1);
+              INSERT INTO users (id, username, password_hash, email, full_name, role, project_limit, edit_limit, modify_limit, autofill_limit)
+              VALUES (${userId}, ${usernameEmail}, ${placeholderSalt + ':' + placeholderHash}, ${usernameEmail}, ${(reqRow.name || '').trim().slice(0, 120) || null}, 'member', 1, 3, 2, 1);
             `;
             accountCreated = true;
           }

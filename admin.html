@@ -244,6 +244,10 @@
       <div class="card-desc">Enter the email and limits only — the email IS the username. The person receives a branded welcome email (Free Plan + their exact limits) with a personal Set Your Password link (valid 7 days); setting it signs them straight in. New users are regular team members by default — grant admin from the Users List if needed.</div>
       <div class="row4">
         <div class="field">
+          <label for="newFullName">Full name</label>
+          <input type="text" id="newFullName" placeholder="e.g. Sara Al-Otaibi">
+        </div>
+        <div class="field">
           <label for="newEmail">Email (= username) <span style="color:#B02A1E;">*</span></label>
           <input type="text" id="newEmail" placeholder="e.g. sara@company.com">
         </div>
@@ -512,6 +516,18 @@
       <div class="modal-buttons">
         <button class="ghost" onclick="closeResetPasswordModal()">Cancel</button>
         <button class="primary" id="resetPasswordSaveBtn" onclick="confirmResetPassword()">Set password</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-user full report (owner request): everything known about one user in one view. -->
+  <div class="modal-overlay" id="userReportModal">
+    <div class="modal-card" style="max-width:680px;max-height:88vh;overflow-y:auto;">
+      <div class="modal-eyebrow">User Report</div>
+      <h3 id="userReportTitle">—</h3>
+      <div id="userReportBody" style="font-size:13px;line-height:1.7;"></div>
+      <div class="modal-buttons">
+        <button class="primary" onclick="document.getElementById('userReportModal').style.display='none'">Close</button>
       </div>
     </div>
   </div>
@@ -1110,7 +1126,7 @@ function renderUsersTable(){
     const autofillOver = u.autofill_limit != null && (u.autofill_count || 0) >= u.autofill_limit;
     return `
       <tr>
-        <td>${escapeHtml(u.username)}${u.email ? '<br><span style="font-size:11px;color:#888;">' + escapeHtml(u.email) + '</span>' : ''}</td>
+        <td>${u.full_name ? '<b>' + escapeHtml(u.full_name) + '</b><br>' : ''}${escapeHtml(u.username)}</td>
         <td><span class="role-badge ${u.role === 'admin' ? 'admin' : ''}">${u.role}</span></td>
         <td>${u.role === 'admin' ? '<span style="color:#999;">-</span>' : (u.plan ? '<span class="role-badge admin">' + escapeHtml(u.plan) + '</span>' : '<span class="role-badge">Trial</span>')}</td>
         <td class="usage ${projOver ? 'over' : ''}">${projLimitText}</td>
@@ -1122,6 +1138,7 @@ function renderUsersTable(){
                three count-reset buttons removed (their functions remain defined, unused). -->
           <button class="ghost" onclick="showEditLimitsModal('${u.id}', '${escapeHtml(u.username)}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'}, ${u.modify_limit != null ? u.modify_limit : 'null'}, ${u.autofill_limit != null ? u.autofill_limit : 'null'}, '${u.plan ? escapeHtml(u.plan) : ''}')">Edit limits &amp; plan</button>
           <button class="ghost" onclick="showResetPasswordModal('${u.id}', '${escapeHtml(u.username)}')">Reset password</button>
+          <button class="ghost" onclick="showUserReport('${u.id}')">Report</button>
           <button class="danger" onclick="removeUser('${u.id}', '${escapeHtml(u.username)}')">Remove</button>
         </td>
       </tr>
@@ -1133,14 +1150,71 @@ function escapeHtml(s){
   return (s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
+/* ================= Per-user full report (owner request) ================= */
+async function showUserReport(id){
+  const modal = document.getElementById('userReportModal');
+  const body = document.getElementById('userReportBody');
+  const title = document.getElementById('userReportTitle');
+  title.textContent = 'Loading...';
+  body.innerHTML = '<span class="hint">Fetching everything about this user...</span>';
+  modal.style.display = 'flex';
+  try{
+    const response = await fetch('/api/admin-users?report=' + encodeURIComponent(id));
+    const r = await response.json();
+    if(!response.ok) throw new Error((r.error && r.error.message) || 'Could not load the report.');
+    const u = r.user;
+    const dt = v => v ? new Date(v).toLocaleString() : '—';
+    const daysAgo = v => v ? Math.floor((Date.now() - new Date(v).getTime()) / 86400000) : null;
+    const lim = (c, l) => (c != null ? c : 0) + ' / ' + (l != null ? l : '∞');
+    title.textContent = (u.full_name ? u.full_name + ' — ' : '') + u.username;
+    const approvedCount = (r.projects || []).filter(p => p.status === 'approved').length;
+    const sections = [];
+    sections.push('<div class="modal-eyebrow" style="margin-top:6px;">Account</div>' +
+      '<b>Role:</b> ' + escapeHtml(u.role) + ' &nbsp; <b>Plan:</b> ' + escapeHtml(u.plan || 'Trial / Free') + '<br>' +
+      '<b>Registered:</b> ' + dt(u.created_at) + (daysAgo(u.created_at) != null ? ' (' + daysAgo(u.created_at) + ' days ago)' : '') + '<br>' +
+      '<b>First sign-in:</b> ' + dt(u.first_login_at) + ' &nbsp; <b>Last sign-in:</b> ' + dt(u.last_login_at) + ' &nbsp; <b>Total sign-ins:</b> ' + (u.login_count || 0) +
+      '<div class="hint" style="margin-top:2px;">Sign-in tracking starts from the deployment that added it — older activity shows as —.</div>');
+    sections.push('<div class="modal-eyebrow" style="margin-top:14px;">Usage</div>' +
+      '<b>Projects:</b> ' + lim(u.project_count, u.project_limit) + ' &nbsp; <b>Modifications:</b> ' + lim(u.modify_count, u.modify_limit) + '<br>' +
+      '<b>Image edits:</b> ' + lim(u.edit_count, u.edit_limit) + ' &nbsp; <b>AI fills:</b> ' + lim(u.autofill_count, u.autofill_limit));
+    sections.push('<div class="modal-eyebrow" style="margin-top:14px;">Projects (' + (r.projects || []).length + ' saved · ' + approvedCount + ' approved)</div>' +
+      ((r.projects || []).length
+        ? '<table style="width:100%;font-size:12.5px;"><tr><th style="text-align:left;">Name</th><th style="text-align:left;">Section</th><th style="text-align:left;">Status</th><th style="text-align:left;">Last saved</th></tr>' +
+          r.projects.map(p => '<tr><td>' + escapeHtml(p.name) + '</td><td>' + escapeHtml(p.kind === 'displaystand' ? 'Display Stand' : p.kind === 'event' ? 'Event Concept' : 'Exhibition Booth') + '</td><td>' + escapeHtml(p.status || 'draft') + '</td><td>' + dt(p.saved_at) + '</td></tr>').join('') + '</table>'
+        : '<span class="hint">No projects yet.</span>'));
+    sections.push('<div class="modal-eyebrow" style="margin-top:14px;">Purchases</div>' +
+      ((r.purchases || []).length
+        ? r.purchases.map(p => '<b>' + escapeHtml(p.plan) + '</b> — ' + escapeHtml(p.status) + ' — ' + dt(p.created_at)).join('<br>')
+        : '<span class="hint">No purchase requests.</span>'));
+    sections.push('<div class="modal-eyebrow" style="margin-top:14px;">Ratings given</div>' +
+      ((r.ratings || []).length
+        ? r.ratings.map(x => '★'.repeat(x.stars) + '☆'.repeat(5 - x.stars) + ' — ' + escapeHtml(x.project_name || '(untitled)') + (x.comment ? ' — "' + escapeHtml(x.comment) + '"' : '')).join('<br>')
+        : '<span class="hint">No ratings submitted.</span>'));
+    sections.push('<div class="modal-eyebrow" style="margin-top:14px;">Feedback sent</div>' +
+      ((r.feedback || []).length
+        ? r.feedback.map(f => dt(f.created_at) + ' [' + escapeHtml(f.status) + ']: ' + escapeHtml(f.message)).join('<br>')
+        : '<span class="hint">No feedback sent.</span>'));
+    body.innerHTML = sections.join('');
+  }catch(err){
+    title.textContent = 'Report failed';
+    body.innerHTML = '<span style="color:#B02A1E;">' + escapeHtml(err.message || 'Could not load the report.') + '</span>';
+  }
+}
+
 async function addUser(){
   const email = document.getElementById('newEmail').value.trim();
+  const fullName = document.getElementById('newFullName').value.trim();
   const projectLimitRaw = document.getElementById('newProjectLimit').value;
   const editLimitRaw = document.getElementById('newEditLimit').value;
   const modifyLimitRaw = document.getElementById('newModifyLimit').value;
   const statusEl = document.getElementById('addUserStatus');
   const btn = document.getElementById('addUserBtn');
 
+  if(!fullName){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = 'The full name is required.';
+    return;
+  }
   if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){
     statusEl.className = 'status-msg error';
     statusEl.textContent = 'A valid email address is required — it becomes the username.';
@@ -1157,6 +1231,7 @@ async function addUser(){
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email,
+        fullName,
         projectLimit: projectLimitRaw === '' ? null : parseInt(projectLimitRaw, 10),
         editLimit: editLimitRaw === '' ? null : parseInt(editLimitRaw, 10),
         modifyLimit: modifyLimitRaw === '' ? null : parseInt(modifyLimitRaw, 10)
@@ -1166,6 +1241,7 @@ async function addUser(){
     if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not add user.');
 
     document.getElementById('newEmail').value = '';
+    document.getElementById('newFullName').value = '';
     document.getElementById('newProjectLimit').value = '';
     document.getElementById('newEditLimit').value = '';
     document.getElementById('newModifyLimit').value = '';

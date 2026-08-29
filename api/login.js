@@ -47,6 +47,10 @@ async function ensureSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `;
+  // Sign-in activity tracking (admin user report): first/last login + total sign-ins.
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_login_at TIMESTAMPTZ;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0;`;
   await sql`
     CREATE TABLE IF NOT EXISTS login_attempts (
       attempt_key TEXT PRIMARY KEY,
@@ -248,6 +252,16 @@ export default async function handler(req, res) {
     await clearFailedAttempts(attemptKey);
   } catch (err) {
     console.error('Could not clear failed attempts:', err);
+  }
+
+  // Sign-in activity (admin user report). Best-effort — a stats hiccup never blocks login.
+  // The env-based master admin has no users row, so it's naturally skipped.
+  if (tokenPayload.userId && tokenPayload.userId !== 'master-admin') {
+    try {
+      await sql`UPDATE users SET last_login_at = NOW(), first_login_at = COALESCE(first_login_at, NOW()), login_count = login_count + 1 WHERE id = ${tokenPayload.userId};`;
+    } catch (err) {
+      console.error('Could not record sign-in activity:', err);
+    }
   }
 
   const maxAgeSeconds = remember ? 30 * 24 * 3600 : 8 * 3600;

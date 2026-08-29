@@ -74,6 +74,13 @@ async function ensureSchema() {
   // Optional contact email per user — used by transactional notifications (e.g. the plan
   // purchase confirmation in api/purchase.js). Blank for accounts created before this.
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT;`;
+  // Sign-in activity columns are normally added by api/login.js's own schema pass, but
+  // either function can be the first hit after a deployment — the report query below
+  // reads them, so they must exist here too (idempotent, same definitions).
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_login_at TIMESTAMPTZ;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0;`;
   // AI Auto-Fill quota — how many times a user may run the AI form auto-fill (enforced
   // by api/autofill.js). NULL = unlimited, same convention as every other limit here.
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS autofill_limit INTEGER;`;
@@ -130,12 +137,47 @@ export default async function handler(req, res) {
     return;
   }
 
+  if (req.method === 'GET' && req.query && req.query.report) {
+    /* Full per-user report (owner request): everything known about one user in one call.
+       Each side-table query is individually best-effort — a table that doesn't exist yet
+       (e.g. no ratings ever submitted) contributes an empty list, never a failed report. */
+    const userId = String(req.query.report);
+    const userRows = await sql`
+      SELECT id, username, email, full_name, role, plan, project_limit, project_count, edit_limit, edit_count,
+             modify_limit, modify_count, autofill_limit, autofill_count, created_at,
+             first_login_at, last_login_at, login_count
+      FROM users WHERE id = ${userId};`;
+    if (userRows.rows.length === 0) {
+      res.status(404).json({ error: { message: 'User not found.' } });
+      return;
+    }
+    const report = { user: userRows.rows[0], projects: [], purchases: [], ratings: [], feedback: [] };
+    try {
+      const p = await sql`SELECT id, name, saved_at, kind, status FROM projects WHERE user_id = ${userId} ORDER BY saved_at DESC;`;
+      report.projects = p.rows;
+    } catch (e) { /* table/columns may not exist yet */ }
+    try {
+      const pr = await sql`SELECT plan, status, created_at FROM plan_requests WHERE user_id = ${userId} ORDER BY created_at DESC;`;
+      report.purchases = pr.rows;
+    } catch (e) { /* none yet */ }
+    try {
+      const r = await sql`SELECT project_name, stars, comment, updated_at FROM ratings WHERE user_id = ${userId} ORDER BY updated_at DESC;`;
+      report.ratings = r.rows;
+    } catch (e) { /* none yet */ }
+    try {
+      const f = await sql`SELECT message, status, created_at FROM user_feedback WHERE user_id = ${userId} ORDER BY created_at DESC;`;
+      report.feedback = f.rows;
+    } catch (e) { /* none yet */ }
+    res.status(200).json(report);
+    return;
+  }
+
   if (req.method === 'GET') {
     // project_count is the persistent, increment-only counter (see ensureSchema) — it
     // reflects how many projects actually count against this user's limit, which is not
     // necessarily the same as how many they currently have saved if any were deleted.
     const result = await sql`
-      SELECT id, username, email, role, plan, project_limit, project_count, edit_limit, edit_count, modify_limit, modify_count, autofill_limit, autofill_count, created_at
+      SELECT id, username, email, full_name, role, plan, project_limit, project_count, edit_limit, edit_count, modify_limit, modify_count, autofill_limit, autofill_count, created_at
       FROM users
       ORDER BY created_at ASC;
     `;
@@ -154,7 +196,8 @@ export default async function handler(req, res) {
          limits the admin filled (projects / modifications / edits).
        If the email cannot be sent, the just-created account is rolled back and the admin
        gets an honest error — an account nobody can ever reach must not linger. */
-    const { email, role, projectLimit, editLimit, modifyLimit, autofillLimit } = req.body || {};
+    const { email, role, projectLimit, editLimit, modifyLimit, autofillLimit, fullName } = req.body || {};
+    const cleanFullName = (typeof fullName === 'string' && fullName.trim()) ? fullName.trim().slice(0, 120) : null;
     const cleanEmail = (typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) ? email.trim().toLowerCase().slice(0, 200) : null;
     if (!cleanEmail) {
       res.status(400).json({ error: { message: 'A valid email address is required — it becomes the username.' } });
@@ -168,8 +211,8 @@ export default async function handler(req, res) {
 
     try {
       await sql`
-        INSERT INTO users (id, username, password_hash, email, role, project_limit, edit_limit, modify_limit, autofill_limit)
-        VALUES (${id}, ${username}, ${placeholderSalt + ':' + placeholderHash}, ${cleanEmail}, ${finalRole},
+        INSERT INTO users (id, username, password_hash, email, full_name, role, project_limit, edit_limit, modify_limit, autofill_limit)
+        VALUES (${id}, ${username}, ${placeholderSalt + ':' + placeholderHash}, ${cleanEmail}, ${cleanFullName}, ${finalRole},
                 ${projectLimit != null ? projectLimit : null}, ${editLimit != null ? editLimit : null}, ${modifyLimit != null ? modifyLimit : null}, ${autofillLimit != null ? autofillLimit : null});
       `;
     } catch (err) {
