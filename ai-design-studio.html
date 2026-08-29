@@ -573,6 +573,10 @@
   #formCard.form-collapsible{opacity:1;}
   #formCard.form-collapsible .form-collapse-header{display:flex;}
   #formCard.form-collapsed > :not(.form-collapse-header){display:none !important;}
+  /* Display Stand variant (owner request: same collapsed Design Brief bar as booth/event).
+     Scoped to #dsFormFields because the DS results live in the SAME card as the form. */
+  #dsFormFields.ds-form-collapsible .form-collapse-header{display:flex;}
+  #dsFormFields.ds-form-collapsed > :not(.form-collapse-header){display:none !important;}
   #dsFormFields.locked{opacity:.55;}
 
   /* AI Auto-fill Helper loading bar — shown in the panel while runAiAutofill() is in flight,
@@ -1042,6 +1046,12 @@
          hide the form while dsResult (which lives in this same card) stays visible — the same
          "results only" behavior the Exhibition section gets from hideFormAndTabs(). -->
     <div id="dsFormFields">
+    <!-- Collapsed Design Brief bar (owner request) — after Generate the completed DS form
+         folds into this bar on top of the design, exactly like booth/event. -->
+    <div class="form-collapse-header" onclick="toggleDsFormCollapse()">
+      <span>📋 Design Brief</span>
+      <span id="dsFormCollapseHint" style="font-weight:600;opacity:.6;font-size:12px;">Tap to view</span>
+    </div>
     <div class="section-headline" style="margin-top:0;">Project Information</div>
     <div class="field">
       <label>Project Name <span class="required-mark">*</span></label>
@@ -7832,6 +7842,9 @@ async function generateDisplayStandDesign(){
       renderProjectUsageIndicator();
       if(typeof updateStudioHomeUsage === 'function') updateStudioHomeUsage();
     }
+    // Owner rule (same as booth/event): the confirmed Generate click folds the completed
+    // form into the Design Brief bar on top of the design. Failure reopens it below.
+    collapseDsFormCard();
     // The PROJECT count itself only increments inside saveCurrentProject() on a successful
     // save (see its own "PERMANENT, increment-only" comment) — not here — so a generation
     // that fails never burns a project slot for nothing. The MODIFY count has no equivalent
@@ -7902,6 +7915,9 @@ async function generateDisplayStandDesign(){
     console.error('Display stand generation failed:', err);
     document.getElementById('dsFrameLoading').style.display = 'none';
     if(!dsLastImage){ document.getElementById('dsResult').style.display = 'none'; }
+    // Form was folded into the Design Brief bar on Generate — reopen it fully so the
+    // error can be fixed and resubmitted (same failure behavior as booth).
+    showFormAndTabs();
     await customAlert('Could not generate the display stand: ' + (err.message || 'unknown error'), 'Generate Design');
   }finally{
     // Don't undo the post-generation form lock: if lockDsForm() just ran (success path,
@@ -11737,6 +11753,30 @@ function toggleFormCollapse(){
 function clearFormCollapse(){
   const card = document.getElementById('formCard');
   if(card) card.classList.remove('form-collapsible', 'form-collapsed');
+  const dsWrap = document.getElementById('dsFormFields');
+  if(dsWrap) dsWrap.classList.remove('ds-form-collapsible', 'ds-form-collapsed');
+}
+
+/* Display Stand versions of collapseFormCard/toggleFormCollapse (owner request: after
+   Generate the completed DS form folds into the Design Brief bar on top of the design,
+   exactly like the booth and event sections). Scoped to #dsFormFields because the DS
+   results panel shares the same card. */
+function collapseDsFormCard(){
+  const wrap = document.getElementById('dsFormFields');
+  if(!wrap) return;
+  wrap.style.display = '';
+  wrap.classList.add('ds-form-collapsible', 'ds-form-collapsed');
+  const hint = document.getElementById('dsFormCollapseHint');
+  if(hint) hint.textContent = 'Tap to view';
+  document.getElementById('modeTabs').style.display = 'none';
+}
+
+function toggleDsFormCollapse(){
+  const wrap = document.getElementById('dsFormFields');
+  if(!wrap) return;
+  const collapsed = wrap.classList.toggle('ds-form-collapsed');
+  const hint = document.getElementById('dsFormCollapseHint');
+  if(hint) hint.textContent = collapsed ? 'Tap to view' : 'Tap to close';
 }
 
 function isCurrentDesignApproved(){
@@ -23887,6 +23927,7 @@ function restoreDsResultsIfSaved(project){
     hideDsFormKeepResults();
   }else if(!isAdminUser){
     lockDsForm();
+    collapseDsFormCard(); // reopened generated-not-approved project: same Design Brief bar as booth/event
   }
   document.getElementById('dsResultTitle').textContent = dsResult.resultTitle || dsVal('f_dsName');
   const img = document.getElementById('dsImg');
