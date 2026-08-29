@@ -128,6 +128,10 @@
   .status-msg.ok{color:#2E6B5E;}
 
   .actions-cell{display:flex;gap:6px;flex-wrap:nowrap;white-space:nowrap;align-items:center;}
+  /* Same per-plan colors as the studio header badge (owner request). */
+  .plan-badge-starter{background:#2E6BE1 !important;color:#fff !important;border-color:#2E6BE1 !important;}
+  .plan-badge-studio{background:#7B3FBF !important;color:#fff !important;border-color:#7B3FBF !important;}
+  .plan-badge-pro{background:#B8860B !important;color:#fff !important;border-color:#B8860B !important;}
   .hint{font-size:13px;color:var(--ink);opacity:.6;margin-top:4px;line-height:1.5;}
   .master-note{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink);opacity:.55;}
 
@@ -1123,7 +1127,7 @@ function renderUsersTable(){
     const autofillOver = u.autofill_limit != null && (u.autofill_count || 0) >= u.autofill_limit;
     return `
       <tr>
-        <td style="white-space:nowrap;">${u.full_name ? '<b>' + escapeHtml(u.full_name) + '</b> — ' : ''}${escapeHtml(u.username)}${u.role === 'admin' ? '' : ' <span class="role-badge ' + (u.plan ? 'admin' : '') + '">' + escapeHtml(u.plan || 'Trial') + '</span>'}</td>
+        <td style="white-space:nowrap;">${u.full_name ? '<b>' + escapeHtml(u.full_name) + '</b> — ' : ''}${escapeHtml(u.username)}${u.role === 'admin' ? '' : ' <span class="role-badge ' + (u.plan === 'Starter' ? 'plan-badge-starter' : u.plan === 'Studio' ? 'plan-badge-studio' : u.plan === 'Pro' ? 'plan-badge-pro' : '') + '">' + escapeHtml(u.plan || 'Trial') + '</span>'}</td>
         <td><span class="role-badge ${u.role === 'admin' ? 'admin' : ''}">${u.role}</span></td>
         <td class="usage ${projOver ? 'over' : ''}" style="white-space:nowrap;">${projLimitText}</td>
         <td class="usage ${editOver ? 'over' : ''}" style="white-space:nowrap;">${editLimitText}</td>
