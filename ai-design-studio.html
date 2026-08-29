@@ -1407,10 +1407,12 @@
         <div class="other-design-wrap" style="margin-left:auto;">
           <button type="button" class="ghost small" onclick="toggleOtherDesignMenu(event, 'otherDesignMenuDs')">Other Design</button>
           <div class="other-design-dropdown" id="otherDesignMenuDs"></div>
+        </div>
+      </div>
+      <!-- Moved OUT of the Other Design wrap (it was nested inside, inflating the wrap and
+           breaking the bar's right alignment) — its own full-width line under the bar. -->
       <div class="free-modification-note" id="freeModificationNoteDs" style="display:none;" data-i18n="note.freeModification">
         ✦ Your first modification or other option on this design is on us — occasionally the initial render needs a quick adjustment, and that one won't count against your usage.
-      </div>
-        </div>
       </div>
       <div class="action-status" id="dsActionStatus"></div>
       <div id="dsViewRenders" style="display:none;margin-top:26px;">
