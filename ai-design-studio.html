@@ -13378,61 +13378,32 @@ function assembleLayeredDesignPrompt(ctx){
 // only as the Test/legacy fallback path — the live booth path now uses assembleLayeredDesignPrompt
 // above instead. See generateDesign()'s own comment at the isDirectToGeminiEngine branch.
 function assembleNewEngineBrief(designIntent, functionalProgram, relationships, journey, zoneAllocation, heroStrategy, composition, bubbleDiagram){
+  /* OWNER DECISION (flipped live): the previous brief dictated every zone's exact sqm,
+     position, and each furniture piece with dims and library refs — the model executed a
+     spec sheet instead of designing, and results came back safe and dull. The new brief
+     is LOCKED FACTS + FULL CREATIVE MANDATE: hard client facts stay hard, but layout,
+     composition, furniture, and every design decision now belong to the model. The old
+     spec-sheet assembler survives untouched as assembleNewEngineBrief_TE (retired path)
+     if it's ever needed for comparison. */
   const lines = [];
-  lines.push('=== NEW SPATIAL PLANNING ENGINE — architect-driven pipeline ===');
+  lines.push('=== DESIGN BRIEF — LOCKED FACTS + FULL CREATIVE FREEDOM ===');
   lines.push('');
-  lines.push('DESIGN INTENT (DIE-001)');
-  lines.push(`Industry: ${designIntent.industry || 'not specified'} | Size class: ${designIntent.sizeClass} | Budget signal: ${designIntent.budgetTier} | Brand importance: ${designIntent.brandImportance}`);
-  lines.push(`Open sides: ${designIntent.openSides.join(', ') || 'none'} | Style preference: ${designIntent.architecturalStylePreference || 'not specified'}`);
-  lines.push('');
-  lines.push('FUNCTIONAL PROGRAM (FPE-001) — spaces defined before any furniture; furniture lives inside its space, never listed as the program itself');
-  functionalProgram.zones.forEach(z => lines.push(`- ${z.name} [${z.category}, tier ${z.priorityTier}]${z.required ? ' (required)' : ''}`));
+  lines.push('LOCKED CLIENT FACTS (non-negotiable):');
+  lines.push(`- Industry: ${designIntent.industry || 'not specified'} | Size class: ${designIntent.sizeClass} | Brand importance: ${designIntent.brandImportance}`);
+  lines.push(`- Open sides (aisles/visitors): ${designIntent.openSides.join(', ') || 'none'} — every other side is a CLOSED structural wall.`);
+  if(designIntent.architecturalStylePreference) lines.push(`- Client style preference: ${designIntent.architecturalStylePreference}`);
+  lines.push('- Required areas that MUST exist somewhere in the design:');
+  functionalProgram.zones.forEach(z => lines.push(`    • ${z.name}${z.required ? ' (client-required)' : ''}`));
   if(functionalProgram.removed && functionalProgram.removed.length){
-    lines.push('REMOVED / NOT INCLUDED (documented, never silently hidden, per Rule 1)');
-    functionalProgram.removed.forEach(r => lines.push(`- ${r.name}${r.resolutionNote ? ' — Client decision: ' + r.resolutionNote : ''}`));
+    lines.push('- Explicitly NOT included (client decision — do not add):');
+    functionalProgram.removed.forEach(r => lines.push(`    • ${r.name}${r.resolutionNote ? ' — ' + r.resolutionNote : ''}`));
   }
   lines.push('');
-  lines.push('SPACE HIERARCHY (SHE-001) — what gets protected first if space is limited');
-  ['Primary', 'Secondary', 'Support'].forEach(level => {
-    const names = functionalProgram.zones.filter(z => z.hierarchy === level).map(z => z.name.replace(' Zone', ''));
-    if(names.length) lines.push(`${level}: ${names.join(', ')}`);
-  });
+  lines.push('DESIGN DIRECTION (a starting spark, not a constraint):');
+  lines.push(`- Suggested hero gesture: ${heroStrategy.archetype} (${heroStrategy.aspect} form) — take it further or replace it with something stronger.`);
   lines.push('');
-  lines.push('SPATIAL RELATIONSHIPS (ADJ-001) / BUBBLE DIAGRAM (BDE-001) — no dimensions, relationships only, exactly how architects sketch');
-  bubbleDiagram.nodes.forEach(n => lines.push(`- ${n.name} (${n.hierarchy}): ${n.hidden ? 'hidden' : n.adjacentLabel}`));
-  lines.push('(a rendered bubble diagram is shown above this text in the request preview)');
-  lines.push('');
-  lines.push('VISITOR JOURNEY (VJE-001)');
-  lines.push(`Enter (${journey.entryPoints.join('/')}) -> ` + journey.sequence.map(id => {
-    const z = functionalProgram.zones.find(zz => zz.id === id);
-    return z ? z.name : id;
-  }).join(' -> ') + ' -> Leave');
-  lines.push('');
-  lines.push('ZONE ALLOCATION (ZAE-001)');
-  lines.push(`Circulation reserve: ${zoneAllocation.circulationReserveSqm.toFixed(1)} sqm (${zoneAllocation.circulationReservePercentUsed}% of total used — intent-based recommendation for this brief: ${zoneAllocation.circulationReservePercentIntentRecommendation}%, not yet applied to the area budget in this admin-test pass)`);
-  zoneAllocation.zones.forEach(z => lines.push(`- ${z.name}: ${z.areaSqm.toFixed(1)} sqm (${z.percentOfTotal}% of total) [${z.basis}]${z.resolutionNote ? ' — ' + z.resolutionNote : ''}`));
-  lines.push('');
-  lines.push('HERO STRATEGY (HSE-001) — architectural concept, not a flat percentage');
-  lines.push(`Archetype: ${heroStrategy.archetype} (${heroStrategy.aspect} form)`);
-  lines.push(heroStrategy.rationale);
-  lines.push('');
-  lines.push('ARCHITECTURAL COMPOSITION (ACE-001) — the Layout Solver\'s design philosophy');
-  lines.push(`Composition: ${composition.composition}`);
-  lines.push(composition.rationale);
-  lines.push('');
-  lines.push('ARCHITECTURAL ZONES — each space positioned once (LSE-001), with its furniture nested inside it (unchanged sizing formulas)');
-  functionalProgram.zones.forEach(space => {
-    lines.push(space.name);
-    lines.push(`Hierarchy: ${space.hierarchy} | Category: ${space.category} (tier ${space.priorityTier}) | Total area: ${space.totalAreaSqm.toFixed(1)} sqm`);
-    if(space.position) lines.push(`Position: ${space.position.label}`);
-    lines.push('Furniture in this zone:');
-    space.furniture.forEach(item => {
-      lines.push(`  ${item.name} — Status: ${item.status}${item.resolutionNote ? ' — Client decision: ' + item.resolutionNote : ''}${item.feasibilityWarning ? ' — Feasibility Warning: client kept this at full size despite a flagged space conflict.' : ''} | Library ref: ${item.libraryRef}`);
-      formatDimsBlock(item.dims).forEach(l => lines.push('  ' + l));
-      if(item.scaleSpecText) lines.push('  ' + item.scaleSpecText);
-    });
-    lines.push('');
-  });
+  lines.push('CREATIVE MANDATE (this overrides any cautious instinct):');
+  lines.push('You are one of the world\'s most awarded exhibition stand designers. Within the locked facts above, EVERYTHING else is yours: the layout, the architecture, the composition, the furniture, the lighting drama, the materials. Design something BOLD — a heroic architectural gesture visible from the far end of the hall, dramatic scale, a sculptural moment people photograph and remember. Curves, cantilevers, double-height gestures, floating volumes, monumental branding — whatever serves this brand best. Do NOT play it safe, do NOT produce a generic box with counters. Aim for the design that wins the show\'s best-stand award. Decide the internal arrangement like a great architect would: generous circulation, a clear visitor flow, the hero element placed for maximum impact — but these are YOUR design decisions to make brilliantly, not rules to follow mechanically.');
   return lines.join('\n');
 }
 /* ================= END SPECIAL SPATIAL PLANNING ENGINE (now the ONLY pipeline, for every role — see useTestEngine's comment in generateDesign()) ================= */
@@ -19736,7 +19707,10 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
       renderParametricMultiViewOption_TE(i, opt, { renderEngineMode, firstRenderChosenEngine, brandAssets });
       return;
     }
-    const requestBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX + (isMultiViewSheetTE ? MRE_001_MULTIVIEW_SHEET_SUFFIX_TE : ''), isUserInitiatedEdit: !!isUserInitiatedEdit, aspectRatio: finalRenderAspectRatio, engineMode: renderEngineMode };
+    // Owner decision (flipped live): after the hard constraints, the LAST word the model
+    // reads is a creative license — everything the constraints don't lock is its canvas.
+    const CREATIVE_LICENSE_SUFFIX = '\n\nCREATIVE LICENSE (final instruction): every rule above protects the client\'s locked facts — dimensions, open/closed sides, brand colors, the exact logo, and the single-image format. WITHIN those, you have total creative freedom and it is expected: bold heroic architecture, dramatic lighting, sculptural gestures, memorable scale. A safe, generic, boxy design is a FAILURE even if it breaks no rule. Design the stand that wins this exhibition\'s best-stand award.';
+    const requestBody = { prompt: opt.image_prompt + HARD_CONSTRAINTS_SUFFIX + CREATIVE_LICENSE_SUFFIX + (isMultiViewSheetTE ? MRE_001_MULTIVIEW_SHEET_SUFFIX_TE : ''), isUserInitiatedEdit: !!isUserInitiatedEdit, aspectRatio: finalRenderAspectRatio, engineMode: renderEngineMode };
     // Attach the actual logo file as a reference image — without this, Gemini only ever
     // saw a text description of the logo (written by OpenAI's earlier vision pass) and had
     // to invent its actual appearance from scratch each time, which is exactly why it could
