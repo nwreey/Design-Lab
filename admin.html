@@ -1140,6 +1140,7 @@ function renderUsersTable(){
           <button class="ghost" onclick="showResetPasswordModal('${u.id}', '${escapeHtml(u.username)}')">Reset password</button>
           <button class="ghost" onclick="showUserReport('${u.id}')">Report</button>
           <button class="danger" onclick="removeUser('${u.id}', '${escapeHtml(u.username)}')">Remove</button>
+          ${projOver && u.role !== 'admin' ? '<span class="usage over" style="white-space:nowrap;font-weight:700;">\u26a0 0 projects left</span>' : ''}
         </td>
       </tr>
     `;
