@@ -11849,6 +11849,10 @@ function lockDsApprovedActionBar(){
   const odMenu = document.getElementById('otherDesignMenuDs');
   const odWrap = odMenu ? odMenu.closest('.other-design-wrap') : null;
   if(odWrap) odWrap.style.display = 'none';
+  // The "first one on us" note refers to the modification/other-option paths approval
+  // just closed — it goes with them (owner rule).
+  const freeNote = document.getElementById('freeModificationNoteDs');
+  if(freeNote) freeNote.style.display = 'none';
 }
 
 function hideDsFormKeepResults(){
@@ -23263,8 +23267,10 @@ async function buyAddonPack(plan){
 }
 
 // Shows/hides the yellow "first one on us" note in whichever section(s) are on screen.
+// Owner rule: the note is GONE once the design is approved — approval closes the
+// modification/other-option paths the note refers to, so it has nothing left to promise.
 function updateFreeModNotes(){
-  const show = freeModAvailable();
+  const show = freeModAvailable() && !isCurrentDesignApproved();
   ['freeModificationNote', 'freeModificationNoteEvent', 'freeModificationNoteDs'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = show ? 'block' : 'none';
