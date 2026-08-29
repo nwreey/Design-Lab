@@ -241,7 +241,7 @@
     <section class="panel-section" id="sec-add-user">
     <div class="card">
       <h2>Add User</h2>
-      <div class="card-desc">Enter the email and limits only — the email IS the username. The person receives a branded welcome email (Free Plan + their exact limits) with a personal Set Your Password link (valid 7 days); setting it signs them straight in. New users are regular team members by default — grant admin from the Users List if needed.</div>
+      <div class="card-desc">Enter the name, email, and PLAN — the email IS the username, and the usage limits are set automatically from the selected plan (same numbers as the pricing page). The person receives a branded welcome email (Free Plan + their exact limits) with a personal Set Your Password link (valid 7 days); setting it signs them straight in. New users are regular team members by default — grant admin from the Users List if needed.</div>
       <div class="row4">
         <div class="field">
           <label for="newFullName">Full name</label>
@@ -252,16 +252,14 @@
           <input type="text" id="newEmail" placeholder="e.g. sara@company.com">
         </div>
         <div class="field">
-          <label for="newProjectLimit">Project Limit</label>
-          <input type="number" id="newProjectLimit" placeholder="blank = unlimited" min="0">
-        </div>
-        <div class="field">
-          <label for="newEditLimit">Editing Limit</label>
-          <input type="number" id="newEditLimit" placeholder="blank = unlimited" min="0">
-        </div>
-        <div class="field">
-          <label for="newModifyLimit">Modification Limit</label>
-          <input type="number" id="newModifyLimit" placeholder="blank = unlimited" min="0">
+          <label for="newPlan">Plan <span style="color:#B02A1E;">*</span></label>
+          <select id="newPlan">
+            <option value="">Choose a plan...</option>
+            <option value="Free Trial">Free Trial — 1 project / 2 modifications / 3 edits</option>
+            <option value="Starter">Starter $49 — 2 projects / 8 modifications / 30 edits</option>
+            <option value="Studio">Studio $110 — 5 projects / 20 modifications / 80 edits</option>
+            <option value="Pro">Pro $200 — 10 projects / 50 modifications / 130 edits</option>
+          </select>
         </div>
       </div>
       <button class="primary" id="addUserBtn" onclick="addUser()">Add user</button>
@@ -1204,15 +1202,18 @@ async function showUserReport(id){
 async function addUser(){
   const email = document.getElementById('newEmail').value.trim();
   const fullName = document.getElementById('newFullName').value.trim();
-  const projectLimitRaw = document.getElementById('newProjectLimit').value;
-  const editLimitRaw = document.getElementById('newEditLimit').value;
-  const modifyLimitRaw = document.getElementById('newModifyLimit').value;
+  const plan = document.getElementById('newPlan').value;
   const statusEl = document.getElementById('addUserStatus');
   const btn = document.getElementById('addUserBtn');
 
   if(!fullName){
     statusEl.className = 'status-msg error';
     statusEl.textContent = 'The full name is required.';
+    return;
+  }
+  if(!plan){
+    statusEl.className = 'status-msg error';
+    statusEl.textContent = 'Please choose a plan — the limits come from it automatically.';
     return;
   }
   if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){
@@ -1229,22 +1230,14 @@ async function addUser(){
     const response = await fetch('/api/admin-users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        fullName,
-        projectLimit: projectLimitRaw === '' ? null : parseInt(projectLimitRaw, 10),
-        editLimit: editLimitRaw === '' ? null : parseInt(editLimitRaw, 10),
-        modifyLimit: modifyLimitRaw === '' ? null : parseInt(modifyLimitRaw, 10)
-      })
+      body: JSON.stringify({ email, fullName, plan })
     });
     const data = await response.json().catch(() => ({}));
     if(!response.ok) throw new Error((data.error && data.error.message) || 'Could not add user.');
 
     document.getElementById('newEmail').value = '';
     document.getElementById('newFullName').value = '';
-    document.getElementById('newProjectLimit').value = '';
-    document.getElementById('newEditLimit').value = '';
-    document.getElementById('newModifyLimit').value = '';
+    document.getElementById('newPlan').value = '';
     statusEl.className = 'status-msg ok';
     // The backend rolls the account back if the email fails, so reaching here means both
     // the account AND the Set-Password welcome email succeeded.

@@ -196,13 +196,32 @@ export default async function handler(req, res) {
          limits the admin filled (projects / modifications / edits).
        If the email cannot be sent, the just-created account is rolled back and the admin
        gets an honest error — an account nobody can ever reach must not linger. */
-    const { email, role, projectLimit, editLimit, modifyLimit, autofillLimit, fullName } = req.body || {};
+    const { email, role, plan, fullName } = req.body || {};
     const cleanFullName = (typeof fullName === 'string' && fullName.trim()) ? fullName.trim().slice(0, 120) : null;
     const cleanEmail = (typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) ? email.trim().toLowerCase().slice(0, 200) : null;
     if (!cleanEmail) {
       res.status(400).json({ error: { message: 'A valid email address is required — it becomes the username.' } });
       return;
     }
+    /* Owner flow (latest revision): the admin picks a PLAN, not raw numbers — the limits
+       derive server-side from the pricing page's own feature table, one source of truth:
+         Starter $49  ->  2 projects /  8 modifications /  30 image edits
+         Studio $110  ->  5 projects / 20 modifications /  80 image edits
+         Pro    $200  -> 10 projects / 50 modifications / 130 image edits
+         Free Trial   ->  1 project  /  2 modifications /   3 image edits / 1 AI fill
+       Fine-tuning later still works through Edit limits & plan in the Users List. */
+    const PLAN_QUOTAS = {
+      'Free Trial': { projectLimit: 1, modifyLimit: 2, editLimit: 3, autofillLimit: 1, planName: null },
+      'Starter':    { projectLimit: 2, modifyLimit: 8, editLimit: 30, autofillLimit: null, planName: 'Starter' },
+      'Studio':     { projectLimit: 5, modifyLimit: 20, editLimit: 80, autofillLimit: null, planName: 'Studio' },
+      'Pro':        { projectLimit: 10, modifyLimit: 50, editLimit: 130, autofillLimit: null, planName: 'Pro' },
+    };
+    const quotas = PLAN_QUOTAS[plan];
+    if (!quotas) {
+      res.status(400).json({ error: { message: 'Please choose a plan (Free Trial, Starter, Studio, or Pro).' } });
+      return;
+    }
+    const { projectLimit, editLimit, modifyLimit, autofillLimit } = quotas;
     const username = cleanEmail;
     const finalRole = role === 'admin' ? 'admin' : 'member';
     const id = generateUserId();
@@ -211,8 +230,8 @@ export default async function handler(req, res) {
 
     try {
       await sql`
-        INSERT INTO users (id, username, password_hash, email, full_name, role, project_limit, edit_limit, modify_limit, autofill_limit)
-        VALUES (${id}, ${username}, ${placeholderSalt + ':' + placeholderHash}, ${cleanEmail}, ${cleanFullName}, ${finalRole},
+        INSERT INTO users (id, username, password_hash, email, full_name, role, plan, project_limit, edit_limit, modify_limit, autofill_limit)
+        VALUES (${id}, ${username}, ${placeholderSalt + ':' + placeholderHash}, ${cleanEmail}, ${cleanFullName}, ${finalRole}, ${quotas.planName},
                 ${projectLimit != null ? projectLimit : null}, ${editLimit != null ? editLimit : null}, ${modifyLimit != null ? modifyLimit : null}, ${autofillLimit != null ? autofillLimit : null});
       `;
     } catch (err) {
@@ -242,10 +261,10 @@ export default async function handler(req, res) {
 
       const fmtLimit = (v, singular, plural) => v != null ? (v + ' ' + (v === 1 ? singular : plural)) : ('unlimited ' + plural);
       const welcomeHtml = buildBrandedEmail({
-        previewText: 'Congratulations — your DesignsLab AI account is ready, on the Free Plan.',
+        previewText: 'Congratulations — your DesignsLab AI account is ready, on the ' + (quotas.planName || 'Free Trial') + ' plan.',
         greeting: cleanEmail,
         paragraphs: [
-          'Congratulations! Your DesignsLab AI account has been created and your <strong>Free Plan</strong> is active.',
+          'Congratulations! Your DesignsLab AI account has been created and your <strong>' + (quotas.planName || 'Free Trial') + ' plan</strong> is active.',
           'Your plan includes:'
             + '<br>\u2022 <strong>' + fmtLimit(projectLimit != null ? projectLimit : null, 'project', 'projects') + '</strong>'
             + '<br>\u2022 <strong>' + fmtLimit(modifyLimit != null ? modifyLimit : null, 'design modification', 'design modifications') + '</strong>'
@@ -259,7 +278,7 @@ export default async function handler(req, res) {
       const sendResult = await sendTransactionalEmail({
         toEmail: cleanEmail,
         toName: cleanEmail,
-        subject: 'Welcome to DesignsLab AI \u2014 your Free Plan is active',
+        subject: 'Welcome to DesignsLab AI \u2014 your ' + (quotas.planName || 'Free Trial') + ' plan is active',
         html: welcomeHtml,
       });
       if (!sendResult.sent) throw new Error(sendResult.error || 'email send failed');
