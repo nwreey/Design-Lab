@@ -17177,6 +17177,41 @@ function downloadEcbAreaRender(renderIdx){
   forceDownloadImage(ecbAreaCurrentImage(r), name.replace(/[^\w\- ]+/g, '').trim() + '.png');
 }
 
+/* Detects the classic multi-panel/collage failure in a returned area render (owner report:
+   the Entrance render came back split into 3 pictures): a light or dark GUTTER line running
+   the full height (or width) of the frame is the fingerprint of a collage boundary — real
+   single photographs essentially never contain a perfectly uniform full-length line in the
+   interior of the frame. Fail-open: any analysis error just reports "no collage". */
+async function detectCollageSeams(dataUrl){
+  try{
+    const img = await new Promise((resolve, reject) => {
+      const im = new Image();
+      if(!dataUrl.startsWith('data:')) im.crossOrigin = 'anonymous';
+      im.onload = () => resolve(im);
+      im.onerror = reject;
+      im.src = dataUrl;
+    });
+    const W = 384, H = Math.max(96, Math.round(W * (img.naturalHeight / img.naturalWidth)));
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, W, H);
+    const d = ctx.getImageData(0, 0, W, H).data;
+    const lum = i => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    const isGutterLine = (len, get) => {
+      let sum = 0, sumSq = 0;
+      for(let j = 0; j < len; j++){ const v = get(j); sum += v; sumSq += v * v; }
+      const mean = sum / len, variance = sumSq / len - mean * mean;
+      return variance < 60 && (mean > 225 || mean < 30);
+    };
+    for(let x = Math.round(W * 0.12); x < W * 0.88; x++){
+      if(isGutterLine(H, j => lum((j * W + x) * 4))) return true;
+    }
+    for(let y = Math.round(H * 0.12); y < H * 0.88; y++){
+      if(isGutterLine(W, j => lum((y * W + j) * 4))) return true;
+    }
+    return false;
+  }catch(e){ return false; }
+}
+
 async function generateApprovedAreaRenders(){
   const areas = (eventConceptBoard && eventConceptBoard.areas && eventConceptBoard.areas.length)
     ? eventConceptBoard.areas
@@ -17220,6 +17255,8 @@ async function generateApprovedAreaRenders(){
         lines.push('');
         lines.push('YOUR ONLY TASK: mentally CROP that single "' + area + '" panel out of the board, DISCARD everything else on the board, and reproduce that one panel\'s exact approved design as ONE full-frame, high-resolution photograph of the "' + area + '" area only. This is a REPRODUCTION, not a redesign.');
         lines.push('');
+        lines.push('AREA FRAMING (owner rule): show ONLY the "' + area + '" itself, tightly framed as one photograph taken by ONE camera at ONE moment. For an Entrance area that means ONLY the entrance gate/portal structure and its immediate surroundings — nothing else from the event. The same applies to every area: only that area appears, never a tour of multiple spots.');
+        lines.push('');
         lines.push('REPRODUCTION RULES (mandatory, no exceptions):');
         lines.push('- Locate the panel in the approved board that depicts the "' + area + '" area and treat it as GROUND TRUTH. Ignore every other panel completely — no other area may appear in your output.');
         lines.push('- Keep IDENTICAL to that panel: the architecture and structures, the spatial layout and placement of every element, the stage/backdrop/screen designs, the furniture (same pieces, same positions), the graphics and signage, the exact colors, the materials and finishes, the lighting design, and all branding.');
@@ -17239,18 +17276,32 @@ async function generateApprovedAreaRenders(){
         prompt += '\n\nFINAL SELF-CHECK before returning the image (all must be true, otherwise regenerate): (1) the image is ONE seamless scene with zero dividing lines, borders, panels, or sections; (2) it shows ONLY the "' + area + '" area and no other area; (3) the area fills the entire frame; (4) the design matches the approved board\'s panel exactly.';
         // Highest available resolution: try 4K first, and if the model rejects it fall
         // back to 2K rather than failing the area entirely.
-        let data = null;
-        for(const size of ['4K', '2K']){
-          const response = await fetchWithTimeout('/api/generate-image-gemini', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, referenceImage: boardParts.base64, referenceMimeType: boardParts.mime, additionalReferenceImages: areaRenderExtraRefs, isUserInitiatedEdit: size === '4K', quotaKind: 'edit', aspectRatio: '4:3', imageSize: size })
-          }, 190000);
-          const rawText = await response.text();
-          let parsed = {};
-          try{ parsed = JSON.parse(rawText); }catch(e){ /* leave {} */ }
-          if(response.ok && parsed.image){ data = parsed; break; }
-          if(size === '2K') throw new Error((parsed.error && parsed.error.message) || 'Render failed.');
+        const requestAreaRender = async (promptText, chargeThisOne) => {
+          for(const size of ['4K', '2K']){
+            const response = await fetchWithTimeout('/api/generate-image-gemini', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prompt: promptText, referenceImage: boardParts.base64, referenceMimeType: boardParts.mime, additionalReferenceImages: areaRenderExtraRefs, isUserInitiatedEdit: chargeThisOne && size === '4K', quotaKind: 'edit', aspectRatio: '4:3', imageSize: size })
+            }, 190000);
+            const rawText = await response.text();
+            let parsed = {};
+            try{ parsed = JSON.parse(rawText); }catch(e){ /* leave {} */ }
+            if(response.ok && parsed.image) return parsed;
+            if(size === '2K') throw new Error((parsed.error && parsed.error.message) || 'Render failed.');
+          }
+        };
+        let data = await requestAreaRender(prompt, true);
+        // Owner report: despite every instruction, a render can still come back split into
+        // multiple pictures (Entrance arrived as 3). Detect the collage fingerprint and
+        // regenerate ONCE automatically — free (no second charge), best-effort: if the
+        // retry itself fails, the first image stands rather than losing the area.
+        if(await detectCollageSeams(data.image)){
+          if(statusEl) statusEl.textContent = '"' + area + '" came back split into panels — regenerating it as one single view...';
+          try{
+            const retryData = await requestAreaRender(prompt +
+              '\n\nYOUR PREVIOUS ATTEMPT WAS AUTOMATICALLY REJECTED because it split the frame into multiple pictures/panels. This time produce EXACTLY ONE single continuous photograph of the "' + area + '" area only — one camera, one scene, one moment, zero dividing lines or sections of any kind.', false);
+            if(retryData && retryData.image) data = retryData;
+          }catch(retryErr){ console.error('Collage-retry failed for ' + area + ' (keeping first render):', retryErr); }
         }
         // Keep the resolution high but the payload storable: raw 4K data URLs made the
         // project save exceed the server's request-size limit, so the renders were lost
