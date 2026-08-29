@@ -21862,58 +21862,32 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
     };
   }
 
-  // Priority 2 — Entrance: a distinct angle near the same open frontage the hero was shot
-  // from, emphasizing the walk-in approach rather than repeating the hero's own framing.
-  candidates.push({ name: 'Entrance View', type: 'exterior', azimuth: toRelativeAzimuth(entranceAbsolute), promptHint: 'The main visitor entrance and walk-in approach, emphasizing the threshold into the booth.' });
-
-  // Priority 3+ — one straight-on elevation for every OTHER genuinely open side (Exterior
-  // Camera Rules: an exterior camera may ONLY be placed on an OPEN side — a CLOSED side
-  // never contributes a candidate here at all, which is the actual fix for the reported
-  // bug). Skips a side whose straight-on angle is nearly identical to the hero/entrance
-  // angle already queued, so no camera slot is wasted on a near-duplicate.
-  sidePriorityOrder.filter(s => openSides.includes(s)).forEach(side => {
+  // Owner rule (replaces the earlier thematic shot list — Entrance View, Brand Wall,
+  // Architectural/Lighting Detail, etc.): the pickable views are the STANDARD camera
+  // POSITIONS, in this exact order — Front, Perspective Right, Perspective Left, Left,
+  // Right, Top, Back — plus one Interior View. Exterior Camera Rules still hold: a
+  // straight-on elevation is only offered for a side that is genuinely OPEN (a camera
+  // aimed at a closed structural wall would just render a wall), and near-duplicates of
+  // the hero's own angle are skipped so no paid slot wastes on an almost-identical shot.
+  const pushElevation = (side, label) => {
+    if(!openSides.includes(side)) return;
     const relative = toRelativeAzimuth(COMPASS_AZIMUTH[side]);
-    if(angularDistanceFromHero(relative) < 20) return; // effectively the same view the hero/entrance already covers
-    candidates.push({ name: `${side} Perspective`, type: 'exterior', azimuth: relative, promptHint: `A straight-on exterior elevation of the booth's ${side} open face.` });
-  });
+    if(angularDistanceFromHero(relative) < 20) return; // effectively the hero's own angle
+    candidates.push({ name: label, type: 'exterior', azimuth: relative, promptHint: `A straight-on, centered exterior elevation of the booth's ${side} face — camera aimed straight in, not diagonal.` });
+  };
+  pushElevation('Front', 'Front');
+  candidates.push({ name: 'Perspective Right', type: 'exterior', azimuth: 35, promptHint: 'A three-quarter perspective exterior view of the booth, angled 35 degrees clockwise (to the right) of the hero view, along the same open frontage.' });
+  candidates.push({ name: 'Perspective Left', type: 'exterior', azimuth: 325, promptHint: 'A three-quarter perspective exterior view of the booth, angled 35 degrees counter-clockwise (to the left) of the hero view, along the same open frontage.' });
+  pushElevation('Left', 'Left');
+  pushElevation('Right', 'Right');
+  candidates.push({ name: 'Top View', type: 'top-down', azimuth: 0, elevation: 90, promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' });
+  pushElevation('Back', 'Back');
+  candidates.push({ name: 'Interior View', type: 'interior', focusZone: 'wide', promptHint: 'A wide interior view showing the overall booth space and circulation.' });
 
-  // Brand Wall — the primary logo/branding is always present somewhere in every approved
-  // design (per BRANDING PLACEMENT HIERARCHY), so this is always included.
-  candidates.push({ name: 'Brand Wall', type: 'interior', focusZone: 'branding', promptHint: 'A close-up interior view centered on the booth\'s primary branding / logo wall.' });
-
-  // Interior views below are only ever included if their zone genuinely survived this
-  // booth's own Spatial Planning Engine decisions (per zonePlan) — Interior Camera Rules
-  // say interior cameras are always physically allowed, but that's not the same as
-  // promising a zone that was never actually part of this program.
-  if(hasZone(/product|display|pedestal|demo|kiosk|touch\s*screen/i)){
-    candidates.push({ name: 'Product Experience', type: 'interior', focusZone: 'product', promptHint: 'An interior view centered on this booth\'s product display / demo zone.' });
-  }
-  if(hasZone(/reception/i)){
-    candidates.push({ name: 'Reception View', type: 'interior', focusZone: 'reception', promptHint: 'An interior view centered on this booth\'s reception counter.' });
-  }
-  if(hasZone(/meeting|consultation|vip/i)){
-    candidates.push({ name: 'Meeting Area', type: 'interior', focusZone: 'meeting', promptHint: 'An interior view centered on this booth\'s meeting / consultation area.' });
-  }
-
-  // Architectural Detail, Lighting Detail, and Interior Wide are generic, always-valid
-  // interior views (every design has structure, lighting, and an overall interior space),
-  // included regardless of which optional zones this specific program happens to have.
-  candidates.push({ name: 'Architectural Detail', type: 'interior', focusZone: 'architecture', promptHint: 'A close-up interior detail shot of a distinctive structural or material feature of this exact design.' });
-  candidates.push({ name: 'Lighting Detail', type: 'interior', focusZone: 'lighting', promptHint: 'A close-up interior detail shot showcasing this design\'s lighting treatment.' });
-  candidates.push({ name: 'Interior Wide', type: 'interior', focusZone: 'wide', promptHint: 'A wide interior view showing the overall booth space and circulation.' });
-
-  // If the booth's camera budget still isn't full, add angled lean variants of the already-
-  // open sides (still always confined to that same open side's own facing arc — never a
-  // closed one) rather than leaving slots empty.
-  sidePriorityOrder.filter(s => openSides.includes(s)).forEach(side => {
-    [-25, 25].forEach(offset => {
-      const relative = toRelativeAzimuth(COMPASS_AZIMUTH[side] + offset);
-      const label = offset < 0 ? `${side} Left` : `${side} Right`;
-      candidates.push({ name: label, type: 'exterior', azimuth: relative, promptHint: `A ${offset < 0 ? 'left-leaning' : 'right-leaning'} angled exterior view of the booth's ${side} open face.` });
-    });
-  });
-
-  const plan = candidates.slice(0, targetCount).map((c, i) => ({
+  // No targetCount truncation anymore — the standard menu is small (max 9 entries) and the
+  // user PICKS which of them to render and pay for, so cutting the menu short would only
+  // hide positions he might have wanted. Every candidate above is architecturally valid.
+  const plan = candidates.map((c, i) => ({
     camId: 'CAM' + String(i + 1).padStart(2, '0'),
     clock: i + 1,
     elevation: 15,
