@@ -1118,12 +1118,10 @@ function renderUsersTable(){
         <td class="usage ${modifyOver ? 'over' : ''}">${modifyLimitText}</td>
         <td class="usage ${autofillOver ? 'over' : ''}">${autofillLimitText}</td>
         <td class="actions-cell">
-          <button class="ghost" onclick="toggleRole('${u.id}', '${u.role}')">${u.role === 'admin' ? 'Make member' : 'Make admin'}</button>
+          <!-- Owner request: only these three actions per user. Make admin/member and the
+               three count-reset buttons removed (their functions remain defined, unused). -->
           <button class="ghost" onclick="showEditLimitsModal('${u.id}', '${escapeHtml(u.username)}', ${u.project_limit != null ? u.project_limit : 'null'}, ${u.edit_limit != null ? u.edit_limit : 'null'}, ${u.modify_limit != null ? u.modify_limit : 'null'}, ${u.autofill_limit != null ? u.autofill_limit : 'null'}, '${u.plan ? escapeHtml(u.plan) : ''}')">Edit limits &amp; plan</button>
           <button class="ghost" onclick="showResetPasswordModal('${u.id}', '${escapeHtml(u.username)}')">Reset password</button>
-          <button class="ghost" onclick="resetEditCount('${u.id}')">Reset edit count</button>
-          <button class="ghost" onclick="resetModifyCount('${u.id}')">Reset modify count</button>
-          <button class="ghost" onclick="resetAutofillCount('${u.id}')">Reset AI fill count</button>
           <button class="danger" onclick="removeUser('${u.id}', '${escapeHtml(u.username)}')">Remove</button>
         </td>
       </tr>
