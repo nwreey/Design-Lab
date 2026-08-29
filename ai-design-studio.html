@@ -24488,6 +24488,19 @@ if(typeof document.addEventListener === 'function'){
   document.addEventListener('change', updateGenerateButtonState);
 }
 
+// Owner request: the Edit / Modify Design boxes must align flush with the form column's
+// own left and right edges. They were authored as BODY-level siblings (outside the
+// .app-layout .wrap column every card lives in), so "width:100%" meant the full page,
+// never matching the form. Re-homed into the same column at startup — width now
+// matches the form card exactly; behavior (hidden until opened, scrollIntoView) unchanged.
+(function(){
+  const wrapCol = document.querySelector('.app-layout .wrap');
+  ['editPanel', 'modifyDesignPanel'].forEach(id => {
+    const el = document.getElementById(id);
+    if(wrapCol && el) wrapCol.appendChild(el);
+  });
+})();
+
 // Land on the Studio Home view (owner-approved) — sections/projects hide it on entry.
 showStudioHome();
 </script>
