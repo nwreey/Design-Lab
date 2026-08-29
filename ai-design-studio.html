@@ -8321,8 +8321,10 @@ async function approveDisplayStand(){
     if(!ok) return;
     if(currentUserEditCount != null){ currentUserEditCount += chargedEdits; renderEditUsageIndicator(); }
   }
-  const approveBtn = document.getElementById('dsApproveBtn');
-  approveBtn.disabled = true;
+  // Owner rule: approval CLOSES the Approve and Other Design controls for good — an
+  // approved design can no longer be re-approved or swapped for another option. Only
+  // Download stays. (Same on reopening an approved project — see lockDsApprovedActionBar.)
+  lockDsApprovedActionBar();
   // Owner rule (matches booth's confirmApproveDesign): approval retires the form — the
   // results (board, view renders, spec sheet) are all that remain on screen.
   hideDsFormKeepResults();
@@ -11839,6 +11841,16 @@ function hideFormAndTabs(){
    only the form half (#dsFormFields) and the mode tabs go away — the results stay. Used on
    Approve (owner rule: after approval the form is gone) and when reopening an approved DS
    project. */
+/* Hides the DS Approve button and the Other Design menu once a design is approved (owner
+   rule) — Download remains. Used live on Approve and when reopening an approved project. */
+function lockDsApprovedActionBar(){
+  const approveBtn = document.getElementById('dsApproveBtn');
+  if(approveBtn) approveBtn.style.display = 'none';
+  const odMenu = document.getElementById('otherDesignMenuDs');
+  const odWrap = odMenu ? odMenu.closest('.other-design-wrap') : null;
+  if(odWrap) odWrap.style.display = 'none';
+}
+
 function hideDsFormKeepResults(){
   document.getElementById('modeTabs').style.display = 'none';
   const wrap = document.getElementById('dsFormFields');
@@ -23862,6 +23874,13 @@ function restoreDsFormFields(snap){
   dsLastImage = null;
   dsViewRenders = [];
   dsCurrentViews = DS_VIEWS_OPEN.slice();
+  // Un-hide Approve + Other Design for the fresh/unapproved state — an APPROVED project's
+  // restore re-hides them via lockDsApprovedActionBar right after this reset.
+  const dsApproveReset = document.getElementById('dsApproveBtn');
+  if(dsApproveReset){ dsApproveReset.style.display = ''; dsApproveReset.disabled = false; }
+  const dsOdMenuReset = document.getElementById('otherDesignMenuDs');
+  const dsOdWrapReset = dsOdMenuReset ? dsOdMenuReset.closest('.other-design-wrap') : null;
+  if(dsOdWrapReset) dsOdWrapReset.style.display = '';
   const dsPanel = document.getElementById('dsResult');
   const dsViewsWrap = document.getElementById('dsViewRenders');
   if(dsPanel) dsPanel.style.display = 'none';
@@ -23992,6 +24011,7 @@ function restoreDsResultsIfSaved(project){
   // (admins stay writable).
   if(dsResult.renders && dsResult.renders.length){
     hideDsFormKeepResults();
+    lockDsApprovedActionBar(); // approved project: Approve + Other Design stay closed
   }else if(!isAdminUser){
     lockDsForm();
     collapseDsFormCard(); // reopened generated-not-approved project: same Design Brief bar as booth/event
