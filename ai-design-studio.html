@@ -8340,7 +8340,11 @@ async function approveDisplayStand(){
   const boardCollageDesc = viewCount === 2 ? 'a two-view COLLAGE' : 'a 2x2 four-view COLLAGE';
   const boardNoun = viewCount === 2 ? 'two-view' : 'four-view';
   try{
-    const boardParts = dataUrlParts(dsLastImage);
+    // Root-cause fix (owner report: view renders came back as entirely different designs):
+    // after a reload dsLastImage is a REMOTE URL — embed it first so the approved design
+    // ALWAYS travels with every view request. Without a reference the model invents.
+    const dsBoardDataUrl = await ensureDataUrl(dsLastImage);
+    const boardParts = dataUrlParts(dsBoardDataUrl);
     const logoEntry = (dsFileStorage['dsLogoList'] || [])[0];
     const logoData = await readDsFileAsDataUrl(logoEntry);
     // Same brand colors the client actually picked on the form — restated as a hard rule on
@@ -8358,7 +8362,7 @@ async function approveDisplayStand(){
         let panelParts;
         let usedCrop = true;
         try{
-          const croppedDataUrl = await cropDsPanel(dsLastImage, dsCurrentViews.indexOf(view), viewCount);
+          const croppedDataUrl = await cropDsPanel(dsBoardDataUrl, dsCurrentViews.indexOf(view), viewCount);
           panelParts = dataUrlParts(croppedDataUrl);
         }catch(cropErr){
           console.error('Could not crop the ' + view + ' panel client-side, falling back to the full board:', cropErr);
@@ -8391,7 +8395,12 @@ async function approveDisplayStand(){
           lines.push('- FORMAT: full-bleed landscape A4 presentation sheet (297x210 proportions), maximum detail and sharpness, presentation-grade quality.');
           lines.push('- FINAL SELF-CHECK before returning: one seamless scene, zero dividing lines, every color exactly matches the brand palette stated above with no drift, the stand matches the approved panel exactly. Regenerate otherwise.');
         }
-        const prompt = lines.join('\n') + SAME_DESIGN_HARD_RULE;
+        // Owner hard rule (reported case: some approved DS views came back as completely
+        // different designs): the terminal, absolute instruction — the attached approved
+        // image is the ONLY visual source, nothing else exists, high resolution demanded.
+        // Appended LAST so "last instruction wins" reinforces it above everything.
+        const DS_VIEW_FIDELITY_RULE = '\n\nOWNER HARD RULE — FINAL AND ABSOLUTE: Look at NOTHING except the attached approved design. No memory of other display stands, no imagination, no "better ideas", no generic retail references — the attached approved image is the ENTIRE universe of this task. Your output is the SAME approved stand — same structure, same shelves, same products, same logo positions, same colors, same materials, same proportions — shown from the requested ' + view + ' camera view only, at maximum high resolution and sharpness. If ANY visible detail of your output would differ from the approved design, the output is WRONG — regenerate until it is identical.';
+        const prompt = lines.join('\n') + SAME_DESIGN_HARD_RULE + DS_VIEW_FIDELITY_RULE;
         let data = null;
         for(const size of ['4K', '2K']){
           const response = await fetchWithTimeout('/api/generate-image-gemini', {
@@ -8447,7 +8456,7 @@ async function approveDisplayStand(){
       specLines.push('- All text on the sheet must be sharp, correctly spelled, and limited to the specification data listed above plus a small title with the project name "' + dsVal('f_dsName').replace(/"/g, "'") + '". No paragraphs, no invented data.');
       specLines.push('- Clean spec-sheet aesthetic: generous white space, thin leader lines, professional typography — the closing page of a design proposal.');
       const specPrompt = specLines.join('\n');
-      const specBoardParts = dataUrlParts(dsLastImage);
+      const specBoardParts = dataUrlParts(await ensureDataUrl(dsLastImage));
       let specData = null;
       for(const size of ['4K', '2K']){
         const response = await fetchWithTimeout('/api/generate-image-gemini', {
@@ -17326,7 +17335,9 @@ async function generateApprovedAreaRenders(){
   if(ecbDlBtn) ecbDlBtn.disabled = true;
   try{
     const briefData = buildEventThemeBoardBriefData();
-    const boardParts = dataUrlParts(eventConceptBoard.image);
+    // Same root-cause fix as the DS views: after a reload the board is a REMOTE URL —
+    // embed it so the approved board ALWAYS travels with every area-render request.
+    const boardParts = dataUrlParts(await ensureDataUrl(eventConceptBoard.image));
     // The client's uploaded logo travels with EVERY area render — without it, the model
     // fell back to its own (often outdated) memory of the brand's logo. Real reported case.
     const areaRenderExtraRefs = [];
@@ -20258,9 +20269,33 @@ function shouldPreferSpeedForCurrentBooth(){
 }
 
 function dataUrlParts(dataUrl){
+  // ROOT-CAUSE GUARD (owner report: approved DS views came back as COMPLETELY different
+  // designs): after a project reload, stored images are REMOTE URLs, not data URLs.
+  // Splitting a remote URL here silently produced base64: undefined — the request went
+  // out WITH NO REFERENCE IMAGE at all, and the model invented an unrelated design from
+  // the text alone. Failing loudly turns that silent catastrophe into a visible,
+  // fixable error; every caller now converts via ensureDataUrl() first.
+  if(typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')){
+    throw new Error('Internal: reference image is not embedded data (got ' + String(dataUrl).slice(0, 40) + '...) — convert with ensureDataUrl() first.');
+  }
   const [meta, base64] = dataUrl.split(',');
   const match = meta.match(/data:(.*);base64/);
   return { mime: match ? match[1] : 'image/png', base64: base64 };
+}
+
+/* Converts any image source (remote stored URL after a project reload, or an already-
+   embedded data URL) into a real data URL, so reference images ALWAYS reach the model. */
+async function ensureDataUrl(src){
+  if(typeof src === 'string' && src.startsWith('data:')) return src;
+  const resp = await fetch(src);
+  if(!resp.ok) throw new Error('Could not load the approved design image (' + resp.status + ').');
+  const blob = await resp.blob();
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read the approved design image.'));
+    reader.readAsDataURL(blob);
+  });
 }
 
 // Real production bug: none of the image-generation fetch calls below had a client-side
