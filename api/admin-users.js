@@ -210,11 +210,13 @@ export default async function handler(req, res) {
          Pro    $200  -> 10 projects / 50 modifications / 130 image edits
          Free Trial   ->  1 project  /  2 modifications /   3 image edits / 1 AI fill
        Fine-tuning later still works through Edit limits & plan in the Users List. */
+    // Owner rule: the AI Fills quota ALWAYS equals the plan's project quota — one AI
+    // auto-fill per project the plan allows.
     const PLAN_QUOTAS = {
       'Free Trial': { projectLimit: 1, modifyLimit: 2, editLimit: 3, autofillLimit: 1, planName: null },
-      'Starter':    { projectLimit: 2, modifyLimit: 8, editLimit: 30, autofillLimit: null, planName: 'Starter' },
-      'Studio':     { projectLimit: 5, modifyLimit: 20, editLimit: 80, autofillLimit: null, planName: 'Studio' },
-      'Pro':        { projectLimit: 10, modifyLimit: 50, editLimit: 130, autofillLimit: null, planName: 'Pro' },
+      'Starter':    { projectLimit: 2, modifyLimit: 8, editLimit: 30, autofillLimit: 2, planName: 'Starter' },
+      'Studio':     { projectLimit: 5, modifyLimit: 20, editLimit: 80, autofillLimit: 5, planName: 'Studio' },
+      'Pro':        { projectLimit: 10, modifyLimit: 50, editLimit: 130, autofillLimit: 10, planName: 'Pro' },
     };
     const quotas = PLAN_QUOTAS[plan];
     if (!quotas) {
