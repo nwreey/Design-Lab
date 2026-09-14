@@ -556,10 +556,16 @@
   .home-create-card.featured::after{content:'MOST USED';position:absolute;top:-10px;right:14px;background:var(--navy);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;padding:3px 9px;border-radius:2px;}
   .home-recent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px;}
   @media(max-width:860px){.home-recent-grid{grid-template-columns:1fr;}}
-  .home-recent-card{background:#fff;border:1.5px solid var(--navy);border-radius:3px;overflow:hidden;cursor:pointer;transition:box-shadow .16s ease;}
-  .home-recent-card:hover{box-shadow:0 6px 18px rgba(11,20,32,.12);}
-  .home-recent-thumb{aspect-ratio:3/2;background:#0B0C10;display:flex;align-items:center;justify-content:center;color:#fff;opacity:.9;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1.5px;overflow:hidden;}
-  .home-recent-thumb img{width:100%;height:100%;object-fit:cover;display:block;opacity:.75;filter:saturate(.85);pointer-events:none;}
+  .home-recent-card{background:#fff;border:1.5px solid var(--navy);border-radius:3px;overflow:hidden;cursor:pointer;transition:box-shadow .2s ease,transform .2s ease;}
+  .home-recent-card:hover{box-shadow:0 10px 28px rgba(11,20,32,.18);transform:translateY(-3px);}
+  .home-recent-thumb{position:relative;aspect-ratio:3/2;background:#0B0C10;display:flex;align-items:center;justify-content:center;color:#fff;opacity:.9;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1.5px;overflow:hidden;}
+  /* Owner request: these thumbnails used to render dimmed/desaturated (opacity .75 + a
+     saturate(.85) filter) — full brightness/color plus a subtle glossy light-sweep on hover
+     reads as far more "premium finished render" and far less "flat placeholder photo". */
+  .home-recent-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease;}
+  .home-recent-card:hover .home-recent-thumb img{transform:scale(1.045);}
+  .home-recent-thumb::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.28) 46%,rgba(255,255,255,.05) 54%,transparent 68%);background-size:220% 220%;background-position:130% -30%;transition:background-position .65s ease;}
+  .home-recent-card:hover .home-recent-thumb::after{background-position:-30% 130%;}
   .home-recent-card .info{padding:11px 13px;}
   .home-recent-card .info b{font-size:13px;}
   .home-recent-card .info span{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;opacity:.5;margin-top:4px;}
