@@ -21,6 +21,9 @@
     "api/luma-video-proxy.js": {
       "maxDuration": 60
     },
+    "api/deduct-view-credit.js": {
+      "maxDuration": 15
+    },
     "api/projects.js": {
       "maxDuration": 60
     },
