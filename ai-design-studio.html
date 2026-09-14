@@ -13218,22 +13218,29 @@ function runDesignDirectorReview(concept, resolvedSpec, zoneAllocation){
   const negativeSpaceOk = circUsed >= circRecommended - 5;
   if(!negativeSpaceOk) notes.push('Circulation is tight for this booth\'s size — add nothing beyond the zones and furniture listed below.');
 
+  // Owner request (Sep 2026): each item is now tagged structural (a hard physical/functional
+  // fact — open sides, real-scale dimensions, circulation, camera orientation, which zones are
+  // allowed to be enclosed) vs creative (a style/quality mandate this pipeline used to impose —
+  // forced hero element, "reads as premium", material/lighting rules, decor/finishing language,
+  // "award-quality"). assembleLayeredDesignPrompt only prints the creative ones while
+  // BOOTH_CREATIVE_RULES_ENABLED is true — see that flag's own comment for why. The array shape
+  // changed (string -> {text, structural}); the one render site was updated to match.
   const checklist = [
-    'One strong architectural idea — yes: the hero element and composition below are the single unifying concept every zone sits inside.',
-    'Hero proportional, never dominating the whole booth — yes: sized to this booth\'s own scale, never a larger pavilion\'s hero shrunk down or a small hero stretched up.',
-    `Booth remains open, visitors can see in — yes: ${resolvedSpec.openSidesCount} side(s) stay genuinely open with clear sightlines into the booth.`,
-    'Brand immediately recognizable — yes: via the hero architecture, reception, and one feature moment, never repeated on every surface.',
-    negativeSpaceOk ? 'Sufficient negative space, the booth is allowed to breathe — yes.' : 'Negative space is tight for this footprint — keep furniture and display units to only what is listed below.',
-    'Visitor circulation is clear — yes: one legible path from entrance to hero to zones to exit, no dead ends.',
-    'Functional areas are integrated naturally, not boxed off — yes: every zone below is an open functional area within one architectural composition, never a separate room, except where explicitly marked enclosed.',
-    'Architecture reads as premium — yes: per the material and lighting rules below.',
-    'Physically buildable at real-world human scale — yes: every dimension below is an exact figure computed for this exact booth, never invented.',
-    'Award-quality spatial composition — yes: per the spatial strategy and hero rules below.',
-    'Reads well from a 45-degree corner perspective — yes: camera instructions below are set for this exact orientation.',
-    'Nothing visually unnecessary — yes: no random, unbranded, or purpose-less standalone decorative objects (extra planters, sculptures, graphic panels) are added beyond what the client explicitly requested; but every surface already in this design — hero architecture, reception, feature wall, walls, floor — still receives full premium finishing (refined material texture, integrated accent lighting, brand-driven graphic or reveal detailing) as standard professional craftsmanship, never withheld for lack of a separate decorative checkbox.',
-    'No large generic enclosed box anywhere — yes: the hero element explicitly avoids a plain rectangular volume (see ARCHITECTURAL CONCEPT below); only Storage and any explicit Private/VIP meeting room are ever fully enclosed.',
-    'No oversized hanging feature — yes: any ceiling/rigging element below is sized proportionate to the booth and integrated with the architecture, never a giant solid box.',
-    'Reads as one coherent building, not assembled furniture — yes: furniture and displays populate the architecture already established below; they never define it.',
+    { structural: false, text: 'One strong architectural idea — yes: the hero element and composition below are the single unifying concept every zone sits inside.' },
+    { structural: false, text: 'Hero proportional, never dominating the whole booth — yes: sized to this booth\'s own scale, never a larger pavilion\'s hero shrunk down or a small hero stretched up.' },
+    { structural: true, text: `Booth remains open, visitors can see in — yes: ${resolvedSpec.openSidesCount} side(s) stay genuinely open with clear sightlines into the booth.` },
+    { structural: false, text: 'Brand immediately recognizable — yes: via the hero architecture, reception, and one feature moment, never repeated on every surface.' },
+    { structural: true, text: negativeSpaceOk ? 'Sufficient negative space, the booth is allowed to breathe — yes.' : 'Negative space is tight for this footprint — keep furniture and display units to only what is listed below.' },
+    { structural: true, text: 'Visitor circulation is clear — yes: one legible path from entrance to hero to zones to exit, no dead ends.' },
+    { structural: true, text: 'Functional areas are integrated naturally, not boxed off — yes: every zone below is an open functional area within one architectural composition, never a separate room, except where explicitly marked enclosed.' },
+    { structural: false, text: 'Architecture reads as premium — yes: per the material and lighting rules below.' },
+    { structural: true, text: 'Physically buildable at real-world human scale — yes: every dimension below is an exact figure computed for this exact booth, never invented.' },
+    { structural: false, text: 'Award-quality spatial composition — yes: per the spatial strategy and hero rules below.' },
+    { structural: true, text: 'Reads well from a 45-degree corner perspective — yes: camera instructions below are set for this exact orientation.' },
+    { structural: false, text: 'Nothing visually unnecessary — yes: no random, unbranded, or purpose-less standalone decorative objects (extra planters, sculptures, graphic panels) are added beyond what the client explicitly requested; but every surface already in this design — hero architecture, reception, feature wall, walls, floor — still receives full premium finishing (refined material texture, integrated accent lighting, brand-driven graphic or reveal detailing) as standard professional craftsmanship, never withheld for lack of a separate decorative checkbox.' },
+    { structural: false, text: 'No large generic enclosed box anywhere — yes: the hero element explicitly avoids a plain rectangular volume (see ARCHITECTURAL CONCEPT below); only Storage and any explicit Private/VIP meeting room are ever fully enclosed.' },
+    { structural: false, text: 'No oversized hanging feature — yes: any ceiling/rigging element below is sized proportionate to the booth and integrated with the architecture, never a giant solid box.' },
+    { structural: false, text: 'Reads as one coherent building, not assembled furniture — yes: furniture and displays populate the architecture already established below; they never define it.' },
   ];
 
   return { materialPalette: materials, checklist, negativeSpaceOk, notes };
@@ -13274,6 +13281,27 @@ function buildCameraTextPlain(){
   return `Photorealistic 3D perspective, camera positioned 35-45 degrees above the booth (never directly overhead, never described as "bird's-eye" or "looking straight down"), above the ${c.corner} corner looking toward the ${c.lookToward} corner.${wallNote} Tightly framed so the booth fills roughly 90-95% of the image; the exhibition hall around it stays a soft, minimal, out-of-focus backdrop — no neighboring booths, aisle signage, hall branding, or crowds. The hero element must never block the view of the rest of the booth.`;
 }
 
+// --- Owner request (Sep 2026): temporarily switch off every CREATIVE/style rule this pipeline
+// has accumulated for booth mode — the forced hero architecture (HSE-001, via
+// buildArchitecturalConcept's heroElement/architecturalIdea/visualCharacter), the brand-color
+// material derivation (DNA-001, via deriveMaterialPalette/MATERIALS section), the industry
+// lighting profile (LIGHTING section), the mandatory baseline finishing/decor language
+// (FINISHING & DETAIL section), the hero/reception/feature-wall brand-application mandate, and
+// the "award-quality / never a generic box" quality-bar language — while leaving every
+// STRUCTURAL/safety rule fully in place: real dimensions, open-side facts, the structural shell,
+// which zones are allowed to be enclosed (still governed entirely by classifyFurnitureEnclosure
+// and the client's own Requirements selections — untouched by this flag), circulation adequacy,
+// and the fixed 45-degree camera framing every view depends on for consistency.
+// Owner is deliberately re-testing from this clean creative baseline and will report specific
+// issues one at a time as they're observed in real generated designs; the fix each time should be
+// a new, narrowly-scoped rule written for that exact observed problem — not simply flipping this
+// flag back to true, which would silently restore every old rule at once, including the ones that
+// were never actually wrong. Nothing this flag bypasses is deleted — every function it stops
+// calling (buildArchitecturalConcept's creative fields, deriveMaterialPalette,
+// INDUSTRY_LIGHTING_PROFILES, the creative checklist items above) is untouched and still exactly
+// as it was, so re-enabling a specific piece later is a small, safe, targeted change.
+const BOOTH_CREATIVE_RULES_ENABLED = false;
+
 // --- Layer 8 (Final Image-Generation Prompt) — the single function that now decides what
 // actually reaches Gemini for booth mode (see generateDesign()'s isDirectToGeminiEngine branch).
 // Concise and visually focused, per the client's explicit spec: sends ONLY resolved dimensions,
@@ -13302,13 +13330,15 @@ function assembleLayeredDesignPrompt(ctx){
   if(modularWallLayout) lines.push(stripInternalEngineCodes(MODULAR_WALL_LAYOUT_TEXT));
   lines.push('');
 
-  lines.push(`ARCHITECTURAL CONCEPT — "${concept.conceptName}"`);
-  lines.push(concept.architecturalIdea);
-  lines.push(`Hero element: ${concept.heroElement}`);
-  lines.push(`Secondary architectural elements: ${concept.secondaryElements}`);
-  lines.push(`Spatial strategy: ${concept.spatialStrategy}`);
-  lines.push(`Overall visual character: ${concept.visualCharacter}`);
-  lines.push('');
+  if(BOOTH_CREATIVE_RULES_ENABLED){
+    lines.push(`ARCHITECTURAL CONCEPT — "${concept.conceptName}"`);
+    lines.push(concept.architecturalIdea);
+    lines.push(`Hero element: ${concept.heroElement}`);
+    lines.push(`Secondary architectural elements: ${concept.secondaryElements}`);
+    lines.push(`Spatial strategy: ${concept.spatialStrategy}`);
+    lines.push(`Overall visual character: ${concept.visualCharacter}`);
+    lines.push('');
+  }
 
   lines.push('SPATIAL COMPOSITION & FUNCTIONAL ZONES');
   lines.push('One coherent architectural composition — every zone below is an open functional area living inside it, never an independently placed room, except where a zone is explicitly marked as a fully enclosed room.');
@@ -13333,7 +13363,7 @@ function assembleLayeredDesignPrompt(ctx){
   lines.push('');
 
   lines.push('BRAND INTEGRATION');
-  lines.push(concept.brandIntegration);
+  if(BOOTH_CREATIVE_RULES_ENABLED) lines.push(concept.brandIntegration);
   if(colorHexes && colorHexes.length) lines.push(`Required brand colors: ${colorHexes.join(', ')}.`);
   if(brandPersonalityBriefText) lines.push(stripInternalEngineCodes(brandPersonalityBriefText));
   if(hasPosters && hasPosters.startsWith('yes')) lines.push(`Feature ${posterCount || 'the client\'s'} poster design(s) as part of the brand experience zone, not as an afterthought.`);
@@ -13341,17 +13371,19 @@ function assembleLayeredDesignPrompt(ctx){
   if(brandPortfolioBody) lines.push(brandPortfolioBody);
   lines.push('');
 
-  lines.push('MATERIALS (controlled palette — use only these, never introduce an unrelated material)');
-  lines.push(directorReview.materialPalette.join('; ') + '.');
-  lines.push('');
+  if(BOOTH_CREATIVE_RULES_ENABLED){
+    lines.push('MATERIALS (controlled palette — use only these, never introduce an unrelated material)');
+    lines.push(directorReview.materialPalette.join('; ') + '.');
+    lines.push('');
 
-  lines.push('LIGHTING');
-  lines.push(`Architectural lighting only — ambient, concealed LED, accent, product, and brand illumination; never random glowing strips with no purpose. Palette for this project: ${concept.lightingStrategy}.`);
-  lines.push('');
+    lines.push('LIGHTING');
+    lines.push(`Architectural lighting only — ambient, concealed LED, accent, product, and brand illumination; never random glowing strips with no purpose. Palette for this project: ${concept.lightingStrategy}.`);
+    lines.push('');
 
-  lines.push('FINISHING & DETAIL (always required, independent of any decorative checklist)');
-  lines.push('Every surface already established above — the hero architecture, reception, feature wall, walls, and floor — must be fully finished to premium professional standard: refined material texture and joinery, integrated accent lighting that reveals form and brand color, and brand-driven graphic or reveal detailing where each surface meets another. This finishing quality is baseline craftsmanship on every project and must never read as bare, flat, or unfinished just because the client did not separately request a decorative element. It is distinct from adding new standalone decorative objects — extra planters, sculptures, or graphic panels with no functional home — which stay limited to what the client explicitly requested above.');
-  lines.push('');
+    lines.push('FINISHING & DETAIL (always required, independent of any decorative checklist)');
+    lines.push('Every surface already established above — the hero architecture, reception, feature wall, walls, and floor — must be fully finished to premium professional standard: refined material texture and joinery, integrated accent lighting that reveals form and brand color, and brand-driven graphic or reveal detailing where each surface meets another. This finishing quality is baseline craftsmanship on every project and must never read as bare, flat, or unfinished just because the client did not separately request a decorative element. It is distinct from adding new standalone decorative objects — extra planters, sculptures, or graphic panels with no functional home — which stay limited to what the client explicitly requested above.');
+    lines.push('');
+  }
 
   const flooringBody = extractSpecBody(flooringSpecRaw);
   if(flooringBody){ lines.push('FLOORING'); lines.push(flooringBody); lines.push(''); }
@@ -13360,7 +13392,7 @@ function assembleLayeredDesignPrompt(ctx){
   if(ceilingBody){
     lines.push('CEILING & OVERHEAD');
     lines.push(ceilingBody);
-    lines.push('If a hanging or overhead element is part of this program, it must be lightweight-looking, proportional to the booth, visually integrated with the hero architecture above, elegant, and visible from multiple directions — never visually dominant, and never a giant solid rectangular box.');
+    if(BOOTH_CREATIVE_RULES_ENABLED) lines.push('If a hanging or overhead element is part of this program, it must be lightweight-looking, proportional to the booth, visually integrated with the hero architecture above, elegant, and visible from multiple directions — never visually dominant, and never a giant solid rectangular box.');
     lines.push('');
   }
 
@@ -13376,11 +13408,18 @@ function assembleLayeredDesignPrompt(ctx){
   lines.push('');
 
   lines.push('VISUAL QUALITY STANDARD');
-  lines.push('Premium international exhibition design. Award-winning pavilion quality. Professional exhibition-architect output, strong spatial composition, controlled materials, excellent lighting, clear brand hierarchy, realistic construction, premium visualization. Never: a generic exhibition stand, a temporary furniture arrangement, a shopping-mall kiosk, a conference booth, a random collection of boxes, oversized signage, or a plain rectangular room. No people, staff, visitors, or crowds anywhere in the image.');
+  lines.push(BOOTH_CREATIVE_RULES_ENABLED
+    ? 'Premium international exhibition design. Award-winning pavilion quality. Professional exhibition-architect output, strong spatial composition, controlled materials, excellent lighting, clear brand hierarchy, realistic construction, premium visualization. Never: a generic exhibition stand, a temporary furniture arrangement, a shopping-mall kiosk, a conference booth, a random collection of boxes, oversized signage, or a plain rectangular room. No people, staff, visitors, or crowds anywhere in the image.'
+    : 'Photorealistic 3D rendering, professional exhibition-design output, realistic construction. No people, staff, visitors, or crowds anywhere in the image.');
   lines.push('');
 
+  // Owner request (Sep 2026, see BOOTH_CREATIVE_RULES_ENABLED's own comment): while the flag is
+  // off, only the checklist's STRUCTURAL items print — the creative/style ones (forced hero,
+  // "reads as premium", material/lighting rules, decor language) are skipped entirely rather
+  // than silently confirmed, since this pipeline is no longer the one deciding them.
+  const checklistToPrint = BOOTH_CREATIVE_RULES_ENABLED ? directorReview.checklist : directorReview.checklist.filter(c => c.structural);
   lines.push('DESIGN DIRECTOR REVIEW — CONFIRMED AGAINST THIS EXACT PROJECT');
-  lines.push(directorReview.checklist.map(c => '✓ ' + c).join('\n'));
+  lines.push(checklistToPrint.map(c => '✓ ' + c.text).join('\n'));
 
   return lines.join('\n');
 }
