@@ -21563,17 +21563,24 @@ function computeImageSimilarity(dataUrlA, dataUrlB){
 // edit endpoint whenever it's given a referenceImage (it attaches the photo as an inlineData
 // part alongside the text prompt), so no separate "Gemini edit" endpoint is needed — it's the
 // exact same endpoint the initial generation used, just called again with a reference photo.
-async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geometryCorrectionReason){
-  const prompt = buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX + SAME_DESIGN_HARD_RULE;
+async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geometryCorrectionReason, lumaReferenceFrame){
+  const prompt = buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason, !!lumaReferenceFrame) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX + SAME_DESIGN_HARD_RULE;
   const useOpenAi = cameraViewsEngine !== 'gemini';
   const endpoint = useOpenAi ? '/api/edit-image-openai' : '/api/generate-image-gemini';
   // Owner billing rule: each camera view costs 1 image edit, charged server-side on the
   // FIRST attempt only — automatic similarity retries and geometry-correction passes are
   // on us (the user asked for one view, not our internal QA loop). Admins uncharged.
   const chargeThisCall = !isAdminUser && !isWiderRetry && !geometryCorrectionReason;
+  // Owner request (Sep 2026): when a Luma orbit frame is available for this exterior view
+  // (see generateCameraViewsFromHero), it's sent as a SECOND reference image via the exact
+  // same additionalReferenceImages field both /api/edit-image-openai and
+  // /api/generate-image-gemini already accept — the final pixels still always come from this
+  // OpenAI/Gemini call (full native resolution, geometry-checked, billed exactly as before),
+  // Luma only ever contributes a soft continuity nudge, never the delivered image itself.
+  const additionalReferenceImages = lumaReferenceFrame ? [lumaReferenceFrame] : undefined;
   const body = useOpenAi
-    ? { prompt, referenceImage: base64, referenceMimeType: mime, size: '1536x1024', isUserInitiatedEdit: chargeThisCall }
-    : { prompt, referenceImage: base64, referenceMimeType: mime, isUserInitiatedEdit: chargeThisCall, quotaKind: 'edit', aspectRatio: '3:2' };
+    ? { prompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, size: '1536x1024', isUserInitiatedEdit: chargeThisCall }
+    : { prompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: chargeThisCall, quotaKind: 'edit', aspectRatio: '3:2' };
   // Camera views default to OpenAI's edit endpoint (useOpenAi above) unless the hero itself
   // was rendered on Gemini — that endpoint is now allowed 180s server-side (see vercel.json),
   // but this call was still cutting off at the old 100s client timeout, which is exactly what
@@ -21807,23 +21814,31 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
     viewsDoneCount++;
     updateApproveProgress(10 + (viewsDoneCount / Math.max(1, plannedViewCount)) * 85, `Creating Your Views — ${viewsDoneCount} of ${plannedViewCount}...`);
     try{
-      // Exterior views come from the shared Luma orbit when it's available; Top/Interior (and
-      // exterior views on any run where Luma wasn't usable) keep going through the original
-      // independent-edit path unchanged. See requestCameraViewsFromLumaOrbit's own comment.
-      const sourceFromLuma = !!(lumaOrbit && spec.type === 'exterior');
-      let resultDataUrl = sourceFromLuma
-        ? await requestCameraViewFromLumaFrame(spec, lumaOrbit.videoUrl, lumaOrbit.durationSeconds)
-        : await requestCameraViewFromOpenAI(spec, base64, mime, false);
-      // Same "1 view = 1 credit, charged once on the real first attempt only" rule
-      // requestCameraViewFromOpenAI already enforces server-side — a Luma-sourced view has no
-      // OpenAI/Gemini call to piggyback that on, so it's charged explicitly here instead. A
-      // quota rejection throws and is handled by the catch block below exactly like any other
-      // failed view (rendered as a retryable failed card, nothing saved as done).
-      if(sourceFromLuma) await chargeCameraViewCredit();
+      // Owner request (Sep 2026): when a Luma orbit is available and this is an exterior view,
+      // pull the roughly-corresponding frame from it and hand it to OpenAI/Gemini as a SECOND
+      // reference image (not as the delivered result — see requestCameraViewFromOpenAI's own
+      // comment for why: Luma has no precise camera-path control, so a raw extracted frame
+      // could easily be the wrong angle). Every exterior view still gets a real, full-
+      // resolution, geometry-checked OpenAI/Gemini render; Luma only ever nudges consistency.
+      // Extraction is best-effort — any failure (bad seek, decode error, whatever) just means
+      // this one view falls back to the plain single-reference prompt, exactly like before
+      // this feature existed, never a blocked or failed view over a missing nice-to-have.
+      let lumaReferenceFrame = null;
+      if(lumaOrbit && spec.type === 'exterior'){
+        try{
+          const frameDataUrl = await requestCameraViewFromLumaFrame(spec, lumaOrbit.videoUrl, lumaOrbit.durationSeconds);
+          const parts = dataUrlParts(frameDataUrl);
+          lumaReferenceFrame = { data: parts.base64, mimeType: parts.mime };
+        }catch(frameErr){
+          console.warn('Could not extract a Luma reference frame for', spec.camId, '— continuing without one:', frameErr);
+        }
+      }
+
+      let resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, undefined, lumaReferenceFrame);
 
       const similarity = await computeImageSimilarity(previousViewDataUrl, resultDataUrl);
       if(similarity > SIMILARITY_THRESHOLD){
-        const retryDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, true);
+        const retryDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, true, undefined, lumaReferenceFrame);
         const retrySimilarity = await computeImageSimilarity(previousViewDataUrl, retryDataUrl);
         if(retrySimilarity < similarity) resultDataUrl = retryDataUrl;
       }
@@ -21837,11 +21852,14 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
       const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec);
       if(geometryCheck.result === 'MISMATCH'){
         console.warn('Camera view', spec.camId, 'failed Orientation Lock check, retrying once:', geometryCheck.reason);
-        const correctedDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, geometryCheck.reason);
+        const correctedDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, geometryCheck.reason, lumaReferenceFrame);
         resultDataUrl = correctedDataUrl;
       }
 
-      const compressedResult = await compressDataUrlToTarget(resultDataUrl, 300 * 1024);
+      // Owner report (Sep 2026): 300KB was visibly too aggressive a compression budget for a
+      // camera view — raised to 750KB across the board (this call and retryGeneratedView's own
+      // identical call below) for noticeably crisper detail at a still-reasonable file size.
+      const compressedResult = await compressDataUrlToTarget(resultDataUrl, 750 * 1024);
       initCardHistory(spec.camId, compressedResult);
       renderGeneratedViewCard(spec.camId, 'done', compressedResult);
       previousViewDataUrl = compressedResult;
@@ -21918,7 +21936,7 @@ async function retryGeneratedView(camId){
       console.warn('Retry for', camId, 'failed Orientation Lock check, correcting once:', geometryCheck.reason);
       resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false, geometryCheck.reason);
     }
-    const compressedResult = await compressDataUrlToTarget(resultDataUrl, 300 * 1024);
+    const compressedResult = await compressDataUrlToTarget(resultDataUrl, 750 * 1024);
     pushCardHistory(camId, compressedResult, 'Retry');
     renderGeneratedViewCard(camId, 'done', compressedResult);
     saveCurrentProject();
@@ -22420,7 +22438,7 @@ async function generateTechnicalBoard(isAutomaticAfterCameraViews){
    reference image, through the same edit pipeline already proven reliable elsewhere in
    this app (Edit, Modify Design), guarantees every view is actually a photo of the correct,
    approved design — never a drifted reinterpretation of it. */
-function buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason){
+function buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason, hasLumaReference){
   const widerNote = isWiderRetry ? ' The previous attempt at this angle came out too similar to the neighboring view — for this attempt, pull the camera back further than usual and widen the field of view noticeably, so this position reveals a clearly distinct amount of new surface and depth.' : '';
 
   // OLE-001 automatic rejection (see verifyCameraViewGeometry): the previous attempt at this
@@ -22554,9 +22572,21 @@ The booth's architecture, materials, branding, and furniture are completely unch
   const openSideClaimSentence = spec.requiresUpperFloorVisible
     ? `This position documents this exact side of the booth regardless of whether it's an OPEN or a STRUCTURAL WALL side — for a STRUCTURAL WALL side, render the real solid wall, any storage/service elements behind it, and the second floor above it exactly as approved, never an open face.`
     : `This position is pre-validated to sit only in front of this booth's own OPEN side(s) — per this booth's approved orientation, it never requires standing behind, inside, or looking through a STRUCTURAL WALL side.`;
+  // Owner request (Sep 2026): a SECOND reference image — one frame pulled from a real Luma
+  // orbit video of this same approved booth — is attached for most exterior views now (see
+  // generateCameraViewsFromHero's own comment). It's genuinely useful as a rough continuity/
+  // positional guide (a real photo-like frame roughly AT this angle, unlike text alone), but
+  // Luma has no precise, guaranteed camera-path control, so its exact azimuth/timing can be
+  // off. This sentence is deliberately clear about the priority order — the FIRST reference
+  // image (the actual approved design) and the written facts below always win a disagreement,
+  // so a mistimed Luma frame can nudge consistency without being allowed to introduce the
+  // wrong angle or drifted geometry into the final render.
+  const lumaReferenceNote = hasLumaReference
+    ? ` A SECOND reference image is also attached — an approximate continuity frame pulled from a rough, separate 3D orbit pass around this same approved booth, taken from roughly this same camera direction. Use it only as a loose positional/continuity guide for where the camera sits and how the booth reads from this general direction — it is NOT the authoritative source, may be soft, imprecise, or not exactly at ${spec.azimuth} degrees, and must NEVER override the FIRST reference image or the exact camera position, materials, and geometry specified in this brief. If the two references ever disagree on any specific detail, always follow the first reference image and the written facts here.`
+    : '';
   return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific EXTERIOR camera position.
 
-Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). ${openSideClaimSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
+Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). ${openSideClaimSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.${lumaReferenceNote}
 
 The booth itself is completely static and unchanged from the reference — only the camera has moved to this new position. Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image — new side surfaces, structural elements, or depth — never a near-repeat of the reference from a marginally different angle.${widerNote} The attached photo may show only one side or angle of the booth — for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
 }
@@ -23186,27 +23216,32 @@ async function startAdminLumaVideoComparison(heroImage, designTitle){
   }
 }
 
-// --- Owner request (Sep 2026): exterior camera views sourced from one real Luma orbit video
-// instead of each being its own independent OpenAI/Gemini edit call — see the owner's own
-// report that the independent-edit views had a camera-consistency problem. Only EXTERIOR
-// views (CAMERA_SPECS entries with type 'exterior') come from Luma; 'top-down' and 'interior'
-// views have no equivalent frame anywhere in an exterior orbit video (Luma never sees inside
-// the booth and never flies straight up), so those keep going through
-// requestCameraViewFromOpenAI exactly as before — see generateCameraViewsFromHero's own
-// updated comment for the full routing logic. When Luma itself fails for any reason (the
-// video errors out, times out, or the provider is unavailable), this fails open: the caller
-// falls back to generating every exterior view the old way too, so a Luma outage can never
-// block a design from finishing.
-//
-// KNOWN TRADEOFF, on purpose (see buildCameraViewPrompt's own comment for the flip side of
-// this): a video model can drift from the exact approved design as the orbit progresses,
-// where the independent-edit approach can't (every edit is freshly anchored to the one
-// approved reference image). That's exactly why every Luma-sourced frame below still goes
-// through the SAME similarity-check + verifyCameraViewGeometry (OLE-001) pass every OpenAI-
-// sourced view already gets in generateCameraViewsFromHero's loop, with the same one-shot
-// corrective retry — except the correction itself always falls back to a real OpenAI edit
-// (Luma has no way to "fix just one frame" without re-rendering the whole video), so a frame
-// that drifts still gets caught and corrected, it just isn't assumed correct by default.
+// --- Owner request (Sep 2026), REVISED after the first version shipped: exterior camera
+// views get a SECOND reference image — one frame pulled from a real Luma orbit video of the
+// same approved booth — alongside the usual hero-image reference, so OpenAI/Gemini has an
+// actual photo-like continuity anchor for roughly that angle instead of text description
+// alone. This replaced an earlier version of this feature that used the extracted Luma frame
+// AS the delivered view outright. That version shipped, and the owner reported two real
+// problems with it: (1) views didn't reliably match their own name/angle, and (2) Luma-
+// sourced views were visibly lower resolution than the rest. Root cause of (1): Luma's video
+// API has no actual camera-path control — it only takes a text prompt describing the desired
+// motion, so nothing guarantees the video rotates at a constant rate or completes exactly
+// 360° in exactly 5 seconds; azimuthToOrbitTimeSeconds' linear time-to-angle assumption below
+// was accurate ONLY if that held, so a frame grabbed for "Rear View" could easily land on
+// some other real angle instead. Root cause of (2): a raw frame is pulled from a 720p video,
+// inherently softer than a native OpenAI/Gemini render, on top of this app's own compression
+// budget. The fix for both: never deliver a raw Luma frame directly again — the final image
+// for EVERY view (Luma-referenced or not) always comes from a real OpenAI/Gemini call, at
+// full native resolution, geometry-checked exactly as before; Luma only ever contributes a
+// soft, explicitly-lower-priority reference image (see buildCameraViewPrompt's
+// lumaReferenceNote) that the model is told may be imprecise and must never override the
+// hero image or the exact camera-position facts. Only EXTERIOR views (CAMERA_SPECS entries
+// with type 'exterior') get a Luma reference at all — 'top-down' and 'interior' views have no
+// equivalent frame anywhere in an exterior orbit video (Luma never sees inside the booth and
+// never flies straight up), so those never attempt one. When Luma itself fails for any reason
+// (the video errors out, times out, the provider is unavailable, or a specific frame can't be
+// extracted), this fails open: the affected view(s) just render with a single reference image
+// exactly like before this feature existed — never a blocked or failed generation over it.
 function azimuthToOrbitTimeSeconds(azimuthDegrees, durationSeconds){
   const normalized = ((azimuthDegrees % 360) + 360) % 360;
   return (normalized / 360) * durationSeconds;
@@ -23250,21 +23285,22 @@ function extractVideoFrameDataUrl(videoUrl, timeSeconds){
   });
 }
 
-// One shared <video> per orbit so every exterior view seeks/decodes the SAME already-buffered
-// element instead of each re-fetching and re-decoding the whole clip from scratch.
+// Returns one still frame (as a data URL) from the shared orbit video at the estimated
+// timestamp for this spec's azimuth — used as a REFERENCE image alongside the hero image, not
+// as the delivered view (see the "REVISED" comment above for why that changed). The estimate
+// can be off since Luma has no real camera-path control; that's fine here because
+// buildCameraViewPrompt tells the model this second reference is approximate and secondary.
 function requestCameraViewFromLumaFrame(spec, orbitVideoUrl, orbitDurationSeconds){
   const t = azimuthToOrbitTimeSeconds(spec.azimuth || 0, orbitDurationSeconds);
   return extractVideoFrameDataUrl(orbitVideoUrl, t);
 }
 
-// Charges exactly one view credit for a Luma-sourced view — the server-side quota check +
-// increment that requestCameraViewFromOpenAI otherwise gets for free as a side effect of its
-// own OpenAI/Gemini call (see api/deduct-view-credit.js's own comment for why this needs a
-// dedicated tiny endpoint). Mirrors requestCameraViewFromOpenAI's chargeThisCall rule exactly
-// — admins and the automatic similarity/geometry-correction retries are never charged, and
-// this only ever runs once per real, user-facing view. Fails CLOSED (throws) on a real quota
-// rejection so the caller can surface it exactly like an OpenAI billing failure would; network
-// hiccups are logged and swallowed rather than blocking a view over an accounting call.
+// NOTE: currently unused — kept from this feature's first version, where a Luma frame could
+// be delivered directly as a view with no OpenAI/Gemini call of its own to bill through (see
+// api/deduct-view-credit.js's own comment). The revised design above always renders through a
+// real OpenAI/Gemini call for every view, so billing goes through requestCameraViewFromOpenAI's
+// normal chargeThisCall path again and this is no longer called from anywhere. Left in place,
+// not deleted, in case a future version needs a Luma-only fast path again.
 async function chargeCameraViewCredit(){
   if(isAdminUser) return;
   const response = await fetchWithTimeout('/api/deduct-view-credit', {
