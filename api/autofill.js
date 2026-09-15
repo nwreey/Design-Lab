@@ -94,7 +94,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { system, content, schema, schemaName, max_output_tokens } = req.body || {};
+    const { system, content, schema, schemaName, max_output_tokens, webSearch } = req.body || {};
 
     if (!system || typeof system !== 'string') {
       res.status(400).json({ error: { message: 'Request body must include a "system" string.' } });
@@ -127,31 +127,44 @@ module.exports = async (req, res) => {
       })
       .filter(Boolean);
 
+    // Optional real online lookup (added for the brandColors rule — see buildBoothAutofillPrompt/
+    // buildEventAutofillPrompt's own comment): the Responses API's built-in hosted web_search tool
+    // runs server-side on OpenAI's end and composes cleanly with strict Structured Outputs in the
+    // same call — the model can issue a search, read the results, and still be forced to answer
+    // in the exact JSON Schema shape below. Opt-in via the caller's own `webSearch: true` flag
+    // (rather than always-on) so this endpoint stays the same domain-agnostic passthrough for any
+    // future form that doesn't need it. See developers.openai.com/api/reference — WebSearchTool's
+    // `type` is `"web_search"` (also accepts the dated `"web_search_2025_08_26"` alias).
+    const requestBody = {
+      model: 'gpt-4o',
+      input: [
+        { role: 'system', content: system },
+        { role: 'user', content: userContent },
+      ],
+      text: {
+        format: {
+          type: 'json_schema',
+          name: schemaName || 'autofill_result',
+          schema,
+          strict: true,
+        },
+      },
+      // The full field schema for a large form (every Requirements checkbox/quantity pair,
+      // plus a proposed Brand Portfolio or Area Planning array) can run to a sizeable response —
+      // same reasoning as callPromptWriterApi's own max_tokens comment on the older pipeline.
+      max_output_tokens: max_output_tokens || 16000,
+    };
+    if (webSearch) {
+      requestBody.tools = [{ type: 'web_search' }];
+    }
+
     const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        input: [
-          { role: 'system', content: system },
-          { role: 'user', content: userContent },
-        ],
-        text: {
-          format: {
-            type: 'json_schema',
-            name: schemaName || 'autofill_result',
-            schema,
-            strict: true,
-          },
-        },
-        // The full field schema for a large form (every Requirements checkbox/quantity pair,
-        // plus a proposed Brand Portfolio or Area Planning array) can run to a sizeable response —
-        // same reasoning as callPromptWriterApi's own max_tokens comment on the older pipeline.
-        max_output_tokens: max_output_tokens || 16000,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const data = await openaiResponse.json();

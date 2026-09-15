@@ -15334,25 +15334,50 @@ function enforceRequirementsFitAfterAutofill(previouslyCheckedIds, widthM, depth
   const categoryIds = collectRequirementCategoryIds(REQUIREMENTS_TRIM_ORDER_CATEGORIES);
   let guard = 0;
   let conflict = detectSpatialConflicts(widthM, depthM, heightM);
-  while(conflict.isImpossible && guard < 20){
+  // Real bug fixed here: this loop used to pick the first AI-added checkbox in DOM order within
+  // each trim-order category, with no regard for whether unchecking it could possibly change
+  // anything. Most of 'Art & Brand', 'Decorative Elements', 'Lighting Features', and 'Lighting'
+  // (the first four categories in trim order) are wall/ceiling-mounted or purely decorative items
+  // in ADDREQ_NON_FLOOR_IDS — see that set's own comment — which consume NO floor footprint in
+  // computeKnownAddreqFootprints/computeOtherRequestedZoneNames at all, so unchecking one can
+  // never reduce detectSpatialConflicts' overflow figure. On a brief where Auto Fill picked
+  // several of these (easily satisfying the "at least 2 categories" mandatory rule) alongside one
+  // genuinely oversized Functional Spaces/Product Display item (e.g. a big VIP meeting room), the
+  // loop burned its whole `guard` budget removing items that could never fix anything and gave up
+  // before ever reaching the real offender — exactly the client-reported case where Auto Fill
+  // finishes clean but Generate still blocks with the Program Fit message. Skipping
+  // ADDREQ_NON_FLOOR_IDS here means every candidate this loop considers can actually move the
+  // needle, so it converges on the real offending item(s) directly instead of wasting iterations.
+  // Second real bug fixed here: the category list above only covers the seven categories the
+  // Auto Fill prompt's own MANDATORY rule talks about — but that same prompt explicitly leaves
+  // every OTHER Requirements category (Visitor Experience, the industry-specific groups,
+  // Landscape, etc.) entirely to the model's judgment, and plenty of those are real floor-
+  // consuming zones in ADDREQ_ZONE_META (a workshop area is 8 sqm, a seminar area 8 sqm, a
+  // driving experience 6 sqm...). When the overflow came from one of those, this loop found no
+  // candidate in its seven categories, set removedOne = false, and gave up on the very first
+  // pass — leaving the program genuinely over capacity and the Generate button blocking with the
+  // Program Fit message, with no way for the client to tell which AI-added item caused it. The
+  // fallback below closes that hole: after the seven prioritised categories are exhausted, ANY
+  // remaining floor-consuming requirement THIS Auto Fill run added is fair game, in form order.
+  // The client's own pre-existing selections are still never touched, in either pass.
+  const isTrimCandidate = (id) => {
+    if(ADDREQ_NON_FLOOR_IDS.has(id)) return false; // can never affect the area budget — skip
+    const el = document.getElementById(id);
+    return !!(el && el.checked && !previouslyCheckedIds.has(id));
+  };
+  while(conflict.isImpossible && guard < 60){
     guard++;
-    let removedOne = false;
+    let idToRemove = null;
     for(const category of REQUIREMENTS_TRIM_ORDER_CATEGORIES){
-      const ids = categoryIds[category] || [];
-      const aiAddedId = ids.find(id => {
-        const el = document.getElementById(id);
-        return el && el.checked && !previouslyCheckedIds.has(id);
-      });
-      if(aiAddedId){
-        const el = document.getElementById(aiAddedId);
-        el.checked = false;
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        trimmed.push(aiAddedId);
-        removedOne = true;
-        break;
-      }
+      const found = (categoryIds[category] || []).find(isTrimCandidate);
+      if(found){ idToRemove = found; break; }
     }
-    if(!removedOne) break; // nothing left this function is allowed to trim — stop rather than loop forever
+    if(!idToRemove) idToRemove = ADDREQ_ALL_CHECKBOX_IDS.find(isTrimCandidate);
+    if(!idToRemove) break; // nothing left this function is allowed to trim — stop rather than loop forever
+    const el = document.getElementById(idToRemove);
+    el.checked = false;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    trimmed.push(idToRemove);
     conflict = detectSpatialConflicts(widthM, depthM, heightM);
   }
   if(trimmed.length && typeof updateReqCategoryCounts === 'function') updateReqCategoryCounts();
@@ -15493,7 +15518,9 @@ function buildAutofillAreaPlanningSchema(){
 // nothing in this text is booth- or event-specific).
 const AUTOFILL_EXPERT_PERSONA = `You are an expert exhibition booth designer, exhibition consultant, architect, space planner, event production specialist, and brand experience strategist. You have extensive practical knowledge of international exhibitions, premium exhibition booths, double-decker structures, automotive exhibitions, medical exhibitions, technology exhibitions, luxury brands, industrial exhibitions, hospitality areas, visitor flow, product display, lighting, flooring, rigging, construction feasibility, and exhibition regulations. Your responsibility is to complete the form logically and professionally. Do not randomly select values. Every selected field must support the overall design concept.
 
-This is NOT a generic chatbot request. You are not writing a conversational reply — you are making the same professional judgment calls a real exhibition consultant would make while preparing a client's project requirements before handing them to a 3D designer, filling in every value your own strict output schema asks for.`;
+This is NOT a generic chatbot request. You are not writing a conversational reply — you are making the same professional judgment calls a real exhibition consultant would make while preparing a client's project requirements before handing them to a 3D designer, filling in every value your own strict output schema asks for.
+
+Think like a CREATIVE DESIGNER, not a form-filler. Before you choose a single value, form a clear creative idea for THIS specific brand and project — what the space should feel like the moment a visitor sees it, what single idea it is built around, and what makes it recognisably this brand's stand and nobody else's — then let every field you fill express that one idea. Concretely: choose values that belong to a distinctive concept rather than the safest average option; make bold, confident choices where the brief genuinely supports them; let the brand's own character, industry, and story drive the palette, personality, materials, activities and requirements so the result reads as designed rather than assembled; and keep the whole set coherent, so a designer reading your answers can see the same intent running through all of them. Never fall back on generic defaults or the same predictable combination you would give any other client — two different brands must never come out of this looking alike. Creativity never overrides the hard facts, the stated space, or the physical-fit rules below: be imaginative WITHIN those constraints, never against them.`;
 
 // Dependency-aware design intelligence — the client's own worked examples, kept general enough
 // to apply across industries/scenarios rather than a hardcoded branch per industry name. This is
@@ -15524,7 +15551,7 @@ async function collectAutofillImageParts(){
   const labels = [];
   if(logoDataUrl && visionCompatibleTypes.includes(logoMediaType)){
     parts.push({ type: 'image', source: { type: 'base64', media_type: logoMediaType, data: logoDataUrl.split(',')[1] } });
-    labels.push('the client\'s Company Logo — use its real colors for brandColors whenever you don\'t already have reliable knowledge of this company\'s actual published brand color, and use its style/typography as a soft signal for brandPersonality and architecturalStyle.');
+    labels.push('the client\'s Company Logo — use its real colors for brandColors only as the fallback described in that rule (step 2, when your web search finds no reliable published color for this company), and use its style/typography as a soft signal for brandPersonality and architecturalStyle.');
   }
   if(referenceImageDataUrl && visionCompatibleTypes.includes(referenceImageMediaType)){
     parts.push({ type: 'image', source: { type: 'base64', media_type: referenceImageMediaType, data: referenceImageDataUrl.split(',')[1] } });
@@ -15650,10 +15677,10 @@ Ground every choice in the ACTUAL SPACE available (given below as fixed facts yo
 
 Rules:
 - "brandColors": 2–4 hex colors for this brand, chosen in this exact priority order — always include this:
-  1. If this is a real, identifiable company you have reliable, specific knowledge of, use its actual, official published brand color(s) exactly as you know them (as if you had just looked them up), never a generic guess dressed up as the real one.
-  2. Only if you do NOT have reliable, specific knowledge of a real published brand color for this company, and a logo image is attached below, read the actual visible colors in that logo image and use those instead.
-  3. Only if neither of those applies (an unfamiliar or fictional company name and no logo attached), fall back to an industry-appropriate palette for the stated industry.
-  Never invent a specific-sounding hex code and present it as this company's real official color when you don't actually know it — use step 2 or 3 instead in that case.
+  1. If this is a real, identifiable company, use your web search tool to look up its actual, official published brand/logo colors (brand guidelines, press kit, official site, Wikipedia/Wikidata infobox, or a reputable brand-color reference) and use those exact hex values. Always search rather than answering from memory alone — a company's real colors are a fact to verify, not recall.
+  2. Only if the search tool finds no reliable published color for this company (a genuinely obscure company, or search turns up nothing usable), and a logo image is attached below, read the actual visible colors in that logo image and use those instead.
+  3. Only if neither of those applies (an unfamiliar or fictional company name, no usable search result, and no logo attached), fall back to an industry-appropriate palette for the stated industry.
+  Never invent a specific-sounding hex code and present it as this company's real official color when you haven't actually verified it — use step 2 or 3 instead in that case.
 - "brandPersonality": choose exactly 3 names, in order of Primary/Secondary/Accent, from this exact list: ${BRAND_PERSONALITY_ORDER.join(', ')}.
 - "floorFeatures": choose any number (including none) of Optional Floor Features that suit this brand and space, from this exact list: ${floorFeatureOptions.join(', ')}.
 - "integratedElements": only relevant if "fields" sets f_ceilingRigging to anything other than "No overhead structure" — choose Integrated Elements that suit that overhead structure, from this exact list: ${integratedElementOptions.join(', ')}. Return an empty array if f_ceilingRigging is "No overhead structure".
@@ -15697,7 +15724,7 @@ ${JSON.stringify(fieldSchema, null, 2)}`;
     additionalProperties: false,
   };
 
-  return { system, contentParts, schema, schemaName: 'booth_autofill_result' };
+  return { system, contentParts, schema, schemaName: 'booth_autofill_result', webSearch: true };
 }
 
 // Event mode's system prompt + content parts. Mirrors buildBoothAutofillPrompt's structure and
@@ -15770,10 +15797,10 @@ Ground every choice in the ACTUAL EVENT described (given below as fixed facts yo
 
 Rules:
 - "brandColors": 2–4 hex colors for this brand/event, chosen in this exact priority order — always include this:
-  1. If this is a real, identifiable company or organization you have reliable, specific knowledge of, use its actual, official published brand color(s) exactly as you know them (as if you had just looked them up), never a generic guess dressed up as the real one.
-  2. Only if you do NOT have reliable, specific knowledge of a real published brand color, and a logo image is attached below, read the actual visible colors in that logo image and use those instead.
-  3. Only if neither of those applies (an unfamiliar or fictional name and no logo attached), fall back to a palette appropriate to the stated industry and event type.
-  Never invent a specific-sounding hex code and present it as this company's real official color when you don't actually know it — use step 2 or 3 instead in that case.
+  1. If this is a real, identifiable company or organization, use your web search tool to look up its actual, official published brand/logo colors (brand guidelines, press kit, official site, Wikipedia/Wikidata infobox, or a reputable brand-color reference) and use those exact hex values. Always search rather than answering from memory alone — a company's real colors are a fact to verify, not recall.
+  2. Only if the search tool finds no reliable published color for this company/organization (genuinely obscure, or search turns up nothing usable), and a logo image is attached below, read the actual visible colors in that logo image and use those instead.
+  3. Only if neither of those applies (an unfamiliar or fictional name, no usable search result, and no logo attached), fall back to a palette appropriate to the stated industry and event type.
+  Never invent a specific-sounding hex code and present it as this company's real official color when you haven't actually verified it — use step 2 or 3 instead in that case.
 - "brandPersonality": choose exactly 3 names, in order of Primary/Secondary/Accent, from this exact list: ${BRAND_PERSONALITY_ORDER.join(', ')}.
 - "visitorExperience": choose any number (including none) that suit this event, from this exact list: ${visitorExperienceOptions.join(', ')}.
 - "eventMood": choose UP TO 3 (never more) that suit this event's tone, from this exact list: ${eventMoodOptions.join(', ')}.
@@ -15817,7 +15844,7 @@ ${JSON.stringify(fieldSchema, null, 2)}`;
     additionalProperties: false,
   };
 
-  return { system, contentParts, schema, schemaName: 'event_autofill_result' };
+  return { system, contentParts, schema, schemaName: 'event_autofill_result', webSearch: true };
 }
 
 async function runAiAutofill(){
@@ -15898,7 +15925,7 @@ async function runAiAutofill(){
     }
 
     status.textContent = 'Planning spaces...';
-    const { system, contentParts, schema, schemaName } = mode === 'event'
+    const { system, contentParts, schema, schemaName, webSearch } = mode === 'event'
       ? await buildEventAutofillPrompt(goal, website, websiteText, websiteWarning)
       : await buildBoothAutofillPrompt(goal, website, websiteText, websiteWarning, wantsRigging, scenario);
 
@@ -15907,7 +15934,7 @@ async function runAiAutofill(){
     // this stage and "Planning products..." below are shown around the actual network call, which
     // is where the model does that same brand/product reasoning server-side.)
     status.textContent = 'Planning products...';
-    const result = await callAutofillApi(system, contentParts, schema, schemaName);
+    const result = await callAutofillApi(system, contentParts, schema, schemaName, webSearch);
 
     status.textContent = 'Checking requirements...';
     applyAutofillResult(result);
@@ -16550,11 +16577,11 @@ function selectAnalysisRefusalError(err, spatialPlan){
 // schema, not free-form text that still needs cleanup/repair/retry logic the way
 // callPromptWriterApi needs for the older pipeline. Reuses AiRefusalError so runAiAutofill's own
 // admin/non-admin error handling (already wired to that class) doesn't need to change at all.
-async function callAutofillApi(system, contentParts, schema, schemaName){
+async function callAutofillApi(system, contentParts, schema, schemaName, webSearch){
   const response = await fetch('/api/autofill', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ system, content: contentParts, schema, schemaName }),
+    body: JSON.stringify({ system, content: contentParts, schema, schemaName, webSearch: !!webSearch }),
   });
 
   const data = await response.json().catch(() => ({}));
