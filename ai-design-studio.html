@@ -23579,7 +23579,15 @@ function buildLumaOrbitPrompt(designTitle){
 // (requestCameraViewsFromLumaOrbit). Throws on any failure — callers decide their own
 // fallback behavior; this function itself never silently swallows an error.
 async function generateLumaOrbitVideoUrl(heroImage, designTitle){
-  const compressed = await compressDataUrl(heroImage, 1536, 0.88);
+  // The start frame was being sent at 1536px and near-maximum quality, which is one to two
+  // megabytes of base64 in a single JSON body. That was survivable when the orbit ran on its own,
+  // but camera views now render three at a time, so this upload competes with three image
+  // generations and was losing — it hit the client timeout and failed the whole orbit. The video
+  // it seeds is 720p, so anything beyond about a thousand pixels is detail the clip cannot show
+  // anyway: capping the frame makes the request small and quick without costing the orbit
+  // anything visible. The timeout is also raised to match the function's own ceiling in
+  // vercel.json, so a slow-but-progressing upload is given the time the server would allow.
+  const compressed = await compressDataUrlToTarget(await compressDataUrl(heroImage, 1024, 0.82), 400 * 1024);
   const { mime, base64 } = dataUrlParts(compressed);
   const promptText = buildLumaOrbitPrompt(designTitle);
 
@@ -23587,7 +23595,7 @@ async function generateLumaOrbitVideoUrl(heroImage, designTitle){
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: promptText, imageBase64: base64, mimeType: mime })
-  }, 30000);
+  }, 60000);
   const genData = await genResponse.json().catch(() => ({}));
   if(!genResponse.ok || !genData.generationId){
     throw new Error((genData.error && genData.error.message) || 'Could not start Luma video generation.');
