@@ -21860,7 +21860,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   cameraViewsOrbitFrames = new Map();
   const framesReady = orbitPromise
     .then(async (orbit) => {
-      if(!orbit) return;
+      if(!orbit || !orbit.videoUrl) return;
       cameraViewsOrbitFrames = await extractOrbitFramesForSpecs(orbit.videoUrl, specsToRender.filter(s => s.type === 'exterior'));
     })
     .catch((err) => {
@@ -23474,8 +23474,11 @@ async function showAdminLumaVideoFromOrbit(orbitPromise){
   statusEl.textContent = 'Rendering the 360° orbit these views are built from... this can take a minute or two.';
   try{
     const orbit = await orbitPromise;
-    if(!orbit){
-      statusEl.textContent = 'No 360° orbit was available for this run — every view was rendered independently from the approved image instead.';
+    if(!orbit || !orbit.videoUrl){
+      // Stated bluntly, with the provider's own reason, because this is the case where every view
+      // silently degrades to a re-edit of the approved image and comes back looking alike. Seeing
+      // "views look the same" and this message together is the whole diagnosis in one screen.
+      statusEl.textContent = 'NO 360° ORBIT FOR THIS RUN' + ((orbit && orbit.error) ? ' — ' + orbit.error : '') + '. Every view below was rendered from the approved image alone, which is why they may look alike.';
       return;
     }
     videoEl.src = orbit.videoUrl;
@@ -23566,11 +23569,16 @@ async function requestCameraViewsFromLumaOrbit(heroImage, designTitle){
     const videoUrl = await generateLumaOrbitVideoUrl(heroImage, designTitle);
     // No duration is asserted here any more. extractOrbitFramesForSpecs reads the real duration
     // off the decoded video element itself, which is both accurate and immune to the requested
-    // clip length changing (it has already gone from 5s to 9s once).
-    return { videoUrl };
+    // clip length changing (it has already changed once, and an invalid value there cost a whole
+    // production run — see api/luma-generate.js's own note).
+    return { videoUrl, error: null };
   }catch(err){
-    console.error('Luma orbit generation unavailable, falling back to independent per-view generation for every exterior view:', err);
-    return null;
+    // The failure REASON is carried back rather than swallowed. A silent null here is exactly how
+    // a rejected request (an invalid clip duration for the configured model) turned into a whole
+    // production run of look-alike views with nothing on screen explaining why — the orbit simply
+    // never existed and every view quietly fell back to re-editing the approved image.
+    console.error('Orbit generation unavailable, falling back to independent per-view generation for every exterior view:', err);
+    return { videoUrl: null, error: (err && err.message) || 'unknown error' };
   }
 }
 

@@ -100,9 +100,18 @@ module.exports = async (req, res) => {
           // a few degrees rather than complete the circle, so frames pulled for two different
           // clock positions came back nearly identical and every camera view ended up looking
           // like the hero. A longer clip gives the orbit room to actually travel all the way
-          // round and leaves meaningfully distinct frames at each of the 12 clock stops.
-          duration: '9s',
-          loop: true,
+          // round and leaves meaningfully distinct frames at each camera stop.
+          //
+          // THE VALUE HERE IS NOT FREE-FORM. This model (ray-3.2, set just above) accepts only
+          // '5s' or '10s' — a '9s' attempt was rejected outright by the provider, which failed
+          // the whole orbit, which silently dropped every view back to a plain re-edit of the
+          // approved image. If the model above ever changes, re-check its allowed durations
+          // before touching this. '10s' additionally cannot be combined with loop: true (the
+          // provider rejects that pair), and the loop was only ever a convenience for the admin
+          // preview card — nothing in the frame extraction needs it, since frames are seeked by
+          // timestamp against the clip's own measured duration.
+          duration: '10s',
+          loop: false,
           start_frame: { data: imageBase64, media_type: mimeType || 'image/png' },
         },
       };
