@@ -21590,8 +21590,12 @@ function computeImageSimilarity(dataUrlA, dataUrlB){
 // edit endpoint whenever it's given a referenceImage (it attaches the photo as an inlineData
 // part alongside the text prompt), so no separate "Gemini edit" endpoint is needed — it's the
 // exact same endpoint the initial generation used, just called again with a reference photo.
-async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geometryCorrectionReason, lumaReferenceFrame){
-  const prompt = buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason, !!lumaReferenceFrame) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX + SAME_DESIGN_HARD_RULE;
+async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geometryCorrectionReason, lumaReferenceFrame, controlKind){
+  // controlKind says WHAT the attached second image is ('massing' = this app's own exact geometry
+  // render, 'orbit' = a soft video still). The prompt has to introduce the two differently, so
+  // this is passed through rather than reduced to a boolean — see buildCameraViewPrompt's note.
+  const referenceKind = lumaReferenceFrame ? (controlKind || 'orbit') : null;
+  const prompt = buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason, referenceKind) + A4_LANDSCAPE_COMPOSITION_TEXT + HARD_CONSTRAINTS_SUFFIX + SAME_DESIGN_HARD_RULE;
   const useOpenAi = cameraViewsEngine !== 'gemini';
   const endpoint = useOpenAi ? '/api/edit-image-openai' : '/api/generate-image-gemini';
   // Owner billing rule: each camera view costs 1 image edit, charged server-side on the
@@ -21764,6 +21768,181 @@ let approveSelectedCamIds = null;
 // the separate post-approval "More Views" run, where it remains the user's own choice.
 let approveIncludeTechBoard = false;
 
+/* ================= MCC-001 — Massing Camera Control =================
+   The reason camera views kept coming back looking like the approved image, stated plainly: an
+   image-editing model has no 3D model of the booth. Handed one photograph and asked to "render
+   this from 3 o'clock", it cannot know what the far side looks like, so the safest thing it can
+   produce is something very close to its input — and that is what it produced, no matter how the
+   instruction was worded. Prose about azimuths can't fix that. Neither could the orbit video,
+   because a video model has no real camera control either: that was one uncontrolled generator
+   being asked to steer another.
+
+   What actually fixes it is giving the renderer a picture of the CAMERA GEOMETRY that this app
+   computes itself. That is what this does. Everything needed is already known and exact — booth
+   width and depth, which sides are structural walls and how tall, the hero structure's footprint
+   and height, and every surviving zone's own footprint, height and position on the layout grid.
+   So the booth is built as a plain white massing model in the browser with Three.js and
+   photographed from the true position of each clock camera. 3 o'clock is 3 o'clock because it is
+   arithmetic, not a guess.
+
+   The finished massing image goes to the image model as the composition control — "this is the
+   shape, from this camera" — alongside the approved design as the source of every material,
+   colour and branding detail. That split is what makes the views genuinely different from each
+   other while staying the same booth. It also removes the invented-wall class of bug for free:
+   the massing states exactly where walls are and aren't.
+
+   Two deliberate properties. It is DETERMINISTIC — the same booth and camera always give the same
+   control image, so a view can't drift between runs. And it is FREE — geometry is drawn locally,
+   so the number of camera positions is no longer a cost question; only the paint step costs
+   anything. Fails soft everywhere: no THREE, no WebGL, a non-booth mode or a missing plan just
+   means no control image and the view renders exactly as it did before. */
+let cameraViewsMassingModel = null;
+
+// Normalises the several dims shapes the spatial engine produces (rect / footprint / round, each
+// with its own field names) into one plain box in metres, so the massing builder never has to
+// care which kind of zone it is drawing. Falls back to a small human-scale block rather than
+// skipping a zone outright — a zone that exists in the plan should appear in the massing.
+function massingBoxSizeM(dims){
+  const d = dims || {};
+  const widthMm = d.widthMm || d.diameterMm || 800;
+  const depthMm = d.depthMm || d.diameterMm || 800;
+  const heightMm = d.heightMm || 900;
+  return { wM: widthMm / 1000, dM: depthMm / 1000, hM: heightMm / 1000 };
+}
+
+/* Renders the booth massing once and photographs it from every given camera spec, returning a
+   Map of camId -> { data, mimeType } ready to attach as a reference image. The scene is built a
+   single time and only the camera moves between shots, which is both faster and the exact
+   guarantee we want: every view is demonstrably the same geometry from a different position.
+
+   Coordinate convention is this file's existing one, reused rather than reinvented (see
+   buildParametricElevationViews_TE, which proved it): X runs Left(0) -> Right(width),
+   Z runs Front(0) -> Rear(depth), Y runs floor(0) -> ceiling. A camera at absolute compass
+   azimuth 0 stands outside the Front side looking in; 90 stands outside the Right side. Each
+   spec's own azimuth is RELATIVE to the approved hero shot, so the hero's absolute direction is
+   added back in here — that is what makes "1 o'clock" mean one hour clockwise from the view the
+   client already approved, rather than one hour from an arbitrary internal north. */
+function buildMassingViewsForSpecs(specs){
+  const views = new Map();
+  const model = cameraViewsMassingModel;
+  if(!model || typeof THREE === 'undefined' || !specs || specs.length === 0) return views;
+  let renderer = null;
+  try{
+    const W = model.widthM, D = model.depthM;
+    const H = model.heightM > 0 ? model.heightM : 3.5;
+    if(!(W > 0 && D > 0)) return views;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf4f4f2);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.78));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.55);
+    sun.position.set(W, H * 3, -D);
+    scene.add(sun);
+
+    const addBox = (mat, edgeColor, cx, cy, cz, w, h, d) => {
+      const geo = new THREE.BoxGeometry(Math.max(w, 0.05), Math.max(h, 0.05), Math.max(d, 0.05));
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(cx, cy, cz);
+      scene.add(mesh);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: edgeColor }));
+      edges.position.copy(mesh.position);
+      scene.add(edges);
+    };
+
+    // Floor slab — gives the model a ground plane so the camera's height and angle read clearly.
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(W, D),
+      new THREE.MeshBasicMaterial({ color: 0xe6e6e2, side: THREE.DoubleSide })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(W / 2, 0, D / 2);
+    scene.add(floor);
+
+    // Perimeter walls — only where this booth genuinely has one. An OPEN side gets nothing at
+    // all, which is precisely the fact the renders kept getting wrong on their own.
+    const wallThicknessM = (model.wallThicknessMm || 100) / 1000;
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    ['Front', 'Back', 'Left', 'Right'].forEach(side => {
+      const s = model.sides && model.sides[side];
+      if(!s || s.state !== 'STRUCTURAL WALL') return;
+      const wallH = (s.heightMm || H * 1000) / 1000;
+      if(side === 'Front') addBox(wallMat, 0x333333, W / 2, wallH / 2, 0, W, wallH, wallThicknessM);
+      if(side === 'Back')  addBox(wallMat, 0x333333, W / 2, wallH / 2, D, W, wallH, wallThicknessM);
+      if(side === 'Left')  addBox(wallMat, 0x333333, 0, wallH / 2, D / 2, wallThicknessM, wallH, D);
+      if(side === 'Right') addBox(wallMat, 0x333333, W, wallH / 2, D / 2, wallThicknessM, wallH, D);
+    });
+
+    // Hero structure and every surviving zone, each as a block of its real size at its own place
+    // on the layout grid. position.xFrac/yFrac come straight from assignZonePositions, so the
+    // massing agrees with the written brief about where things stand rather than guessing.
+    const heroMat = new THREE.MeshLambertMaterial({ color: 0xd8dde3 });
+    const zoneMat = new THREE.MeshLambertMaterial({ color: 0xc3ccd6 });
+    (model.zones || []).forEach(zone => {
+      const box = massingBoxSizeM(zone.dims);
+      const xFrac = (zone.position && typeof zone.position.xFrac === 'number') ? zone.position.xFrac : 0.5;
+      const yFrac = (zone.position && typeof zone.position.yFrac === 'number') ? zone.position.yFrac : 0.5;
+      // Kept inside the footprint: a zone whose block would otherwise hang over the booth edge
+      // is nudged in, so the control image never implies structure outside the booth's own plot.
+      const cx = Math.min(Math.max(xFrac * W, box.wM / 2), Math.max(box.wM / 2, W - box.wM / 2));
+      const cz = Math.min(Math.max(yFrac * D, box.dM / 2), Math.max(box.dM / 2, D - box.dM / 2));
+      const isHero = zone.isHero;
+      addBox(isHero ? heroMat : zoneMat, isHero ? 0x334155 : 0x556677, cx, box.hM / 2, cz, box.wM, box.hM, box.dM);
+    });
+
+    const RW = 1024, RH = 768;
+    const canvas = document.createElement('canvas');
+    canvas.width = RW; canvas.height = RH;
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(RW, RH, false);
+    renderer.setClearColor(0xf4f4f2, 1);
+
+    const FOV = 42;
+    const maxSpan = Math.max(W, D, H) || 1;
+    // Far enough back that the whole booth sits comfortably in frame at this field of view,
+    // with headroom, and identical for every camera — a constant distance is what makes the set
+    // read as one orbit rather than a series of unrelated shots.
+    const radius = ((maxSpan * 0.5) / Math.tan((FOV * Math.PI / 180) / 2)) * 1.45;
+    const heroAbs = typeof model.heroAbsoluteAzimuth === 'number' ? model.heroAbsoluteAzimuth : 45;
+    const targetY = H * 0.35;
+
+    specs.forEach(spec => {
+      const camera = new THREE.PerspectiveCamera(FOV, RW / RH, 0.1, 1000);
+      if(spec.type === 'top-down'){
+        camera.position.set(W / 2, radius * 1.15, D / 2);
+        // Front toward the top of the frame, matching the plan orientation this app already
+        // uses everywhere else (Front=top, Rear=bottom).
+        camera.up.set(0, 0, -1);
+        camera.lookAt(W / 2, 0, D / 2);
+      }else{
+        const absAz = (((heroAbs + (spec.azimuth || 0)) % 360) + 360) % 360;
+        const elevDeg = typeof spec.elevation === 'number' ? spec.elevation : 15;
+        const azRad = absAz * Math.PI / 180;
+        const elevRad = elevDeg * Math.PI / 180;
+        const horizontal = radius * Math.cos(elevRad);
+        camera.position.set(
+          W / 2 + horizontal * Math.sin(azRad),
+          targetY + radius * Math.sin(elevRad),
+          D / 2 - horizontal * Math.cos(azRad)
+        );
+        camera.up.set(0, 1, 0);
+        camera.lookAt(W / 2, targetY, D / 2);
+      }
+      renderer.render(scene, camera);
+      // Deliberately unlabelled. A caption burned into the control image is text the paint step
+      // can copy straight into the finished render, which would be worse than no label at all.
+      const parts = dataUrlParts(canvas.toDataURL('image/jpeg', 0.9));
+      views.set(spec.camId, { data: parts.base64, mimeType: parts.mime });
+    });
+  }catch(err){
+    console.warn('Could not build the massing control views — camera views will render without one:', err);
+  }finally{
+    // WebGL contexts are a limited browser resource; a run that built one per approve without
+    // releasing it would eventually start failing to create any at all.
+    try{ if(renderer) renderer.dispose(); }catch(disposeErr){ /* nothing to do */ }
+  }
+  return views;
+}
+
 // How many camera views render at the same time. Views used to render strictly one after
 // another, which is most of why a full set took so long — each one is a slow image call, and
 // they have no dependency on each other whatsoever. Three at a time is deliberately modest:
@@ -21776,6 +21955,24 @@ const CAMERA_VIEW_CONCURRENCY = 3;
 // back to a plain hero edit, which would quietly reintroduce the look-alike problem one card at
 // a time. Rebuilt on every run; empty whenever no orbit was available.
 let cameraViewsOrbitFrames = new Map();
+
+// MCC-001's control images for this run, keyed by camId — same module-scope reasoning as the
+// orbit frames above, so a later single-view Retry re-uses the identical camera control rather
+// than falling back to a plain hero edit.
+let cameraViewsMassingViews = new Map();
+
+// The control image for one camera: the locally-rendered massing view when there is one (exact
+// camera geometry, always available for a booth), otherwise the orbit frame (approximate), and
+// a plain hero edit when there is neither. Returns the kind alongside the image, because the
+// prompt has to describe honestly what the model is actually looking at — a precise geometry
+// render and a soft video still are not the same thing and must not be introduced the same way.
+function cameraControlReferenceFor(camId){
+  const massing = cameraViewsMassingViews.get(camId);
+  if(massing) return { image: massing, kind: 'massing' };
+  const orbit = cameraViewsOrbitFrames.get(camId);
+  if(orbit) return { image: orbit, kind: 'orbit' };
+  return { image: null, kind: null };
+}
 
 let __projectSaveTimer = null;
 function scheduleProjectSave(delayMs){
@@ -21802,7 +21999,13 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   document.getElementById('goodLuckMessage').style.display = 'none';
   document.getElementById('techBoardActions').style.display = 'none';
   document.getElementById('rateUsBar').style.display = 'none';
-  const isViewWanted = spec => spec.isHeroImage || !approveSelectedCamIds || approveSelectedCamIds.has(spec.camId);
+  // What actually renders: the client's own explicit selection when there is one, otherwise this
+  // booth size's default set (owner's view-count table). Falling back to the defaults rather than
+  // "everything in the catalogue" is what keeps a small booth at 4 views on the admin path too,
+  // where no picker selection is ever made.
+  const isViewWanted = spec => spec.isHeroImage
+    || (approveSelectedCamIds ? approveSelectedCamIds.has(spec.camId)
+      : (cameraViewsDefaultCamIds ? cameraViewsDefaultCamIds.has(spec.camId) : true));
   CAMERA_SPECS.filter(isViewWanted).forEach(spec => renderGeneratedViewCard(spec.camId, 'pending', null));
   const plannedViewCount = CAMERA_SPECS.filter(isViewWanted).length;
   let viewsDoneCount = 1; // the hero counts as done immediately
@@ -21857,6 +22060,12 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   // Every frame this run needs is extracted in ONE pass over ONE decoded video (see
   // extractOrbitFramesForSpecs). The old code built a fresh <video> element per view and
   // re-downloaded and re-decoded the entire clip each time — eight full loads of the same file.
+  // MCC-001 — the camera control images. Built locally and synchronously from this booth's own
+  // geometry (see buildMassingViewsForSpecs), so unlike the orbit there is nothing to wait for,
+  // nothing to pay for, and nothing that can come back at the wrong angle. Every view that has
+  // one uses it; the orbit frame stays as the fallback for anything that doesn't.
+  cameraViewsMassingViews = buildMassingViewsForSpecs(specsToRender);
+
   cameraViewsOrbitFrames = new Map();
   const framesReady = orbitPromise
     .then(async (orbit) => {
@@ -21888,13 +22097,17 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
       // authority for the design itself and for render quality (see buildCameraViewPrompt's
       // own note). Only exterior views wait on the orbit; top-down and interior views have no
       // equivalent frame anywhere in an exterior walk-around and start immediately.
-      let lumaReferenceFrame = null;
-      if(spec.type === 'exterior'){
+      // A massing control is already in hand for every view that has one, so only a view that
+      // has to fall back to the orbit waits for the video at all.
+      let control = cameraControlReferenceFor(spec.camId);
+      if(!control.image && spec.type === 'exterior'){
         await framesReady;
-        lumaReferenceFrame = cameraViewsOrbitFrames.get(spec.camId) || null;
+        control = cameraControlReferenceFor(spec.camId);
       }
+      const controlImage = control.image;
+      const controlKind = control.kind;
 
-      let resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, undefined, lumaReferenceFrame);
+      let resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, undefined, controlImage, controlKind);
 
       // Compared against the HERO, not the previously finished view: with views now rendering
       // concurrently there is no meaningful "previous" one, and the hero is the comparison that
@@ -21902,7 +22115,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
       // the owner reported ("the pictures similar").
       const similarity = await computeImageSimilarity(compressedFront, resultDataUrl);
       if(similarity > SIMILARITY_THRESHOLD){
-        const retryDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, true, undefined, lumaReferenceFrame);
+        const retryDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, true, undefined, controlImage, controlKind);
         const retrySimilarity = await computeImageSimilarity(compressedFront, retryDataUrl);
         if(retrySimilarity < similarity) resultDataUrl = retryDataUrl;
       }
@@ -21916,7 +22129,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
       const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec);
       if(geometryCheck.result === 'MISMATCH'){
         console.warn('Camera view', spec.camId, 'failed Orientation Lock check, retrying once:', geometryCheck.reason);
-        resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, geometryCheck.reason, lumaReferenceFrame);
+        resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, geometryCheck.reason, controlImage, controlKind);
       }
 
       // Owner report (Sep 2026): 300KB was visibly too aggressive a compression budget for a
@@ -22001,15 +22214,24 @@ async function retryGeneratedView(camId){
     // (see cameraViewsOrbitFrames) — without it a retried view would silently fall back to a
     // plain hero edit and drift back toward looking like the hero, reintroducing the very
     // problem the orbit reference exists to solve, one card at a time.
-    const retryOrbitFrame = cameraViewsOrbitFrames.get(camId) || null;
-    let resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false, undefined, retryOrbitFrame);
+    // Same control image this camera position used in the batch run — the massing render when
+    // there is one, the orbit frame otherwise. Without it a retried view would fall back to a
+    // plain hero edit and drift straight back toward looking like the hero, reintroducing the
+    // exact problem the control exists to solve, one card at a time. A massing view is rebuilt
+    // on demand when the map is empty (a reopened project, say), since it costs nothing.
+    let retryControl = cameraControlReferenceFor(camId);
+    if(!retryControl.image && cameraViewsMassingModel){
+      cameraViewsMassingViews = buildMassingViewsForSpecs([spec]);
+      retryControl = cameraControlReferenceFor(camId);
+    }
+    let resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false, undefined, retryControl.image, retryControl.kind);
     // Same OLE-001 automatic geometry check as the main generation loop (see
     // verifyCameraViewGeometry) — a manual Retry deserves the same protection against inventing
     // a wall or shifting the hero structure's shape, not just the original batch run.
     const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec);
     if(geometryCheck.result === 'MISMATCH'){
       console.warn('Retry for', camId, 'failed Orientation Lock check, correcting once:', geometryCheck.reason);
-      resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false, geometryCheck.reason, retryOrbitFrame);
+      resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false, geometryCheck.reason, retryControl.image, retryControl.kind);
     }
     const compressedResult = await compressDataUrlToTarget(resultDataUrl, 750 * 1024);
     pushCardHistory(camId, compressedResult, 'Retry');
@@ -22041,6 +22263,11 @@ async function retryGeneratedView(camId){
    clicked, rather than being fixed at page load. */
 let VIEWER_CAMERA_LABELS = {};
 let CAMERA_SPECS = [];
+// The subset of CAMERA_SPECS this booth's size includes by default (see islandClockHoursForArea).
+// CAMERA_SPECS stays the full catalogue of positions that exist; this is what starts selected in
+// the approve picker and what a run generates when nothing was explicitly chosen. Everything
+// outside it is still offered — at approve time, and afterwards through More Views.
+let cameraViewsDefaultCamIds = null;
 
 // The four cardinal compass directions this app's own orientation model already uses
 // (matches ALL_BOOTH_SIDES / getBoothOpenSidesSet / buildBoothOrientationModel), mapped to
@@ -22100,6 +22327,7 @@ const ISLAND_CAMERA_RING = [
     name: `${hour} O'Clock View`,
     azimuth: hour * 30,
     type: 'exterior',
+    clockHour: hour,
     promptHint: `An exterior view of the booth from the ${hour} o'clock position on a clock face drawn around it — the camera stands exactly ${hour * 30} degrees clockwise from the hero view's own 12 o'clock position, at the same eye-level height and the same distance from the booth.`
   })),
   { name: 'Top View', azimuth: 0, elevation: 90, type: 'top-down', promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' }
@@ -22144,6 +22372,28 @@ const DOUBLE_DECK_CAMERA_RING = [
   { name: 'Staircase View', type: 'interior', focusZone: 'staircase', floor: 'connection', promptHint: 'A dedicated interior view focused on the staircase connecting the ground floor and the second floor, clearly showing its structural supports and confirming it is a real, functional, fully integrated staircase — never floating, never merely implied, never omitted.' },
   { name: 'Top View', azimuth: 0, elevation: 90, type: 'top-down', floor: 'both', requiresUpperFloorVisible: true, promptHint: 'A true bird\'s-eye view from directly above, showing the ground floor layout, the upper floor\'s footprint and guard rails, the staircase location, furniture layout, and circulation for both levels in one frame — wherever the upper deck does not extend to the full footprint, the ground floor beneath is visible around it in the same shot.' }
 ];
+
+/* The owner's own view-count table (Sep 2026): small booth 4 views, medium 6, big 8, double deck
+   12. Those totals are CARDS IN THE GRID — the hero plus the clock cameras plus the Top View —
+   not clock cameras alone, which is why "big = 8" lands exactly on the full six odd hours plus
+   hero plus top. The Technical Board sits outside this count; it is a board, not a camera, and
+   it is free.
+
+     small  (under 36 sqm)  ->  hero + 2 clock + top  =  4 views, 3 charged
+     medium (36 to 72 sqm)  ->  hero + 4 clock + top  =  6 views, 5 charged
+     big    (72 sqm and up) ->  hero + 6 clock + top  =  8 views, 7 charged
+     double deck            ->  its own 12-camera ring (see DOUBLE_DECK_CAMERA_RING), 11 charged
+
+   The size boundaries are the same floor-area thresholds getBoothSizeClass already uses, so this
+   and the written brief can never disagree about what counts as a small booth. Each subset keeps
+   the hours spread around the clock rather than bunched on one side: two sit opposite each other,
+   four sit symmetrically about the hero so the set covers front and rear evenly. */
+function islandClockHoursForArea(totalAreaSqm){
+  if(!(totalAreaSqm > 0)) return ISLAND_CLOCK_HOURS;
+  if(totalAreaSqm < 36) return [3, 9];           // small — two opposite positions
+  if(totalAreaSqm < 72) return [1, 5, 7, 11];    // medium — four, symmetric about the hero
+  return ISLAND_CLOCK_HOURS;                      // big — the full six
+}
 
 // Builds the actual ordered camera list for this exact booth. zonePlan is
 // computeSpatialPlan(...)'s own zonePlan array — the same Kept/Merged/Removed decisions
@@ -22248,10 +22498,24 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
   // fan-plus-top-view recipe. Azimuths are already fixed, absolute-relative-to-hero degrees
   // (0/45/90/.../315), so no per-booth compass-side computation is needed here at all.
   if(openCount === 4){
-    return {
-      plan: ISLAND_CAMERA_RING.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, type: 'exterior', elevation: 15, radius: 8, target: 'booth_center', lens: 35, ...c })),
-      openSides, closedSides, heroApproach, targetCount: ISLAND_CAMERA_RING.length
-    };
+    // Owner rule (Sep 2026): a small booth does not need — and shouldn't be charged for — the
+    // same number of camera positions as a pavilion. There is simply less to see: on a 9 sqm
+    // stand, six positions 60 degrees apart largely repeat each other, and each one is another
+    // charged view for the client. The ring is therefore trimmed by floor area, always keeping
+    // the hours spread as evenly as the count allows so the coverage stays balanced rather than
+    // bunched on one side. The hero (12 o'clock) and the Top View are never trimmed — the hero
+    // is free and reused, and the top view is the one shot that shows the whole layout at once.
+    // The full ring is always the CATALOGUE of positions that exist for this booth; the size rule
+    // decides which of them are included BY DEFAULT. The rest stay listed and available, so a
+    // client who wants more angles can add them — at approve time, or later through More Views —
+    // rather than finding they simply don't exist for their booth. Small booths therefore start
+    // lean and cheap without ever being capped.
+    const hoursForArea = islandClockHoursForArea(totalAreaSqm);
+    const plan = ISLAND_CAMERA_RING.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, type: 'exterior', elevation: 15, radius: 8, target: 'booth_center', lens: 35, ...c }));
+    const defaultCamIds = plan
+      .filter(c => !c.clockHour || hoursForArea.includes(c.clockHour))
+      .map(c => c.camId);
+    return { plan, defaultCamIds, openSides, closedSides, heroApproach, targetCount: defaultCamIds.length };
   }
 
   // Owner rule (replaces the earlier thematic shot list — Entrance View, Brand Wall,
@@ -22331,6 +22595,23 @@ function recomputeCameraViewPlan(){
       upperDeckPrivacy: document.getElementById('f_upperDeckPrivacy').value
     } : null;
     cameraViewsOrientationLock = buildOrientationLock(structuralShell, spatialPlan, doubleDeckFacts);
+    // MCC-001 — the same geometry, kept in the shape the massing renderer needs (see
+    // buildMassingViewsForSpecs). Captured HERE, from the very numbers the written brief and the
+    // Orientation Lock are built from, so the control image the camera sees and the facts the
+    // prompt states can never describe two different booths. zonePlan carries each zone's own
+    // dims and its assigned position on the layout grid; heroAbsoluteAzimuth is what turns each
+    // camera's hero-relative clock angle into a real direction in the model.
+    cameraViewsMassingModel = {
+      widthM,
+      depthM,
+      heightM: boothHeightM,
+      wallThicknessMm: structuralShell.wallThicknessMm,
+      sides: structuralShell.sides,
+      heroAbsoluteAzimuth: CORNER_TO_ABSOLUTE_AZIMUTH[result.heroApproach && result.heroApproach.corner] ?? 45,
+      zones: (spatialPlan.zonePlan || [])
+        .filter(z => z.status !== 'Removed')
+        .map(z => ({ name: z.name, dims: z.dims, position: z.position, isHero: z.name === 'Hero Structure' }))
+    };
   }else{
     // No booth-orientation form data applies to this mode — every direction is treated as
     // open, same as an island booth, so the exterior side-perspective loop simply includes
@@ -22339,9 +22620,19 @@ function recomputeCameraViewPlan(){
     // fields happen to be holding while a non-booth tab is active.
     result = computeCameraViewPlan(0, [], new Set(ALL_BOOTH_SIDES), false);
     // Non-booth modes (event/display stand) have no structural-shell/spatial-plan model to
-    // build a lock from — camera-view prompts simply fall back to no Orientation Lock block.
+    // build a lock from — camera-view prompts simply fall back to no Orientation Lock block,
+    // and to no massing control image either (MCC-001 fails soft by design).
     cameraViewsOrientationLock = null;
+    cameraViewsMassingModel = null;
   }
+
+  // Which cameras this booth gets by default (owner's size table — see islandClockHoursForArea).
+  // Every camera in the plan remains available to add; this is only what starts selected. A plan
+  // that doesn't specify its own defaults (corner/inline recipes, double deck) keeps its whole
+  // set as the default, exactly as before.
+  cameraViewsDefaultCamIds = (result.defaultCamIds && result.defaultCamIds.length)
+    ? new Set(result.defaultCamIds)
+    : new Set(result.plan.map(spec => spec.camId));
 
   // Preserve any non-CAM keys already set elsewhere (EDITDESIGN_*, TECHBOARD) — only the
   // base CAM01..CAMxx labels are ever replaced here.
@@ -22532,7 +22823,8 @@ async function generateTechnicalBoard(isAutomaticAfterCameraViews){
    reference image, through the same edit pipeline already proven reliable elsewhere in
    this app (Edit, Modify Design), guarantees every view is actually a photo of the correct,
    approved design — never a drifted reinterpretation of it. */
-function buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason, hasLumaReference){
+function buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason, referenceKind){
+  const hasLumaReference = !!referenceKind;
   // Rewritten (Sep 2026) to name the actual failure rather than ask for a wider shot. The old
   // wording ("pull the camera back and widen the field of view") treated look-alike views as a
   // framing problem, so a retry produced the same wrong viewpoint slightly wider — which is why
@@ -22684,9 +22976,17 @@ The booth's architecture, materials, branding, and furniture are completely unch
   // image (the actual approved design) and the written facts below always win a disagreement,
   // so a mistimed Luma frame can nudge consistency without being allowed to introduce the
   // wrong angle or drifted geometry into the final render.
-  const lumaReferenceNote = hasLumaReference
-    ? ` A SECOND reference image is also attached: a still frame captured from a real 360-degree orbit filmed around THIS SAME approved booth, at THIS EXACT camera position (${spec.name}, ${spec.azimuth} degrees). Split the two references by role, and do not mix the roles up. THE SECOND IMAGE IS THE AUTHORITY FOR THE CAMERA: your render must be taken from that same viewpoint, with the same faces of the booth turned toward the camera, the same sides in view, the same left-to-right arrangement of the booth's elements, and the same sense of depth and distance. Do not re-render the first image's viewpoint — the camera has physically walked around the booth to where the second image was taken. THE FIRST IMAGE IS THE AUTHORITY FOR THE DESIGN AND THE QUALITY: every material, color, finish, branding element, structural detail and piece of furniture must match the first image and the locked facts below, rendered at the same crisp, photorealistic, full-resolution quality as the first image. The second frame comes from video and will look softer and lower-resolution than the first — take its VIEWPOINT only, never its image quality, and never its fine detail. If the second frame appears to contradict the locked geometry facts below (an extra wall, a missing element, a distorted shape), follow the locked facts and the first image for that detail while still keeping the second image's camera position.`
-    : '';
+  // The second attached image is described by what it ACTUALLY is, because the two kinds are not
+  // interchangeable and must not be introduced as if they were. A massing render is exact
+  // geometry from an exactly-known camera, so it is stated as the camera's ground truth; an orbit
+  // frame is a soft video still from an approximately-known camera, so it is stated as a guide.
+  // Overselling the orbit frame would invite the model to copy video artefacts; underselling the
+  // massing render would waste the one thing that genuinely fixes the look-alike problem.
+  const lumaReferenceNote = referenceKind === 'massing'
+    ? ` A SECOND image is attached: a plain white 3D MASSING MODEL of THIS EXACT booth — its real footprint, its real walls, and the real position and size of every element — photographed from THIS EXACT camera position (${spec.name}, ${spec.azimuth} degrees around the booth). It is a geometry guide, not a design. Use the two images by role, and do not mix the roles up. THE SECOND IMAGE IS THE GROUND TRUTH FOR THE CAMERA AND THE LAYOUT: your render must be taken from precisely that viewpoint, showing the same faces of the booth toward the camera, the same silhouette, the same elements in the same places, the same left-to-right arrangement, and the same perspective and eye height. Where its blank white blocks are is where things are; where it shows open space, the space is open; where it shows no wall, there is no wall. THE FIRST IMAGE IS THE AUTHORITY FOR EVERYTHING THE BOOTH LOOKS LIKE: every material, colour, finish, light, branding element, graphic, logo and piece of furniture comes from the first image and the locked facts below. So: take the shape, the layout and the camera from the second image, and paint them in the exact design language of the first, at full photorealistic quality. Never render the white blocks as actual white boxes, never reproduce its grey background or its plain untextured look, and never copy the first image's camera position instead of the second's.`
+    : (referenceKind === 'orbit'
+      ? ` A SECOND reference image is also attached: a still frame from a 360-degree orbit filmed around this same approved booth, taken from roughly this camera direction. Use it as the guide for where the camera stands and which faces of the booth are toward it — your render should be taken from that viewpoint, not the first image's. The FIRST image remains the authority for the design itself: every material, colour, finish, branding element and piece of furniture must match it and the locked facts below, at full photorealistic quality. The frame comes from video and is soft and lower-resolution — take its viewpoint only, never its image quality or its fine detail, and wherever it disagrees with the locked facts below, follow the locked facts.`
+      : '');
   return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific EXTERIOR camera position.
 
 Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). ${openSideClaimSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.${lumaReferenceNote}
@@ -22911,14 +23211,18 @@ function approveDesign(){
     moreViewsPickerMode = false; // this open is the APPROVE flow — restore its own texts
     document.getElementById('viewPickerEyebrow').textContent = 'Approve Design';
     document.getElementById('viewPickerTitle').textContent = 'Choose your camera views';
-    document.getElementById('viewPickerDesc').textContent = 'Once approved, no further changes can be made to the concept itself. Your approved hero view is included free — pick which additional camera views to render. Each view uses 1 image edit.';
+    document.getElementById('viewPickerDesc').textContent = 'Once approved, no further changes can be made to the concept itself. Your approved hero view is included free. The views recommended for your booth size are already ticked — add more angles here if you want them, or later from More Views. Each view uses 1 image edit.';
     document.getElementById('viewPickerConfirmBtn').textContent = 'Approve & Generate';
     const list = document.getElementById('viewPickerList');
+    // Owner rule: the set recommended for this booth's size starts ticked, and every other camera
+    // position this booth has stays listed and unticked underneath it. A small booth therefore
+    // opens on its lean 4-view set, while nothing is hidden from a client who wants more angles.
     list.innerHTML = CAMERA_SPECS.filter(spec => !spec.isHeroImage).map(spec => {
       const label = (VIEWER_CAMERA_LABELS[spec.camId] || spec.name || spec.camId);
+      const isDefault = !cameraViewsDefaultCamIds || cameraViewsDefaultCamIds.has(spec.camId);
       return `<label style="display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;cursor:pointer;">` +
-        `<input type="checkbox" class="view-picker-check" value="${spec.camId}" onchange="updateViewPickerCount()">` +
-        `<span>${label}</span></label>`;
+        `<input type="checkbox" class="view-picker-check" value="${spec.camId}"${isDefault ? ' checked' : ''} onchange="updateViewPickerCount()">` +
+        `<span>${label}${isDefault ? '' : ' <span style="color:var(--muted);">— optional extra</span>'}</span></label>`;
     }).join('') +
       // The Technical Board is part of the standard deliverable set for an approved design
       // (owner's own list, Sep 2026), so it's stated here as included rather than offered as a
