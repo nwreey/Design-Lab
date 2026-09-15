@@ -31,6 +31,13 @@ const PUBLIC_PATHS = [
   '/recaptcha-config.js',
   // SEO: crawlers must reach these without auth (Google Search Console setup).
   '/robots.txt', '/sitemap.xml',
+  // Domain ownership verification for the Saudi Competitiveness & Business Center (Tayseer)
+  // e-commerce authentication request, "Root File" method. Their checker fetches this file
+  // anonymously, so it MUST be listed here — this middleware matches '/:path*' and redirects
+  // anything not on this list to the login page, which would hand their crawler a login page
+  // instead of the token and fail the verification with no obvious cause. The file itself
+  // lives at the repo root and contains only the token.
+  '/18113a8f176cd43022458d4626d47ace58b8f083945bba68a6ae6c71bc5efbf1.txt',
   '/logo-white.png', '/logo-black-transparent.png',
   '/favicon.ico', '/favicon-16.png', '/favicon-32.png', '/favicon-48.png', '/favicon-192.png',
   '/favicon-512.png', '/apple-touch-icon.png',
