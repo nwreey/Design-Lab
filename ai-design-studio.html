@@ -21757,7 +21757,25 @@ function stopCameraViewsGeneration(){
 let approveSelectedCamIds = null;
 // Owner request: the Technical Board only renders when the user ticked it in the approve
 // view picker — never automatically. One-shot, reset alongside approveSelectedCamIds.
+// SUPERSEDED (Sep 2026) for the booth approve flow only: the owner's final deliverable list
+// per design is hero + the six clock views + Top View + the Technical Board, so the board is
+// now always part of that set (see generateCameraViewsFromHero's own note). It costs the client
+// nothing either way — the board has never carried a per-view charge. This flag still governs
+// the separate post-approval "More Views" run, where it remains the user's own choice.
 let approveIncludeTechBoard = false;
+
+// How many camera views render at the same time. Views used to render strictly one after
+// another, which is most of why a full set took so long — each one is a slow image call, and
+// they have no dependency on each other whatsoever. Three at a time is deliberately modest:
+// enough to cut the wall-clock time to roughly a third, while staying far away from the image
+// provider's per-minute request limits (which would turn into failed views, not faster ones).
+const CAMERA_VIEW_CONCURRENCY = 3;
+
+// The orbit frames extracted for THIS run, keyed by camId — kept at module scope so a later
+// single-view Retry can reuse the exact same frame for that camera position instead of falling
+// back to a plain hero edit, which would quietly reintroduce the look-alike problem one card at
+// a time. Rebuilt on every run; empty whenever no orbit was available.
+let cameraViewsOrbitFrames = new Map();
 
 let __projectSaveTimer = null;
 function scheduleProjectSave(delayMs){
@@ -21790,14 +21808,22 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   let viewsDoneCount = 1; // the hero counts as done immediately
   document.getElementById('viewer3dGeneratedCard').scrollIntoView({behavior:'smooth', block:'start'});
 
-  const SIMILARITY_THRESHOLD = 0.8;
+  // Recalibrated (Sep 2026) after the owner reported both slowness and look-alike views.
+  // computeImageSimilarity is a 24x24 grayscale mean-difference score, and two GENUINELY
+  // different angles of the same booth — same palette, same hall, same carpet, same lighting —
+  // routinely land around 0.85-0.93 on it. At the old 0.8 threshold the "too similar" branch
+  // therefore fired on nearly every single view, spending a second full image generation per view
+  // (roughly doubling the whole run) on a retry that only asked for a WIDER shot and so could
+  // never fix an angle problem anyway. 0.96 is the level where only a genuine near-duplicate of
+  // the hero trips it — which now means something specific and worth one retry: the model ignored
+  // the orbit frame and re-rendered the hero's own viewpoint.
+  const SIMILARITY_THRESHOLD = 0.96;
   const compressedFront = await compressDataUrlToTarget(compressedHero, 300 * 1024);
   // CAMERA_SPECS[0] is always the Hero View by construction (see computeCameraViewPlan) —
   // the approved hero image itself, reused unmodified, never a separate request.
   const heroCamId = CAMERA_SPECS[0] ? CAMERA_SPECS[0].camId : 'CAM01';
   initCardHistory(heroCamId, compressedFront);
   renderGeneratedViewCard(heroCamId, 'done', compressedFront);
-  let previousViewDataUrl = compressedFront;
   updateApproveProgress(10, `Creating Your Views — 1 of ${plannedViewCount}...`);
   // Real reported problem: only ever saving once, at the very end of this whole loop, meant
   // a page refresh (or a lost connection, or just closing the tab) partway through a
@@ -21813,74 +21839,84 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   // comment for the full reasoning and the drift/consistency tradeoff this is making. Only
   // attempted when there's actually at least one wanted exterior (non-hero) view to use it
   // for; skipped entirely for a run that's only regenerating a Top/Interior view, say.
-  const hasWantedExteriorView = CAMERA_SPECS.slice(1).some(s => isViewWanted(s) && s.type === 'exterior');
-  let lumaOrbit = null;
-  if(hasWantedExteriorView){
-    updateApproveProgress(8, 'Rendering one consistent 360° pass of your booth...');
-    lumaOrbit = await requestCameraViewsFromLumaOrbit(heroImage, designTitle);
-  }
+  const specsToRender = CAMERA_SPECS.slice(1).filter(isViewWanted);
+  const hasWantedExteriorView = specsToRender.some(s => s.type === 'exterior');
+
+  // Owner report (Sep 2026): the whole run used to stop dead here, waiting out a full video
+  // render (up to the poller's ~3 minute budget) before generating a single view. The orbit is
+  // now kicked off WITHOUT being awaited: interior and top-down views — which never use an orbit
+  // frame — start rendering immediately, and only the exterior views wait on it, at the moment
+  // they actually need their frame. The same single video also feeds the admin comparison card
+  // (see showAdminLumaVideoFromOrbit); previously an admin approve rendered TWO separate videos
+  // of the same booth from the same hero image, paying for both.
+  const orbitPromise = hasWantedExteriorView
+    ? requestCameraViewsFromLumaOrbit(heroImage, designTitle)
+    : Promise.resolve(null);
+  if(isAdminUser) showAdminLumaVideoFromOrbit(orbitPromise);
+
+  // Every frame this run needs is extracted in ONE pass over ONE decoded video (see
+  // extractOrbitFramesForSpecs). The old code built a fresh <video> element per view and
+  // re-downloaded and re-decoded the entire clip each time — eight full loads of the same file.
+  cameraViewsOrbitFrames = new Map();
+  const framesReady = orbitPromise
+    .then(async (orbit) => {
+      if(!orbit) return;
+      cameraViewsOrbitFrames = await extractOrbitFramesForSpecs(orbit.videoUrl, specsToRender.filter(s => s.type === 'exterior'));
+    })
+    .catch((err) => {
+      // Fails open, exactly as before: a missing orbit just means every view renders from the
+      // hero reference alone, never a blocked or failed view over a nice-to-have.
+      console.warn('The 360 orbit was not usable for this run — rendering every view independently:', err);
+    });
 
   let stoppedEarly = false;
-  for(let i = 1; i < CAMERA_SPECS.length; i++){
-    const spec = CAMERA_SPECS[i];
 
-    // Owner redesign: only the views the user selected (and paid for) are generated —
-    // unselected views get no card, no request, and no charge.
-    if(!isViewWanted(spec)) continue;
-
-    // Checked BEFORE starting the next view (not just relying on the in-flight request's own
-    // abort) so a Stop click that lands between views doesn't fire one more request first —
-    // and every still-pending card gets an explicit, retryable "stopped" state instead of
-    // staying frozen on "Building this view..." forever.
-    if(cameraViewsAbortController.signal.aborted){
+  const renderOneView = async (spec) => {
+    // Checked BEFORE starting each view (not just relying on the in-flight request's own
+    // abort) so a Stop click doesn't fire one more request first — and every still-pending
+    // card gets an explicit, retryable "stopped" state instead of staying frozen on
+    // "Building this view..." forever.
+    if(cameraViewsAbortController && cameraViewsAbortController.signal.aborted){
       stoppedEarly = true;
       renderGeneratedViewCard(spec.camId, 'failed', 'Stopped by admin before this view was generated — click Retry to generate it later.');
-      continue;
+      return;
     }
-
-    viewsDoneCount++;
-    updateApproveProgress(10 + (viewsDoneCount / Math.max(1, plannedViewCount)) * 85, `Creating Your Views — ${viewsDoneCount} of ${plannedViewCount}...`);
     try{
-      // Owner request (Sep 2026): when a Luma orbit is available and this is an exterior view,
-      // pull the roughly-corresponding frame from it and hand it to OpenAI/Gemini as a SECOND
-      // reference image (not as the delivered result — see requestCameraViewFromOpenAI's own
-      // comment for why: Luma has no precise camera-path control, so a raw extracted frame
-      // could easily be the wrong angle). Every exterior view still gets a real, full-
-      // resolution, geometry-checked OpenAI/Gemini render; Luma only ever nudges consistency.
-      // Extraction is best-effort — any failure (bad seek, decode error, whatever) just means
-      // this one view falls back to the plain single-reference prompt, exactly like before
-      // this feature existed, never a blocked or failed view over a missing nice-to-have.
+      // Owner decision (Sep 2026): for an exterior view the orbit frame is the CAMERA — it is
+      // a real image of this same booth from this exact clock position, which is something no
+      // amount of prose about azimuths ever reliably produced. The hero image remains the
+      // authority for the design itself and for render quality (see buildCameraViewPrompt's
+      // own note). Only exterior views wait on the orbit; top-down and interior views have no
+      // equivalent frame anywhere in an exterior walk-around and start immediately.
       let lumaReferenceFrame = null;
-      if(lumaOrbit && spec.type === 'exterior'){
-        try{
-          const frameDataUrl = await requestCameraViewFromLumaFrame(spec, lumaOrbit.videoUrl, lumaOrbit.durationSeconds);
-          const parts = dataUrlParts(frameDataUrl);
-          lumaReferenceFrame = { data: parts.base64, mimeType: parts.mime };
-        }catch(frameErr){
-          console.warn('Could not extract a Luma reference frame for', spec.camId, '— continuing without one:', frameErr);
-        }
+      if(spec.type === 'exterior'){
+        await framesReady;
+        lumaReferenceFrame = cameraViewsOrbitFrames.get(spec.camId) || null;
       }
 
       let resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, undefined, lumaReferenceFrame);
 
-      const similarity = await computeImageSimilarity(previousViewDataUrl, resultDataUrl);
+      // Compared against the HERO, not the previously finished view: with views now rendering
+      // concurrently there is no meaningful "previous" one, and the hero is the comparison that
+      // actually matters — a view that comes back looking like the hero is the exact failure
+      // the owner reported ("the pictures similar").
+      const similarity = await computeImageSimilarity(compressedFront, resultDataUrl);
       if(similarity > SIMILARITY_THRESHOLD){
         const retryDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, true, undefined, lumaReferenceFrame);
-        const retrySimilarity = await computeImageSimilarity(previousViewDataUrl, retryDataUrl);
+        const retrySimilarity = await computeImageSimilarity(compressedFront, retryDataUrl);
         if(retrySimilarity < similarity) resultDataUrl = retryDataUrl;
       }
 
       // OLE-001 automatic rejection: an independent vision-based QA check of the finished
       // render against this booth's locked Orientation Lock (see verifyCameraViewGeometry) —
-      // catches the exact class of bug reported in production (a new wall invented on
-      // "Perspective Rear Left View") that prose-only anchoring alone didn't reliably stop.
-      // One automatic correction attempt, citing the specific violation the check found —
-      // same one-retry budget as the similarity check just above, not an unbounded loop.
+      // catches the exact class of bug reported in production (a new wall invented on a rear
+      // view) that prose-only anchoring alone didn't reliably stop. One automatic correction
+      // attempt, citing the specific violation the check found — same one-retry budget as the
+      // similarity check just above, not an unbounded loop.
       const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec);
       if(geometryCheck.result === 'MISMATCH'){
         console.warn('Camera view', spec.camId, 'failed Orientation Lock check, retrying once:', geometryCheck.reason);
-        const correctedDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, geometryCheck.reason, lumaReferenceFrame);
-        resultDataUrl = correctedDataUrl;
+        resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, geometryCheck.reason, lumaReferenceFrame);
       }
 
       // Owner report (Sep 2026): 300KB was visibly too aggressive a compression budget for a
@@ -21889,20 +21925,26 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
       const compressedResult = await compressDataUrlToTarget(resultDataUrl, 750 * 1024);
       initCardHistory(spec.camId, compressedResult);
       renderGeneratedViewCard(spec.camId, 'done', compressedResult);
-      previousViewDataUrl = compressedResult;
     }catch(err){
-      if(cameraViewsAbortController.signal.aborted){
+      if(cameraViewsAbortController && cameraViewsAbortController.signal.aborted){
         stoppedEarly = true;
         renderGeneratedViewCard(spec.camId, 'failed', 'Stopped by admin — click Retry to generate it later.');
-        continue;
+        return;
       }
       console.error('Could not generate view for', spec.camId, err);
       renderGeneratedViewCard(spec.camId, 'failed', err.message || 'Could not generate that view.');
+    }finally{
+      // Progress is counted as each view FINISHES rather than as it starts, since several are
+      // now in flight at once and "3 of 9" has to mean three actually finished.
+      viewsDoneCount++;
+      updateApproveProgress(10 + (viewsDoneCount / Math.max(1, plannedViewCount)) * 85, `Creating Your Views — ${viewsDoneCount} of ${plannedViewCount}...`);
+      // Saved after every view, success or failure — see the comment above the first save
+      // call for why this can't just wait until the whole batch finishes.
+      scheduleProjectSave(4000);
     }
-    // Saved after every view, success or failure — see the comment above the first save
-    // call for why this can't just wait until the whole batch finishes.
-    scheduleProjectSave(4000);
-  }
+  };
+
+  await runWithConcurrencyLimit(specsToRender, CAMERA_VIEW_CONCURRENCY, renderOneView);
 
   if(stopBtn) stopBtn.style.display = 'none';
   // Reset for next time — an individual Retry later (via retryGeneratedView) must never
@@ -21910,11 +21952,12 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   // instantly without ever reaching the network.
   cameraViewsAbortController = null;
 
-  // Owner rule (changed from the earlier always-automatic behavior): the Technical Board
-  // renders ONLY when the user actively ticked it in the approve view picker — it is one
-  // of the listed choices there, not an automatic final step. Admins use the manual
-  // "Generate Technical Board" button instead.
-  if(!stoppedEarly && approveIncludeTechBoard){
+  // Owner's final deliverable list (Sep 2026): every approved booth design ships as hero +
+  // the six clock views + Top View + the Technical Board, so the board is part of the standard
+  // set rather than an opt-in extra. It carries no per-view charge and never has, so this adds
+  // nothing to what the client pays. (The separate post-approval "More Views" run still treats
+  // it as the user's own choice — see confirmApproveViewSelection.)
+  if(!stoppedEarly){
     updateApproveProgress(97, 'Generating the Technical Board...');
     await generateTechnicalBoard(true);
   }
@@ -21954,14 +21997,19 @@ async function retryGeneratedView(camId){
   renderGeneratedViewCard(camId, 'pending', null);
   projectSwitchLocked = true;
   try{
-    let resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false);
+    // Reuses this run's own orbit frame for this exact camera position when one was extracted
+    // (see cameraViewsOrbitFrames) — without it a retried view would silently fall back to a
+    // plain hero edit and drift back toward looking like the hero, reintroducing the very
+    // problem the orbit reference exists to solve, one card at a time.
+    const retryOrbitFrame = cameraViewsOrbitFrames.get(camId) || null;
+    let resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false, undefined, retryOrbitFrame);
     // Same OLE-001 automatic geometry check as the main generation loop (see
     // verifyCameraViewGeometry) — a manual Retry deserves the same protection against inventing
     // a wall or shifting the hero structure's shape, not just the original batch run.
     const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec);
     if(geometryCheck.result === 'MISMATCH'){
       console.warn('Retry for', camId, 'failed Orientation Lock check, correcting once:', geometryCheck.reason);
-      resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false, geometryCheck.reason);
+      resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false, geometryCheck.reason, retryOrbitFrame);
     }
     const compressedResult = await compressDataUrlToTarget(resultDataUrl, 750 * 1024);
     pushCardHistory(camId, compressedResult, 'Retry');
@@ -22026,15 +22074,34 @@ function getCameraCountForBooth(openCount, totalAreaSqm){
 // comparison video's own descriptive prompt (startAdminLumaVideoComparison) stay in exact
 // sync with this same named order and degree spacing — never two separately-maintained
 // versions of "the same" orbit.
+// Owner request (Sep 2026), replacing the earlier 8-position / 45-degree version: a full CLOCK
+// FACE of camera positions — imagine a clock painted on the exhibition floor around the booth,
+// with the approved hero shot standing at 12 o'clock. Every hour mark is its own camera, exactly
+// 30 degrees apart, so the ring completes a real 360-degree walk-around in twelve evenly spaced
+// steps instead of eight. Naming each view by its clock hour (rather than "Perspective Rear Left"
+// and friends) is deliberate and fixes a specific complaint: a clock hour states exactly where the
+// camera is standing, so a view can no longer be "not like how we named it" — 4 O'Clock View is,
+// by definition, the camera at 120 degrees.
+//
+// The `type: 'exterior'` on every ring entry matters far more than it looks. It was genuinely
+// MISSING from this ring before (only the top-down entry carried a type at all), and two separate
+// pieces of the pipeline gate on exactly that value: generateCameraViewsFromHero only requests a
+// Luma orbit when some wanted view has type 'exterior', and only attaches an orbit frame to a view
+// with that same type. So on an island booth — the one shape where a 360 orbit makes the most
+// sense — the entire orbit-reference feature silently did nothing at all, and every view was just
+// another edit of the hero image. That is the root cause of views coming back looking alike.
+// Owner's own final list (Sep 2026): the odd hours only — 1, 3, 5, 7, 9 and 11 o'clock. Six
+// exterior cameras evenly spaced 60 degrees apart around the clock, which together with the hero
+// at 12 o'clock and the Top View makes the set of views the client actually wants per design.
+const ISLAND_CLOCK_HOURS = [1, 3, 5, 7, 9, 11];
 const ISLAND_CAMERA_RING = [
-  { name: 'Hero View', azimuth: 0, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' },
-  { name: 'Right View', azimuth: 45, promptHint: 'A straight-on exterior view of the booth, 45 degrees clockwise from the hero view.' },
-  { name: 'Perspective Rear Right View', azimuth: 90, promptHint: 'A three-quarter perspective exterior view of the booth, 90 degrees clockwise from the hero view.' },
-  { name: 'Rear View', azimuth: 135, promptHint: 'A straight-on exterior view of the booth, 135 degrees clockwise from the hero view.' },
-  { name: 'Perspective Rear Left View', azimuth: 180, promptHint: 'A three-quarter perspective exterior view of the booth, directly opposite the hero view (180 degrees around).' },
-  { name: 'Left View', azimuth: 225, promptHint: 'A straight-on exterior view of the booth, 225 degrees clockwise from the hero view (135 degrees counter-clockwise).' },
-  { name: 'Perspective Left View', azimuth: 270, promptHint: 'A three-quarter perspective exterior view of the booth, 270 degrees clockwise from the hero view (90 degrees counter-clockwise).' },
-  { name: 'Front View', azimuth: 315, promptHint: 'A straight-on exterior view of the booth, 315 degrees clockwise from the hero view (45 degrees counter-clockwise), completing the orbit back toward the hero view.' },
+  { name: 'Hero View (12 O\'Clock)', azimuth: 0, type: 'exterior', isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself, standing at the 12 o\'clock position of the camera clock.' },
+  ...ISLAND_CLOCK_HOURS.map(hour => ({
+    name: `${hour} O'Clock View`,
+    azimuth: hour * 30,
+    type: 'exterior',
+    promptHint: `An exterior view of the booth from the ${hour} o'clock position on a clock face drawn around it — the camera stands exactly ${hour * 30} degrees clockwise from the hero view's own 12 o'clock position, at the same eye-level height and the same distance from the booth.`
+  })),
   { name: 'Top View', azimuth: 0, elevation: 90, type: 'top-down', promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' }
 ];
 
@@ -22466,7 +22533,16 @@ async function generateTechnicalBoard(isAutomaticAfterCameraViews){
    this app (Edit, Modify Design), guarantees every view is actually a photo of the correct,
    approved design — never a drifted reinterpretation of it. */
 function buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason, hasLumaReference){
-  const widerNote = isWiderRetry ? ' The previous attempt at this angle came out too similar to the neighboring view — for this attempt, pull the camera back further than usual and widen the field of view noticeably, so this position reveals a clearly distinct amount of new surface and depth.' : '';
+  // Rewritten (Sep 2026) to name the actual failure rather than ask for a wider shot. The old
+  // wording ("pull the camera back and widen the field of view") treated look-alike views as a
+  // framing problem, so a retry produced the same wrong viewpoint slightly wider — which is why
+  // the retry budget was being spent without ever fixing the owner's "the pictures similar"
+  // complaint. The real failure is that the camera never moved, so that is what this says.
+  const widerNote = isWiderRetry
+    ? (hasLumaReference
+      ? ' IMPORTANT — the previous attempt at this position failed: it came back showing the booth from the FIRST reference image\'s viewpoint instead of moving to the camera position shown in the SECOND reference image. The camera has physically walked around the booth to a different place. For this attempt, match the SECOND reference image\'s viewpoint exactly — the same faces of the booth toward the camera, the same elements on the left and on the right — so this render is unmistakably a different position around the booth, not the first image again.'
+      : ' IMPORTANT — the previous attempt at this position came back nearly identical to the approved reference image, as if the camera had never moved. The camera has physically relocated to a different point around the booth. For this attempt, commit fully to that new position: different faces of the booth toward the camera, a visibly different arrangement of its elements left to right, and genuinely new surfaces and depth that the reference image does not show.')
+    : '';
 
   // OLE-001 automatic rejection (see verifyCameraViewGeometry): the previous attempt at this
   // exact camera position was checked against the Orientation Lock below and failed — this
@@ -22609,7 +22685,7 @@ The booth's architecture, materials, branding, and furniture are completely unch
   // so a mistimed Luma frame can nudge consistency without being allowed to introduce the
   // wrong angle or drifted geometry into the final render.
   const lumaReferenceNote = hasLumaReference
-    ? ` A SECOND reference image is also attached — an approximate continuity frame pulled from a rough, separate 3D orbit pass around this same approved booth, taken from roughly this same camera direction. Use it only as a loose positional/continuity guide for where the camera sits and how the booth reads from this general direction — it is NOT the authoritative source, may be soft, imprecise, or not exactly at ${spec.azimuth} degrees, and must NEVER override the FIRST reference image or the exact camera position, materials, and geometry specified in this brief. If the two references ever disagree on any specific detail, always follow the first reference image and the written facts here.`
+    ? ` A SECOND reference image is also attached: a still frame captured from a real 360-degree orbit filmed around THIS SAME approved booth, at THIS EXACT camera position (${spec.name}, ${spec.azimuth} degrees). Split the two references by role, and do not mix the roles up. THE SECOND IMAGE IS THE AUTHORITY FOR THE CAMERA: your render must be taken from that same viewpoint, with the same faces of the booth turned toward the camera, the same sides in view, the same left-to-right arrangement of the booth's elements, and the same sense of depth and distance. Do not re-render the first image's viewpoint — the camera has physically walked around the booth to where the second image was taken. THE FIRST IMAGE IS THE AUTHORITY FOR THE DESIGN AND THE QUALITY: every material, color, finish, branding element, structural detail and piece of furniture must match the first image and the locked facts below, rendered at the same crisp, photorealistic, full-resolution quality as the first image. The second frame comes from video and will look softer and lower-resolution than the first — take its VIEWPOINT only, never its image quality, and never its fine detail. If the second frame appears to contradict the locked geometry facts below (an extra wall, a missing element, a distorted shape), follow the locked facts and the first image for that detail while still keeping the second image's camera position.`
     : '';
   return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific EXTERIOR camera position.
 
@@ -22844,12 +22920,13 @@ function approveDesign(){
         `<input type="checkbox" class="view-picker-check" value="${spec.camId}" onchange="updateViewPickerCount()">` +
         `<span>${label}</span></label>`;
     }).join('') +
-      // Owner request: the Technical Board is no longer generated automatically after the
-      // camera views — it's one more item the user actively selects here. Free (it doesn't
-      // count toward the edits total), its own class so the edit-count logic never sees it.
-      `<label style="display:flex;align-items:center;gap:9px;padding:8px 0 5px;font-size:13px;cursor:pointer;border-top:1px dashed var(--line);margin-top:6px;">` +
-      `<input type="checkbox" class="view-picker-tech" value="__techboard">` +
-      `<span>Technical Board — free (technical presentation sheet of your approved design)</span></label>`;
+      // The Technical Board is part of the standard deliverable set for an approved design
+      // (owner's own list, Sep 2026), so it's stated here as included rather than offered as a
+      // choice. It has never counted toward the edits total and still doesn't — nothing about
+      // what the client pays changes. The post-approval "More Views" picker keeps it as a real
+      // opt-in checkbox, since that run is entirely the user's own selection.
+      `<div style="display:flex;align-items:center;gap:9px;padding:8px 0 5px;font-size:13px;border-top:1px dashed var(--line);margin-top:6px;color:var(--muted);">` +
+      `<span>✓ Technical Board — included free (technical presentation sheet of your approved design)</span></div>`;
     updateViewPickerCount();
     document.getElementById('approveViewPickerOverlay').style.display = 'flex';
   }
@@ -23166,9 +23243,8 @@ function buildLumaOrbitPrompt(designTitle){
   // the same waypoints in the same order or timing assumptions the frame-extraction math
   // below relies on, rather than a generic unscripted orbit.
   const islandOrbitEntries = ISLAND_CAMERA_RING.filter(c => c.type !== 'top-down');
-  const islandTopEntry = ISLAND_CAMERA_RING.find(c => c.type === 'top-down');
   const islandOrderNote = isIslandBooth
-    ? ` Follow this exact camera order: first, one continuous clockwise rotation at that same fixed eye-level height, each step exactly 45 degrees further clockwise than the last, pausing briefly to hold each named position before continuing to the next: ${islandOrbitEntries.map((c, i) => `(${i + 1}) ${c.name} at ${c.azimuth} degrees`).join(', ')}. Never skip a position, never reorder them, and never rotate counter-clockwise at any point.${islandTopEntry ? ` Only after that full orbit is complete does the camera rise to one final true top-down aerial shot directly overhead (${islandTopEntry.name}), showing 100% of the booth's footprint and layout in a single frame — that vertical rise happens once, at the very end, never partway through the orbit.` : ''}`
+    ? ` Think of a clock face painted on the floor around the booth, with the reference image's own viewpoint at 12 o'clock. The camera walks that clock face once, all the way round, in order, holding each hour briefly before moving on: ${islandOrbitEntries.map(c => `${c.name.replace(' View', '').replace(' (12 O\'Clock)', '')} at ${c.azimuth} degrees`).join(', ')}, and finally back to 12 o'clock where it started. Never skip an hour, never reorder them, and never rotate counter-clockwise at any point.`
     : '';
   // Explicit about camera HEIGHT and STARTING POSITION — a real production test showed the
   // previous, vaguer "constant height and distance" phrasing let Luma default to an aerial,
@@ -23180,7 +23256,16 @@ function buildLumaOrbitPrompt(designTitle){
   // the right (clockwise) from there. The "start = azimuth 0, constant clockwise rate" shape
   // of this prompt is exactly what requestCameraViewsFromLumaOrbit's time-from-azimuth math
   // below assumes when picking which frame of the finished video corresponds to each camera.
-  return `A smooth, continuous 360-degree orbit around this exact exhibition booth${designTitle ? ' ("' + designTitle + '")' : ''} — the booth itself stays completely static and unchanged throughout; only the camera moves. During the orbit the camera stays at one fixed height, level with the middle of the booth's own walls — a genuine eye-level walk-around view, never an aerial, overhead, or drone-like angle looking down into the booth — and a constant distance from the booth. Start the orbit at exactly the same camera position and angle already shown in the reference image, then rotate smoothly and continuously to the right (clockwise) through a full 360 degrees back to that same starting position, never reversing direction and never changing height until the orbit itself is complete. Never introduce any floating object, camera rig, drone, person, or artifact anywhere in the frame — the only thing in frame is the booth itself.${orientationNote}${islandOrderNote}`;
+  // Owner requirement (Sep 2026), stated as a must: the camera has to genuinely travel all the
+  // way AROUND THE OUTSIDE of the booth — a real full circle, not a slow drift near the starting
+  // angle. A production test of the previous wording showed the clip often barely left its start
+  // position, which is exactly why frames grabbed for two different camera positions came back
+  // nearly identical. This version is blunt about the three things that actually go wrong: it must
+  // be a complete revolution (every side of the booth faces the camera at some point), the camera
+  // must stay OUTSIDE the booth walking around it (never push through it or hover over it), and
+  // the motion must be steady and continuous (an even rate is what makes a frame's timestamp
+  // correspond to a known angle — see extractOrbitFramesForSpecs' own comment).
+  return `A smooth, continuous, COMPLETE 360-degree orbit all the way around the OUTSIDE of this exact exhibition booth${designTitle ? ' ("' + designTitle + '")' : ''} — the booth itself stays completely static and unchanged throughout; only the camera moves. This must be a FULL revolution, not a partial one: by the end of the clip the camera has travelled the entire way around the booth and every side of it — front, right, rear and left — has faced the camera directly at some point during the clip, and the camera has returned to where it began. Never linger, hover, or drift near the starting angle; the camera is always moving steadily around the booth at an even, constant rate, covering the same number of degrees every second, so that the first half of the clip shows the booth's first half-turn and the second half of the clip shows the rest. The camera stays OUTSIDE the booth for the entire orbit, walking around its perimeter at one fixed height level with the middle of the booth's own walls — a genuine eye-level walk-around, never an aerial, overhead, or drone-like angle looking down into the booth, and never passing through or over the booth itself — at a constant distance. Start at exactly the same camera position and angle already shown in the reference image, then move smoothly to the right (clockwise) through the full 360 degrees back to that same starting position, never reversing direction and never changing height. Never introduce any floating object, camera rig, drone, person, or artifact anywhere in the frame — the only thing in frame is the booth itself.${orientationNote}${islandOrderNote}`;
 }
 
 // Kicks off one Luma 360 orbit video from the given hero image and waits for it to finish,
@@ -23213,12 +23298,12 @@ async function generateLumaOrbitVideoUrl(heroImage, designTitle){
   return `/api/luma-video-proxy?url=${encodeURIComponent(videoUrl)}`;
 }
 
-// Admin-only debug/comparison aid: generates a Luma 360 orbit video from the exact same
-// approved hero image the camera views are about to be built from, purely so an admin can
-// visually compare it against the finished picture views. This is deliberately fire-and-
-// forget from confirmApproveDesign — it must never block, slow down, or be able to fail the
-// real generation flow; any error here only ever shows up inside this admin-only card, never
-// as a generation error for the actual approve step.
+// NOTE: currently unused — superseded (Sep 2026) by showAdminLumaVideoFromOrbit, which feeds the
+// same admin card from the ONE orbit the camera views are actually built from. This version
+// rendered a second, independent video of the same booth from the same hero image every time an
+// admin approved a design, which was pure duplicated cost and render time, and it showed footage
+// that had nothing to do with the views it sat above. Left in place rather than deleted, per this
+// file's own non-destructive convention, in case a standalone comparison render is wanted again.
 async function startAdminLumaVideoComparison(heroImage, designTitle){
   if(!isAdminUser) return;
   const card = document.getElementById('adminLumaVideoCard');
@@ -23274,6 +23359,134 @@ function azimuthToOrbitTimeSeconds(azimuthDegrees, durationSeconds){
   return (normalized / 360) * durationSeconds;
 }
 
+/* Runs an async worker over a list with a fixed number of jobs in flight at once. Deliberately
+   tiny and dependency-free: a shared queue plus N workers pulling from it, so a slow item never
+   holds up the others and the concurrency ceiling is exact. Errors are the worker's own business
+   — renderOneView catches its own, so one failed view can never abort the rest of the batch. */
+async function runWithConcurrencyLimit(items, limit, worker){
+  const queue = items.slice();
+  const workerCount = Math.max(1, Math.min(limit || 1, queue.length));
+  const runners = [];
+  for(let i = 0; i < workerCount; i++){
+    runners.push((async () => {
+      while(queue.length){
+        const item = queue.shift();
+        await worker(item);
+      }
+    })());
+  }
+  await Promise.all(runners);
+}
+
+/* Seeks an already-loaded video element to one timestamp, resolving true once the frame is
+   actually decoded and ready to draw (or false if the seek errors or hangs). Split out so the
+   extractor below can seek the SAME element repeatedly instead of constructing a new one. */
+function seekVideoTo(video, timeSeconds){
+  return new Promise((resolve) => {
+    let done = false;
+    const cleanup = () => {
+      clearTimeout(timer);
+      video.removeEventListener('seeked', onSeeked);
+      video.removeEventListener('error', onError);
+    };
+    const onSeeked = () => { if(!done){ done = true; cleanup(); resolve(true); } };
+    const onError = () => { if(!done){ done = true; cleanup(); resolve(false); } };
+    const timer = setTimeout(onError, 8000);
+    video.addEventListener('seeked', onSeeked);
+    video.addEventListener('error', onError);
+    try{ video.currentTime = timeSeconds; }catch(err){ onError(); }
+  });
+}
+
+/* Extracts every camera position's orbit frame in ONE pass over ONE decoded video, returning a
+   Map of camId -> { data, mimeType } ready to attach as a reference image.
+
+   This replaces a per-view helper that built a brand new <video> element for each camera and so
+   re-downloaded and re-decoded the whole clip every time — eight full loads of the same file for
+   a normal run, which was a real part of why the owner saw views taking "so much time."
+
+   The timestamp for each camera comes from its azimuth against the video's OWN measured duration
+   (never a hardcoded guess), on the assumption the orbit travels at a constant rate — which is
+   exactly what buildLumaOrbitPrompt now insists on in the strongest terms it can. A frame that
+   can't be read for any reason is simply left out of the map: that view then renders from the
+   hero reference alone, the same as before this feature existed. */
+function extractOrbitFramesForSpecs(videoUrl, specs){
+  return new Promise((resolve) => {
+    const frames = new Map();
+    if(!specs || specs.length === 0){ resolve(frames); return; }
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    let settled = false;
+    const finish = () => { if(!settled){ settled = true; clearTimeout(overallTimeout); resolve(frames); } };
+    // A whole-pass ceiling on top of seekVideoTo's own per-seek timeout: a pathological video
+    // must never leave the exterior views waiting forever on framesReady.
+    const overallTimeout = setTimeout(finish, 60000);
+    video.addEventListener('error', finish);
+    video.addEventListener('loadedmetadata', async () => {
+      try{
+        const duration = (isFinite(video.duration) && video.duration > 0) ? video.duration : 9;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        const ctx = canvas.getContext('2d');
+        for(const spec of specs){
+          if(settled) break;
+          // Luma's clip loops, so the very last instant is visually identical to time 0 — pull
+          // back slightly from the true end so we never land on a half-decoded final frame.
+          const target = Math.min(azimuthToOrbitTimeSeconds(spec.azimuth || 0, duration), Math.max(0, duration - 0.08));
+          const seeked = await seekVideoTo(video, target);
+          if(!seeked) continue;
+          try{
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const parts = dataUrlParts(canvas.toDataURL('image/jpeg', 0.92));
+            frames.set(spec.camId, { data: parts.base64, mimeType: parts.mime });
+          }catch(drawErr){
+            console.warn('Could not read the orbit frame for', spec.camId, '— that view will render from the hero reference alone:', drawErr);
+          }
+        }
+      }catch(err){
+        console.warn('Could not read frames from the orbit video:', err);
+      }
+      finish();
+    });
+    video.src = videoUrl;
+    video.load();
+  });
+}
+
+/* Shows the admin comparison card using the SAME orbit video the views themselves were built
+   from. Previously an admin approve kicked off startAdminLumaVideoComparison AND the pipeline's
+   own orbit — two separate video renders of the identical booth from the identical hero image,
+   both paid for, neither aware of the other. The card is also more useful this way: it now shows
+   the exact footage the views were derived from, which is the whole point of comparing them. */
+async function showAdminLumaVideoFromOrbit(orbitPromise){
+  if(!isAdminUser) return;
+  const card = document.getElementById('adminLumaVideoCard');
+  const statusEl = document.getElementById('adminLumaVideoStatus');
+  const videoEl = document.getElementById('adminLumaVideoEl');
+  if(!card || !statusEl || !videoEl) return;
+
+  card.style.display = 'block';
+  videoEl.style.display = 'none';
+  videoEl.removeAttribute('src');
+  statusEl.textContent = 'Rendering the 360° orbit these views are built from... this can take a minute or two.';
+  try{
+    const orbit = await orbitPromise;
+    if(!orbit){
+      statusEl.textContent = 'No 360° orbit was available for this run — every view was rendered independently from the approved image instead.';
+      return;
+    }
+    videoEl.src = orbit.videoUrl;
+    videoEl.style.display = 'block';
+    statusEl.textContent = 'The 360° orbit these views were built from — each view below was rendered from this clip\'s frame at its own clock position.';
+  }catch(err){
+    console.error('Admin orbit comparison card failed:', err);
+    statusEl.textContent = 'Could not render the 360° orbit: ' + (err.message || 'unknown error');
+  }
+}
+
 // Grabs one still frame from a (same-origin, already-proxied) video URL at the given
 // timestamp and returns it as a data URL. Pure browser APIs — no ffmpeg/backend step needed;
 // the video element decodes the frame, the canvas reads it back out as a JPEG.
@@ -23312,11 +23525,11 @@ function extractVideoFrameDataUrl(videoUrl, timeSeconds){
   });
 }
 
-// Returns one still frame (as a data URL) from the shared orbit video at the estimated
-// timestamp for this spec's azimuth — used as a REFERENCE image alongside the hero image, not
-// as the delivered view (see the "REVISED" comment above for why that changed). The estimate
-// can be off since Luma has no real camera-path control; that's fine here because
-// buildCameraViewPrompt tells the model this second reference is approximate and secondary.
+// NOTE: currently unused — superseded (Sep 2026) by extractOrbitFramesForSpecs, which pulls every
+// camera position's frame in one pass over one decoded video. This per-view version built a fresh
+// <video> element per call and so re-downloaded and re-decoded the entire clip for every single
+// view, a real contributor to how long a full set took. Left in place, not deleted, per this
+// file's own non-destructive convention.
 function requestCameraViewFromLumaFrame(spec, orbitVideoUrl, orbitDurationSeconds){
   const t = azimuthToOrbitTimeSeconds(spec.azimuth || 0, orbitDurationSeconds);
   return extractVideoFrameDataUrl(orbitVideoUrl, t);
@@ -23351,7 +23564,10 @@ async function chargeCameraViewCredit(){
 async function requestCameraViewsFromLumaOrbit(heroImage, designTitle){
   try{
     const videoUrl = await generateLumaOrbitVideoUrl(heroImage, designTitle);
-    return { videoUrl, durationSeconds: 5 }; // api/luma-generate.js always requests duration: '5s'
+    // No duration is asserted here any more. extractOrbitFramesForSpecs reads the real duration
+    // off the decoded video element itself, which is both accurate and immune to the requested
+    // clip length changing (it has already gone from 5s to 9s once).
+    return { videoUrl };
   }catch(err){
     console.error('Luma orbit generation unavailable, falling back to independent per-view generation for every exterior view:', err);
     return null;
@@ -23396,9 +23612,11 @@ async function confirmApproveDesign(){
   // before this was tracked.
   const heroImageEngine = approvedGalleryEntry.engine || 'gemini';
 
-  // Admin-only, fire-and-forget — runs alongside the real generation below, never awaited
-  // and never allowed to affect it. See startAdminLumaVideoComparison's own comment.
-  if(isAdminUser) startAdminLumaVideoComparison(heroImage, opt.title);
+  // The admin comparison video is no longer rendered separately here. It used to kick off its
+  // own Luma generation while generateCameraViewsFromHero independently rendered a second one
+  // from the identical hero image — two full video renders per admin approve, both paid for.
+  // The card is now fed the single orbit the views themselves are built from, from inside that
+  // function (see showAdminLumaVideoFromOrbit).
 
   statusEl.textContent = '';
   updateApproveProgress(2, 'Creating multiple views of your booth with DesignsLab... this can take a minute or two.');

@@ -95,7 +95,13 @@ module.exports = async (req, res) => {
         aspect_ratio: '4:3',
         video: {
           resolution: '720p',
-          duration: '5s',
+          // Owner request (Sep 2026): 5 seconds was not enough clip for a genuine full
+          // revolution around the booth — from a static start frame the camera tended to drift
+          // a few degrees rather than complete the circle, so frames pulled for two different
+          // clock positions came back nearly identical and every camera view ended up looking
+          // like the hero. A longer clip gives the orbit room to actually travel all the way
+          // round and leaves meaningfully distinct frames at each of the 12 clock stops.
+          duration: '9s',
           loop: true,
           start_frame: { data: imageBase64, media_type: mimeType || 'image/png' },
         },
