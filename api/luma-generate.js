@@ -95,23 +95,25 @@ module.exports = async (req, res) => {
         aspect_ratio: '4:3',
         video: {
           resolution: '720p',
-          // Owner request (Sep 2026): 5 seconds was not enough clip for a genuine full
-          // revolution around the booth — from a static start frame the camera tended to drift
-          // a few degrees rather than complete the circle, so frames pulled for two different
-          // clock positions came back nearly identical and every camera view ended up looking
-          // like the hero. A longer clip gives the orbit room to actually travel all the way
-          // round and leaves meaningfully distinct frames at each camera stop.
-          //
-          // THE VALUE HERE IS NOT FREE-FORM. This model (ray-3.2, set just above) accepts only
-          // '5s' or '10s' — a '9s' attempt was rejected outright by the provider, which failed
-          // the whole orbit, which silently dropped every view back to a plain re-edit of the
-          // approved image. If the model above ever changes, re-check its allowed durations
-          // before touching this. '10s' additionally cannot be combined with loop: true (the
-          // provider rejects that pair), and the loop was only ever a convenience for the admin
-          // preview card — nothing in the frame extraction needs it, since frames are seeked by
-          // timestamp against the clip's own measured duration.
-          duration: '10s',
-          loop: false,
+          /* DO NOT CHANGE THIS VALUE WITHOUT TESTING IT AGAINST THE LIVE API. Two failed
+             attempts in one day are recorded here so a third isn't needed:
+
+               '9s'  -> rejected: not an accepted duration for this model at all.
+               '10s' -> rejected: "duration '10s' is not supported with start_frame / end_frame".
+
+             This request ALWAYS sends a start_frame — the orbit has to begin from the client's
+             own approved design, otherwise it would be a video of some other booth — so the
+             10s option is permanently unavailable to us regardless of what the model supports
+             in the abstract. 5s is the only valid duration on this path, and it does support
+             loop: true, which makes the admin preview card play seamlessly.
+
+             Each rejection failed the whole orbit, and because the camera views used to depend
+             on it, every view silently fell back to re-editing the approved image and the whole
+             set came back looking alike. That dependency is gone: camera angles now come from
+             the locally-computed massing model (MCC-001 in ai-design-studio.html), so clip
+             length affects only the comparison video, not the accuracy of any delivered view. */
+          duration: '5s',
+          loop: true,
           start_frame: { data: imageBase64, media_type: mimeType || 'image/png' },
         },
       };

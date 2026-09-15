@@ -23730,7 +23730,10 @@ function extractOrbitFramesForSpecs(videoUrl, specs){
     video.addEventListener('error', finish);
     video.addEventListener('loadedmetadata', async () => {
       try{
-        const duration = (isFinite(video.duration) && video.duration > 0) ? video.duration : 9;
+        // The clip's own measured duration, always — the fallback only matters if the browser
+        // reports no duration at all, and it matches what api/luma-generate.js actually requests
+        // (5s; longer clips are rejected on the start_frame path — see its own note there).
+        const duration = (isFinite(video.duration) && video.duration > 0) ? video.duration : 5;
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth || 1280;
         canvas.height = video.videoHeight || 720;
