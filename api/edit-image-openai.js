@@ -87,7 +87,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, preferSpeed, size, isUserInitiatedEdit } = req.body || {};
+    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, preferSpeed, size, isUserInitiatedEdit, quality } = req.body || {};
     if (!prompt || !referenceImage) {
       res.status(400).json({ error: { message: 'Request body must include prompt and referenceImage.' } });
       return;
@@ -114,7 +114,14 @@ export default async function handler(req, res) {
     const form = new FormData();
     form.append('model', 'gpt-image-2');
     form.append('prompt', prompt);
-    form.append('quality', preferSpeed ? 'low' : 'medium');
+    // Quality is now a caller choice, validated against the provider's own three levels. The
+    // old rule (low when speed is preferred, otherwise medium) stays as the default so nothing
+    // that never asked for a quality changes behaviour. Camera views ask for 'high' explicitly
+    // (owner request, Sep 2026: the requested views are the client's deliverable and must be
+    // rendered at the highest resolution available, not the mid setting used for quick drafts).
+    const ALLOWED_QUALITY = ['low', 'medium', 'high'];
+    const finalQuality = ALLOWED_QUALITY.includes(quality) ? quality : (preferSpeed ? 'low' : 'medium');
+    form.append('quality', finalQuality);
     form.append('size', finalSize);
 
     const mainBuffer = Buffer.from(referenceImage, 'base64');
