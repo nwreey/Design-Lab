@@ -22066,9 +22066,16 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geo
   // hero second), an explicit 1K size so the comparison with the default engine is at a
   // comparable resolution (the admin half-size shortcut does not apply here), and the
   // standard/pro model choice.
+  // Owner request (Sep 2026): admin test runs build the views at MEDIUM quality and a smaller
+  // frame (1024x672, the smallest landscape size the edit model accepts), faster and cheaper
+  // while judging geometry and camera positions; clients keep the top quality tier at full
+  // size. On the other provider the admin half-size shortcut applies the same way (no explicit
+  // size is sent, so Standard renders at 512 and Pro at its smallest, 1K).
+  const viewQuality = isAdminUser ? 'medium' : 'high';
+  const viewSize = isAdminUser ? '1024x672' : '1536x1024';
   const body = useOpenAi
-    ? { prompt, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, size: '1536x1024', quality: 'high', isUserInitiatedEdit: chargeThisCall }
-    : { prompt, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, isUserInitiatedEdit: chargeThisCall, quotaKind: 'edit', aspectRatio: '3:2', imageSize: '1K', imageModel: viewsEngine === 'pro' ? 'pro' : 'standard' };
+    ? { prompt, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, size: viewSize, quality: viewQuality, isUserInitiatedEdit: chargeThisCall }
+    : { prompt, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, isUserInitiatedEdit: chargeThisCall, quotaKind: 'edit', aspectRatio: '3:2', imageModel: viewsEngine === 'pro' ? 'pro' : 'standard' };
   // Camera views default to OpenAI's edit endpoint (useOpenAi above) unless the hero itself
   // was rendered on Gemini — that endpoint is now allowed 180s server-side (see vercel.json),
   // but this call was still cutting off at the old 100s client timeout, which is exactly what

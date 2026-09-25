@@ -108,7 +108,10 @@ export default async function handler(req, res) {
       }
     }
 
-    const ALLOWED_SIZES = ['1024x1024', '1024x1536', '1536x1024', 'auto'];
+    // 1024x672 is the small landscape frame admin test runs ask for (owner request, Sep 2026:
+    // medium quality, no need for high resolution in admin). The model accepts any size with
+    // both dimensions divisible by 16 and at least 655,360 pixels; 1024x672 = 688,128 clears it.
+    const ALLOWED_SIZES = ['1024x1024', '1024x1536', '1536x1024', '1024x672', 'auto'];
     const finalSize = ALLOWED_SIZES.includes(size) ? size : 'auto';
 
     const form = new FormData();
