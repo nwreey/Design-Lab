@@ -22333,6 +22333,17 @@ function buildMassingViewsForSpecs(specsIn){
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(W / 2, 0, D / 2);
     scene.add(floor);
+    // Orientation marker: a darker strip along the FRONT (aisle) edge of the floor, the same in
+    // every view, so the paint step can always tell which way the booth faces even in a view
+    // where no wall gives it away (a straight Left Side, a Top View). The prompt names it and
+    // tells the model not to reproduce it.
+    const frontStrip = new THREE.Mesh(
+      new THREE.PlaneGeometry(W, Math.min(0.3, D * 0.06)),
+      new THREE.MeshBasicMaterial({ color: 0x9aa3ad, side: THREE.DoubleSide })
+    );
+    frontStrip.rotation.x = -Math.PI / 2;
+    frontStrip.position.set(W / 2, 0.005, D - Math.min(0.3, D * 0.06) / 2);
+    scene.add(frontStrip);
 
     // Perimeter walls — only where this booth genuinely has one. An OPEN side gets nothing at
     // all, which is precisely the fact the renders kept getting wrong on their own.
@@ -23014,6 +23025,17 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
     const isWidthFace = side === 'Front' || side === 'Back';
     const faceLabel = side === 'Back' ? 'Rear' : side;
     const lengthText = faceLengthM > 0 ? `${faceLengthM.toFixed(1)} m ` : '';
+    // What sits at the two edges of the picture for a camera standing square in front of this
+    // face (right-handed, as on the real stand): from the Front, the Left face is at the left
+    // edge and the Right face at the right edge; from the Right side, the Front is at the LEFT
+    // edge and the Rear at the right; from the Left side, the Rear is at the left edge and the
+    // Front at the right; from the Rear, the Right face is at the left edge and the Left face
+    // at the right. Stated in the prompt so the paint step cannot mirror the view.
+    const edgesFor = { Front: ['Left', 'Right'], Right: ['Front', 'Back'], Left: ['Back', 'Front'], Back: ['Right', 'Left'] }[side];
+    // Whether the hero (shot from heroApproach.corner) shows this face at all. A face the hero
+    // never shows has to be designed, not copied, and the prompt says so.
+    const heroFaces = heroApproach.corner.split('-');
+    const seenInHero = heroFaces.includes(side);
     return {
       name: label,
       type: 'exterior',
@@ -23021,6 +23043,10 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
       elevation: 8,
       straightOn: side,
       faceLengthM,
+      edgeLeft: edgesFor[0],
+      edgeRight: edgesFor[1],
+      seenInHero,
+      heroCorner: heroApproach.corner,
       promptHint: `A straight-on, centered exterior elevation of the booth's ${faceLabel} face, its ${lengthText}${isWidthFace ? 'W (width)' : 'D (depth)'} side. The camera stands outside the booth in the aisle, exactly opposite the centre of that face, aimed perpendicular to it, 100% square on: the ${faceLabel} face spans the frame from edge to edge and reads flat, and the two adjacent faces are not visible or appear only as the thinnest receding edges. Never diagonal, never a three-quarter view.`
     };
   };
@@ -23124,7 +23150,8 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
     const promptHint = sameCornerAsHero
       ? `A three-quarter exterior view from the booth's ${label.toLowerCase()}: the same corner the approved image was taken from, but at EYE LEVEL, the way a visitor standing at that corner sees the booth, not the approved image's elevated aerial angle. The ${fb === 'Back' ? 'rear' : fb.toLowerCase()} face and the ${lr.toLowerCase()} face meet at the near corner; facades, entrance and hero structure are read from the floor, taller and closer than in the approved image.`
       : `A three-quarter exterior view from the booth's ${label.toLowerCase()}, at eye level: the ${fb === 'Back' ? 'rear' : fb.toLowerCase()} face and the ${lr.toLowerCase()} face meet at the near corner, with the ${lr.toLowerCase()} face nearest the camera. A different corner from the one the approved image was taken from, never a repeat of it.`;
-    return { name: label, type: 'exterior', azimuth: relative, elevation: 15, corner, sameCornerAsHero, promptHint };
+    const heroFacesForCorner = heroApproach.corner.split('-');
+    return { name: label, type: 'exterior', azimuth: relative, elevation: 15, corner, sameCornerAsHero, heroCorner: heroApproach.corner, facesSeenInHero: [fb, lr].filter(f => heroFacesForCorner.includes(f)), facesUnseenInHero: [fb, lr].filter(f => !heroFacesForCorner.includes(f)), promptHint };
   };
   // The booth's frontage is the Front when it is open; a booth whose only open long side is the
   // Back (an inline stand facing the other way) is fronted by its Rear, so the Rear Side and the
@@ -23551,7 +23578,7 @@ The booth's architecture, materials, branding, and furniture are completely unch
     // bottom of the picture, Rear at the top, Left on the left, Right on the right.
     return `${geometryCorrectionSentence}${orientationFactsSentence}TWO IMAGES ARE ATTACHED, AND THEY HAVE DIFFERENT JOBS. THE FIRST IMAGE is a plain white 3D massing model of THIS EXACT booth seen from DIRECTLY ABOVE: its real footprint, its real walls (only where the booth has one), and the real position and size of every element, with the booth's FRONT edge at the bottom of the picture, its REAR at the top, its LEFT face on the left and its RIGHT face on the right. The first image is the GROUND TRUTH for the camera, the footprint, the orientation and the layout: keep its straight-down viewpoint, its framing, and the place and size of every block exactly as shown. THE SECOND IMAGE is the approved design of this same booth, photographed from its front corner: it is the AUTHORITY FOR EVERYTHING THE BOOTH LOOKS LIKE, every material, colour, finish, light, graphic, logo, branding element and piece of furniture.
 
-YOUR TASK: re-render the FIRST image as a real, photorealistic AERIAL PHOTOGRAPH captured from directly above, as if taken by a drone hovering over the booth, keeping its footprint, orientation and layout precisely, and dressing every surface, structure and object in the exact design language of the SECOND image at full quality. The white blocks are placeholders for the real elements in those exact positions and sizes: never leave any of them as a white box, never keep the plain grey background or the flat untextured look, and never rotate or mirror the plan. Where the first image shows open space, the space is open; where it shows no wall, there is no wall.
+YOUR TASK: re-render the FIRST image as a real, photorealistic AERIAL PHOTOGRAPH captured from directly above, as if taken by a drone hovering over the booth, keeping its footprint, orientation and layout precisely, and dressing every surface, structure and object in the exact design language of the SECOND image at full quality. The white blocks are placeholders for the real elements in those exact positions and sizes: never leave any of them as a white box, never keep the plain grey background or the flat untextured look, and never rotate or mirror the plan. Where the first image shows open space, the space is open; where it shows no wall, there is no wall. The darker strip along the bottom edge of the floor in the first image marks the booth's FRONT (aisle) edge; do not reproduce the strip itself.
 
 View: ${spec.name}: ${spec.promptHint}${upperFloorVisibilityNote} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
 
@@ -23601,7 +23628,7 @@ The booth's architecture, materials, branding, and furniture are completely unch
   const cornerSentence = spec.corner
     ? (spec.sameCornerAsHero
       ? ` EYE-LEVEL CORNER VIEW FROM THE APPROVED IMAGE'S OWN CORNER: the camera stands outside the booth at its ${spec.name.toLowerCase()}, the same corner the approved image was taken from, but it has come DOWN from the approved image's elevated aerial angle to eye level (${spec.elevation} degrees). The two faces meeting at that corner are seen from the floor, taller and closer, with the entrance, the facades and the hero structure read the way a visitor standing there sees them. Nothing else changes: same corner, same booth, lower camera.`
-      : ` EYE-LEVEL CORNER VIEW: the camera stands outside the booth at its ${spec.name.toLowerCase()}, at eye level (${spec.elevation} degrees), seeing the two faces that meet at that corner together, with the corner nearest the camera. A different corner from the one the approved image was taken from.`)
+      : ` EYE-LEVEL CORNER VIEW: the camera stands outside the booth at its ${spec.name.toLowerCase()}, at eye level (${spec.elevation} degrees), seeing the two faces that meet at that corner together, with the corner nearest the camera. A different corner from the one the approved image was taken from.${(spec.facesUnseenInHero && spec.facesUnseenInHero.length) ? ` The ${spec.facesUnseenInHero.map(f => f === 'Back' ? 'Rear' : f).join(' and ')} face${spec.facesUnseenInHero.length > 1 ? 's are' : ' is'} NOT visible in the approved image; do not repeat the approved image's visible faces there, design ${spec.facesUnseenInHero.length > 1 ? 'them' : 'it'} in the same materials and brand language with the elements this booth actually has along that side, following the white model's shapes.` : ''}`)
     : '';
   const relocationSentence = spec.sameCornerAsHero
     ? ` The camera has not moved around the booth; it has come down from the reference image's elevated aerial angle to eye level at the same corner, so this render must read as a standing visitor's photograph of that corner: a lower horizon, the facades rising above the camera, the floor mostly hidden behind the nearest elements, never the reference image's view from above.`
@@ -23611,7 +23638,18 @@ The booth's architecture, materials, branding, and furniture are completely unch
         const faceLabel = spec.straightOn === 'Back' ? 'Rear' : spec.straightOn;
         const isWidthFace = spec.straightOn === 'Front' || spec.straightOn === 'Back';
         const lengthText = spec.faceLengthM > 0 ? `${Number(spec.faceLengthM).toFixed(1)} m ` : '';
-        return ` STRAIGHT-ON ELEVATION, 100% SQUARE: the camera stands OUTSIDE the booth in the aisle, exactly opposite the centre of the booth's ${faceLabel.toUpperCase()} face (its ${lengthText}${isWidthFace ? 'W / width' : 'D / depth'} side), aimed perpendicular to that face. The ${faceLabel} face spans the frame from edge to edge and reads flat and symmetrical, exactly as a person standing directly in front of it would see it; the two adjacent faces are not visible, or appear only as the thinnest receding edges. Not a diagonal, not a three-quarter view, and not the approved image's own corner angle.`;
+        const lbl = (f) => f === 'Back' ? 'Rear' : f;
+        const edgeNote = (spec.edgeLeft && spec.edgeRight)
+          ? ` ORIENTATION OF THIS PICTURE: the booth's ${lbl(spec.edgeLeft).toUpperCase()} end of this face is at the LEFT edge of the frame and its ${lbl(spec.edgeRight).toUpperCase()} end is at the RIGHT edge; whatever the first image shows at its left and right edges stays there. Never mirror this view.`
+          : '';
+        const heroCornerLabel = spec.heroCorner ? spec.heroCorner.replace('Back', 'Rear') : '';
+        const heroFacesText = spec.heroCorner ? spec.heroCorner.split('-').map(lbl).join(' and ') : '';
+        const seenNote = spec.seenInHero === false
+          ? ` THIS FACE IS NOT VISIBLE IN THE APPROVED IMAGE: the approved image was taken from the ${heroCornerLabel} corner and shows the ${heroFacesText} faces, not this one. Do NOT repeat the approved image's ${heroFacesText} face here as if it were the ${faceLabel} face: the reception, the logo wall and the elements that face the aisle in the approved image belong to those faces and stay there. Design the ${faceLabel} face as the same designer would have built it, in the same materials, colours and brand language, with the elements that this booth actually has along this side, and keep the white model's shapes as the guide to what stands here.`
+          : (spec.seenInHero === true
+            ? ` This face is visible in the approved image (taken from the ${heroCornerLabel} corner): keep every element on it exactly as approved, seen square-on instead of at an angle.`
+            : '');
+        return ` STRAIGHT-ON ELEVATION, 100% SQUARE: the camera stands OUTSIDE the booth in the aisle, exactly opposite the centre of the booth's ${faceLabel.toUpperCase()} face (its ${lengthText}${isWidthFace ? 'W / width' : 'D / depth'} side), aimed perpendicular to that face. The ${faceLabel} face spans the frame from edge to edge and reads flat and symmetrical, exactly as a person standing directly in front of it would see it; the two adjacent faces are not visible, or appear only as the thinnest receding edges. Not a diagonal, not a three-quarter view, and not the approved image's own corner angle.${edgeNote}${seenNote}`;
       })()
     : '';
   // Owner request (Sep 2026): a SECOND reference image — one frame pulled from a real Luma
@@ -23641,7 +23679,7 @@ The booth's architecture, materials, branding, and furniture are completely unch
   if(referenceKind === 'massing'){
     return `${geometryCorrectionSentence}${orientationFactsSentence}TWO IMAGES ARE ATTACHED, AND THEY HAVE DIFFERENT JOBS. THE FIRST IMAGE is a plain white 3D massing model of THIS EXACT booth — its real footprint, its real walls, and the real position and size of every element — photographed from THIS EXACT camera position: ${spec.name}, ${spec.azimuth} degrees around the booth from the approved image's own viewpoint. The first image is the GROUND TRUTH for the camera, the layout and the silhouette: keep its viewpoint, its perspective, its eye height, the faces of the booth that are toward the camera, the left-to-right order of everything, and the place where every block stands, exactly as shown. THE SECOND IMAGE is the approved design of this same booth, photographed from a different angle: it is the AUTHORITY FOR EVERYTHING THE BOOTH LOOKS LIKE — every material, colour, finish, light, graphic, logo, branding element and piece of furniture comes from the second image and the locked facts below.
 
-YOUR TASK: re-render the FIRST image as a finished, photorealistic photograph of this booth, keeping its camera and geometry precisely, and dressing every surface, structure and object in the exact design language of the SECOND image at full quality — the same materials on the same elements, the same colours, the same branding in the same places, the same furniture. The white blocks are placeholders for the real elements in those exact positions and sizes: never leave any of them as a white box, never keep the plain grey background or the model's flat untextured look, and never move the camera to the second image's angle. Where the first image shows open space, the space is open; where it shows no wall, there is no wall.
+YOUR TASK: re-render the FIRST image as a finished, photorealistic photograph of this booth, keeping its camera and geometry precisely, and dressing every surface, structure and object in the exact design language of the SECOND image at full quality: the same materials on the same elements, the same colours, the same branding in the same places, the same furniture. The white blocks are placeholders for the real elements in those exact positions and sizes: never leave any of them as a white box, never keep the plain grey background or the model's flat untextured look, and never move the camera to the second image's angle. Where the first image shows open space, the space is open; where it shows no wall, there is no wall. The darker strip along one edge of the floor in the first image marks the booth's FRONT (aisle) edge: use it to tell which way the booth faces, and do not reproduce the strip itself.
 
 Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the approved image's own viewpoint (that viewpoint is the 0-degree position). ${openSideClaimSentence}${straightOnSentence}${cornerSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
 
