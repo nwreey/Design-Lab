@@ -4,7 +4,7 @@
       "maxDuration": 60
     },
     "api/generate-image-gemini.js": {
-      "maxDuration": 60
+      "maxDuration": 180
     },
     "api/generate-image-openai.js": {
       "maxDuration": 180

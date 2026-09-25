@@ -118,7 +118,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, isUserInitiatedEdit, quotaKind, aspectRatio, engineMode, imageSize } = req.body || {};
+    const { prompt, referenceImage, referenceMimeType, additionalReferenceImages, isUserInitiatedEdit, quotaKind, aspectRatio, engineMode, imageSize, imageModel } = req.body || {};
     if (!prompt || typeof prompt !== 'string') {
       res.status(400).json({ error: { message: 'Request body must include a "prompt" string.' } });
       return;
@@ -152,9 +152,20 @@ module.exports = async (req, res) => {
     // the request ('1K', '2K', '4K') still wins for admins too, so a flow that needs full
     // resolution (the event board's 4K approve) keeps it, and a future "full quality" toggle in
     // the admin panel only has to send the size it wants.
+    // Owner request (Sep 2026): an ADMIN-ONLY choice between the standard image model and the
+    // premium one, so the two can be compared on the same brief before deciding what clients
+    // get. The request says imageModel: 'pro'; anything else, or any non-admin caller, stays on
+    // the standard model, so no client can reach the premium model by editing a request.
+    const STANDARD_IMAGE_MODEL = 'gemini-3.1-flash-image';
+    const PRO_IMAGE_MODEL = 'gemini-3-pro-image';
+    const usePro = caller.role === 'admin' && imageModel === 'pro';
+    const model = usePro ? PRO_IMAGE_MODEL : STANDARD_IMAGE_MODEL;
+
     const ADMIN_TEST_IMAGE_SIZE = '512';
     const explicitSize = ['1K', '2K', '4K'].includes(imageSize) ? imageSize : null;
-    const resolvedImageSize = explicitSize || (caller.role === 'admin' ? ADMIN_TEST_IMAGE_SIZE : '1K');
+    // The premium model has no 512 size (1K, 2K, 4K only), so the admin half-resolution shortcut
+    // does not apply to it: a Pro test run renders at 1K, the same size clients get.
+    const resolvedImageSize = explicitSize || ((caller.role === 'admin' && !usePro) ? ADMIN_TEST_IMAGE_SIZE : '1K');
 
     // Owner decision: EVERY user-initiated modification (Modify Design and Other option
     // alike) counts against the modify quota — the old "first modification is free"
@@ -182,7 +193,6 @@ module.exports = async (req, res) => {
       }
     }
 
-    const model = 'gemini-3.1-flash-image';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
     const requestParts = [];
@@ -216,7 +226,7 @@ module.exports = async (req, res) => {
       const data = await geminiResponse.json();
       // Fire-and-forget usage logging for the admin Service Usage & Billing panel — never
       // awaited, never allowed to affect the actual generation (see lib/usage-log.js).
-      logAiCall({ provider: 'gemini', endpoint: 'generate-image-gemini', ok: geminiResponse.ok, status: geminiResponse.status, message: !geminiResponse.ok ? ((data.error && data.error.message) || '') : '' });
+      logAiCall({ provider: 'gemini', endpoint: usePro ? 'generate-image-gemini-pro' : 'generate-image-gemini', ok: geminiResponse.ok, status: geminiResponse.status, message: !geminiResponse.ok ? ((data.error && data.error.message) || '') : '' });
       return { geminiResponse, data };
     };
 
