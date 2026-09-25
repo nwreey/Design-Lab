@@ -13265,8 +13265,17 @@ function formatStructuralShellPlain(shell){
     else wallSides.push(`${label} (${s.lengthM.toFixed(1)} m long, ${(s.heightMm / 1000).toFixed(1)} m high — a solid, continuous, flat wall; no arch, portal, or opening cut into it, and no visitor entrance on this side)`);
   });
   const lines = [`Footprint: ${shell.widthM.toFixed(1)} m × ${shell.depthM.toFixed(1)} m.`];
+  // Owner rule (Sep 2026): an island booth must never be rendered with a full wall, and this has
+  // to be said here, in the live image prompt, not only in the standards text. EPS-008's OPEN
+  // BOOTH RULES already state it (60% of each side visually open, solid surface never more than
+  // 40%), but that text reaches the brief writer, while the line below is what the rendering
+  // model actually reads. The previous wording only forbade a PERIMETER wall, which the model
+  // honoured while still building full-height feature walls, meeting room sides and backdrops
+  // inside the footprint, and the result read as a closed booth anyway. The rule is therefore
+  // restated to cover every wall-like element wherever it stands, with the owner's own limit:
+  // half height, or transparent, never a full solid face.
   lines.push(openSides.length === 4
-    ? 'All four sides are open — this is a true 360-degree island pavilion. No perimeter wall anywhere, no back wall, no front/rear hierarchy; the architecture must read as complete and welcoming from every direction.'
+    ? 'All four sides are open — this is a true 360-degree island pavilion. No perimeter wall anywhere, no back wall, no front/rear hierarchy; the architecture must read as complete and welcoming from every direction. NO FULL WALL ANYWHERE IN THIS BOOTH: this applies to every wall-like element, on the perimeter and inside the footprint alike — feature walls, branding walls, meeting room sides, storage faces, backdrops and dividers included. Each one must be either HALF HEIGHT (roughly waist to chest height, never above standing eye level) or visually transparent (glass, open frame, spaced vertical slats, perforated or mesh panel), so that a visitor standing anywhere around the booth can see straight through it to the far side. Every side must stay at least 60% visually open along its full length, and solid surface must never cover more than 40% of any one side. A render in which any side reads as a closed, blocked or solid face is wrong for this booth, no matter how attractive that face looks on its own.'
     : `Open sides (stay completely free of any wall, column, or enclosing structure, corner to corner): ${openSides.join(', ') || 'none'}. Fixed perimeter wall side(s) — already engineered, build exactly as stated, never move, mirror, shorten, or cut an opening into them: ${wallSides.join('; ') || 'none'}.`);
   if(shell.storageEnclosures.length){
     shell.storageEnclosures.forEach(enc => {
@@ -14860,7 +14869,37 @@ function syncColorPicker(hexInput){
   }
 }
 
+/* Whether the client has set the brand colours themselves on this brief.
+
+   Auto Fill is allowed to write the palette, but only while this is false. The history matters:
+   Auto Fill used to overwrite the colour rows on every run, which is how an uninvited red landed
+   in a purple-and-white brief and then propagated into every render, and the feature was switched
+   off entirely as a result. Off was too blunt, since a fresh brief then never got its colours at
+   all. This flag is the middle ground the owner asked for: fill when the rows are untouched,
+   never when they are the client's own.
+
+   It is set from real user interaction only. Assigning .value in code fires no input or change
+   event, so restoring a project or writing the AI's own colours cannot flip it by accident. The
+   two places that DO mean "these colours are the client's" (opening a saved project, restoring a
+   draft) set it explicitly, and startNewProject clears it. */
+let brandColorsUserEdited = false;
+
+(function watchBrandColorEdits(){
+  const attach = () => {
+    const rows = document.getElementById('colorRows');
+    if(!rows) return false;
+    const mark = () => { brandColorsUserEdited = true; };
+    rows.addEventListener('input', mark);
+    rows.addEventListener('change', mark);
+    return true;
+  };
+  if(!attach()) document.addEventListener('DOMContentLoaded', attach);
+})();
+
 function addColorRow(){
+  // Adding or removing a row by hand is the client shaping their own palette, exactly like
+  // typing a hex, so it counts as touched even if no value is edited afterwards.
+  brandColorsUserEdited = true;
   const rows = document.getElementById('colorRows');
   const div = document.createElement('div');
   div.className = 'color-row';
@@ -14875,7 +14914,45 @@ function addColorRow(){
 function removeColorRow(btn){
   const rows = document.getElementById('colorRows');
   if(rows.children.length <= 1) return;
+  brandColorsUserEdited = true; // same reasoning as addColorRow above
   btn.closest('.color-row').remove();
+}
+
+/* Writes a palette into the colour rows, rebuilding them to match however many colours were
+   given. Shared by Auto Fill and available to any future caller, so there is one place that
+   knows how a colour row is constructed.
+
+   Every value is normalised and validated first: models return colours in whatever shape they
+   feel like (no leading hash, three-digit shorthand, lowercase, stray spaces), and a malformed
+   value written straight into the field would fail the app's own /^#[0-9A-Fa-f]{6}$/ checks and
+   read as "no brand colour" at Generate time, which is worse than not filling at all. */
+function normalizeHexColor(value){
+  let v = String(value == null ? '' : value).trim().replace(/^#/, '');
+  if(/^[0-9A-Fa-f]{3}$/.test(v)) v = v.split('').map(c => c + c).join(''); // #ABC -> #AABBCC
+  return /^[0-9A-Fa-f]{6}$/.test(v) ? '#' + v.toUpperCase() : null;
+}
+
+function setBrandColorRows(hexes){
+  const rows = document.getElementById('colorRows');
+  if(!rows) return 0;
+  const clean = [];
+  (Array.isArray(hexes) ? hexes : []).forEach(h => {
+    const n = normalizeHexColor(h);
+    if(n && !clean.includes(n)) clean.push(n); // duplicates would render as one colour twice
+  });
+  if(clean.length === 0) return 0;
+  rows.innerHTML = '';
+  clean.slice(0, 4).forEach(hex => {
+    const div = document.createElement('div');
+    div.className = 'color-row';
+    div.innerHTML = `
+      <input type="color" class="color-picker" value="${hex}" oninput="syncColorHex(this)">
+      <input type="text" class="color-hex" value="${hex}" placeholder="#RRGGBB" oninput="syncColorPicker(this)" onchange="syncColorPicker(this)">
+      <button type="button" class="color-remove" onclick="removeColorRow(this)" aria-label="Remove color">×</button>
+    `;
+    rows.appendChild(div);
+  });
+  return Math.min(clean.length, 4);
 }
 
 /* ===================== AI Auto-fill Helper (admin-only) =====================
@@ -15163,11 +15240,21 @@ function applyCheckboxGroupByValue(selector, values){
 function applyAutofillResult(result){
   if(!result || typeof result !== 'object') return;
 
-  // Brand colors are USER-OWNED and never touched by Auto-Fill (owner decision). The AI
-  // used to "helpfully" resize/overwrite the color rows with 2-4 colors from its own brand
-  // knowledge or the logo — which is exactly how an uninvited red (#8B1E2B) ended up in a
-  // purple-and-white brief and then in every render. Whatever brandColors the model
-  // returns is now ignored entirely; the palette is only ever what the client typed.
+  // Brand colours. History, because this has now been changed twice and the reasoning for both
+  // directions still applies: Auto Fill originally overwrote the palette on every run, which is
+  // how an uninvited red (#8B1E2B) ended up in a purple-and-white brief and then in every render,
+  // so the owner had it ignore brandColors entirely. That went too far the other way, since a
+  // fresh brief then never received colours at all and the client had to find them by hand for a
+  // company the model had just looked up.
+  //
+  // The rule now (owner, Sep 2026) is "fill unless the client typed their own". brandColorsUserEdited
+  // is true only after real interaction with the colour rows, or after a saved project or draft is
+  // restored, so an untouched brief gets the looked-up brand palette while a client's own choice is
+  // never silently replaced. The red incident cannot recur: the moment anyone edits a swatch, this
+  // branch stops writing.
+  if(!brandColorsUserEdited && Array.isArray(result.brandColors) && result.brandColors.length){
+    setBrandColorRows(result.brandColors);
+  }
 
   // Brand Portfolio (booth mode only) — see buildBoothAutofillPrompt's own "brandPortfolio" rule:
   // the model is instructed to only ever propose entries when the client hadn't added any of
@@ -15595,6 +15682,79 @@ async function collectAutofillImageParts(){
   };
 }
 
+/* Turns this booth's real spatial capacity into something the model can do arithmetic with.
+
+   Auto Fill used to be told only the booth's width and depth, then asked to use judgement about
+   how much would fit. Models are poor at that: they pick a generous, impressive-looking set of
+   Requirements, the deterministic engine then finds the program does not fit, and the client is
+   blocked at Generate with the Program Fit message. The trim pass rescues it, but rescuing is not
+   the same as choosing well, and the client still loses items they were shown.
+
+   Everything needed to remove the guesswork is already computed here. getHeroStructureScaleTier
+   and getCirculationReservePercent give the two fixed deductions, leaving the exact area the
+   selections may occupy, and ADDREQ_ZONE_META plus EXHIBITION_STANDARDS_LIBRARY give the real
+   floor cost of each item. Handed those, the model can add up its own selection and stay inside
+   the budget, which is a task it is reliable at.
+
+   Just as useful is the other half of the message: items with no floor cost at all (wall and
+   ceiling mounted features, lighting, purely decorative elements) are named as free, so a lean
+   budget pushes the model toward those rather than toward an empty-looking booth. */
+function buildAutofillSpaceBudgetText(){
+  const widthM = parseFloat(document.getElementById('f_width').value);
+  const depthM = parseFloat(document.getElementById('f_depth').value);
+  if(!(widthM > 0 && depthM > 0)) return '';
+  const totalAreaSqm = widthM * depthM;
+  const heroSqm = getHeroStructureScaleTier(widthM, depthM).heroFootprintSqm;
+  const circulationSqm = totalAreaSqm * getCirculationReservePercent(totalAreaSqm);
+  const usableSqm = totalAreaSqm - heroSqm - circulationSqm;
+  const r1 = (n) => Math.round(n * 10) / 10;
+
+  // Per-item floor cost, taken from the same numbers the spatial engine itself uses so the
+  // model's arithmetic and the app's verdict cannot disagree. Per-person and per-unit items are
+  // labelled as such, since their cost depends on the quantity the model is also choosing.
+  const lib = (typeof EXHIBITION_STANDARDS_LIBRARY !== 'undefined') ? EXHIBITION_STANDARDS_LIBRARY : null;
+  const costs = {};
+  if(lib){
+    costs['addreq_reception'] = `${r1((lib.receptionCounter.medium.widthMm / 1000) * (lib.receptionCounter.medium.depthMm / 1000))} per counter`;
+    costs['addreq_privatemeetingroom'] = `${r1(lib.privateMeetingRoomDefaultSqm)} per room (or the size you set)`;
+    costs['addreq_vipmeeting'] = `${r1(lib.vipMeetingSqmPerPersonClosed)} per person (closed), ${r1(lib.vipMeetingSqmPerPersonOpen)} per person (open)`;
+    costs['addreq_lounge'] = `${r1(lib.loungeSeatingSqmPerPerson)} per person`;
+    costs['addreq_seating'] = `${r1(lib.loungeSeatingSqmPerPerson)} per person, per seating area`;
+    costs['addreq_openmeeting'] = `${r1(lib.openMeetingSqmPerPerson)} per person`;
+    costs['addreq_staffarea'] = `${r1(lib.staffAreaSqmPerPerson)} per person`;
+    costs['addreq_viplounge'] = `${r1(lib.vipLoungeSqmPerPerson)} per person`;
+    costs['addreq_hospitalitylounge'] = `${r1(lib.hospitalityLoungeSqmPerPerson)} per person`;
+    costs['addreq_networkingarea'] = `${r1(lib.networkingAreaSqmPerPerson)} per person`;
+    costs['addreq_storageroom'] = `${r1(lib.storage.preferredSqm)} per room (or the size you set)`;
+    costs['addreq_displaytables'] = `${r1((lib.displayTable.widthMm / 1000) * (lib.displayTable.depthMm / 1000))} each`;
+    costs['addreq_coffeebar'] = `${r1((lib.coffeeBar.widthMm / 1000) * (lib.coffeeBar.depthMm / 1000))} each`;
+    costs['addreq_infocounter'] = `${r1((lib.informationCounter.widthMm / 1000) * (lib.informationCounter.depthMm / 1000))} each`;
+    costs['addreq_tooltestingbench'] = `${r1((lib.demoBench.widthMm / 1000) * (lib.demoBench.depthMm / 1000))} each`;
+    costs['addreq_kiosk'] = `${r1((lib.interactiveKiosk.widthMm / 1000) * (lib.interactiveKiosk.depthMm / 1000))} each`;
+    costs['addreq_vehicledisplay'] = `${r1((lib.vehicleDisplayArea.widthMm / 1000) * (lib.vehicleDisplayArea.depthMm / 1000))} each (includes walk-around space)`;
+  }
+  if(typeof ADDREQ_ZONE_META !== 'undefined'){
+    Object.keys(ADDREQ_ZONE_META).forEach(id => {
+      if(!costs[id]) costs[id] = `${r1(ADDREQ_ZONE_META[id].areaSqm)} each`;
+    });
+  }
+
+  return `
+
+SPACE BUDGET FOR THIS EXACT BOOTH (arithmetic, not a judgement call — do this before you choose Requirements):
+• Total booth floor area: ${r1(totalAreaSqm)} sqm
+• Reserved for the hero structure: ${r1(heroSqm)} sqm (fixed by the engine, never yours to spend)
+• Reserved as open circulation so visitors can move: ${r1(circulationSqm)} sqm (fixed, never yours to spend)
+• THEREFORE THE AREA AVAILABLE FOR EVERYTHING YOU SELECT: ${r1(usableSqm)} sqm
+
+FLOOR COST OF EACH ITEM, IN SQM (this app's own measured figures, the same ones used to accept or reject your selection):
+${JSON.stringify(costs, null, 0)}
+
+Any Requirement not listed above costs NO floor area at all: wall-mounted and ceiling-mounted features, lighting of every kind, graphics, and purely decorative elements. Choose those freely wherever they genuinely suit the design.
+
+HOW TO USE THIS BUDGET: add up the floor cost of every floor-consuming Requirement you check, multiplied by the quantity or capacity you give it. That running total must come to ${r1(usableSqm)} sqm or less. If you are over, cut items or reduce quantities until you are under, starting with whatever contributes least to this client's stated goal. Selecting more than fits does NOT produce a richer design: the engine rejects the excess and the client is blocked from generating at all, so an over-filled brief is worse for them than a lean one. On a small booth, deliberately choose few floor items and express ambition through the free wall, ceiling, lighting and graphic elements instead.`;
+}
+
 // Booth mode's system prompt + content parts — unchanged from before the Event mode branch was
 // added, just lifted out of runAiAutofill() into its own function so that function can dispatch
 // to either this or buildEventAutofillPrompt below based on the active mode. `scenario` is an
@@ -15674,6 +15834,7 @@ You are helping fill out an exhibition booth design brief on behalf of a client,
 ${AUTOFILL_DEPENDENCY_RULES}
 
 Ground every choice in the ACTUAL SPACE available (given below as fixed facts you must never contradict) — never suggest requirements, brand-portfolio entries, or a scale of finish that wouldn't realistically fit a booth of this size, and never select more than could physically coexist in the space. A 9 sqm booth should get a lean, focused set of requirements; a 200 sqm booth can support many more. If a double-deck upper deck configuration is given, keep every suggestion consistent with its stated purpose, capacity, and privacy level too. Your response is already constrained to a strict JSON Schema — focus entirely on making every value the most professionally appropriate one, not a placeholder, and perform your own internal consistency check (dimensions realistic, nothing contradictory, nothing that can't physically fit) before finalizing.
+${buildAutofillSpaceBudgetText()}
 
 Rules:
 - "brandColors": 2–4 hex colors for this brand, chosen in this exact priority order — always include this:
@@ -24599,6 +24760,12 @@ function restoreFormSnapshot(snap){
   const rows = document.getElementById('colorRows');
   rows.innerHTML = '';
   const colors = (snap.colorHexes && snap.colorHexes.length) ? snap.colorHexes : ['#152241', '#E1A13B'];
+  // A snapshot carries colours the client already settled on, so the palette counts as theirs
+  // from this point and Auto Fill must not write over it (see brandColorsUserEdited). Rebuilding
+  // the rows below fires no input event, so this has to be stated rather than inferred. Only a
+  // snapshot with no colours of its own leaves the flag alone, since that is still an untouched
+  // brief wearing the factory defaults.
+  if(snap.colorHexes && snap.colorHexes.length) brandColorsUserEdited = true;
   colors.forEach(hex => {
     const div = document.createElement('div');
     div.className = 'color-row';
@@ -25450,6 +25617,10 @@ function startNewProject(){
   // the user deliberately chose to blank out. A real saved project's own data is untouched;
   // this only ever holds a NEVER-saved draft's local copy (see the "Draft autosave" block).
   try{ localStorage.removeItem('designLabDraftSnapshot'); }catch(e){}
+  // A brand new brief has no client-chosen palette yet, so Auto Fill is free to write one again
+  // (see brandColorsUserEdited). Without this reset, a client who set colours on one project
+  // would silently never get AI colours on any later project in the same session.
+  brandColorsUserEdited = false;
   currentProjectFreeModUsed = false;
   updateFreeModNotes();
   pendingPromptResult = null;
