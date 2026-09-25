@@ -21788,15 +21788,28 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geo
   // /api/generate-image-gemini already accept — the final pixels still always come from this
   // OpenAI/Gemini call (full native resolution, geometry-checked, billed exactly as before),
   // Luma only ever contributes a soft continuity nudge, never the delivered image itself.
-  const additionalReferenceImages = lumaReferenceFrame ? [lumaReferenceFrame] : undefined;
+  // IMAGE ORDER IS THE LEVER (Sep 2026). With the hero first and the massing render second, the
+  // model treated the hero as the picture to edit and the massing as a hint, and on every view
+  // within 45 degrees of the hero it simply gave the hero back. Edit models anchor on the first
+  // image. So for an exterior view that has a massing control, the massing render goes FIRST as
+  // the image being edited (correct camera, correct geometry, nothing else) and the approved
+  // hero goes second as the reference for how everything should look. buildCameraViewPrompt
+  // describes the two images in that same order. The orbit-frame case keeps the hero first,
+  // since a soft video still is not a reliable enough base to edit from.
+  const massingFirst = referenceKind === 'massing' && lumaReferenceFrame && lumaReferenceFrame.data;
+  const primaryImage = massingFirst ? lumaReferenceFrame.data : base64;
+  const primaryMime  = massingFirst ? (lumaReferenceFrame.mimeType || 'image/jpeg') : mime;
+  const additionalReferenceImages = massingFirst
+    ? [{ data: base64, mimeType: mime }]
+    : (lumaReferenceFrame ? [lumaReferenceFrame] : undefined);
   // quality 'high' is the whole point of this call for the owner: these views are what the
   // client downloads and presents, so they get the provider's top quality tier and its largest
   // landscape size, not the mid setting used for quick concept drafts. Slower and costlier per
   // view; rendering three at once (see CAMERA_VIEW_CONCURRENCY) is what keeps the total time
   // acceptable.
   const body = useOpenAi
-    ? { prompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, size: '1536x1024', quality: 'high', isUserInitiatedEdit: chargeThisCall }
-    : { prompt, referenceImage: base64, referenceMimeType: mime, additionalReferenceImages, isUserInitiatedEdit: chargeThisCall, quotaKind: 'edit', aspectRatio: '3:2' };
+    ? { prompt, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, size: '1536x1024', quality: 'high', isUserInitiatedEdit: chargeThisCall }
+    : { prompt, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, isUserInitiatedEdit: chargeThisCall, quotaKind: 'edit', aspectRatio: '3:2' };
   // Camera views default to OpenAI's edit endpoint (useOpenAi above) unless the hero itself
   // was rendered on Gemini — that endpoint is now allowed 180s server-side (see vercel.json),
   // but this call was still cutting off at the old 100s client timeout, which is exactly what
@@ -22343,8 +22356,14 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
       // concurrently there is no meaningful "previous" one, and the hero is the comparison that
       // actually matters — a view that comes back looking like the hero is the exact failure
       // the owner reported ("the pictures similar").
+      // Exterior views use a tighter look-alike threshold than the general one: a render that
+      // comes back closer than 0.93 to the hero on a 24x24 grayscale compare is, in practice,
+      // the hero again with the furniture shuffled, which is the exact failure a production run
+      // showed on four of five exterior cameras. Top and interior views are naturally far from
+      // the hero and are unaffected by the lower bar.
       const similarity = await computeImageSimilarity(compressedFront, resultDataUrl);
-      if(similarity > SIMILARITY_THRESHOLD){
+      const lookAlikeBar = spec.type === 'exterior' ? 0.93 : SIMILARITY_THRESHOLD;
+      if(similarity > lookAlikeBar){
         const retryDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, true, undefined, controlImage, controlKind);
         const retrySimilarity = await computeImageSimilarity(compressedFront, retryDataUrl);
         if(retrySimilarity < similarity) resultDataUrl = retryDataUrl;
@@ -22763,19 +22782,43 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
   // straight-on elevation is only offered for a side that is genuinely OPEN (a camera
   // aimed at a closed structural wall would just render a wall), and near-duplicates of
   // the hero's own angle are skipped so no paid slot wastes on an almost-identical shot.
+  // Redesigned (Sep 2026) after a production run on a three-open-side booth came back with four
+  // exterior views that were near-copies of the hero. The set itself was the cause, before any
+  // rendering question: "Perspective Right" sat at 35 degrees from the hero and the "Right"
+  // elevation at 45, ten degrees apart; "Perspective Left" at 325 and the "Front" elevation at
+  // 315, again ten degrees apart. Two pairs of cameras that were practically the same shot, and
+  // all four within 45 degrees of the hero. The views that DID come out right (the Right
+  // elevation, Top, Interior) were exactly the ones far from the hero, which is the lesson.
+  //
+  // The set is now built for maximum angular separation. Every camera is either a straight-on
+  // elevation of an OPEN side (cardinal directions, so always at least 45 degrees from the
+  // corner the hero was shot from) or the OPPOSITE front corner, mirroring the hero across the
+  // booth's centre line. The two 35-degree "perspective" cameras are gone: they can never be
+  // distinct from the hero on one side and the adjacent elevation on the other. Names now say
+  // where the camera physically stands.
   const pushElevation = (side, label) => {
     if(!openSides.includes(side)) return;
     const relative = toRelativeAzimuth(COMPASS_AZIMUTH[side]);
     if(angularDistanceFromHero(relative) < 20) return; // effectively the hero's own angle
-    candidates.push({ name: label, type: 'exterior', azimuth: relative, promptHint: `A straight-on, centered exterior elevation of the booth's ${side} face — camera aimed straight in, not diagonal.` });
+    candidates.push({ name: label, type: 'exterior', azimuth: relative, promptHint: `A straight-on, centered exterior elevation of the booth's ${side} face — the camera stands directly in front of that side and is aimed straight at it, square on, never diagonal. This is a full quarter-turn or more away from the hero's corner angle and must read as an entirely different photograph of the same booth.` });
   };
+  // The opposite corner: the hero stands at one front corner of the booth, so the other front
+  // corner is its mirror image and the most distinct exterior three-quarter view available.
+  // Offered only when both sides meeting at that corner are genuinely open, since a camera
+  // standing at a corner formed by a wall would be looking along that wall's back.
+  const [heroFB, heroLR] = heroApproach.corner.split('-');
+  const mirrorLR = heroLR === 'Right' ? 'Left' : 'Right';
+  const mirrorCorner = `${heroFB}-${mirrorLR}`;
+  if(openSides.includes(heroFB) && openSides.includes(mirrorLR) && CORNER_TO_ABSOLUTE_AZIMUTH[mirrorCorner] != null){
+    const relative = toRelativeAzimuth(CORNER_TO_ABSOLUTE_AZIMUTH[mirrorCorner]);
+    const cornerLabel = `${heroFB === 'Back' ? 'Rear' : heroFB}-${mirrorLR} Corner`;
+    candidates.push({ name: cornerLabel, type: 'exterior', azimuth: relative, promptHint: `A three-quarter perspective exterior view from the booth's ${cornerLabel.toLowerCase()} — the corner diagonally opposite the one the hero image was shot from, so the booth's ${mirrorLR} face is now nearest the camera and the face that was nearest in the hero is now furthest away. A mirror-image viewpoint of the hero, never a repeat of it.` });
+  }
   pushElevation('Front', 'Front');
-  candidates.push({ name: 'Perspective Right', type: 'exterior', azimuth: 35, promptHint: 'A three-quarter perspective exterior view of the booth, angled 35 degrees clockwise (to the right) of the hero view, along the same open frontage.' });
-  candidates.push({ name: 'Perspective Left', type: 'exterior', azimuth: 325, promptHint: 'A three-quarter perspective exterior view of the booth, angled 35 degrees counter-clockwise (to the left) of the hero view, along the same open frontage.' });
-  pushElevation('Left', 'Left');
-  pushElevation('Right', 'Right');
+  pushElevation('Right', 'Right Side');
+  pushElevation('Left', 'Left Side');
+  pushElevation('Back', 'Rear');
   candidates.push({ name: 'Top View', type: 'top-down', azimuth: 0, elevation: 90, promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' });
-  pushElevation('Back', 'Back');
   candidates.push({ name: 'Interior View', type: 'interior', focusZone: 'wide', promptHint: 'A wide interior view showing the overall booth space and circulation.' });
 
   // No targetCount truncation anymore — the standard menu is small (max 9 entries) and the
@@ -23068,8 +23111,14 @@ function buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason, ref
   // framing problem, so a retry produced the same wrong viewpoint slightly wider — which is why
   // the retry budget was being spent without ever fixing the owner's "the pictures similar"
   // complaint. The real failure is that the camera never moved, so that is what this says.
+  // The image ORDER differs by control kind (see requestCameraViewFromOpenAI): with a massing
+  // control the camera image is FIRST and the design SECOND; with an orbit frame it is the
+  // other way round. The retry wording must point at the right one, or it tells the model to
+  // copy the very image it just copied.
   const widerNote = isWiderRetry
-    ? (hasLumaReference
+    ? (referenceKind === 'massing'
+      ? ' IMPORTANT — the previous attempt at this position failed: it came back showing the booth from the SECOND image\'s viewpoint (the approved design\'s own angle) instead of from the camera position shown in the FIRST image (the massing model). The camera has physically walked around the booth to where the FIRST image stands. For this attempt, match the FIRST image\'s viewpoint exactly — the same faces of the booth toward the camera, the same elements on the left and on the right, the same perspective — so this render is unmistakably a different position around the booth, not the approved image again.'
+      : hasLumaReference
       ? ' IMPORTANT — the previous attempt at this position failed: it came back showing the booth from the FIRST reference image\'s viewpoint instead of moving to the camera position shown in the SECOND reference image. The camera has physically walked around the booth to a different place. For this attempt, match the SECOND reference image\'s viewpoint exactly — the same faces of the booth toward the camera, the same elements on the left and on the right — so this render is unmistakably a different position around the booth, not the first image again.'
       : ' IMPORTANT — the previous attempt at this position came back nearly identical to the approved reference image, as if the camera had never moved. The camera has physically relocated to a different point around the booth. For this attempt, commit fully to that new position: different faces of the booth toward the camera, a visibly different arrangement of its elements left to right, and genuinely new surfaces and depth that the reference image does not show.')
     : '';
@@ -23225,6 +23274,20 @@ The booth's architecture, materials, branding, and furniture are completely unch
     : (referenceKind === 'orbit'
       ? ` A SECOND reference image is also attached: a still frame from a 360-degree orbit filmed around this same approved booth, taken from roughly this camera direction. Use it as the guide for where the camera stands and which faces of the booth are toward it — your render should be taken from that viewpoint, not the first image's. The FIRST image remains the authority for the design itself: every material, colour, finish, branding element and piece of furniture must match it and the locked facts below, at full photorealistic quality. The frame comes from video and is soft and lower-resolution — take its viewpoint only, never its image quality or its fine detail, and wherever it disagrees with the locked facts below, follow the locked facts.`
       : '');
+  // Massing-first exterior views (see requestCameraViewFromOpenAI's IMAGE ORDER note): the two
+  // images arrive in the opposite order from every other branch, so this prompt has to say so
+  // in the same order, or the model is told to copy the design from the white box and the
+  // camera from the hero, which is precisely backwards.
+  if(referenceKind === 'massing'){
+    return `${geometryCorrectionSentence}${orientationFactsSentence}TWO IMAGES ARE ATTACHED, AND THEY HAVE DIFFERENT JOBS. THE FIRST IMAGE is a plain white 3D massing model of THIS EXACT booth — its real footprint, its real walls, and the real position and size of every element — photographed from THIS EXACT camera position: ${spec.name}, ${spec.azimuth} degrees around the booth from the approved image's own viewpoint. The first image is the GROUND TRUTH for the camera, the layout and the silhouette: keep its viewpoint, its perspective, its eye height, the faces of the booth that are toward the camera, the left-to-right order of everything, and the place where every block stands, exactly as shown. THE SECOND IMAGE is the approved design of this same booth, photographed from a different angle: it is the AUTHORITY FOR EVERYTHING THE BOOTH LOOKS LIKE — every material, colour, finish, light, graphic, logo, branding element and piece of furniture comes from the second image and the locked facts below.
+
+YOUR TASK: re-render the FIRST image as a finished, photorealistic photograph of this booth, keeping its camera and geometry precisely, and dressing every surface, structure and object in the exact design language of the SECOND image at full quality — the same materials on the same elements, the same colours, the same branding in the same places, the same furniture. The white blocks are placeholders for the real elements in those exact positions and sizes: never leave any of them as a white box, never keep the plain grey background or the model's flat untextured look, and never move the camera to the second image's angle. Where the first image shows open space, the space is open; where it shows no wall, there is no wall.
+
+Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the approved image's own viewpoint is the 0-degree / front position). ${openSideClaimSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
+
+The booth itself is completely static and unchanged from the approved design — only the camera stands at this new position.${widerNote} For any face or element the second image does not show directly, act as the same professional exhibition designer who created it: continue the same materials, colours, brand identity, structural style and design language into those areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the approved image — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
+  }
+
   return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific EXTERIOR camera position.
 
 Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). ${openSideClaimSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.${lumaReferenceNote}
@@ -24051,7 +24114,15 @@ async function showAdminLumaVideoFromOrbit(orbitPromise){
     }
     videoEl.src = orbit.videoUrl;
     videoEl.style.display = 'block';
-    statusEl.textContent = 'The 360° orbit these views were built from — each view below was rendered from this clip\'s frame at its own clock position.';
+    // Says which control actually drove the exterior views this run, so a look-alike result can
+    // be diagnosed from the screen: massing views present means the camera came from the local
+    // 3D model; none means the browser could not render it and the views fell back to the orbit
+    // frame, or to a plain edit of the hero.
+    const massingCount = (cameraViewsMassingViews && cameraViewsMassingViews.size) || 0;
+    const controlNote = massingCount > 0
+      ? `Camera control this run: 3D massing model (${massingCount} view${massingCount === 1 ? '' : 's'}), with this orbit as the fallback.`
+      : 'Camera control this run: NO massing model was produced (3D rendering unavailable in this browser), so exterior views used this orbit\'s frames instead.';
+    statusEl.textContent = 'The 360° orbit shot for the views requested in this run. ' + controlNote;
   }catch(err){
     console.error('Admin orbit comparison card failed:', err);
     statusEl.textContent = 'Could not render the 360° orbit: ' + (err.message || 'unknown error');
