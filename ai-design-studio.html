@@ -22148,13 +22148,56 @@ function cameraControlReferenceFor(camId){
   return { image: null, kind: null };
 }
 
+/* Owner report ("the page goes white like a reload, twice, while the views are appearing").
+
+   saveCurrentProject is expensive by nature: it compresses a thumbnail through a canvas and
+   serialises the entire project, every base64 image included, into a multi-megabyte JSON body.
+   All of that is synchronous main-thread work, so while it runs the browser has nothing to paint
+   and the page blanks until it finishes. Debouncing alone (the previous fix, for the same symptom
+   reported as a flash) reduced how often that happened without changing what it collides with.
+
+   Rendering views in parallel made it visible again: several views now finish within moments of
+   each other, so the saves cluster into the exact window where the browser is busy painting new
+   cards. Two fixes, both about WHEN the work runs rather than what it does:
+
+   Idle scheduling. The save is handed to requestIdleCallback, so the browser paints the finished
+   views first and serialises afterwards, in time it would otherwise spend waiting. The timeout
+   guarantees it still runs on a busy page, so nothing is lost if idle time never arrives.
+
+   One at a time. A second save can no longer start while one is in flight; it sets a dirty flag
+   and reschedules instead. Two overlapping multi-megabyte serialisations were doubling the very
+   stall being complained about.
+
+   Crash resilience is unchanged: a refresh partway through a run still loses only the view that
+   was in flight, which is why these mid-run saves exist at all. */
 let __projectSaveTimer = null;
+let __projectSaveInFlight = false;
+let __projectSaveDirty = false;
+
 function scheduleProjectSave(delayMs){
   if(__projectSaveTimer) return;
   __projectSaveTimer = setTimeout(() => {
     __projectSaveTimer = null;
-    saveCurrentProject();
+    runDeferredProjectSave();
   }, delayMs || 4000);
+}
+
+function runDeferredProjectSave(){
+  if(__projectSaveInFlight){ __projectSaveDirty = true; return; }
+  const run = () => {
+    __projectSaveInFlight = true;
+    Promise.resolve()
+      .then(() => saveCurrentProject())
+      .catch(err => console.error('Background project save failed:', err))
+      .finally(() => {
+        __projectSaveInFlight = false;
+        // Anything that asked for a save while this one was running gets one now, on the normal
+        // debounce, so no finished view is ever left unsaved.
+        if(__projectSaveDirty){ __projectSaveDirty = false; scheduleProjectSave(4000); }
+      });
+  };
+  if(typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 8000 });
+  else setTimeout(run, 0);
 }
 
 async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPromptText, designTitle){
@@ -22326,8 +22369,12 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
       viewsDoneCount++;
       updateApproveProgress(10 + (viewsDoneCount / Math.max(1, plannedViewCount)) * 85, `Creating Your Views — ${viewsDoneCount} of ${plannedViewCount}...`);
       // Saved after every view, success or failure — see the comment above the first save
-      // call for why this can't just wait until the whole batch finishes.
-      scheduleProjectSave(4000);
+      // call for why this can't just wait until the whole batch finishes. The window is wider
+      // than elsewhere because views now finish in bursts: with three rendering at once, a 4s
+      // window produced a cluster of saves during the busiest painting moments. 10s still means
+      // a mid-run refresh loses at most the view in flight, since a single view takes far longer
+      // than that to render.
+      scheduleProjectSave(10000);
     }
   };
 
