@@ -22116,10 +22116,27 @@ function buildMassingViewsForSpecs(specs){
         const elevDeg = typeof spec.elevation === 'number' ? spec.elevation : 15;
         const azRad = absAz * Math.PI / 180;
         const elevRad = elevDeg * Math.PI / 180;
-        const horizontal = radius * Math.cos(elevRad);
+        // Straight views (owner's definition, see straightElevationSpec): the camera stands
+        // exactly opposite the centre of one face, perpendicular to it, and the distance is
+        // fitted to THAT face rather than to the orbit radius, so the face fills the frame edge
+        // to edge the way a person standing directly in front of it would see it. Being exactly
+        // centred and square means the two adjacent faces vanish from the picture entirely, which
+        // is what makes the control image unmistakably "100% front" and not a three-quarter shot.
+        let camRadius = radius;
+        if(spec.straightOn){
+          const isWidthFace = spec.straightOn === 'Front' || spec.straightOn === 'Back';
+          const faceLen = isWidthFace ? W : D;
+          const halfDepthTowardCamera = isWidthFace ? D / 2 : W / 2;
+          const vFovRad = FOV * Math.PI / 180;
+          const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * (RW / RH));
+          const fitToWidth = (faceLen / 2) / Math.tan(hFovRad / 2) / 0.8;
+          const fitToHeight = (H * 0.65) / Math.tan(vFovRad / 2) / 0.8;
+          camRadius = Math.max(fitToWidth, fitToHeight) + halfDepthTowardCamera;
+        }
+        const horizontal = camRadius * Math.cos(elevRad);
         camera.position.set(
           W / 2 + horizontal * Math.sin(azRad),
-          targetY + radius * Math.sin(elevRad),
+          targetY + camRadius * Math.sin(elevRad),
           D / 2 - horizontal * Math.cos(azRad)
         );
         camera.up.set(0, 1, 0);
@@ -22593,10 +22610,13 @@ const ISLAND_CAMERA_RING = [
 /* DOUBLE DECK CAMERA RULES — per explicit client spec. When Construction Style / Number of
    levels = Double Deck, the standard open-side-scaled camera set (the corner/island fixed
    recipes above, or the general priority-candidate list further below) is entirely replaced
-   by this fixed 13-camera set instead, regardless of how many sides are open — its whole
-   purpose is to fully document BOTH architectural levels from every meaningful viewpoint
-   without changing any geometry (only camera position/angle/focal length ever move; walls,
-   stairs, furniture, and branding never do). Azimuths for the four straight elevations
+   by this 13-camera catalogue instead — its whole purpose is to fully document BOTH
+   architectural levels from every meaningful viewpoint without changing any geometry (only
+   camera position/angle/focal length ever move; walls, stairs, furniture, and branding never
+   do). Since Sep 2026 the catalogue is resolved per booth by computeCameraViewPlan (owner
+   rule: a straight view or corner is offered only where the booth is OPEN there, so a
+   double deck closed on three sides keeps the Front, the interior/upper-deck cameras and the
+   Top View and loses the wall-facing ones). Azimuths for the four straight elevations
    (Front/Left/Right/Rear) reuse this app's existing compass convention (COMPASS_AZIMUTH:
    Front 0°, Right 90°, Back/Rear 180°, Left 270°); the four diagonal perspective azimuths
    (45°/315°/135°/225°) are the client's own literal degree figures, taken as fixed
@@ -22616,14 +22636,17 @@ const ISLAND_CAMERA_RING = [
      Lock's own `isDoubleDeck` fact for an automated pass, on top of the prompt instruction. */
 const DOUBLE_DECK_CAMERA_RING = [
   { name: 'Hero View', azimuth: 0, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself, already showing this double-deck booth\'s front entrance, ground floor, second floor, staircase, hero architecture, and branding in one frame.' },
-  { name: 'Front View', azimuth: 0, elevation: 12, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'An orthographic-style, straight-on front elevation of the entire booth from ground floor to roofline — the entire front façade, the second floor, the main entrance, and the staircase (if visible from this side) must all be visible together in this single frame.' },
-  { name: 'Left View', azimuth: 270, elevation: 12, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on left elevation of the booth, showing this side\'s architecture from ground floor to roofline, including the second floor above.' },
-  { name: 'Right View', azimuth: 90, elevation: 12, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on right elevation of the booth, showing this side\'s architecture from ground floor to roofline, including the second floor above.' },
-  { name: 'Rear View', azimuth: 180, elevation: 12, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on rear elevation of the booth — especially important for showing any storage room, structural walls, and service access on this side, in addition to the second floor above.' },
-  { name: 'Perspective Front Left', azimuth: 45, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its front-left, roughly 45 degrees, showing the ground floor and second floor together in one dynamic angle.' },
-  { name: 'Perspective Front Right', azimuth: 315, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its front-right, roughly 315 degrees, showing the ground floor and second floor together in one dynamic angle.' },
-  { name: 'Perspective Rear Left', azimuth: 135, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its rear-left, roughly 135 degrees, showing the ground floor and second floor together in one dynamic angle.' },
-  { name: 'Perspective Rear Right', azimuth: 225, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its rear-right, roughly 225 degrees, showing the ground floor and second floor together in one dynamic angle.' },
+  // `side` / `corner` are resolved per booth by computeCameraViewPlan (real compass direction,
+  // open sides only); the azimuths written here are only the fallback used when no resolution
+  // happens. Names are also assigned there ("Front", "Left Side", "Front-Left Corner"...).
+  { name: 'Front', side: 'Front', azimuth: 0, elevation: 8, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'An orthographic-style, straight-on front elevation of the entire booth from ground floor to roofline — the entire front façade, the second floor, the main entrance, and the staircase (if visible from this side) must all be visible together in this single frame.' },
+  { name: 'Left Side', side: 'Left', azimuth: 270, elevation: 8, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on left elevation of the booth, showing this side\'s architecture from ground floor to roofline, including the second floor above.' },
+  { name: 'Right Side', side: 'Right', azimuth: 90, elevation: 8, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on right elevation of the booth, showing this side\'s architecture from ground floor to roofline, including the second floor above.' },
+  { name: 'Rear', side: 'Back', azimuth: 180, elevation: 8, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on rear elevation of the booth — especially important for showing any storage room, structural walls, and service access on this side, in addition to the second floor above.' },
+  { name: 'Front-Left Corner', corner: 'Front-Left', azimuth: 315, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its front-left corner, showing the ground floor and second floor together in one dynamic angle.' },
+  { name: 'Front-Right Corner', corner: 'Front-Right', azimuth: 45, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its front-right corner, showing the ground floor and second floor together in one dynamic angle.' },
+  { name: 'Rear-Left Corner', corner: 'Back-Left', azimuth: 225, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its rear-left corner, showing the ground floor and second floor together in one dynamic angle.' },
+  { name: 'Rear-Right Corner', corner: 'Back-Right', azimuth: 135, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its rear-right corner, showing the ground floor and second floor together in one dynamic angle.' },
   { name: 'Upper Deck Overview', type: 'upper-deck-overview', floor: 'upper', promptHint: 'An elevated interior vantage point positioned slightly above second-floor level, showing the entire upper floor at once — its lounge/meeting/whatever-was-selected areas, guard rails, and circulation — exactly as specified in this design\'s Second Floor Configuration, never inventing a room, furniture piece, or function beyond what was actually specified for the upper deck.' },
   { name: 'Upper Deck Interior', type: 'interior', focusZone: 'upper deck interior', floor: 'upper', promptHint: 'An eye-level interior view taken from the second floor itself, as if a visitor were standing on the upper deck — showing the real user experience up there.' },
   { name: 'Staircase View', type: 'interior', focusZone: 'staircase', floor: 'connection', promptHint: 'A dedicated interior view focused on the staircase connecting the ground floor and the second floor, clearly showing its structural supports and confirming it is a real, functional, fully integrated staircase — never floating, never merely implied, never omitted.' },
@@ -22658,7 +22681,7 @@ function islandClockHoursForArea(totalAreaSqm){
 // for a zone that genuinely survived the Spatial Planning Engine's own program, never
 // invented just because it's a "typical" exhibition zone (matching EPS-017's spirit,
 // applied here to camera planning instead of architecture).
-function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDeck){
+function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDeck, boothDims){
   const openSides = ALL_BOOTH_SIDES.filter(s => openSidesSet.has(s));
   const closedSides = ALL_BOOTH_SIDES.filter(s => !openSidesSet.has(s));
   const openCount = openSides.length;
@@ -22668,24 +22691,79 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
   // re-derived) — every azimuth below is expressed relative to that same viewpoint.
   const heroApproach = computeCameraApproachCorner(openSidesSet);
 
-  // DOUBLE DECK CAMERA RULES: takes priority over every other camera recipe below (the
-  // corner/island fixed sets, and the general priority-candidate list), regardless of how
-  // many sides are open — see DOUBLE_DECK_CAMERA_RING's own comment for why this booth type
-  // gets a fixed, extended set instead of one scaled to openCount.
-  if(isDoubleDeck){
-    return {
-      plan: DOUBLE_DECK_CAMERA_RING.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, radius: 8, target: 'booth_center', lens: 35, elevation: 15, ...c })),
-      openSides, closedSides, heroApproach, targetCount: DOUBLE_DECK_CAMERA_RING.length
-    };
-  }
-
   const heroAbsoluteAzimuth = CORNER_TO_ABSOLUTE_AZIMUTH[heroApproach.corner] ?? 45;
   const toRelativeAzimuth = (compassAzimuth) => ((compassAzimuth - heroAbsoluteAzimuth) % 360 + 360) % 360;
   const angularDistanceFromHero = (relativeAzimuth) => Math.min(relativeAzimuth, 360 - relativeAzimuth);
-  const shortestAngleDelta = (fromDeg, toDeg) => (((toDeg - fromDeg + 540) % 360) - 180);
+
+  // Owner's definition of a straight view (Sep 2026): "Front means the camera is 100% in front
+  // of the W side, outside the booth; Left means the camera is 100% in front of the Depth."
+  // Every straight view in every recipe below (corner, general, double deck) is built by this
+  // one helper, so the definition cannot drift between booth types. The camera stands outside
+  // the booth, exactly opposite the centre of the named face, aimed perpendicular to it: its
+  // REAL compass direction (COMPASS_AZIMUTH), never a hero-relative guess, and at a low 8
+  // degrees so the face reads square and flat rather than as a three-quarter shot. Names say
+  // the real face the camera stands in front of, so "Front" is always the W face and "Left
+  // Side"/"Right Side" always a D face, whatever corner the hero happened to be shot from.
+  // Owner rule, same date: a face gets a camera only when it is OPEN. A booth closed on three
+  // sides therefore gets the Front only, never a Left or Right view of a wall. A face the hero
+  // already covers almost square-on is skipped rather than sold twice.
+  const faceLengthFor = (side) => (side === 'Front' || side === 'Back')
+    ? ((boothDims && boothDims.widthM) || 0)
+    : ((boothDims && boothDims.depthM) || 0);
+  const straightElevationSpec = (side, label) => {
+    if(!openSides.includes(side)) return null;
+    const relative = toRelativeAzimuth(COMPASS_AZIMUTH[side]);
+    if(angularDistanceFromHero(relative) < 20) return null;
+    const faceLengthM = faceLengthFor(side);
+    const isWidthFace = side === 'Front' || side === 'Back';
+    const faceLabel = side === 'Back' ? 'Rear' : side;
+    const lengthText = faceLengthM > 0 ? `${faceLengthM.toFixed(1)} m ` : '';
+    return {
+      name: label,
+      type: 'exterior',
+      azimuth: relative,
+      elevation: 8,
+      straightOn: side,
+      faceLengthM,
+      promptHint: `A straight-on, centered exterior elevation of the booth's ${faceLabel} face, its ${lengthText}${isWidthFace ? 'W (width)' : 'D (depth)'} side. The camera stands outside the booth in the aisle, exactly opposite the centre of that face, aimed perpendicular to it, 100% square on: the ${faceLabel} face spans the frame from edge to edge and reads flat, and the two adjacent faces are not visible or appear only as the thinnest receding edges. Never diagonal, never a three-quarter view.`
+    };
+  };
+  const straightLabelFor = (side) => side === 'Front' ? 'Front' : (side === 'Back' ? 'Rear' : `${side} Side`);
+
+  // DOUBLE DECK CAMERA RULES: takes priority over every other camera recipe below (the
+  // corner/island fixed sets, and the general priority-candidate list), regardless of how
+  // many sides are open. See DOUBLE_DECK_CAMERA_RING's own comment for why this booth type
+  // gets a fixed, extended set instead of one scaled to openCount.
+  // Resolved per booth (Sep 2026) rather than used as fixed hero-relative degrees: each of the
+  // four straight views is now a real straight-on elevation of the face it is named after (the
+  // owner's definition above), each corner perspective stands at a real corner of the booth,
+  // and both kinds are offered only where the booth is OPEN there. The hero's own corner is
+  // never repeated as a perspective. Every camera that survives keeps its double-deck duties
+  // (second floor visible, staircase, guard rails) exactly as written in the ring.
+  if(isDoubleDeck){
+    const resolved = DOUBLE_DECK_CAMERA_RING.map(c => {
+      if(c.side){
+        const straight = straightElevationSpec(c.side, straightLabelFor(c.side));
+        if(!straight) return null;
+        return { ...c, name: straight.name, azimuth: straight.azimuth, elevation: straight.elevation, straightOn: straight.straightOn, faceLengthM: straight.faceLengthM };
+      }
+      if(c.corner){
+        const [fb, lr] = c.corner.split('-');
+        if(!openSides.includes(fb) || !openSides.includes(lr)) return null;
+        if(CORNER_TO_ABSOLUTE_AZIMUTH[c.corner] == null) return null;
+        const relative = toRelativeAzimuth(CORNER_TO_ABSOLUTE_AZIMUTH[c.corner]);
+        if(angularDistanceFromHero(relative) < 20) return null;
+        return { ...c, name: `${fb === 'Back' ? 'Rear' : fb}-${lr} Corner`, azimuth: relative };
+      }
+      return c;
+    }).filter(Boolean);
+    return {
+      plan: resolved.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, radius: 8, target: 'booth_center', lens: 35, elevation: 15, ...c })),
+      openSides, closedSides, heroApproach, targetCount: resolved.length
+    };
+  }
 
   const targetCount = getCameraCountForBooth(openCount, totalAreaSqm);
-  const hasZone = (pattern) => (zonePlan || []).some(z => (z.status === 'Kept' || z.status === 'Merged') && pattern.test(z.name));
 
   const candidates = [];
 
@@ -22693,25 +22771,6 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
   // (generateCameraViewsFromHero never sends a request for whichever camera is first in
   // this list — see its own comment). Always relative azimuth 0 by definition.
   candidates.push({ name: 'Hero View', type: 'exterior', azimuth: 0, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' });
-
-  // Priority 2 — Entrance: a distinct angle near the same open frontage the hero was shot
-  // from, emphasizing the walk-in approach rather than repeating the hero's own framing.
-  // heroApproach.corner is always two adjacent cardinal sides (e.g. "Front-Right") — for an
-  // island/corner/peninsula booth both are usually genuinely open, but for a single-open-
-  // side inline booth where that one open side is Left or Right (not Front/Back), only ONE
-  // of the two is genuinely open; the other is just computeCameraApproachCorner's own
-  // tiebreak default and may actually be a CLOSED side. Leaning blindly toward a fixed +30°
-  // (always "toward the LR component") was a real bug caught by testing: for those inline
-  // cases it could rotate the Entrance View further toward the closed side instead of
-  // deeper into the one genuinely open side. This always leans toward whichever of the two
-  // is ACTUALLY open, falling back to the previous default direction only when both are.
-  const [heroFBSide, heroLRSide] = heroApproach.corner.split('-');
-  const lrGenuinelyOpen = openSidesSet.has(heroLRSide);
-  const fbGenuinelyOpen = openSidesSet.has(heroFBSide);
-  const entranceTargetAbsolute = (!lrGenuinelyOpen && fbGenuinelyOpen) ? COMPASS_AZIMUTH[heroFBSide] : COMPASS_AZIMUTH[heroLRSide];
-  const entranceAbsolute = heroAbsoluteAzimuth + shortestAngleDelta(heroAbsoluteAzimuth, entranceTargetAbsolute) * 0.5;
-
-  const sidePriorityOrder = ['Front', 'Right', 'Back', 'Left'];
 
   // CORNER BOOTHS (exactly 2 open sides) get a fixed, specific 4-camera recipe per explicit
   // client direction, replacing the general priority-candidate approach used for every other
@@ -22723,27 +22782,20 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
   // photorealistic render — see buildCameraViewPrompt's 'top-down' branch for how that's
   // mitigated as much as possible while still honoring the request.
   //
-  // The two elevation cameras are named "Right View" / "Left View" — relative to the hero
-  // shot's own viewpoint, not literal compass sides. A corner booth's two open sides are
-  // always Front plus one of Left/Right (never Left AND Right together — see
-  // getBoothOpenSidesSet), so naming them by their real compass side would sometimes have
-  // neither one called "Left" or "Right" at all (e.g. Front+Right open — "Front" isn't
-  // "Left"). Per the client's own naming, "Right View"/"Left View" instead describe which
-  // side of the hero's own diagonal each open face sits on: whichever open side is
-  // clockwise from the hero azimuth (matching this app's existing clock convention, where
-  // 3 o'clock/Right sits clockwise of 12 o'clock/Front) is "Right View"; the other,
-  // counter-clockwise one is "Left View".
+  // The two elevation cameras used to be named "Right View" / "Left View" relative to the
+  // hero's own diagonal. Replaced (Sep 2026) by the owner's definition at the top of this
+  // function: each straight view is named after the REAL face it stands in front of, so the
+  // W face is always "Front" and the one open D face is "Left Side" or "Right Side". A corner
+  // booth's two open sides are always Front plus one of Left/Right (see getBoothOpenSidesSet),
+  // so exactly two straight views survive the open-side filter and the set stays at four.
   if(openCount === 2){
-    const [sideA, sideB] = sidePriorityOrder.filter(s => openSides.includes(s));
-    const isClockwiseOfHero = (side) => toRelativeAzimuth(COMPASS_AZIMUTH[side]) < 180;
-    const rightSide = isClockwiseOfHero(sideA) ? sideA : sideB;
-    const leftSide = rightSide === sideA ? sideB : sideA;
     const fixedFour = [
       { name: 'Hero View', type: 'exterior', azimuth: 0, elevation: 15, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' },
-      { name: 'Right View', type: 'exterior', azimuth: toRelativeAzimuth(COMPASS_AZIMUTH[rightSide]), elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${rightSide} open face — camera aimed straight in, not diagonal.` },
-      { name: 'Left View', type: 'exterior', azimuth: toRelativeAzimuth(COMPASS_AZIMUTH[leftSide]), elevation: 15, promptHint: `A straight-on, centered exterior elevation of the booth's ${leftSide} open face — camera aimed straight in, not diagonal.` },
+      straightElevationSpec('Front', 'Front'),
+      straightElevationSpec('Right', 'Right Side'),
+      straightElevationSpec('Left', 'Left Side'),
       { name: 'Top View', type: 'top-down', azimuth: 0, elevation: 90, promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' }
-    ];
+    ].filter(Boolean);
     return {
       plan: fixedFour.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, radius: 8, target: 'booth_center', lens: 35, ...c })),
       openSides, closedSides, heroApproach, targetCount: 4
@@ -22777,11 +22829,12 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
 
   // Owner rule (replaces the earlier thematic shot list — Entrance View, Brand Wall,
   // Architectural/Lighting Detail, etc.): the pickable views are the STANDARD camera
-  // POSITIONS, in this exact order — Front, Perspective Right, Perspective Left, Left,
-  // Right, Top, Back — plus one Interior View. Exterior Camera Rules still hold: a
-  // straight-on elevation is only offered for a side that is genuinely OPEN (a camera
-  // aimed at a closed structural wall would just render a wall), and near-duplicates of
-  // the hero's own angle are skipped so no paid slot wastes on an almost-identical shot.
+  // POSITIONS — the straight views of each open face, the mirror corner, Top, Rear when open
+  // — plus one Interior View. Exterior Camera Rules still hold: a straight-on elevation is
+  // only offered for a side that is genuinely OPEN (a camera aimed at a closed structural
+  // wall would just render a wall; owner, Sep 2026: "if the booth is closed on 3 sides, no
+  // need for a left view, only the front"), and near-duplicates of the hero's own angle are
+  // skipped so no paid slot wastes on an almost-identical shot.
   // Redesigned (Sep 2026) after a production run on a three-open-side booth came back with four
   // exterior views that were near-copies of the hero. The set itself was the cause, before any
   // rendering question: "Perspective Right" sat at 35 degrees from the hero and the "Right"
@@ -22795,12 +22848,11 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
   // corner the hero was shot from) or the OPPOSITE front corner, mirroring the hero across the
   // booth's centre line. The two 35-degree "perspective" cameras are gone: they can never be
   // distinct from the hero on one side and the adjacent elevation on the other. Names now say
-  // where the camera physically stands.
+  // where the camera physically stands (straightElevationSpec, defined at the top of this
+  // function, is the single definition of a straight view for every booth type).
   const pushElevation = (side, label) => {
-    if(!openSides.includes(side)) return;
-    const relative = toRelativeAzimuth(COMPASS_AZIMUTH[side]);
-    if(angularDistanceFromHero(relative) < 20) return; // effectively the hero's own angle
-    candidates.push({ name: label, type: 'exterior', azimuth: relative, promptHint: `A straight-on, centered exterior elevation of the booth's ${side} face — the camera stands directly in front of that side and is aimed straight at it, square on, never diagonal. This is a full quarter-turn or more away from the hero's corner angle and must read as an entirely different photograph of the same booth.` });
+    const straight = straightElevationSpec(side, label);
+    if(straight) candidates.push(straight);
   };
   // The opposite corner: the hero stands at one front corner of the booth, so the other front
   // corner is its mirror image and the most distinct exterior three-quarter view available.
@@ -22855,7 +22907,7 @@ function recomputeCameraViewPlan(){
     const openSidesSet = getBoothOpenSidesSet();
     const spatialPlan = computeSpatialPlan(widthM, depthM, '', boothHeightM);
     const isDoubleDeck = document.getElementById('f_levels').value === '2';
-    result = computeCameraViewPlan(totalAreaSqm, spatialPlan.zonePlan, openSidesSet, isDoubleDeck);
+    result = computeCameraViewPlan(totalAreaSqm, spatialPlan.zonePlan, openSidesSet, isDoubleDeck, { widthM, depthM });
     // OLE-001 — same structural shell computation generateDesign() already runs for the
     // written brief (buildStructuralShell), reused here (not re-estimated) to build the
     // Orientation Lock every camera-view prompt will reference. Storage room zones are the
@@ -23244,16 +23296,25 @@ The booth's architecture, materials, branding, and furniture are completely unch
   // own OPEN sides — see computeCameraViewPlan, which is what guarantees spec.azimuth here
   // never corresponds to a CLOSED wall side). azimuth is always relative to the hero
   // image's own actual viewpoint (0°), never an absolute compass figure, matching how the
-  // hero image itself was framed (see DIR-007 / computeCameraApproachCorner). EXCEPTION:
-  // Double Deck Camera Rules' fixed elevation/perspective cameras (requiresUpperFloorVisible)
-  // are the one case where this ISN'T guaranteed — the Rear View in particular is required
-  // even when Rear is this booth's structural/closed side, specifically to document storage,
-  // structural walls, and service access there, per that spec's own Rule 5. The "OPEN side"
-  // claim below only applies to the general (non-double-deck) camera sets, so it's swapped
-  // out for an accurate sentence whenever this flag is set.
-  const openSideClaimSentence = spec.requiresUpperFloorVisible
-    ? `This position documents this exact side of the booth regardless of whether it's an OPEN or a STRUCTURAL WALL side — for a STRUCTURAL WALL side, render the real solid wall, any storage/service elements behind it, and the second floor above it exactly as approved, never an open face.`
-    : `This position is pre-validated to sit only in front of this booth's own OPEN side(s) — per this booth's approved orientation, it never requires standing behind, inside, or looking through a STRUCTURAL WALL side.`;
+  // hero image itself was framed (see DIR-007 / computeCameraApproachCorner). The double-deck
+  // ring used to be the exception (its Rear View was kept even on a closed side); since Sep
+  // 2026 it is resolved per booth like every other recipe, so no exterior camera anywhere in
+  // this app ever stands in front of a closed wall.
+  // Since Sep 2026 the double-deck cameras are resolved per booth like every other recipe (open
+  // sides only, real compass directions), so the same claim holds for them too.
+  const openSideClaimSentence = `This position is pre-validated to sit only in front of this booth's own OPEN side(s): per this booth's approved orientation, it never requires standing behind, inside, or looking through a STRUCTURAL WALL side.`;
+  // Owner's definition of a straight view (Sep 2026; see straightElevationSpec in
+  // computeCameraViewPlan): "Front" is the camera 100% in front of the W face, outside the
+  // booth; "Left Side" 100% in front of the D face. Stated in the prompt in those exact terms,
+  // with the face's real length, so the model has no room to drift toward a three-quarter shot.
+  const straightOnSentence = spec.straightOn
+    ? (() => {
+        const faceLabel = spec.straightOn === 'Back' ? 'Rear' : spec.straightOn;
+        const isWidthFace = spec.straightOn === 'Front' || spec.straightOn === 'Back';
+        const lengthText = spec.faceLengthM > 0 ? `${Number(spec.faceLengthM).toFixed(1)} m ` : '';
+        return ` STRAIGHT-ON ELEVATION, 100% SQUARE: the camera stands OUTSIDE the booth in the aisle, exactly opposite the centre of the booth's ${faceLabel.toUpperCase()} face (its ${lengthText}${isWidthFace ? 'W / width' : 'D / depth'} side), aimed perpendicular to that face. The ${faceLabel} face spans the frame from edge to edge and reads flat and symmetrical, exactly as a person standing directly in front of it would see it; the two adjacent faces are not visible, or appear only as the thinnest receding edges. Not a diagonal, not a three-quarter view, and not the approved image's own corner angle.`;
+      })()
+    : '';
   // Owner request (Sep 2026): a SECOND reference image — one frame pulled from a real Luma
   // orbit video of this same approved booth — is attached for most exterior views now (see
   // generateCameraViewsFromHero's own comment). It's genuinely useful as a rough continuity/
@@ -23283,14 +23344,14 @@ The booth's architecture, materials, branding, and furniture are completely unch
 
 YOUR TASK: re-render the FIRST image as a finished, photorealistic photograph of this booth, keeping its camera and geometry precisely, and dressing every surface, structure and object in the exact design language of the SECOND image at full quality — the same materials on the same elements, the same colours, the same branding in the same places, the same furniture. The white blocks are placeholders for the real elements in those exact positions and sizes: never leave any of them as a white box, never keep the plain grey background or the model's flat untextured look, and never move the camera to the second image's angle. Where the first image shows open space, the space is open; where it shows no wall, there is no wall.
 
-Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the approved image's own viewpoint is the 0-degree / front position). ${openSideClaimSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
+Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the approved image's own viewpoint (that viewpoint is the 0-degree position). ${openSideClaimSentence}${straightOnSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
 
 The booth itself is completely static and unchanged from the approved design — only the camera stands at this new position.${widerNote} For any face or element the second image does not show directly, act as the same professional exhibition designer who created it: continue the same materials, colours, brand identity, structural style and design language into those areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the approved image — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
   }
 
   return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific EXTERIOR camera position.
 
-Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the front of the booth (the reference image's own viewpoint is the 0-degree / front position). ${openSideClaimSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.${lumaReferenceNote}
+Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the reference image's own viewpoint (that viewpoint is the 0-degree position). ${openSideClaimSentence}${straightOnSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.${lumaReferenceNote}
 
 The booth itself is completely static and unchanged from the reference — only the camera has moved to this new position. Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image — new side surfaces, structural elements, or depth — never a near-repeat of the reference from a marginally different angle.${widerNote} The attached photo may show only one side or angle of the booth — for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
 }
