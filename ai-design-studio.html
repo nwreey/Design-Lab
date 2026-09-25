@@ -15483,6 +15483,68 @@ function enforceRequirementsFitAfterAutofill(previouslyCheckedIds, widthM, depth
   return { trimmed, stillImpossible: conflict.isImpossible };
 }
 
+// Design density pass (see AUTOFILL_DESIGN_DENSITY). Runs AFTER the hard fit pass above, on the
+// same terms: only Requirements THIS Auto Fill run added are ever unchecked, never the client's
+// own picks, and always least essential category first (REQUIREMENTS_TRIM_ORDER_CATEGORIES),
+// then any remaining AI-added item in form order. Three limits, applied in this order:
+//   1. no more floor-consuming items than the booth's size class allows;
+//   2. the floor items' combined footprint within the spending share of the available area
+//      (measured with detectSpatialConflicts, the same arithmetic the Generate button uses);
+//   3. no more wall/ceiling/lighting/decorative items than the size class allows.
+// Every candidate considered for limits 1 and 2 is a floor item, so each removal moves the
+// footprint figure; limit 3 only ever looks at ADDREQ_NON_FLOOR_IDS.
+function enforceDesignDensityAfterAutofill(previouslyCheckedIds, widthM, depthM, heightM){
+  if(!(widthM > 0 && depthM > 0 && heightM > 0)) return { trimmed: [], floorSpendRatio: 0 };
+  const areaSqm = widthM * depthM;
+  const maxFloorItems = AUTOFILL_DESIGN_DENSITY.maxFloorItemsForArea(areaSqm);
+  const maxNonFloorItems = AUTOFILL_DESIGN_DENSITY.maxNonFloorItemsForArea(areaSqm);
+  const categoryIds = collectRequirementCategoryIds(REQUIREMENTS_TRIM_ORDER_CATEGORIES);
+  const trimmed = [];
+  const isChecked = (id) => { const el = document.getElementById(id); return !!(el && el.checked); };
+  const isAiAdded = (id) => isChecked(id) && !previouslyCheckedIds.has(id);
+  const isFloor = (id) => !ADDREQ_NON_FLOOR_IDS.has(id);
+  const isNonFloor = (id) => ADDREQ_NON_FLOOR_IDS.has(id);
+  const countChecked = (filter) => ADDREQ_ALL_CHECKBOX_IDS.filter(id => isChecked(id) && filter(id)).length;
+  const pickTrimCandidate = (filter) => {
+    for(const category of REQUIREMENTS_TRIM_ORDER_CATEGORIES){
+      const found = (categoryIds[category] || []).find(id => isAiAdded(id) && filter(id));
+      if(found) return found;
+    }
+    return ADDREQ_ALL_CHECKBOX_IDS.find(id => isAiAdded(id) && filter(id));
+  };
+  const uncheck = (id) => {
+    const el = document.getElementById(id);
+    el.checked = false;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    trimmed.push(id);
+  };
+  let guard = 0;
+  while(countChecked(isFloor) > maxFloorItems && guard < 60){
+    guard++;
+    const id = pickTrimCandidate(isFloor);
+    if(!id) break;
+    uncheck(id);
+  }
+  let fit = detectSpatialConflicts(widthM, depthM, heightM);
+  const spendCap = () => fit.availableForZonesSqm * AUTOFILL_DESIGN_DENSITY.floorSpendMaxRatio;
+  while(fit.availableForZonesSqm > 0 && fit.totalRequestedSqm > spendCap() + 0.001 && guard < 60){
+    guard++;
+    const id = pickTrimCandidate(isFloor);
+    if(!id) break;
+    uncheck(id);
+    fit = detectSpatialConflicts(widthM, depthM, heightM);
+  }
+  while(countChecked(isNonFloor) > maxNonFloorItems && guard < 120){
+    guard++;
+    const id = pickTrimCandidate(isNonFloor);
+    if(!id) break;
+    uncheck(id);
+  }
+  if(trimmed.length && typeof updateReqCategoryCounts === 'function') updateReqCategoryCounts();
+  const floorSpendRatio = fit.availableForZonesSqm > 0 ? fit.totalRequestedSqm / fit.availableForZonesSqm : 0;
+  return { trimmed, floorSpendRatio };
+}
+
 // Event mode's equivalent of the fit-check above, operating directly on the in-memory
 // areaPlanningList array (there's no per-area DOM checkbox the way Requirements has — see
 // apCreateArea's own field shape). Only ever runs when every current area was just proposed by
@@ -15711,6 +15773,33 @@ async function collectAutofillImageParts(){
    Just as useful is the other half of the message: items with no floor cost at all (wall and
    ceiling mounted features, lighting, purely decorative elements) are named as free, so a lean
    budget pushes the model toward those rather than toward an empty-looking booth. */
+// Design density policy for Auto Fill (owner rule, Sep 2026: "keep the space in mind, don't put
+// a lot of items, it affects the design"). Fitting is not the bar. A booth whose floor items add
+// up to exactly the available area is crammed: the hero structure cannot be seen, visitors have
+// nowhere to stand, and the render reads as a storeroom. So the model is given, and then held to,
+// three limits sized to the booth: a share of the available area it may spend, a cap on how many
+// floor-consuming Requirements it may check, and a cap on wall/ceiling/decorative Requirements
+// (free in floor terms, but a booth covered in features is visual noise). Defined once so the
+// prompt text and the enforcement pass can never quote two different numbers.
+const AUTOFILL_DESIGN_DENSITY = {
+  floorSpendMaxRatio: 0.6,
+  maxFloorItemsForArea(areaSqm){
+    if(areaSqm < 18) return 2;
+    if(areaSqm < 36) return 3;
+    if(areaSqm < 72) return 4;
+    if(areaSqm < 150) return 6;
+    if(areaSqm < 300) return 8;
+    return 10;
+  },
+  maxNonFloorItemsForArea(areaSqm){
+    if(areaSqm < 18) return 3;
+    if(areaSqm < 36) return 4;
+    if(areaSqm < 72) return 5;
+    if(areaSqm < 150) return 6;
+    return 8;
+  }
+};
+
 function buildAutofillSpaceBudgetText(){
   const widthM = parseFloat(document.getElementById('f_width').value);
   const depthM = parseFloat(document.getElementById('f_depth').value);
@@ -15720,6 +15809,9 @@ function buildAutofillSpaceBudgetText(){
   const circulationSqm = totalAreaSqm * getCirculationReservePercent(totalAreaSqm);
   const usableSqm = totalAreaSqm - heroSqm - circulationSqm;
   const r1 = (n) => Math.round(n * 10) / 10;
+  const spendCapSqm = Math.max(0, usableSqm * AUTOFILL_DESIGN_DENSITY.floorSpendMaxRatio);
+  const maxFloorItems = AUTOFILL_DESIGN_DENSITY.maxFloorItemsForArea(totalAreaSqm);
+  const maxNonFloorItems = AUTOFILL_DESIGN_DENSITY.maxNonFloorItemsForArea(totalAreaSqm);
 
   // Per-item floor cost, taken from the same numbers the spatial engine itself uses so the
   // model's arithmetic and the app's verdict cannot disagree. Per-person and per-unit items are
@@ -15762,9 +15854,15 @@ SPACE BUDGET FOR THIS EXACT BOOTH (arithmetic, not a judgement call — do this 
 FLOOR COST OF EACH ITEM, IN SQM (this app's own measured figures, the same ones used to accept or reject your selection):
 ${JSON.stringify(costs, null, 0)}
 
-Any Requirement not listed above costs NO floor area at all: wall-mounted and ceiling-mounted features, lighting of every kind, graphics, and purely decorative elements. Choose those freely wherever they genuinely suit the design.
+Any Requirement not listed above costs NO floor area: wall-mounted and ceiling-mounted features, lighting of every kind, graphics, and purely decorative elements. They still count against the wall/ceiling/decorative limit below, because a booth covered in features reads as noise, not as design.
 
-HOW TO USE THIS BUDGET: add up the floor cost of every floor-consuming Requirement you check, multiplied by the quantity or capacity you give it. That running total must come to ${r1(usableSqm)} sqm or less. If you are over, cut items or reduce quantities until you are under, starting with whatever contributes least to this client's stated goal. Selecting more than fits does NOT produce a richer design: the engine rejects the excess and the client is blocked from generating at all, so an over-filled brief is worse for them than a lean one. On a small booth, deliberately choose few floor items and express ambition through the free wall, ceiling, lighting and graphic elements instead.`;
+HOW TO USE THIS BUDGET: add up the floor cost of every floor-consuming Requirement you check, multiplied by the quantity or capacity you give it. Keep that running total within the spending limit below, never merely within the ${r1(usableSqm)} sqm available.
+
+DESIGN DENSITY RULE (a crowded booth is a bad design even when everything fits):
+• Spend at most ${r1(spendCapSqm)} sqm of the ${r1(usableSqm)} sqm available on floor items (${Math.round(AUTOFILL_DESIGN_DENSITY.floorSpendMaxRatio * 100)}%). The rest stays EMPTY on purpose: open floor is what lets the hero structure be seen, lets visitors walk in, and makes the design read as premium. Filling the available area to its limit produces a cluttered render, not a richer one.
+• For a ${r1(totalAreaSqm)} sqm booth, check at most ${maxFloorItems} floor-consuming Requirements in total, and at most ${maxNonFloorItems} wall, ceiling, lighting or decorative Requirements. Pick the few that serve this client's stated goal best and leave everything else unchecked. Fewer, better-chosen items always beat a long list.
+• Quantities and capacities: the smallest number that does the job. One reception counter, not three; a 4-person lounge, not 8, on a small booth.
+• These limits are enforced after you answer: anything beyond them is removed automatically, starting with the least essential category, so an over-filled brief only costs you control over WHICH items survive. Decide that yourself by staying within the limits.`;
 }
 
 // Booth mode's system prompt + content parts — unchanged from before the Event mode branch was
@@ -15845,7 +15943,7 @@ You are helping fill out an exhibition booth design brief on behalf of a client,
 
 ${AUTOFILL_DEPENDENCY_RULES}
 
-Ground every choice in the ACTUAL SPACE available (given below as fixed facts you must never contradict) — never suggest requirements, brand-portfolio entries, or a scale of finish that wouldn't realistically fit a booth of this size, and never select more than could physically coexist in the space. A 9 sqm booth should get a lean, focused set of requirements; a 200 sqm booth can support many more. If a double-deck upper deck configuration is given, keep every suggestion consistent with its stated purpose, capacity, and privacy level too. Your response is already constrained to a strict JSON Schema — focus entirely on making every value the most professionally appropriate one, not a placeholder, and perform your own internal consistency check (dimensions realistic, nothing contradictory, nothing that can't physically fit) before finalizing.
+Ground every choice in the ACTUAL SPACE available (given below as fixed facts you must never contradict): never suggest requirements, brand-portfolio entries, or a scale of finish that wouldn't realistically fit a booth of this size, and never select as much as could physically coexist in the space either: the DESIGN DENSITY RULE below sets how much of the space you may actually use, and it is well short of all of it. Think as the designer who has to make the render look good: every item you check takes floor, sightlines and attention away from the hero structure, so the brief should carry the few items that matter for this client's goal and nothing else. A 9 sqm booth should get a lean, focused set of requirements; a 200 sqm booth can support more, still never a crowded one. If a double-deck upper deck configuration is given, keep every suggestion consistent with its stated purpose, capacity, and privacy level too. Your response is already constrained to a strict JSON Schema, so focus entirely on making every value the most professionally appropriate one, not a placeholder, and perform your own internal consistency check (dimensions realistic, nothing contradictory, nothing that can't physically fit) before finalizing.
 ${buildAutofillSpaceBudgetText()}
 
 Rules:
@@ -15966,7 +16064,7 @@ You are helping fill out an event design brief on behalf of a client, based on t
 
 ${AUTOFILL_DEPENDENCY_RULES}
 
-Ground every choice in the ACTUAL EVENT described (given below as fixed facts you must never contradict) — its stated type, objective, target audience, venue, and story. Never suggest an activity, mood, area, or scale of production that wouldn't realistically suit this specific event or fit its footprint (e.g. a formal government summit shouldn't get "Entertainment"/"Family-Friendly" mood tags; a product launch for a consumer brand can). Your response is already constrained to a strict JSON Schema — focus entirely on making every value the most professionally appropriate one, and perform your own internal consistency check before finalizing.
+Ground every choice in the ACTUAL EVENT described (given below as fixed facts you must never contradict): its stated type, objective, target audience, venue, and story. Never suggest an activity, mood, area, or scale of production that wouldn't realistically suit this specific event or fit its footprint (e.g. a formal government summit shouldn't get "Entertainment"/"Family-Friendly" mood tags; a product launch for a consumer brand can). Your response is already constrained to a strict JSON Schema, so focus entirely on making every value the most professionally appropriate one, and perform your own internal consistency check before finalizing.
 
 Rules:
 - "brandColors": 2–4 hex colors for this brand/event, chosen in this exact priority order — always include this:
@@ -16147,11 +16245,15 @@ async function runAiAutofill(){
       const depth = parseFloat(document.getElementById('f_depth').value);
       const height = parseFloat(document.getElementById('f_totalHeight').value);
       const { trimmed, stillImpossible } = enforceRequirementsFitAfterAutofill(previouslyCheckedRequirementIds, width, depth, height);
-      if(trimmed.length){
-        trimNote = ` (removed ${trimmed.length} AI-suggested requirement${trimmed.length > 1 ? 's' : ''} that didn't fit this booth's size)`;
+      // Owner rule (Sep 2026): fitting is not enough, the selection must leave the design room to
+      // breathe. See enforceDesignDensityAfterAutofill / AUTOFILL_DESIGN_DENSITY.
+      const density = enforceDesignDensityAfterAutofill(previouslyCheckedRequirementIds, width, depth, height);
+      const removedTotal = trimmed.length + density.trimmed.length;
+      if(removedTotal){
+        trimNote = ` (kept the selection lean for a ${Math.round(width * depth)} sqm booth: ${removedTotal} AI-suggested requirement${removedTotal > 1 ? 's' : ''} removed so the design has room to breathe)`;
       }
       if(stillImpossible){
-        trimNote += ' — this booth may still be tight for everything selected; consider a larger size or fewer Requirements.';
+        trimNote += ' This booth may still be tight for everything selected; consider a larger size or fewer Requirements.';
       }
     }else{
       const { trimmed } = enforceAreaPlanningFit(areaPlanningWasEmpty);
