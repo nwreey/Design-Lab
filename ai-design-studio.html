@@ -13234,7 +13234,7 @@ function runDesignDirectorReview(concept, resolvedSpec, zoneAllocation){
   const checklist = [
     { structural: false, text: 'One strong architectural idea — yes: the hero element and composition below are the single unifying concept every zone sits inside.' },
     { structural: false, text: 'Hero proportional, never dominating the whole booth — yes: sized to this booth\'s own scale, never a larger pavilion\'s hero shrunk down or a small hero stretched up.' },
-    { structural: true, text: `Booth remains open, visitors can see in — yes: ${resolvedSpec.openSidesCount} side(s) stay genuinely open with clear sightlines into the booth.` },
+    { structural: true, text: `Booth remains open, visitors can see in, yes: ${resolvedSpec.openSidesCount} side(s) stay genuinely open with clear sightlines into the booth, and the booth has exactly ${4 - resolvedSpec.openSidesCount} wall side(s), no more.` },
     { structural: false, text: 'Brand immediately recognizable — yes: via the hero architecture, reception, and one feature moment, never repeated on every surface.' },
     { structural: true, text: negativeSpaceOk ? 'Sufficient negative space, the booth is allowed to breathe — yes.' : 'Negative space is tight for this footprint — keep furniture and display units to only what is listed below.' },
     { structural: true, text: 'Visitor circulation is clear — yes: one legible path from entrance to hero to zones to exit, no dead ends.' },
@@ -13262,7 +13262,7 @@ function formatStructuralShellPlain(shell){
     const label = side === 'Back' ? 'Rear' : side;
     const s = shell.sides[side];
     if(s.state === 'OPEN') openSides.push(label);
-    else wallSides.push(`${label} (${s.lengthM.toFixed(1)} m long, ${(s.heightMm / 1000).toFixed(1)} m high — a solid, continuous, flat wall; no arch, portal, or opening cut into it, and no visitor entrance on this side)`);
+    else wallSides.push(`${label} (${s.lengthM.toFixed(1)} m long, ${(s.heightMm / 1000).toFixed(1)} m high, a solid, continuous, flat wall; no arch, portal, or opening cut into it, and no visitor entrance on this side)`);
   });
   // Owner rule (Sep 2026): whatever height the client sets, every wall stands at exactly that
   // height. The data already worked this way — buildStructuralShell gives every wall the one
@@ -13274,9 +13274,31 @@ function formatStructuralShellPlain(shell){
   // architectural idea.
   const wallHeightM = (shell.wallHeightMm || 0) / 1000;
   const uniformHeightRule = wallHeightM > 0
-    ? ` EVERY WALL IN THIS BOOTH IS EXACTLY ${wallHeightM.toFixed(1)} M HIGH — one single, consistent height for all of them: each perimeter wall side, and the walls of any enclosed room inside the booth, all reach exactly that height and stop there, giving the booth one level, continuous roofline all the way round. Never step, taper, slope, or stagger wall heights, never raise one side higher than another for emphasis or visual interest, and never let one wall stop short of that height while another reaches it. The only element permitted to rise above it is the hero structure itself, which is a feature, not a wall.`
+    ? ` EVERY WALL IN THIS BOOTH IS EXACTLY ${wallHeightM.toFixed(1)} M HIGH, one single, consistent height for all of them: each perimeter wall side, and the walls of any enclosed room inside the booth, all reach exactly that height and stop there, giving the booth one level, continuous roofline all the way round. Never step, taper, slope, or stagger wall heights, never raise one side higher than another for emphasis or visual interest, and never let one wall stop short of that height while another reaches it. The only element permitted to rise above it is the hero structure itself, which is a feature, not a wall.`
     : '';
   const lines = [`Footprint: ${shell.widthM.toFixed(1)} m × ${shell.depthM.toFixed(1)} m.`];
+
+  // Owner rule (Sep 2026), after a peninsula (three open sides, back closed) came back rendered
+  // with TWO closed sides: the prompt spent a long paragraph on how solid the closed walls must be
+  // and one clause on the open sides, and the model added a wall on the far side of the booth as a
+  // backdrop. The open sides now get a rule of their own, as explicit as the wall rule: an exact
+  // wall count, a per-side OPEN / WALL list, and the statement that the far side from the camera
+  // is open too and the hall must show through it. Everything below is derived from the same
+  // shell object, so it can never disagree with the wall list.
+  const openSet = new Set(ALL_BOOTH_SIDES.filter(side => shell.sides[side] && shell.sides[side].state === 'OPEN'));
+  const labelFor = (side) => side === 'Back' ? 'Rear' : side;
+  const wallCountLine = `WALL COUNT FOR THIS BOOTH: exactly ${4 - openSet.size} wall side${4 - openSet.size === 1 ? '' : 's'} and exactly ${openSet.size} open side${openSet.size === 1 ? '' : 's'}. Side by side: ${ALL_BOOTH_SIDES.map(side => `${labelFor(side)} = ${openSet.has(side) ? 'OPEN, no wall of any kind' : 'WALL, solid and continuous'}`).join('; ')}. A render showing more walls than this count, or a wall on any side listed as OPEN, is wrong for this booth and must not be produced.`;
+  let openSidesRule = '';
+  if(openSet.size > 0 && openSet.size < 4){
+    const approach = computeCameraApproachCorner(openSet);
+    const nearSides = approach.corner.split('-');
+    const farOpenSides = ALL_BOOTH_SIDES.filter(side => openSet.has(side) && !nearSides.includes(side)).map(labelFor);
+    const farSideNote = farOpenSides.length
+      ? ` The camera looks across the booth toward its ${approach.lookToward} corner, so the ${farOpenSides.join(' and ')} side${farOpenSides.length > 1 ? 's are' : ' is'} the FAR side${farOpenSides.length > 1 ? 's' : ''} of the booth in this image, and ${farOpenSides.length > 1 ? 'they are' : 'it is'} OPEN: the exhibition hall must be visible through the booth past ${farOpenSides.length > 1 ? 'them' : 'it'}. Never close the far side of the booth with a backdrop, a feature wall, a graphic wall or a screen wall because it faces the camera; a wall there is the single most common mistake on this booth type and it turns a ${openSet.size}-sided-open booth into a closed one.`
+      : '';
+    openSidesRule = `EVERY OPEN SIDE NAMED ABOVE IS FULLY OPEN, from corner to corner and from the floor up: no wall of any kind stands on or along that side. Not a full wall, not a half wall, not a backdrop, not a feature or branding wall, not a row of panels, not a screen wall, not a fascia dropped to the floor, not the side of a meeting room or storage room, not a line of tall display units. A visitor standing on the aisle sees straight into the booth along the whole length of that side and can walk in anywhere along it. Wall-like elements inside the footprint (feature walls, room sides, storage faces, tall displays) must stand clear of every open side: set back at least 1.0 m from the open edge, or running across the booth rather than along it, and never covering more than 40% of an open side's length as seen from the aisle, so each open side still reads as open.${farSideNote}`;
+  }
+
   // Owner rule (Sep 2026): an island booth must never be rendered with a full wall, and this has
   // to be said here, in the live image prompt, not only in the standards text. EPS-008's OPEN
   // BOOTH RULES already state it (60% of each side visually open, solid surface never more than
@@ -13288,10 +13310,11 @@ function formatStructuralShellPlain(shell){
   // half height, or transparent, never a full solid face.
   lines.push(openSides.length === 4
     ? 'All four sides are open — this is a true 360-degree island pavilion. No perimeter wall anywhere, no back wall, no front/rear hierarchy; the architecture must read as complete and welcoming from every direction. NO FULL WALL ANYWHERE IN THIS BOOTH: this applies to every wall-like element, on the perimeter and inside the footprint alike — feature walls, branding walls, meeting room sides, storage faces, backdrops and dividers included. Each one must be either HALF HEIGHT (roughly waist to chest height, never above standing eye level) or visually transparent (glass, open frame, spaced vertical slats, perforated or mesh panel), so that a visitor standing anywhere around the booth can see straight through it to the far side. Every side must stay at least 60% visually open along its full length, and solid surface must never cover more than 40% of any one side. A render in which any side reads as a closed, blocked or solid face is wrong for this booth, no matter how attractive that face looks on its own. The single exception is an enclosed back-of-house room this design actually includes, such as a storage room or an enclosed VIP room: that is a real enclosed volume with solid walls by function, so build it as one' + (wallHeightM > 0 ? `, with its walls at exactly ${wallHeightM.toFixed(1)} m, the same height stated for this booth` : '') + ', but keep it compact and set it in from the booth\'s outer edge so every side still reads as open and see-through around it.'
-    : `Open sides (stay completely free of any wall, column, or enclosing structure, corner to corner): ${openSides.join(', ') || 'none'}. Fixed perimeter wall side(s) — already engineered, build exactly as stated, never move, mirror, shorten, or cut an opening into them: ${wallSides.join('; ') || 'none'}. EVERY WALL SIDE NAMED ABOVE IS FULLY CLOSED, whether this booth has one such side, two, or three: build each one as a single continuous solid wall running the full length of that side from corner to corner, and the full height stated, from the floor up. It is not a backdrop, not a half-height or partial partition, not a row of freestanding panels, and not a slatted or perforated screen with gaps: those belong to an open side, never to this one. Product displays, graphics, screens, niches and storage doors may be built INTO this wall, but never stand in place of it, and the wall must read as visually continuous across the whole side, reaching both of its corners equally rather than tapering off or stopping short of the corner farthest from the camera. The only permitted interruption is one small internal door where this design actually places a storage or VIP room directly behind that wall.${uniformHeightRule}`);
+    : `${wallCountLine}\nOpen sides (stay completely free of any wall, column, or enclosing structure, corner to corner): ${openSides.join(', ') || 'none'}. Fixed perimeter wall side(s), already engineered, build exactly as stated, never move, mirror, shorten, or cut an opening into them: ${wallSides.join('; ') || 'none'}. EVERY WALL SIDE NAMED ABOVE IS FULLY CLOSED, whether this booth has one such side, two, or three: build each one as a single continuous solid wall running the full length of that side from corner to corner, and the full height stated, from the floor up. It is not a backdrop, not a half-height or partial partition, not a row of freestanding panels, and not a slatted or perforated screen with gaps: those belong to an open side, never to this one. Product displays, graphics, screens, niches and storage doors may be built INTO this wall, but never stand in place of it, and the wall must read as visually continuous across the whole side, reaching both of its corners equally rather than tapering off or stopping short of the corner farthest from the camera. The only permitted interruption is one small internal door where this design actually places a storage or VIP room directly behind that wall.${uniformHeightRule}`);
+  if(openSidesRule) lines.push(openSidesRule);
   if(shell.storageEnclosures.length){
     shell.storageEnclosures.forEach(enc => {
-      lines.push(`${enc.name}: a fully enclosed back-of-house room, ${enc.widthM.toFixed(1)} m × ${enc.depthM.toFixed(1)} m, hidden from public view${enc.attachedToWallSides.length ? ', built flush against the ' + enc.attachedToWallSides.join('/') + ' wall' : ''}.`);
+      lines.push(`${enc.name}: a fully enclosed back-of-house room, ${enc.widthM.toFixed(1)} m × ${enc.depthM.toFixed(1)} m, hidden from public view${enc.attachedToWallSides.length ? ', built flush against the ' + enc.attachedToWallSides.join('/') + ' wall' : ''}. Its own walls are the room's walls only: they never extend along an open side of the booth, and they never turn an open side into a closed one.`);
     });
   }
   return lines.join('\n');
@@ -13301,11 +13324,21 @@ function formatStructuralShellPlain(shell){
 // buildCameraApproachText above (a real physical constraint: the camera must never crowd a
 // closed wall), rewritten without internal engineering code names.
 function buildCameraTextPlain(){
-  const c = computeCameraApproachCorner(getBoothOpenSidesSet());
+  const openSet = getBoothOpenSidesSet();
+  const c = computeCameraApproachCorner(openSet);
+  // Owner rule (Sep 2026): the open sides are named again here, from the camera's point of view,
+  // because the far edge of the booth in a three-quarter shot is where a wall gets invented.
+  const labelFor = (side) => side === 'Back' ? 'Rear' : side;
+  const nearSides = c.corner.split('-');
+  const nearOpen = ALL_BOOTH_SIDES.filter(side => openSet.has(side) && nearSides.includes(side)).map(labelFor);
+  const farOpen = ALL_BOOTH_SIDES.filter(side => openSet.has(side) && !nearSides.includes(side)).map(labelFor);
+  const openEdgesNote = (nearOpen.length || farOpen.length) && c.closedSidesOpposite.length
+    ? ` In this frame${nearOpen.length ? ` the ${nearOpen.join(' and ')} side${nearOpen.length > 1 ? 's face' : ' faces'} the camera` : ''}${nearOpen.length && farOpen.length ? ' and' : ''}${farOpen.length ? ` the ${farOpen.join(' and ')} side${farOpen.length > 1 ? 's form' : ' forms'} the far edge of the booth` : ''}: every one of these is an OPEN edge with the exhibition hall visible beyond it, never a wall. The only wall${c.closedSidesOpposite.length > 1 ? 's' : ''} in this image ${c.closedSidesOpposite.length > 1 ? 'are' : 'is'} on the ${c.closedSidesOpposite.map(labelFor).join(' and ')} side${c.closedSidesOpposite.length > 1 ? 's' : ''}.`
+    : '';
   const wallNote = c.closedSidesOpposite.length
-    ? ` The camera stands opposite the booth's ${c.closedSidesOpposite.join('/')} wall side(s), looking across the open floor toward it, so the whole design — not just the portion nearest the camera — is visible in one frame.`
+    ? ` The camera stands opposite the booth's ${c.closedSidesOpposite.map(labelFor).join('/')} wall side(s), looking across the open floor toward it, so the whole design, not just the portion nearest the camera, is visible in one frame.${openEdgesNote}`
     : ' This is a fully open island booth, so this corner is simply a neutral, consistent default.';
-  return `Photorealistic 3D perspective, camera positioned 35-45 degrees above the booth (never directly overhead, never described as "bird's-eye" or "looking straight down"), above the ${c.corner} corner looking toward the ${c.lookToward} corner.${wallNote} Tightly framed so the booth fills roughly 90-95% of the image; the exhibition hall around it stays a soft, minimal, out-of-focus backdrop — no neighboring booths, aisle signage, hall branding, or crowds. The hero element must never block the view of the rest of the booth.`;
+  return `Photorealistic 3D perspective, camera positioned 35-45 degrees above the booth (never directly overhead, never described as "bird's-eye" or "looking straight down"), above the ${c.corner} corner looking toward the ${c.lookToward} corner.${wallNote} Tightly framed so the booth fills roughly 90-95% of the image; the exhibition hall around it stays a soft, minimal, out-of-focus backdrop: no neighboring booths, aisle signage, hall branding, or crowds. The hero element must never block the view of the rest of the booth.`;
 }
 
 // --- Owner request (Sep 2026): temporarily switch off every CREATIVE/style rule this pipeline
