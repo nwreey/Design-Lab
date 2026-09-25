@@ -22188,17 +22188,29 @@ function massingBoxSizeM(dims){
    single time and only the camera moves between shots, which is both faster and the exact
    guarantee we want: every view is demonstrably the same geometry from a different position.
 
-   Coordinate convention is this file's existing one, reused rather than reinvented (see
-   buildParametricElevationViews_TE, which proved it): X runs Left(0) -> Right(width),
-   Z runs Front(0) -> Rear(depth), Y runs floor(0) -> ceiling. A camera at absolute compass
-   azimuth 0 stands outside the Front side looking in; 90 stands outside the Right side. Each
+   Coordinate convention (corrected Sep 2026 after the owner reported the Right Side view showing
+   the wrong face): X runs Left(0) -> Right(width), Z runs Rear(0) -> Front(depth), Y runs
+   floor(0) -> ceiling. The earlier version put the Front at z = 0, which, with the renderer's
+   right-handed axes and a Y-up camera, placed the booth's Right face on the viewer's LEFT when
+   looking in from the Front: every massing was a mirror image of the real booth, so the "Right
+   Side" control showed what a camera at the real Left side sees, and the painted views followed
+   it. With the Front at z = depth the handedness is correct: from the Front the Right face is on
+   the right, from the Right side the Front is on the viewer's left, exactly as on the real stand.
+   A camera at absolute compass azimuth 0 stands outside the Front side looking in; 90 stands
+   outside the Right side. Each
    spec's own azimuth is RELATIVE to the approved hero shot, so the hero's absolute direction is
    added back in here — that is what makes "1 o'clock" mean one hour clockwise from the view the
    client already approved, rather than one hour from an arbitrary internal north. */
-function buildMassingViewsForSpecs(specs){
+function buildMassingViewsForSpecs(specsIn){
   const views = new Map();
   const model = cameraViewsMassingModel;
-  if(!model || typeof THREE === 'undefined' || !specs || specs.length === 0) return views;
+  // Only cameras that stand OUTSIDE the booth (exterior ring, straight sides, corners) or
+  // directly above it (Top View) get a massing control. An interior or upper-deck camera has
+  // no azimuth here, and the previous code silently rendered it from the hero's own angle, then
+  // handed that exterior white box to the paint step as the FIRST image, which is exactly the
+  // wrong picture to paint an interior over. Those views render from the hero alone.
+  const specs = (specsIn || []).filter(spec => spec && (spec.type === 'exterior' || spec.type === 'top-down'));
+  if(!model || typeof THREE === 'undefined' || specs.length === 0) return views;
   let renderer = null;
   try{
     const W = model.widthM, D = model.depthM;
@@ -22209,7 +22221,7 @@ function buildMassingViewsForSpecs(specs){
     scene.background = new THREE.Color(0xf4f4f2);
     scene.add(new THREE.AmbientLight(0xffffff, 0.78));
     const sun = new THREE.DirectionalLight(0xffffff, 0.55);
-    sun.position.set(W, H * 3, -D);
+    sun.position.set(W, H * 3, 2 * D);
     scene.add(sun);
 
     const addBox = (mat, edgeColor, cx, cy, cz, w, h, d) => {
@@ -22239,8 +22251,8 @@ function buildMassingViewsForSpecs(specs){
       const s = model.sides && model.sides[side];
       if(!s || s.state !== 'STRUCTURAL WALL') return;
       const wallH = (s.heightMm || H * 1000) / 1000;
-      if(side === 'Front') addBox(wallMat, 0x333333, W / 2, wallH / 2, 0, W, wallH, wallThicknessM);
-      if(side === 'Back')  addBox(wallMat, 0x333333, W / 2, wallH / 2, D, W, wallH, wallThicknessM);
+      if(side === 'Front') addBox(wallMat, 0x333333, W / 2, wallH / 2, D, W, wallH, wallThicknessM);
+      if(side === 'Back')  addBox(wallMat, 0x333333, W / 2, wallH / 2, 0, W, wallH, wallThicknessM);
       if(side === 'Left')  addBox(wallMat, 0x333333, 0, wallH / 2, D / 2, wallThicknessM, wallH, D);
       if(side === 'Right') addBox(wallMat, 0x333333, W, wallH / 2, D / 2, wallThicknessM, wallH, D);
     });
@@ -22257,7 +22269,9 @@ function buildMassingViewsForSpecs(specs){
       // Kept inside the footprint: a zone whose block would otherwise hang over the booth edge
       // is nudged in, so the control image never implies structure outside the booth's own plot.
       const cx = Math.min(Math.max(xFrac * W, box.wM / 2), Math.max(box.wM / 2, W - box.wM / 2));
-      const cz = Math.min(Math.max(yFrac * D, box.dM / 2), Math.max(box.dM / 2, D - box.dM / 2));
+      // The layout grid's yFrac is measured from the Front (0 = front row, 1 = rear row); the
+      // Front sits at z = D here, so the fraction is flipped into this scene's Z.
+      const cz = Math.min(Math.max((1 - yFrac) * D, box.dM / 2), Math.max(box.dM / 2, D - box.dM / 2));
       const isHero = zone.isHero;
       addBox(isHero ? heroMat : zoneMat, isHero ? 0x334155 : 0x556677, cx, box.hM / 2, cz, box.wM, box.hM, box.dM);
     });
@@ -22282,8 +22296,10 @@ function buildMassingViewsForSpecs(specs){
       const camera = new THREE.PerspectiveCamera(FOV, RW / RH, 0.1, 1000);
       if(spec.type === 'top-down'){
         camera.position.set(W / 2, radius * 1.15, D / 2);
-        // Front toward the top of the frame, matching the plan orientation this app already
-        // uses everywhere else (Front=top, Rear=bottom).
+        // The Front (aisle side, z = D) at the BOTTOM of the frame and the Rear at the top: the
+        // plan as a visitor standing in the front aisle would read it from above, with the Left
+        // face on the left and the Right face on the right. (up = -Z puts z = 0, the Rear, at
+        // the top of the picture.)
         camera.up.set(0, 0, -1);
         camera.lookAt(W / 2, 0, D / 2);
       }else{
@@ -22312,7 +22328,7 @@ function buildMassingViewsForSpecs(specs){
         camera.position.set(
           W / 2 + horizontal * Math.sin(azRad),
           targetY + camRadius * Math.sin(elevRad),
-          D / 2 - horizontal * Math.cos(azRad)
+          D / 2 + horizontal * Math.cos(azRad)
         );
         camera.up.set(0, 1, 0);
         camera.lookAt(W / 2, targetY, D / 2);
@@ -23426,6 +23442,20 @@ The booth's architecture, materials, branding, and furniture are completely unch
   // to give the model the best chance of still returning a photorealistic image even at
   // this angle, rather than silently reusing the same anti-blueprint phrasing that would
   // fight against the very thing this view is supposed to show.
+  if(spec.type === 'top-down' && referenceKind === 'massing'){
+    // Massing-first ordering (see requestCameraViewFromOpenAI): the white plan is the FIRST image
+    // and the approved design the SECOND, so the prompt must say so in that order, as the
+    // exterior branch below does. The plan is read from the front aisle: Front edge at the
+    // bottom of the picture, Rear at the top, Left on the left, Right on the right.
+    return `${geometryCorrectionSentence}${orientationFactsSentence}TWO IMAGES ARE ATTACHED, AND THEY HAVE DIFFERENT JOBS. THE FIRST IMAGE is a plain white 3D massing model of THIS EXACT booth seen from DIRECTLY ABOVE: its real footprint, its real walls (only where the booth has one), and the real position and size of every element, with the booth's FRONT edge at the bottom of the picture, its REAR at the top, its LEFT face on the left and its RIGHT face on the right. The first image is the GROUND TRUTH for the camera, the footprint, the orientation and the layout: keep its straight-down viewpoint, its framing, and the place and size of every block exactly as shown. THE SECOND IMAGE is the approved design of this same booth, photographed from its front corner: it is the AUTHORITY FOR EVERYTHING THE BOOTH LOOKS LIKE, every material, colour, finish, light, graphic, logo, branding element and piece of furniture.
+
+YOUR TASK: re-render the FIRST image as a real, photorealistic AERIAL PHOTOGRAPH captured from directly above, as if taken by a drone hovering over the booth, keeping its footprint, orientation and layout precisely, and dressing every surface, structure and object in the exact design language of the SECOND image at full quality. The white blocks are placeholders for the real elements in those exact positions and sizes: never leave any of them as a white box, never keep the plain grey background or the flat untextured look, and never rotate or mirror the plan. Where the first image shows open space, the space is open; where it shows no wall, there is no wall.
+
+View: ${spec.name}: ${spec.promptHint}${upperFloorVisibilityNote} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
+
+This must be a genuine photograph-style aerial image, real materials, real shadows, real depth and lighting, exactly like a professional drone photo of a real physical structure, never a flat technical drawing, CAD plan, blueprint, or 2D diagram. The booth's architecture, materials, branding, and furniture are completely unchanged from the approved design; only the camera is directly overhead.${widerNote} The full footprint and layout of the booth is visible in one frame; for a double-deck booth, this means the upper deck's own surface, railings, and any staircase opening are visible from above, and wherever the upper deck doesn't extend to the full footprint, the ground floor beneath is visible around it in the same shot. For whatever the second image does not show, act as the same professional exhibition designer who created it: continue the same materials, colours, brand identity, structural style, and design language into the parts only visible from above, so the whole booth reads as one coherent, intentional design. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the approved image, same dark gray carpet flooring and surrounding aisle space, consistent and unchanging. Light the space with premium, even, professional exhibition lighting. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
+  }
+
   if(spec.type === 'top-down'){
     return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as a real, photorealistic AERIAL PHOTOGRAPH captured from directly above, as if taken by a drone hovering over the booth.
 
