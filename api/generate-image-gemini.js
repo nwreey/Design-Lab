@@ -135,7 +135,7 @@ module.exports = async (req, res) => {
     const SUPPORTED_ASPECT_RATIOS = new Set(['1:1', '3:2', '2:3', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
     const resolvedAspectRatio = SUPPORTED_ASPECT_RATIOS.has(aspectRatio) ? aspectRatio : '16:9';
 
-    // Always 1K now, for every caller — admin panel and user panel both, no branching by role.
+    // 1K for clients (admins: see the owner request below).
     // Went 2K -> 1K -> (briefly, invalid) '0.5K' -> 1K -> 512 -> back to 1K, across several rounds
     // of the same speed-vs-quality tension: 512 made generation faster but the actual image quality
     // dropped too far (real client feedback: "too low resolution"), so this settled back on 1K —
@@ -146,7 +146,15 @@ module.exports = async (req, res) => {
     // it) but no longer has any effect — kept only so a stray 'test' value can never throw here.
     // High resolutions are honored only when explicitly requested (the event board's
     // Approve flow asks for 4K, falling back to 2K); everything else stays on 1K.
-    const resolvedImageSize = ['2K', '4K'].includes(imageSize) ? imageSize : '1K';
+    // Owner request (Sep 2026): ADMIN callers render at half resolution (512px, the model's
+    // documented 0.5K size, priced at roughly two thirds of a 1K image and noticeably faster) so
+    // test runs come back quickly. Clients are untouched: 1K as before. An explicit imageSize on
+    // the request ('1K', '2K', '4K') still wins for admins too, so a flow that needs full
+    // resolution (the event board's 4K approve) keeps it, and a future "full quality" toggle in
+    // the admin panel only has to send the size it wants.
+    const ADMIN_TEST_IMAGE_SIZE = '512';
+    const explicitSize = ['1K', '2K', '4K'].includes(imageSize) ? imageSize : null;
+    const resolvedImageSize = explicitSize || (caller.role === 'admin' ? ADMIN_TEST_IMAGE_SIZE : '1K');
 
     // Owner decision: EVERY user-initiated modification (Modify Design and Other option
     // alike) counts against the modify quota — the old "first modification is free"
