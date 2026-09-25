@@ -3716,7 +3716,7 @@ Replace only the materials and graphics."></textarea>
         <button class="ghost small" onclick="openMoreViewsPicker()">➕ Get More Views</button>
       </div>
       <div class="tech-board-actions" id="techBoardActions" style="display:none;margin-top:14px;">
-        <button class="ghost small" onclick="generateTechnicalBoard()">Generate Technical Board</button>
+        <button class="ghost small" onclick="generateTechnicalBoard()">Generate Technical View</button>
       </div>
       <div id="goodLuckBoothAnchor"></div>
       <div class="good-luck-message" id="goodLuckMessage" style="display:none;">Good Luck with Your Project</div>
@@ -22481,7 +22481,10 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
       // showed on four of five exterior cameras. Top and interior views are naturally far from
       // the hero and are unaffected by the lower bar.
       const similarity = await computeImageSimilarity(compressedFront, resultDataUrl);
-      const lookAlikeBar = spec.type === 'exterior' ? 0.93 : SIMILARITY_THRESHOLD;
+      // The eye-level view from the hero's own corner shares the hero's composition by design
+      // (same faces, same order left to right); only the height differs, so it is held to the
+      // general bar rather than the exterior one, or it would be retried for being what it is.
+      const lookAlikeBar = (spec.type === 'exterior' && !spec.sameCornerAsHero) ? 0.93 : SIMILARITY_THRESHOLD;
       if(similarity > lookAlikeBar){
         const retryDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, true, undefined, controlImage, controlKind);
         const retrySimilarity = await computeImageSimilarity(compressedFront, retryDataUrl);
@@ -22547,7 +22550,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   // nothing to what the client pays. (The separate post-approval "More Views" run still treats
   // it as the user's own choice — see confirmApproveViewSelection.)
   if(!stoppedEarly){
-    updateApproveProgress(97, 'Generating the Technical Board...');
+    updateApproveProgress(97, 'Generating the Technical View...');
     await generateTechnicalBoard(true);
   }
 
@@ -22741,10 +22744,10 @@ const DOUBLE_DECK_CAMERA_RING = [
   // `side` / `corner` are resolved per booth by computeCameraViewPlan (real compass direction,
   // open sides only); the azimuths written here are only the fallback used when no resolution
   // happens. Names are also assigned there ("Front", "Left Side", "Front-Left Corner"...).
-  { name: 'Front', side: 'Front', azimuth: 0, elevation: 8, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'An orthographic-style, straight-on front elevation of the entire booth from ground floor to roofline — the entire front façade, the second floor, the main entrance, and the staircase (if visible from this side) must all be visible together in this single frame.' },
+  { name: 'Front Side', side: 'Front', azimuth: 0, elevation: 8, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'An orthographic-style, straight-on front elevation of the entire booth from ground floor to roofline: the entire front façade, the second floor, the main entrance, and the staircase (if visible from this side) must all be visible together in this single frame.' },
   { name: 'Left Side', side: 'Left', azimuth: 270, elevation: 8, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on left elevation of the booth, showing this side\'s architecture from ground floor to roofline, including the second floor above.' },
   { name: 'Right Side', side: 'Right', azimuth: 90, elevation: 8, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on right elevation of the booth, showing this side\'s architecture from ground floor to roofline, including the second floor above.' },
-  { name: 'Rear', side: 'Back', azimuth: 180, elevation: 8, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on rear elevation of the booth — especially important for showing any storage room, structural walls, and service access on this side, in addition to the second floor above.' },
+  { name: 'Rear Side', side: 'Back', azimuth: 180, elevation: 8, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A straight-on rear elevation of the booth, especially important for showing any storage room, structural walls, and service access on this side, in addition to the second floor above.' },
   { name: 'Front-Left Corner', corner: 'Front-Left', azimuth: 315, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its front-left corner, showing the ground floor and second floor together in one dynamic angle.' },
   { name: 'Front-Right Corner', corner: 'Front-Right', azimuth: 45, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its front-right corner, showing the ground floor and second floor together in one dynamic angle.' },
   { name: 'Rear-Left Corner', corner: 'Back-Left', azimuth: 225, elevation: 15, type: 'exterior', requiresUpperFloorVisible: true, promptHint: 'A three-quarter perspective view of the booth from its rear-left corner, showing the ground floor and second floor together in one dynamic angle.' },
@@ -22830,7 +22833,7 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
       promptHint: `A straight-on, centered exterior elevation of the booth's ${faceLabel} face, its ${lengthText}${isWidthFace ? 'W (width)' : 'D (depth)'} side. The camera stands outside the booth in the aisle, exactly opposite the centre of that face, aimed perpendicular to it, 100% square on: the ${faceLabel} face spans the frame from edge to edge and reads flat, and the two adjacent faces are not visible or appear only as the thinnest receding edges. Never diagonal, never a three-quarter view.`
     };
   };
-  const straightLabelFor = (side) => side === 'Front' ? 'Front' : (side === 'Back' ? 'Rear' : `${side} Side`);
+  const straightLabelFor = (side) => side === 'Back' ? 'Rear Side' : `${side} Side`;
 
   // DOUBLE DECK CAMERA RULES: takes priority over every other camera recipe below (the
   // corner/island fixed sets, and the general priority-candidate list), regardless of how
@@ -22854,8 +22857,9 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
         if(!openSides.includes(fb) || !openSides.includes(lr)) return null;
         if(CORNER_TO_ABSOLUTE_AZIMUTH[c.corner] == null) return null;
         const relative = toRelativeAzimuth(CORNER_TO_ABSOLUTE_AZIMUTH[c.corner]);
-        if(angularDistanceFromHero(relative) < 20) return null;
-        return { ...c, name: `${fb === 'Back' ? 'Rear' : fb}-${lr} Corner`, azimuth: relative };
+        // The hero's own corner stays in the set at eye level (the hero is an elevated aerial
+        // shot), flagged so the prompt and the look-alike guard know the difference is height.
+        return { ...c, name: `${fb === 'Back' ? 'Rear' : fb}-${lr} Corner`, azimuth: relative, sameCornerAsHero: angularDistanceFromHero(relative) < 20 };
       }
       return c;
     }).filter(Boolean);
@@ -22873,36 +22877,6 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
   // (generateCameraViewsFromHero never sends a request for whichever camera is first in
   // this list — see its own comment). Always relative azimuth 0 by definition.
   candidates.push({ name: 'Hero View', type: 'exterior', azimuth: 0, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' });
-
-  // CORNER BOOTHS (exactly 2 open sides) get a fixed, specific 4-camera recipe per explicit
-  // client direction, replacing the general priority-candidate approach used for every other
-  // booth shape: Hero (the diagonal corner shot already approved), a straight-on centered
-  // elevation of EACH of the two open sides (camera aimed straight in, never diagonal), and
-  // one true top-down Top View showing the full footprint. The client explicitly confirmed
-  // the top-down view despite a known risk: a real production test (a Red Bull booth)
-  // showed overhead framing can push the model toward a flat 2D blueprint instead of a
-  // photorealistic render — see buildCameraViewPrompt's 'top-down' branch for how that's
-  // mitigated as much as possible while still honoring the request.
-  //
-  // The two elevation cameras used to be named "Right View" / "Left View" relative to the
-  // hero's own diagonal. Replaced (Sep 2026) by the owner's definition at the top of this
-  // function: each straight view is named after the REAL face it stands in front of, so the
-  // W face is always "Front" and the one open D face is "Left Side" or "Right Side". A corner
-  // booth's two open sides are always Front plus one of Left/Right (see getBoothOpenSidesSet),
-  // so exactly two straight views survive the open-side filter and the set stays at four.
-  if(openCount === 2){
-    const fixedFour = [
-      { name: 'Hero View', type: 'exterior', azimuth: 0, elevation: 15, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved — this is the reference image itself.' },
-      straightElevationSpec('Front', 'Front'),
-      straightElevationSpec('Right', 'Right Side'),
-      straightElevationSpec('Left', 'Left Side'),
-      { name: 'Top View', type: 'top-down', azimuth: 0, elevation: 90, promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' }
-    ].filter(Boolean);
-    return {
-      plan: fixedFour.map((c, i) => ({ camId: 'CAM' + String(i + 1).padStart(2, '0'), clock: i + 1, radius: 8, target: 'booth_center', lens: 35, ...c })),
-      openSides, closedSides, heroApproach, targetCount: 4
-    };
-  }
 
   // ISLAND BOOTHS (all four sides open) use the fixed ISLAND_CAMERA_RING defined above this
   // function — a straightforward 45-degree-per-step orbit rather than the earlier asymmetric
@@ -22929,56 +22903,61 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
     return { plan, defaultCamIds, openSides, closedSides, heroApproach, targetCount: defaultCamIds.length };
   }
 
-  // Owner rule (replaces the earlier thematic shot list — Entrance View, Brand Wall,
-  // Architectural/Lighting Detail, etc.): the pickable views are the STANDARD camera
-  // POSITIONS — the straight views of each open face, the mirror corner, Top, Rear when open
-  // — plus one Interior View. Exterior Camera Rules still hold: a straight-on elevation is
-  // only offered for a side that is genuinely OPEN (a camera aimed at a closed structural
-  // wall would just render a wall; owner, Sep 2026: "if the booth is closed on 3 sides, no
-  // need for a left view, only the front"), and near-duplicates of the hero's own angle are
-  // skipped so no paid slot wastes on an almost-identical shot.
-  // Redesigned (Sep 2026) after a production run on a three-open-side booth came back with four
-  // exterior views that were near-copies of the hero. The set itself was the cause, before any
-  // rendering question: "Perspective Right" sat at 35 degrees from the hero and the "Right"
-  // elevation at 45, ten degrees apart; "Perspective Left" at 325 and the "Front" elevation at
-  // 315, again ten degrees apart. Two pairs of cameras that were practically the same shot, and
-  // all four within 45 degrees of the hero. The views that DID come out right (the Right
-  // elevation, Top, Interior) were exactly the ones far from the hero, which is the lesson.
+  // OWNER'S STANDARD VIEW ORDER (Sep 2026), for every booth that is not an island and not a
+  // double deck, corner booths included (their old fixed four-camera recipe is folded in here,
+  // since this list gives them exactly the same cameras in the owner's order):
   //
-  // The set is now built for maximum angular separation. Every camera is either a straight-on
-  // elevation of an OPEN side (cardinal directions, so always at least 45 degrees from the
-  // corner the hero was shot from) or the OPPOSITE front corner, mirroring the hero across the
-  // booth's centre line. The two 35-degree "perspective" cameras are gone: they can never be
-  // distinct from the hero on one side and the adjacent elevation on the other. Names now say
-  // where the camera physically stands (straightElevationSpec, defined at the top of this
-  // function, is the single definition of a straight view for every booth type).
-  const pushElevation = (side, label) => {
-    const straight = straightElevationSpec(side, label);
-    if(straight) candidates.push(straight);
+  //     Hero View, Front Side, Left Side, Right Side, Front-Left Corner, Front-Right Corner,
+  //     Top View, then the Technical View (a board, generated after the cameras, not listed here)
+  //
+  // Straight sides come from straightElevationSpec (real face, open sides only). A corner is
+  // offered when BOTH faces meeting at it are open: a camera standing at a corner formed by a
+  // wall would be looking along that wall's back. The corner the hero was shot from is offered
+  // too: the hero is an elevated aerial shot 35 to 45 degrees above the booth, while a corner
+  // view stands at eye level, so the two are different photographs of the same corner (marked
+  // sameCornerAsHero so the prompt and the look-alike guard treat it accordingly). Every camera
+  // stays a full quarter-turn or more from its neighbours except that pair, which differ in
+  // height instead. A wall never gets a camera (owner: "if the booth is closed on 3 sides, no
+  // need for a left view, only the front").
+  //
+  // Rear Side (when the back is open) and the wide Interior View are kept in the catalogue as
+  // OPTIONAL EXTRAS after the Top View: not pre-selected, so the default run follows the owner's
+  // list exactly, but available to a client who wants them, at approve time or later.
+  const cornerSpec = (fb, lr) => {
+    if(!openSides.includes(fb) || !openSides.includes(lr)) return null;
+    const corner = `${fb}-${lr}`;
+    if(CORNER_TO_ABSOLUTE_AZIMUTH[corner] == null) return null;
+    const relative = toRelativeAzimuth(CORNER_TO_ABSOLUTE_AZIMUTH[corner]);
+    const label = `${fb === 'Back' ? 'Rear' : fb}-${lr} Corner`;
+    const sameCornerAsHero = angularDistanceFromHero(relative) < 20;
+    const promptHint = sameCornerAsHero
+      ? `A three-quarter exterior view from the booth's ${label.toLowerCase()}: the same corner the approved image was taken from, but at EYE LEVEL, the way a visitor standing at that corner sees the booth, not the approved image's elevated aerial angle. The ${fb === 'Back' ? 'rear' : fb.toLowerCase()} face and the ${lr.toLowerCase()} face meet at the near corner; facades, entrance and hero structure are read from the floor, taller and closer than in the approved image.`
+      : `A three-quarter exterior view from the booth's ${label.toLowerCase()}, at eye level: the ${fb === 'Back' ? 'rear' : fb.toLowerCase()} face and the ${lr.toLowerCase()} face meet at the near corner, with the ${lr.toLowerCase()} face nearest the camera. A different corner from the one the approved image was taken from, never a repeat of it.`;
+    return { name: label, type: 'exterior', azimuth: relative, elevation: 15, corner, sameCornerAsHero, promptHint };
   };
-  // The opposite corner: the hero stands at one front corner of the booth, so the other front
-  // corner is its mirror image and the most distinct exterior three-quarter view available.
-  // Offered only when both sides meeting at that corner are genuinely open, since a camera
-  // standing at a corner formed by a wall would be looking along that wall's back.
-  const [heroFB, heroLR] = heroApproach.corner.split('-');
-  const mirrorLR = heroLR === 'Right' ? 'Left' : 'Right';
-  const mirrorCorner = `${heroFB}-${mirrorLR}`;
-  if(openSides.includes(heroFB) && openSides.includes(mirrorLR) && CORNER_TO_ABSOLUTE_AZIMUTH[mirrorCorner] != null){
-    const relative = toRelativeAzimuth(CORNER_TO_ABSOLUTE_AZIMUTH[mirrorCorner]);
-    const cornerLabel = `${heroFB === 'Back' ? 'Rear' : heroFB}-${mirrorLR} Corner`;
-    candidates.push({ name: cornerLabel, type: 'exterior', azimuth: relative, promptHint: `A three-quarter perspective exterior view from the booth's ${cornerLabel.toLowerCase()} — the corner diagonally opposite the one the hero image was shot from, so the booth's ${mirrorLR} face is now nearest the camera and the face that was nearest in the hero is now furthest away. A mirror-image viewpoint of the hero, never a repeat of it.` });
-  }
-  pushElevation('Front', 'Front');
-  pushElevation('Right', 'Right Side');
-  pushElevation('Left', 'Left Side');
-  pushElevation('Back', 'Rear');
-  candidates.push({ name: 'Top View', type: 'top-down', azimuth: 0, elevation: 90, promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' });
-  candidates.push({ name: 'Interior View', type: 'interior', focusZone: 'wide', promptHint: 'A wide interior view showing the overall booth space and circulation.' });
+  // The booth's frontage is the Front when it is open; a booth whose only open long side is the
+  // Back (an inline stand facing the other way) is fronted by its Rear, so the Rear Side and the
+  // rear corners take the Front's place in the standard list for it, and the Front ones become
+  // the extras. Same list, read from the side visitors actually approach.
+  const primaryFB = openSides.includes('Front') ? 'Front' : 'Back';
+  const secondaryFB = primaryFB === 'Front' ? 'Back' : 'Front';
+  const ordered = [
+    { name: 'Hero View', type: 'exterior', azimuth: 0, isHeroImage: true, promptHint: 'The booth\'s primary hero elevation, exactly as already approved: this is the reference image itself.' },
+    straightElevationSpec(primaryFB, straightLabelFor(primaryFB)),
+    straightElevationSpec('Left', straightLabelFor('Left')),
+    straightElevationSpec('Right', straightLabelFor('Right')),
+    cornerSpec(primaryFB, 'Left'),
+    cornerSpec(primaryFB, 'Right'),
+    { name: 'Top View', type: 'top-down', azimuth: 0, elevation: 90, promptHint: 'A true top-down aerial view showing 100% of the booth\'s footprint and layout in one frame.' }
+  ].filter(Boolean);
+  const extras = [
+    straightElevationSpec(secondaryFB, straightLabelFor(secondaryFB)),
+    cornerSpec(secondaryFB, 'Left'),
+    cornerSpec(secondaryFB, 'Right'),
+    { name: 'Interior View', type: 'interior', focusZone: 'wide', promptHint: 'A wide interior view showing the overall booth space and circulation.' }
+  ].filter(Boolean).map(c => ({ ...c, optionalExtra: true }));
 
-  // No targetCount truncation anymore — the standard menu is small (max 9 entries) and the
-  // user PICKS which of them to render and pay for, so cutting the menu short would only
-  // hide positions he might have wanted. Every candidate above is architecturally valid.
-  const plan = candidates.map((c, i) => ({
+  const plan = [...ordered, ...extras].map((c, i) => ({
     camId: 'CAM' + String(i + 1).padStart(2, '0'),
     clock: i + 1,
     elevation: 15,
@@ -22987,8 +22966,9 @@ function computeCameraViewPlan(totalAreaSqm, zonePlan, openSidesSet, isDoubleDec
     lens: 35,
     ...c
   }));
+  const defaultCamIds = plan.filter(c => !c.optionalExtra).map(c => c.camId);
 
-  return { plan, openSides, closedSides, heroApproach, targetCount };
+  return { plan, defaultCamIds, openSides, closedSides, heroApproach, targetCount: defaultCamIds.length };
 }
 
 // Called once, right when Approve is clicked (see approveDesign()) — reads the current form
@@ -23178,11 +23158,11 @@ async function generateTechnicalBoard(isAutomaticAfterCameraViews){
   const heroImage = (heroHist && heroHist.images[heroHist.activeIndex])
     || (opt && opt.gallery && opt.gallery[opt.activeGalleryIndex] && opt.gallery[opt.activeGalleryIndex].image);
   if(!heroImage){
-    await customAlert('Approve a design first — the Technical Board is generated from the approved booth rendering.', 'Technical Board');
+    await customAlert('Approve a design first: the Technical View is generated from the approved booth rendering.', 'Technical View');
     return;
   }
 
-  VIEWER_CAMERA_LABELS[TECHBOARD_ID] = 'Technical Board';
+  VIEWER_CAMERA_LABELS[TECHBOARD_ID] = 'Technical View';
   renderGeneratedViewCard(TECHBOARD_ID, 'pending', null);
   // Skipped when this runs automatically right after camera views finish — scrolling to the
   // top of this card would push the admin's Luma comparison video (which sits directly above
@@ -23409,6 +23389,18 @@ The booth's architecture, materials, branding, and furniture are completely unch
   // computeCameraViewPlan): "Front" is the camera 100% in front of the W face, outside the
   // booth; "Left Side" 100% in front of the D face. Stated in the prompt in those exact terms,
   // with the face's real length, so the model has no room to drift toward a three-quarter shot.
+  // Corner views (owner's standard order, Sep 2026): a three-quarter shot from a named corner
+  // at eye level. The corner the hero was shot from is a legitimate second photograph because
+  // the hero is an elevated aerial shot; the prompt has to say that the difference is HEIGHT,
+  // or the model is told to "reveal new sides" from a position that has none to reveal.
+  const cornerSentence = spec.corner
+    ? (spec.sameCornerAsHero
+      ? ` EYE-LEVEL CORNER VIEW FROM THE APPROVED IMAGE'S OWN CORNER: the camera stands outside the booth at its ${spec.name.toLowerCase()}, the same corner the approved image was taken from, but it has come DOWN from the approved image's elevated aerial angle to eye level (${spec.elevation} degrees). The two faces meeting at that corner are seen from the floor, taller and closer, with the entrance, the facades and the hero structure read the way a visitor standing there sees them. Nothing else changes: same corner, same booth, lower camera.`
+      : ` EYE-LEVEL CORNER VIEW: the camera stands outside the booth at its ${spec.name.toLowerCase()}, at eye level (${spec.elevation} degrees), seeing the two faces that meet at that corner together, with the corner nearest the camera. A different corner from the one the approved image was taken from.`)
+    : '';
+  const relocationSentence = spec.sameCornerAsHero
+    ? ` The camera has not moved around the booth; it has come down from the reference image's elevated aerial angle to eye level at the same corner, so this render must read as a standing visitor's photograph of that corner: a lower horizon, the facades rising above the camera, the floor mostly hidden behind the nearest elements, never the reference image's view from above.`
+    : ` Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image, new side surfaces, structural elements, or depth, never a near-repeat of the reference from a marginally different angle.`;
   const straightOnSentence = spec.straightOn
     ? (() => {
         const faceLabel = spec.straightOn === 'Back' ? 'Rear' : spec.straightOn;
@@ -23446,16 +23438,16 @@ The booth's architecture, materials, branding, and furniture are completely unch
 
 YOUR TASK: re-render the FIRST image as a finished, photorealistic photograph of this booth, keeping its camera and geometry precisely, and dressing every surface, structure and object in the exact design language of the SECOND image at full quality — the same materials on the same elements, the same colours, the same branding in the same places, the same furniture. The white blocks are placeholders for the real elements in those exact positions and sizes: never leave any of them as a white box, never keep the plain grey background or the model's flat untextured look, and never move the camera to the second image's angle. Where the first image shows open space, the space is open; where it shows no wall, there is no wall.
 
-Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the approved image's own viewpoint (that viewpoint is the 0-degree position). ${openSideClaimSentence}${straightOnSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
+Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the approved image's own viewpoint (that viewpoint is the 0-degree position). ${openSideClaimSentence}${straightOnSentence}${cornerSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
 
 The booth itself is completely static and unchanged from the approved design — only the camera stands at this new position.${widerNote} For any face or element the second image does not show directly, act as the same professional exhibition designer who created it: continue the same materials, colours, brand identity, structural style and design language into those areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the approved image — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
   }
 
   return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific EXTERIOR camera position.
 
-Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the reference image's own viewpoint (that viewpoint is the 0-degree position). ${openSideClaimSentence}${straightOnSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.${lumaReferenceNote}
+Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the reference image's own viewpoint (that viewpoint is the 0-degree position). ${openSideClaimSentence}${straightOnSentence}${cornerSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.${lumaReferenceNote}
 
-The booth itself is completely static and unchanged from the reference — only the camera has moved to this new position. Since the camera has physically relocated by ${spec.azimuth} degrees around the booth, this render must reveal genuinely new architectural information not visible in the reference image — new side surfaces, structural elements, or depth — never a near-repeat of the reference from a marginally different angle.${widerNote} The attached photo may show only one side or angle of the booth — for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
+The booth itself is completely static and unchanged from the reference; only the camera has moved to this new position.${relocationSentence}${widerNote} The attached photo may show only one side or angle of the booth; for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference: same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting, bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
 }
 
 /* Star rating: hovering previews a value without committing it; clicking submits
@@ -23686,7 +23678,7 @@ function approveDesign(){
       const isDefault = !cameraViewsDefaultCamIds || cameraViewsDefaultCamIds.has(spec.camId);
       return `<label style="display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;cursor:pointer;">` +
         `<input type="checkbox" class="view-picker-check" value="${spec.camId}"${isDefault ? ' checked' : ''} onchange="updateViewPickerCount()">` +
-        `<span>${label}${isDefault ? '' : ' <span style="color:var(--muted);">— optional extra</span>'}</span></label>`;
+        `<span>${label}${isDefault ? '' : ' <span style="color:var(--muted);">(optional extra)</span>'}</span></label>`;
     }).join('') +
       // The Technical Board is part of the standard deliverable set for an approved design
       // (owner's own list, Sep 2026), so it's stated here as included rather than offered as a
@@ -23694,7 +23686,7 @@ function approveDesign(){
       // what the client pays changes. The post-approval "More Views" picker keeps it as a real
       // opt-in checkbox, since that run is entirely the user's own selection.
       `<div style="display:flex;align-items:center;gap:9px;padding:8px 0 5px;font-size:13px;border-top:1px dashed var(--line);margin-top:6px;color:var(--muted);">` +
-      `<span>✓ Technical Board — included free (technical presentation sheet of your approved design)</span></div>`;
+      `<span>✓ Technical View, included free (technical presentation sheet of your approved design)</span></div>`;
     updateViewPickerCount();
     document.getElementById('approveViewPickerOverlay').style.display = 'flex';
   }
@@ -23746,7 +23738,7 @@ function openMoreViewsPicker(){
   }).join('') + (boardMissing
     ? `<label style="display:flex;align-items:center;gap:9px;padding:8px 0 5px;font-size:13px;cursor:pointer;border-top:1px dashed var(--line);margin-top:6px;">` +
       `<input type="checkbox" class="view-picker-tech" value="__techboard">` +
-      `<span>Technical Board — free (technical presentation sheet of your approved design)</span></label>`
+      `<span>Technical View, free (technical presentation sheet of your approved design)</span></label>`
     : '');
   updateViewPickerCount();
   document.getElementById('approveViewPickerOverlay').style.display = 'flex';
@@ -25422,7 +25414,7 @@ function restoreGeneratedViewsIfSaved(project){
         VIEWER_CAMERA_LABELS[camId] = 'Uploaded Design ' + camId.replace('EDITDESIGN_', '');
       }
       if(camId === TECHBOARD_ID && !VIEWER_CAMERA_LABELS[camId]){
-        VIEWER_CAMERA_LABELS[camId] = 'Technical Board';
+        VIEWER_CAMERA_LABELS[camId] = 'Technical View';
       }
       renderGeneratedViewCard(camId, 'done', hist.images[hist.activeIndex]);
     }
