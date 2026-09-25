@@ -22356,6 +22356,10 @@ function buildMassingViewsForSpecs(specsIn){
 // provider's per-minute request limits (which would turn into failed views, not faster ones).
 const CAMERA_VIEW_CONCURRENCY = 3;
 
+// Owner decision (Sep 2026): no 360 orbit video is requested for any run, admin or client. See
+// generateCameraViewsFromHero for the reasoning; the orbit code stays intact behind this flag.
+const ORBIT_VIDEO_ENABLED = false;
+
 // The orbit frames extracted for THIS run, keyed by camId — kept at module scope so a later
 // single-view Retry can reuse the exact same frame for that camera position instead of falling
 // back to a plain hero edit, which would quietly reintroduce the look-alike problem one card at
@@ -22503,10 +22507,16 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   // of the same booth from the same hero image, paying for both.
   // The orbit is handed the exact exterior views this run will render, so the clip is shot for
   // those positions specifically (see buildLumaOrbitPrompt) rather than as a generic circle.
-  const orbitPromise = hasWantedExteriorView
+  // Owner decision (Sep 2026): the orbit video is no longer requested for anyone, admin or
+  // client. Every exterior and top view on a booth already gets its camera from the local 3D
+  // massing render, so the video had stopped being used for the shots and was only playing in
+  // the admin card while costing a video render on every approve. ORBIT_VIDEO_ENABLED keeps
+  // the whole orbit path in place (request, frame extraction, fallback, admin card) for the
+  // day it is wanted again as a client deliverable; flipping it back on is this one flag.
+  const orbitPromise = (ORBIT_VIDEO_ENABLED && hasWantedExteriorView)
     ? requestCameraViewsFromLumaOrbit(heroImage, designTitle, specsToRender.filter(s => s.type === 'exterior'))
     : Promise.resolve(null);
-  if(isAdminUser) showAdminLumaVideoFromOrbit(orbitPromise);
+  if(isAdminUser && ORBIT_VIDEO_ENABLED) showAdminLumaVideoFromOrbit(orbitPromise);
 
   // Every frame this run needs is extracted in ONE pass over ONE decoded video (see
   // extractOrbitFramesForSpecs). The old code built a fresh <video> element per view and
@@ -22516,6 +22526,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   // nothing to pay for, and nothing that can come back at the wrong angle. Every view that has
   // one uses it; the orbit frame stays as the fallback for anything that doesn't.
   cameraViewsMassingViews = buildMassingViewsForSpecs(specsToRender);
+  if(isAdminUser && !ORBIT_VIDEO_ENABLED) showAdminCameraControlNote();
 
   cameraViewsOrbitFrames = new Map();
   const framesReady = orbitPromise
@@ -24350,6 +24361,24 @@ function extractOrbitFramesForSpecs(videoUrl, specs){
    own orbit — two separate video renders of the identical booth from the identical hero image,
    both paid for, neither aware of the other. The card is also more useful this way: it now shows
    the exact footage the views were derived from, which is the whole point of comparing them. */
+// With the orbit switched off (ORBIT_VIDEO_ENABLED), the admin card keeps its one useful line:
+// which camera control drove this run. "3D massing model (N views)" is the healthy state; "NO
+// massing model" means the browser could not render the white model and every view was a plain
+// edit of the hero, which is the first thing to check when views come back looking alike.
+function showAdminCameraControlNote(){
+  if(!isAdminUser) return;
+  const card = document.getElementById('adminLumaVideoCard');
+  const statusEl = document.getElementById('adminLumaVideoStatus');
+  const videoEl = document.getElementById('adminLumaVideoEl');
+  if(!card || !statusEl) return;
+  if(videoEl){ videoEl.style.display = 'none'; videoEl.removeAttribute('src'); }
+  const massingCount = (cameraViewsMassingViews && cameraViewsMassingViews.size) || 0;
+  statusEl.textContent = massingCount > 0
+    ? `Camera control this run: 3D massing model (${massingCount} view${massingCount === 1 ? '' : 's'}). No 360 orbit video is requested any more.`
+    : 'Camera control this run: NO massing model was produced (3D rendering unavailable in this browser), so every view is a plain edit of the approved image and may look alike. No 360 orbit video is requested any more.';
+  card.style.display = 'block';
+}
+
 async function showAdminLumaVideoFromOrbit(orbitPromise){
   if(!isAdminUser) return;
   const card = document.getElementById('adminLumaVideoCard');
