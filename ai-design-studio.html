@@ -407,6 +407,11 @@
      other role; the server refuses 'pro' from non-admins anyway, this only keeps it out of sight. */
   #adminImageModelSwitch{display:none;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
   body.is-admin #adminImageModelSwitch{display:inline-flex;}
+  #adminViewsEngineSwitch{display:none;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-top:12px;text-align:left;}
+  body.is-admin #adminViewsEngineSwitch{display:flex;}
+  #adminViewsEngineSwitch .seg{display:inline-flex;border:1px solid var(--line, #cfd4dc);border-radius:2px;overflow:hidden;}
+  #adminViewsEngineSwitch .seg button{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;color:var(--muted);cursor:pointer;}
+  #adminViewsEngineSwitch .seg button.on{background:var(--navy);color:var(--paper);}
   #adminImageModelSwitch .seg{display:inline-flex;border:1px solid var(--line, #cfd4dc);border-radius:2px;overflow:hidden;}
   #adminImageModelSwitch .seg button{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;color:var(--muted);cursor:pointer;}
   #adminImageModelSwitch .seg button.on{background:var(--navy);color:var(--paper);}
@@ -3867,6 +3872,14 @@ Replace only the materials and graphics."></textarea>
       <p id="viewPickerDesc">Once approved, no further changes can be made to the concept itself. Your approved hero view is included free — pick which additional camera views to render. Each view uses 1 image edit.</p>
       <div id="viewPickerList" style="text-align:left;max-height:280px;overflow:auto;border:1.5px solid var(--line);border-radius:2px;padding:10px 12px;"></div>
       <p id="viewPickerCount" style="font-weight:700;margin:12px 0 0;"></p>
+      <div id="adminViewsEngineSwitch" title="Admin only: which image engine renders the camera views (also used by Retry and More Views). Clients always get the default engine.">
+        <span>Views engine</span>
+        <span class="seg">
+          <button type="button" id="adminViewsEngineStandard" onclick="setAdminViewsEngine('standard')">Standard</button>
+          <button type="button" id="adminViewsEnginePro" onclick="setAdminViewsEngine('pro')">Pro</button>
+          <button type="button" id="adminViewsEngineOpenai" class="on" onclick="setAdminViewsEngine('openai')">Default</button>
+        </span>
+      </div>
       <div style="display:flex;gap:10px;margin-top:14px;">
         <button class="ghost" onclick="document.getElementById('approveViewPickerOverlay').style.display='none';" style="flex:1;">Cancel</button>
         <button class="primary" id="viewPickerConfirmBtn" onclick="confirmApproveViewSelection()" style="flex:1;">Approve &amp; Generate</button>
@@ -11001,6 +11014,34 @@ function renderAdminImageModelSwitch(){
 function currentImageModelForRequest(){
   return (isAdminUser && adminImageModelChoice === 'pro') ? 'pro' : 'standard';
 }
+
+// Admin-only engine for the CAMERA VIEWS (owner request, Sep 2026: "let me choose between pro,
+// normal or the default engine, I will test these 3, when generating views"). 'openai' is the
+// default engine every client gets (the edit model at high quality); 'standard' and 'pro' send
+// the same two-image request to the other provider's standard or premium model. Remembered per
+// browser; applies to Approve, Retry and More Views alike. Non-admins always get the default.
+const ADMIN_VIEWS_ENGINE_STORAGE_KEY = 'designslab_admin_views_engine';
+let adminViewsEngineChoice = 'openai';
+try{
+  const savedViews = localStorage.getItem(ADMIN_VIEWS_ENGINE_STORAGE_KEY);
+  if(savedViews === 'openai' || savedViews === 'standard' || savedViews === 'pro') adminViewsEngineChoice = savedViews;
+}catch(storageErr){ /* storage unavailable: stays 'openai' */ }
+function setAdminViewsEngine(choice){
+  adminViewsEngineChoice = (choice === 'standard' || choice === 'pro') ? choice : 'openai';
+  try{ localStorage.setItem(ADMIN_VIEWS_ENGINE_STORAGE_KEY, adminViewsEngineChoice); }catch(storageErr){ /* nothing to do */ }
+  renderAdminViewsEngineSwitch();
+}
+function renderAdminViewsEngineSwitch(){
+  const map = { standard: 'adminViewsEngineStandard', pro: 'adminViewsEnginePro', openai: 'adminViewsEngineOpenai' };
+  Object.keys(map).forEach(key => {
+    const el = document.getElementById(map[key]);
+    if(el) el.classList.toggle('on', adminViewsEngineChoice === key);
+  });
+}
+function currentViewsEngineForRequest(){
+  return isAdminUser ? adminViewsEngineChoice : 'openai';
+}
+const VIEWS_ENGINE_LABELS = { openai: 'Default engine', standard: 'Standard model', pro: 'Pro model' };
 let currentUserProjectLimit = null; // null = no limit known yet, or admin (unlimited)
 let lastKnownProjectCount = null;
 let projectLimitInfoLoaded = false; // distinguishes "not yet checked" from "confirmed unlimited"
@@ -11112,6 +11153,7 @@ async function checkAdminAccess(){
       const sidebarUploadExisting = document.getElementById('sidebarUploadExisting');
       if(sidebarUploadExisting) sidebarUploadExisting.style.display = 'block';
       renderAdminImageModelSwitch();
+      renderAdminViewsEngineSwitch();
     }
     // The AI Auto-fill Helper ("Need help completing this brief?") has now graduated from an
     // admin-only test to a normal feature for every user, in both Booth and Event modes — shown
@@ -21951,8 +21993,11 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geo
   // massing control image (MCC-001) now carries the geometry for every view, so engine
   // continuity is no longer what keeps views consistent, and the client's deliverable can be
   // produced by the engine that renders it best. cameraViewsEngine is kept for the record only.
-  const useOpenAi = true;
-  const endpoint = '/api/edit-image-openai';
+  // Admin testing (Sep 2026): the views engine is the admin's pick; clients always get the
+  // default. See currentViewsEngineForRequest.
+  const viewsEngine = currentViewsEngineForRequest();
+  const useOpenAi = viewsEngine === 'openai';
+  const endpoint = useOpenAi ? '/api/edit-image-openai' : '/api/generate-image-gemini';
   // Owner billing rule: each camera view costs 1 image edit, charged server-side on the
   // FIRST attempt only — automatic similarity retries and geometry-correction passes are
   // on us (the user asked for one view, not our internal QA loop). Admins uncharged.
@@ -21982,9 +22027,13 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geo
   // landscape size, not the mid setting used for quick concept drafts. Slower and costlier per
   // view; rendering three at once (see CAMERA_VIEW_CONCURRENCY) is what keeps the total time
   // acceptable.
+  // The other provider's request carries the same two images in the same order (massing first,
+  // hero second), an explicit 1K size so the comparison with the default engine is at a
+  // comparable resolution (the admin half-size shortcut does not apply here), and the
+  // standard/pro model choice.
   const body = useOpenAi
     ? { prompt, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, size: '1536x1024', quality: 'high', isUserInitiatedEdit: chargeThisCall }
-    : { prompt, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, isUserInitiatedEdit: chargeThisCall, quotaKind: 'edit', aspectRatio: '3:2' };
+    : { prompt, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, isUserInitiatedEdit: chargeThisCall, quotaKind: 'edit', aspectRatio: '3:2', imageSize: '1K', imageModel: viewsEngine === 'pro' ? 'pro' : 'standard' };
   // Camera views default to OpenAI's edit endpoint (useOpenAi above) unless the hero itself
   // was rendered on Gemini — that endpoint is now allowed 180s server-side (see vercel.json),
   // but this call was still cutting off at the old 100s client timeout, which is exactly what
@@ -24373,9 +24422,11 @@ function showAdminCameraControlNote(){
   if(!card || !statusEl) return;
   if(videoEl){ videoEl.style.display = 'none'; videoEl.removeAttribute('src'); }
   const massingCount = (cameraViewsMassingViews && cameraViewsMassingViews.size) || 0;
-  statusEl.textContent = massingCount > 0
+  const engineLabel = VIEWS_ENGINE_LABELS[currentViewsEngineForRequest()] || 'Default engine';
+  statusEl.textContent = (massingCount > 0
     ? `Camera control this run: 3D massing model (${massingCount} view${massingCount === 1 ? '' : 's'}). No 360 orbit video is requested any more.`
-    : 'Camera control this run: NO massing model was produced (3D rendering unavailable in this browser), so every view is a plain edit of the approved image and may look alike. No 360 orbit video is requested any more.';
+    : 'Camera control this run: NO massing model was produced (3D rendering unavailable in this browser), so every view is a plain edit of the approved image and may look alike. No 360 orbit video is requested any more.')
+    + ` Views engine: ${engineLabel}.`;
   card.style.display = 'block';
 }
 
