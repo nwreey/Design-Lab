@@ -20294,8 +20294,24 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
           // compression below (10-20s of real work) still ran with no progress showing. Keep
           // the same bar alive through both, then hide it only when the image is ready to paint.
           if(stopGenSim){ stopGenSim(); stopGenSim = null; }
+          // HERO OPEN-SIDES GATE (see renderWithOpenSidesGate): a wall on an open side sends the
+          // design back for a corrected render before anyone sees it. Corrected renders reuse this
+          // exact request with the correction prefixed and are never charged (isUserInitiatedEdit
+          // false: the first call carried the charge).
+          let gatedImage = data.image;
+          if(mode === 'booth'){
+            const gate = await renderWithOpenSidesGate(data.image, requestBody.prompt, async (correctedPrompt) => {
+              const retryBody = { ...requestBody, prompt: correctedPrompt, isUserInitiatedEdit: false, isFreeFirstModification: false };
+              const retryRes = await fetchWithTimeout(genEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(retryBody) }, 190000);
+              const retryData = await retryRes.json().catch(() => ({}));
+              return (retryRes.ok && retryData.image) ? retryData.image : null;
+            }, (msg) => updateApproveProgress(93, msg));
+            gatedImage = gate.image;
+            optionResults[i].openSidesGate = { attempts: gate.attempts, result: gate.verdict.result, reason: gate.verdict.reason || '' };
+            if(gate.verdict.result === 'MISMATCH') console.warn('Open-sides gate: still not clean after ' + gate.attempts + ' corrected render(s): ' + gate.verdict.reason);
+          }
           updateApproveProgress(94, 'Checking brand details...');
-          const correctedImage = await runBrandAssetIntegrityEngine(data.image);
+          const correctedImage = await runBrandAssetIntegrityEngine(gatedImage);
           updateApproveProgress(98, 'Preparing your design...');
           const compressed = await compressDataUrlToTarget(correctedImage);
           updateApproveProgress(100, 'Done.');
@@ -21088,7 +21104,21 @@ async function confirmRegenerateOtherOption(){
     if(!response.ok || !data.image){
       throw new Error((data.error && data.error.message) || 'Image generation failed.');
     }
-    const correctedImage = await runBrandAssetIntegrityEngine(data.image);
+    // HERO OPEN-SIDES GATE, same as the first render (see renderWithOpenSidesGate); corrected
+    // renders are never charged, the first call carried the modify charge.
+    let gatedOtherImage = data.image;
+    if(mode === 'booth'){
+      const gate = await renderWithOpenSidesGate(data.image, otherOptionBody.prompt, async (correctedPrompt) => {
+        const retryBody = { ...otherOptionBody, prompt: correctedPrompt, isUserInitiatedEdit: false, isFreeFirstModification: false };
+        const retryRes = await fetchWithTimeout(otherOptionEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(retryBody) }, 190000);
+        const retryData = await retryRes.json().catch(() => ({}));
+        return (retryRes.ok && retryData.image) ? retryData.image : null;
+      }, (msg) => updateApproveProgress(93, msg));
+      gatedOtherImage = gate.image;
+      opt.openSidesGate = { attempts: gate.attempts, result: gate.verdict.result, reason: gate.verdict.reason || '' };
+      if(gate.verdict.result === 'MISMATCH') console.warn('Open-sides gate (Other Design): still not clean after ' + gate.attempts + ' corrected render(s): ' + gate.verdict.reason);
+    }
+    const correctedImage = await runBrandAssetIntegrityEngine(gatedOtherImage);
     const compressed = await compressDataUrlToTarget(correctedImage);
     opt.status = 'done';
     opt.gallery.push({ label: 'Other option', image: compressed, engine: otherOptionEndpoint === '/api/generate-image-openai' ? 'openai' : 'gemini' });
@@ -22106,6 +22136,110 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geo
    analysis, so this never needs a new backend endpoint of its own. Fails OPEN (treats an error
    as a pass) on any network/parse failure — a QA check that's temporarily broken must never
    block or crash a real generation; the two prose anchors above still apply either way. */
+/* HERO OPEN-SIDES GATE (owner, Sep 2026: "with 3 sides open the model still sometimes closes the
+   left or right side, fix it, it is important"). Prompt wording alone has proved insufficient
+   against a fast image model on this exact point, so every booth DESIGN render (Generate and
+   Other Design) is now inspected before the client sees it: a vision QA pass reads the finished
+   image against the booth's own wall facts (which sides are open, which are walls, which corner
+   the camera stands at) and, when a wall has been invented on an open side or a required wall is
+   missing, the design is rendered again with that exact violation named at the top of the
+   prompt. Up to HERO_GEOMETRY_MAX_RETRIES corrected renders, none of them charged to the client
+   (the first call carried the charge; the loop is our QA). The check fails OPEN on any error so
+   a broken QA call can never block a real generation. */
+const HERO_GEOMETRY_MAX_RETRIES = 2;
+
+const heroOpenSidesVerificationSystem = `SYSTEM
+
+You are a strict architectural QA inspector for exhibition booth renders. You receive ONE image, a rendered exhibition booth, and the booth's locked wall facts: which of its four sides (Front, Right, Rear, Left) are OPEN and which are solid WALLS, and which corner the camera stands at. You judge GEOMETRY ONLY, never style, materials, lighting, branding or furniture.
+
+Definitions:
+- A WALL is a continuous solid vertical surface running along a side of the booth at roughly full height: a perimeter wall, a backdrop, a feature or graphic wall, a screen wall, a row of panels, or the side of a room, standing on or along that side.
+- A side is OPEN when a visitor could walk into the booth along most of that side: no wall of the kind above, only at most low counters, displays or furniture (below standing eye level) and the open floor beyond them.
+- Judge each side from where it is in THIS picture, given the camera corner: the two sides meeting at the camera corner are the near sides, the other two are the far sides at the back of the picture. A backdrop closing the far edge of the booth counts as a wall on that far side.
+
+Check, in this order:
+1. Every side listed as OPEN shows no wall of any kind along it (including the far sides at the back of the picture).
+2. Every side listed as WALL shows a real, continuous solid wall along it, not an opening, an archway or a missing wall.
+3. The number of walled sides in the picture equals the number of WALL sides in the facts.
+
+If all checks pass, respond MATCH. If any fails, respond MISMATCH with one short specific sentence naming the side and what is visibly wrong (for example: "A full-height graphic wall closes the Left side, which must be open."), and list the offending sides.
+
+Respond in JSON only, using exactly one of these two shapes:
+{ "result": "MATCH" }
+{ "result": "MISMATCH", "reason": "one short specific sentence", "wallsOnOpenSides": ["Left"], "missingWalls": [] }`;
+
+function heroWallFactsFromForm(){
+  if(mode !== 'booth') return null;
+  const openSet = getBoothOpenSidesSet();
+  const label = (side) => side === 'Back' ? 'Rear' : side;
+  const approach = computeCameraApproachCorner(openSet);
+  return {
+    openSides: ALL_BOOTH_SIDES.filter(side => openSet.has(side)).map(label),
+    wallSides: ALL_BOOTH_SIDES.filter(side => !openSet.has(side)).map(label),
+    cameraCorner: approach.corner.replace('Back', 'Rear'),
+    nearSides: approach.corner.split('-').map(label),
+    farSides: ALL_BOOTH_SIDES.filter(side => !approach.corner.split('-').includes(side)).map(label)
+  };
+}
+
+async function verifyHeroOpenSides(dataUrl, facts){
+  if(!facts || !facts.openSides || facts.openSides.length === 4 || facts.openSides.length === 0) return { result: 'MATCH' };
+  try{
+    const { mime, base64 } = dataUrlParts(await compressDataUrl(dataUrl, 1024, 0.8));
+    const content = [
+      { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
+      { type: 'text', text: `WALL FACTS FOR THIS BOOTH (locked): OPEN sides: ${facts.openSides.join(', ')}. WALL sides: ${facts.wallSides.join(', ')}. Exactly ${facts.wallSides.length} walled side(s). The camera stands above the ${facts.cameraCorner} corner: the near sides in this picture are ${facts.nearSides.join(' and ')}; the far sides at the back of the picture are ${facts.farSides.join(' and ')}.\n\nInspect the image against these facts and respond in the JSON shape given.` }
+    ];
+    const analysis = await callPromptWriterApi(heroOpenSidesVerificationSystem, content);
+    if(analysis && analysis.result === 'MISMATCH'){
+      return {
+        result: 'MISMATCH',
+        reason: (typeof analysis.reason === 'string' && analysis.reason) ? analysis.reason : 'A wall appears on a side that must be open.',
+        wallsOnOpenSides: Array.isArray(analysis.wallsOnOpenSides) ? analysis.wallsOnOpenSides : [],
+        missingWalls: Array.isArray(analysis.missingWalls) ? analysis.missingWalls : []
+      };
+    }
+    return { result: 'MATCH' };
+  }catch(err){
+    console.error('Open-sides check failed (failing open, keeping the render):', err);
+    return { result: 'MATCH' };
+  }
+}
+
+function buildOpenSidesCorrectionPrefix(facts, verdict, attempt){
+  const offenders = (verdict.wallsOnOpenSides || []).join(', ');
+  const missing = (verdict.missingWalls || []).join(', ');
+  return `CORRECTION REQUIRED, READ THIS FIRST (attempt ${attempt} of ${HERO_GEOMETRY_MAX_RETRIES}): an automated inspection of the previous render of this exact brief found this violation of the booth's locked wall facts: "${verdict.reason}"${offenders ? ` A wall was rendered on the ${offenders} side, which is OPEN.` : ''}${missing ? ` The ${missing} side must be a solid wall and was not.` : ''} This booth has exactly ${facts.wallSides.length} walled side(s) (${facts.wallSides.join(', ') || 'none'}) and ${facts.openSides.length} open side(s) (${facts.openSides.join(', ')}). Every OPEN side, including the far side of the booth at the back of this picture (${facts.farSides.join(' and ')}), has no wall, backdrop, feature wall, graphic wall, screen wall or row of panels along it: the exhibition hall is visible through the booth past it. Render the same design again with that violation removed and nothing else changed.\n\n`;
+}
+
+/* Renders a booth design through the gate: inspect, and while a wall sits on an open side (or a
+   required wall is missing) render again with the correction at the top of the prompt. Returns
+   the image to use plus what happened, so the caller can tell the admin. `render(prompt)` is
+   the caller's own image call for a corrected prompt; it must not charge the client. */
+async function renderWithOpenSidesGate(initialImage, basePrompt, render, onProgress){
+  const facts = heroWallFactsFromForm();
+  let image = initialImage;
+  let attempts = 0;
+  let lastVerdict = null;
+  if(!facts) return { image, attempts, verdict: { result: 'MATCH' } };
+  for(;;){
+    if(onProgress) onProgress(attempts === 0 ? 'Checking the walls and open sides...' : 'Checking the corrected render...');
+    lastVerdict = await verifyHeroOpenSides(image, facts);
+    if(lastVerdict.result === 'MATCH' || attempts >= HERO_GEOMETRY_MAX_RETRIES) break;
+    attempts++;
+    if(onProgress) onProgress(`A wall was found on an open side. Correcting and rendering again (${attempts} of ${HERO_GEOMETRY_MAX_RETRIES})...`);
+    try{
+      const corrected = await render(buildOpenSidesCorrectionPrefix(facts, lastVerdict, attempts) + basePrompt);
+      if(corrected) image = corrected;
+      else break;
+    }catch(err){
+      console.error('Corrected render failed, keeping the previous image:', err);
+      break;
+    }
+  }
+  return { image, attempts, verdict: lastVerdict || { result: 'MATCH' } };
+}
+
 const orientationLockVerificationSystem = `SYSTEM
 
 You are a strict architectural QA inspector. You receive TWO images: the FIRST image is the client's APPROVED final booth design (the authoritative reference), and the SECOND image is a newly rendered camera-angle view that claims to show that exact same booth from a different position. You also receive the booth's locked, immutable geometry facts (an "Orientation Lock" JSON object). Your job is twofold: verify the second image's visible geometry against the Orientation Lock, AND verify that the second image shows the SAME DESIGN as the approved first image — never judge whether it looks good; only whether it is the same booth.
