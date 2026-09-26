@@ -685,12 +685,6 @@ async function loadServiceUsage(){
     // API for API keys at all).
     const gmPct = (geminiCallsMonth != null && geminiCallsPrevMonth > 0) ? Math.round(geminiCallsMonth / geminiCallsPrevMonth * 100) : null;
 
-    // Luma live bar: remaining credits vs the highest balance ever observed on the account
-    // (auto-tracked server-side, peaks right after each top-up) — bar drains as credits burn.
-    const lumaCredits = s.luma && s.luma.credits != null ? s.luma.credits : null;
-    const lumaPeak = s.luma && s.luma.peakCredits ? s.luma.peakCredits : null;
-    const lumaPct = (lumaCredits != null && lumaPeak > 0) ? Math.round(lumaCredits / lumaPeak * 100) : null;
-
     const rowCfgs = [
       ({
         title: 'OpenAI', shortName: 'OpenAI', sub: 'Image edits, autofill, AI text', svc: s.openai,
@@ -713,19 +707,6 @@ async function loadServiceUsage(){
             + (geminiCallsPrevMonth > 0 ? ' — last month: <strong>' + geminiCallsPrevMonth + '</strong> (' + gmPct + '% of it so far)' : '')
           : null,
         details: ['<span class="hint">Google has no billing API for API keys — figures are our own logged calls.</span>']
-      }),
-      ({
-        title: 'Luma (video)', shortName: 'Luma', sub: 'Video generation credits', svc: s.luma,
-        billing: 'https://lumalabs.ai/api/billing',
-        used: null, usedLabel: '',
-        remainingNativeLabel: lumaCredits != null ? lumaCredits + ' credits' : null,
-        // Remaining-style bar: full after a top-up, drains toward zero — so LOW is red.
-        barPct: lumaPct, barColor: lumaPct != null ? (lumaPct <= 10 ? '#B02A1E' : lumaPct <= 30 ? '#B07E10' : '#1E7B3C') : null,
-        line: lumaCredits != null
-          ? 'Remaining now: <strong>' + lumaCredits + ' credits</strong>'
-            + (lumaPeak > lumaCredits ? ' of <strong>' + lumaPeak + '</strong> at last top-up (' + lumaPct + '% left)' : '')
-          : null,
-        details: []
       }),
       ({
         title: 'Mandrill (email)', shortName: 'Mandrill', sub: 'All notification emails', svc: s.mandrill,
@@ -758,7 +739,9 @@ async function loadServiceUsage(){
     cardsEl.innerHTML = rowCfgs.map(svcRow).join('');
     renderSidebarBalances(rowCfgs);
 
-    const counters = (data.internal && data.internal.perProvider) || [];
+    // The video provider was retired (Sep 2026); its historical log rows are hidden here.
+    const RETIRED_PROVIDERS = new Set(['luma']);
+    const counters = ((data.internal && data.internal.perProvider) || []).filter(row => !RETIRED_PROVIDERS.has(String(row.provider || '').toLowerCase()));
     const countersBody = document.getElementById('serviceUsageCountersBody');
     countersBody.innerHTML = counters.length ? counters.map(row => {
       const failToday = parseInt(row.failures_today, 10) || 0;
@@ -767,7 +750,7 @@ async function loadServiceUsage(){
       return '<tr><td>' + escapeHtml(row.provider) + '</td><td>' + row.calls_today + '</td><td' + warn + '>' + failToday + '</td><td>' + row.calls_month + '</td><td>' + failMonth + '</td></tr>';
     }).join('') : '<tr><td colspan="5" class="hint">No calls logged yet — counters fill up as the studio is used.</td></tr>';
 
-    const failures = (data.internal && data.internal.recentFailures) || [];
+    const failures = ((data.internal && data.internal.recentFailures) || []).filter(f => !RETIRED_PROVIDERS.has(String(f.provider || '').toLowerCase()));
     const failuresBody = document.getElementById('serviceUsageFailuresBody');
     failuresBody.innerHTML = failures.length ? failures.map(f => {
       const kindColor = (f.error_kind === 'auth' || f.error_kind === 'billing') ? '#B02A1E' : '#B07E10';

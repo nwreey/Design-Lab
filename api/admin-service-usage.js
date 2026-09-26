@@ -8,7 +8,6 @@
    1. LIVE provider checks — real balances/quotas where the provider actually exposes them:
       - OpenAI: real spend via the official org Costs API (needs OPENAI_ADMIN_KEY, an admin
         key from platform.openai.com — regular sk- keys cannot read billing).
-      - Luma: credits endpoint.
       - Mandrill: users/info (hourly quota, reputation, backlog).
       - Vercel Blob: total stored bytes (walked via list()).
       - Neon Postgres: storage used per project (needs NEON_API_KEY).
@@ -148,54 +147,6 @@ async function checkGemini() {
   const msg = (r.data && r.data.error && r.data.error.message) || `HTTP ${r.status}`;
   if (r.status === 429) return { status: 'warning', note: 'Key valid but QUOTA EXHAUSTED right now: ' + msg };
   return { status: 'error', note: 'Key check failed: ' + msg };
-}
-
-async function checkLuma() {
-  const apiKey = process.env.LUMA_AGENTS_API_KEY;
-  if (!apiKey) return { status: 'not_configured', note: 'LUMA_AGENTS_API_KEY is not set.' };
-  // The app calls agents.lumalabs.ai; credits live on the Dream Machine API surface. Try
-  // BOTH hosts before concluding anything — an Agents-scoped key commonly gets a 403 from
-  // one surface while the other still answers, so a single 403 must not be treated as an
-  // expired key (that false alarm shipped once; the owner's key was working fine for
-  // generation the whole time).
-  const rejections = [];
-  for (const url of ['https://agents.lumalabs.ai/v1/credits', 'https://api.lumalabs.ai/dream-machine/v1/credits']) {
-    try {
-      const r = await fetchJson(url, { headers: { Authorization: `Bearer ${apiKey}` } });
-      if (r.ok && r.data) {
-        const credits = r.data.credit_balance != null ? r.data.credit_balance : (r.data.credits != null ? r.data.credits : null);
-        if (credits != null) {
-          // Auto-learn the bar's denominator from the account itself: remember the HIGHEST
-          // balance ever observed (i.e. right after a top-up) — remaining vs that peak makes
-          // a live bar with no manually-maintained totals (owner: no manual limits).
-          let peakCredits = credits;
-          if (sql) {
-            try {
-              await ensureBudgetsSchema();
-              const stored = await sql`SELECT amount FROM service_budgets WHERE service = 'luma_peak_credits_auto';`;
-              const prevPeak = stored.rows.length ? Number(stored.rows[0].amount) : 0;
-              peakCredits = Math.max(prevPeak, credits);
-              if (credits > prevPeak) {
-                await sql`
-                  INSERT INTO service_budgets (service, amount, updated_at)
-                  VALUES ('luma_peak_credits_auto', ${credits}, NOW())
-                  ON CONFLICT (service) DO UPDATE SET amount = ${credits}, updated_at = NOW();
-                `;
-              }
-            } catch (peakErr) { /* peak tracking is best-effort */ }
-          }
-          return { status: credits <= 0 ? 'error' : (credits < 500 ? 'warning' : 'ok'), credits, peakCredits, note: credits <= 0 ? 'NO CREDITS LEFT — video generation is down.' : (credits < 500 ? 'Credits running low.' : '') };
-        }
-        return { status: 'ok', note: 'Key valid; credits field not present in response.' };
-      }
-      rejections.push('HTTP ' + r.status);
-    } catch (err) { rejections.push(err && err.message ? err.message : 'network error'); }
-  }
-  // Credits unreadable from both hosts — that is a visibility gap, not proof the key is
-  // dead: this key type may simply not be allowed to read the credits endpoint. Video
-  // generation calls are logged in the internal counters, which is where an actually-dead
-  // key shows up as failures.
-  return { status: 'warning', note: 'Could not read Luma credits (' + rejections.join(', ') + ') — this key type may not have access to the credits endpoint. Video generation may still work; a truly dead key will show as failures in the counters below. Check the real balance at lumalabs.ai.' };
 }
 
 async function checkMandrill() {
@@ -430,10 +381,9 @@ export default async function handler(req, res) {
   // Every check runs in parallel and is individually guarded — a slow or broken provider
   // degrades to an 'error' entry for that one card, never the whole report.
   const guard = (promise) => promise.catch((err) => ({ status: 'error', note: err && err.message ? err.message : 'check failed' }));
-  const [openai, gemini, luma, mandrill, blob, neonInfo, internal, renewals, budgets] = await Promise.all([
+  const [openai, gemini, mandrill, blob, neonInfo, internal, renewals, budgets] = await Promise.all([
     guard(checkOpenAi()),
     guard(checkGemini()),
-    guard(checkLuma()),
     guard(checkMandrill()),
     guard(checkBlobStorage()),
     guard(checkNeon()),
@@ -444,7 +394,7 @@ export default async function handler(req, res) {
 
   res.status(200).json({
     generatedAt: new Date().toISOString(),
-    services: { openai, gemini, luma, mandrill, blob, neon: neonInfo },
+    services: { openai, gemini, mandrill, blob, neon: neonInfo },
     internal,
     renewals: renewals.renewals || [],
     budgets: budgets.budgets || [],
