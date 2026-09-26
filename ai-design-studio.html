@@ -4008,6 +4008,24 @@ Replace only the materials and graphics."></textarea>
         <img id="editReferencePreview" alt="Reference image">
         <button type="button" class="ghost small" onclick="clearEditReference()">Remove reference</button>
       </div>
+      <!-- Owner request (Sep 2026): a part of the booth that is missing from this view is usually
+           visible in another view. The other views are offered here as references; the client
+           drags a rectangle over the part and it travels with the edit as a reference image. -->
+      <div id="editBorrowWrap" style="display:none;margin-top:12px;">
+        <label class="sublabel">Or take a part from another view of this design: click a view, then drag a box around the part you want added to this image</label>
+        <div id="editBorrowThumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;"></div>
+        <div id="editBorrowCropWrap" style="display:none;margin-top:10px;">
+          <div id="editBorrowCropLabel" class="hint" style="margin:0 0 6px;"></div>
+          <div style="position:relative;display:inline-block;max-width:100%;">
+            <canvas id="editBorrowCanvas" style="max-width:100%;border:1.5px solid var(--line);border-radius:2px;cursor:crosshair;display:block;"></canvas>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button type="button" class="primary small" id="editBorrowUseBtn" onclick="useEditBorrowSelection()" disabled>Use the selected part</button>
+            <button type="button" class="ghost small" onclick="cancelEditBorrowCrop()">Cancel</button>
+          </div>
+        </div>
+        <div id="editBorrowedList" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;"></div>
+      </div>
     </div>
 
     <div class="edit-actions">
@@ -21658,6 +21676,177 @@ function clearEditReference(){
 
 let editTarget = { type: 'gallery' };
 
+/* Borrow a part from another view (owner request, Sep 2026). editBorrowedCrops holds the parts the
+   client cut out of other views of this same design; each travels with the edit as a reference
+   image with an instruction to reproduce that element inside the edited picture. */
+let editBorrowedCrops = [];
+let editBorrowSource = null;   // { src, label, img, scale }
+let editBorrowSelection = null; // { x0, y0, x1, y1 } in canvas pixels
+let editBorrowDragging = false;
+
+function collectOtherViewsForBorrow(excludeCamId){
+  const views = [];
+  const opt = optionResults && optionResults[activeOptionIndex];
+  if(opt && opt.gallery && opt.gallery.length){
+    const entry = opt.gallery[opt.activeGalleryIndex] || opt.gallery[opt.gallery.length - 1];
+    if(entry && entry.image) views.push({ src: entry.image, label: 'Approved design' });
+  }
+  document.querySelectorAll('#viewer3dGeneratedGrid .viewer3d-generated-card-light').forEach(card => {
+    const camId = (card.id || '').replace('genCard-', '');
+    if(!camId || camId === excludeCamId) return;
+    const img = card.querySelector('img');
+    if(!img || !img.src) return;
+    views.push({ src: img.src, label: VIEWER_CAMERA_LABELS[camId] || camId });
+  });
+  return views;
+}
+
+function renderEditBorrowThumbs(excludeCamId){
+  const wrap = document.getElementById('editBorrowWrap');
+  const thumbs = document.getElementById('editBorrowThumbs');
+  if(!wrap || !thumbs) return;
+  const views = collectOtherViewsForBorrow(excludeCamId);
+  thumbs.innerHTML = '';
+  if(!views.length){ wrap.style.display = 'none'; return; }
+  views.forEach(v => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ghost small';
+    b.style.cssText = 'padding:4px;display:flex;flex-direction:column;align-items:center;gap:4px;';
+    const im = document.createElement('img');
+    im.src = v.src; im.alt = v.label;
+    im.style.cssText = 'width:110px;height:74px;object-fit:cover;border-radius:2px;display:block;';
+    const cap = document.createElement('span');
+    cap.textContent = v.label; cap.style.cssText = 'font-size:11px;';
+    b.appendChild(im); b.appendChild(cap);
+    b.onclick = () => openEditBorrowCrop(v.src, v.label);
+    thumbs.appendChild(b);
+  });
+  wrap.style.display = 'block';
+  renderEditBorrowedList();
+}
+
+function openEditBorrowCrop(src, label){
+  const cropWrap = document.getElementById('editBorrowCropWrap');
+  const canvas = document.getElementById('editBorrowCanvas');
+  const useBtn = document.getElementById('editBorrowUseBtn');
+  if(!cropWrap || !canvas) return;
+  const img = new Image();
+  if(!src.startsWith('data:')) img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    const maxW = Math.min(900, (cropWrap.parentElement && cropWrap.parentElement.clientWidth) || 900);
+    const scale = Math.min(1, maxW / img.naturalWidth);
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    editBorrowSource = { src, label, img, scale };
+    editBorrowSelection = null;
+    if(useBtn) useBtn.disabled = true;
+    document.getElementById('editBorrowCropLabel').textContent = `${label}: drag a box around the part to take.`;
+    drawEditBorrowCanvas();
+    cropWrap.style.display = 'block';
+    wireEditBorrowCanvas(canvas);
+    cropWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+  img.onerror = () => { customAlert('Could not open that view for cropping.', 'Edit Image'); };
+  img.src = src;
+}
+
+function drawEditBorrowCanvas(){
+  const canvas = document.getElementById('editBorrowCanvas');
+  if(!canvas || !editBorrowSource) return;
+  const ctx = canvas.getContext('2d');
+  if(!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(editBorrowSource.img, 0, 0, canvas.width, canvas.height);
+  if(editBorrowSelection){
+    const { x0, y0, x1, y1 } = editBorrowSelection;
+    const x = Math.min(x0, x1), y = Math.min(y0, y1), w = Math.abs(x1 - x0), h = Math.abs(y1 - y0);
+    ctx.fillStyle = 'rgba(11,12,16,0.45)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(x, y, w, h);
+    ctx.drawImage(editBorrowSource.img, x / editBorrowSource.scale, y / editBorrowSource.scale, w / editBorrowSource.scale, h / editBorrowSource.scale, x, y, w, h);
+    ctx.strokeStyle = '#E1355C'; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  }
+}
+
+function editBorrowPoint(canvas, e){
+  const rect = canvas.getBoundingClientRect();
+  const src = e.touches && e.touches[0] ? e.touches[0] : e;
+  const x = (src.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (src.clientY - rect.top) * (canvas.height / rect.height);
+  return { x: Math.max(0, Math.min(canvas.width, x)), y: Math.max(0, Math.min(canvas.height, y)) };
+}
+
+function wireEditBorrowCanvas(canvas){
+  if(canvas.__borrowWired) return;
+  canvas.__borrowWired = true;
+  const start = (e) => { const p = editBorrowPoint(canvas, e); editBorrowSelection = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }; editBorrowDragging = true; drawEditBorrowCanvas(); e.preventDefault(); };
+  const move = (e) => { if(!editBorrowDragging || !editBorrowSelection) return; const p = editBorrowPoint(canvas, e); editBorrowSelection.x1 = p.x; editBorrowSelection.y1 = p.y; drawEditBorrowCanvas(); e.preventDefault(); };
+  const end = () => {
+    if(!editBorrowDragging) return;
+    editBorrowDragging = false;
+    const useBtn = document.getElementById('editBorrowUseBtn');
+    const big = editBorrowSelection && Math.abs(editBorrowSelection.x1 - editBorrowSelection.x0) > 12 && Math.abs(editBorrowSelection.y1 - editBorrowSelection.y0) > 12;
+    if(useBtn) useBtn.disabled = !big;
+  };
+  canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, { passive: false }); canvas.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end);
+}
+
+function useEditBorrowSelection(){
+  if(!editBorrowSource || !editBorrowSelection) return;
+  const { x0, y0, x1, y1 } = editBorrowSelection;
+  const s = editBorrowSource.scale;
+  const sx = Math.min(x0, x1) / s, sy = Math.min(y0, y1) / s, sw = Math.abs(x1 - x0) / s, sh = Math.abs(y1 - y0) / s;
+  if(sw < 8 || sh < 8) return;
+  const out = document.createElement('canvas');
+  out.width = Math.round(sw); out.height = Math.round(sh);
+  const ctx = out.getContext('2d');
+  if(!ctx) return;
+  ctx.drawImage(editBorrowSource.img, sx, sy, sw, sh, 0, 0, out.width, out.height);
+  let dataUrl;
+  try{ dataUrl = out.toDataURL('image/jpeg', 0.9); }catch(e){ customAlert('Could not cut that part out (the image could not be read).', 'Edit Image'); return; }
+  editBorrowedCrops.push({ dataUrl, fromLabel: editBorrowSource.label });
+  cancelEditBorrowCrop();
+  renderEditBorrowedList();
+}
+
+function cancelEditBorrowCrop(){
+  const cropWrap = document.getElementById('editBorrowCropWrap');
+  if(cropWrap) cropWrap.style.display = 'none';
+  editBorrowSource = null; editBorrowSelection = null; editBorrowDragging = false;
+}
+
+function removeEditBorrowedCrop(index){
+  editBorrowedCrops.splice(index, 1);
+  renderEditBorrowedList();
+}
+
+function renderEditBorrowedList(){
+  const list = document.getElementById('editBorrowedList');
+  if(!list) return;
+  list.innerHTML = '';
+  editBorrowedCrops.forEach((crop, i) => {
+    const item = document.createElement('div');
+    item.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
+    const im = document.createElement('img');
+    im.src = crop.dataUrl; im.alt = 'Part from ' + crop.fromLabel;
+    im.style.cssText = 'max-width:140px;max-height:100px;border:1.5px solid var(--navy);border-radius:2px;display:block;';
+    const cap = document.createElement('span'); cap.textContent = 'From ' + crop.fromLabel; cap.style.cssText = 'font-size:11px;';
+    const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'ghost small'; rm.textContent = 'Remove'; rm.onclick = () => removeEditBorrowedCrop(i);
+    item.appendChild(im); item.appendChild(cap); item.appendChild(rm);
+    list.appendChild(item);
+  });
+}
+
+function clearEditBorrowed(){
+  editBorrowedCrops = [];
+  cancelEditBorrowCrop();
+  renderEditBorrowedList();
+  const wrap = document.getElementById('editBorrowWrap');
+  if(wrap) wrap.style.display = 'none';
+}
+
 function openEditPanel(camId, isStandalone){
   const baseImg = document.getElementById('editBaseImg');
   const canvas = document.getElementById('markupCanvas');
@@ -21716,6 +21905,8 @@ function openEditPanel(camId, isStandalone){
   const editCameraSelect = document.getElementById('editCameraSelect');
   if(editCameraSelect) editCameraSelect.value = '';
   clearEditReference();
+  clearEditBorrowed();
+  if(editTarget.type === 'camview' || editTarget.type === 'gallery') renderEditBorrowThumbs(editTarget.type === 'camview' ? editTarget.camId : null);
   penModeOn = true;
   document.getElementById('penOnBtn').classList.add('active');
   document.getElementById('panOnBtn').classList.remove('active');
@@ -21816,8 +22007,8 @@ async function submitEdit(){
   const hasMarkup = canvasHasMarkup(canvas);
   const editCameraChoice = (document.getElementById('editCameraSelect') || {}).value || '';
 
-  if(!editDesc && !hasMarkup && !editCameraChoice){
-    await customAlert('Describe the change, mark it up on the image, or pick a camera angle first.', 'Edit Image');
+  if(!editDesc && !hasMarkup && !editCameraChoice && !editBorrowedCrops.length){
+    await customAlert('Describe the change, mark it up on the image, take a part from another view, or pick a camera angle first.', 'Edit Image');
     return;
   }
 
@@ -21925,10 +22116,23 @@ ${buildApprovedDecisionsText()}
     const composite2 = dataUrlParts(compressedComposite);
     requestBody = { prompt: promptText, referenceImage: composite2.base64, referenceMimeType: composite2.mime, preferSpeed: shouldPreferSpeedForCurrentBooth(), isUserInitiatedEdit: true };
 
+    // Parts borrowed from other views of this same design (see editBorrowedCrops): each is
+    // attached as a reference image with an instruction to reproduce that element here.
+    if(editBorrowedCrops.length){
+      const cropParts = [];
+      for(const crop of editBorrowedCrops){
+        const compressedCrop = await compressDataUrl(crop.dataUrl, 1024, 0.9);
+        const parts = dataUrlParts(compressedCrop);
+        cropParts.push({ data: parts.base64, mimeType: parts.mime });
+      }
+      requestBody.additionalReferenceImages = [...(requestBody.additionalReferenceImages || []), ...cropParts];
+      const fromList = editBorrowedCrops.map((c, i) => `reference ${i + 1} is cut from the ${c.fromLabel} view`).join('; ');
+      requestBody.prompt += ` ${editBorrowedCrops.length === 1 ? 'A reference image is' : editBorrowedCrops.length + ' reference images are'} attached showing a PART OF THIS SAME BOOTH cut out of another view of the approved design (${fromList}). Each shows an element that belongs to this booth and is missing or wrong in the picture being edited. Reproduce that element in the edited picture exactly as it appears in the cut: the same design, geometry, materials, colours and branding, at the size and place it must have from this camera position, ${(editDesc || hasMarkup) ? 'following the client\'s instruction and markup for where it goes' : 'placed where this booth has it in the view it was cut from, as seen from this camera position'}. Do not paste the cut as a flat patch; build the element into the scene with correct perspective, lighting and shadows. Change nothing else.`;
+    }
     if(editReferenceDataUrl){
       const compressedRef = await compressDataUrl(editReferenceDataUrl, 1536, 0.88);
       const refParts = dataUrlParts(compressedRef);
-      requestBody.additionalReferenceImages = [{ data: refParts.base64, mimeType: refParts.mime }];
+      requestBody.additionalReferenceImages = [...(requestBody.additionalReferenceImages || []), { data: refParts.base64, mimeType: refParts.mime }];
       requestBody.prompt += ` A second reference image is also attached, showing an additional material, color, or style the client wants reflected in this change — incorporate its relevant qualities into the edit without copying it exactly unless the change explicitly calls for that.`;
     }
     // Same fix as startRenderSession/confirmRegenerateOtherOption/submitModifyDesign's own
