@@ -4012,7 +4012,7 @@ Replace only the materials and graphics."></textarea>
            visible in another view. The other views are offered here as references; the client
            drags a rectangle over the part and it travels with the edit as a reference image. -->
       <div id="editBorrowWrap" style="display:none;margin-top:12px;">
-        <label class="sublabel">Or take a part from another view of this design: click a view, then drag a box around the part you want added to this image</label>
+        <label class="sublabel">Or take a part from another view of this design: click a view, drag a box around the part you want added, then mark on the image (Pen) or describe in the text where it goes</label>
         <div id="editBorrowThumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;"></div>
         <div id="editBorrowCropWrap" style="display:none;margin-top:10px;">
           <div id="editBorrowCropLabel" class="hint" style="margin:0 0 6px;"></div>
@@ -21839,6 +21839,48 @@ function renderEditBorrowedList(){
   });
 }
 
+// Names the object in a borrowed cut in one sentence, so the edit prompt can ask for it in words
+// as well as by picture. Falls back to a generic phrase on any error.
+const borrowedCropDescribeSystem = `SYSTEM
+
+You describe one element of an exhibition booth shown in a cropped photograph, for a designer who has to rebuild it elsewhere. Respond in JSON only: { "description": "one sentence naming the element and its key visible features: what it is, its form, materials, colours, any branding or text on it" }. Name the object itself (for example: a curved white reception counter with a backlit logo panel), never the photograph.`;
+async function describeBorrowedCrop(base64, mime, fromLabel){
+  try{
+    const content = [
+      { type: 'image', source: { type: 'base64', media_type: mime || 'image/jpeg', data: base64 } },
+      { type: 'text', text: `This is a part cut out of the ${fromLabel} view of an exhibition booth. Describe the element it shows.` }
+    ];
+    const result = await callPromptWriterApi(borrowedCropDescribeSystem, content);
+    const desc = result && typeof result.description === 'string' ? result.description.trim() : '';
+    return desc || `the element shown in the part cut from the ${fromLabel} view`;
+  }catch(err){
+    console.warn('Could not describe the borrowed part, using a generic phrase:', err);
+    return `the element shown in the part cut from the ${fromLabel} view`;
+  }
+}
+
+// Confirms the edited picture now contains the borrowed element(s). Fails open on error.
+const borrowedAdditionCheckSystem = `SYSTEM
+
+You are a strict QA inspector for an image edit. You receive one image, an edited exhibition booth render, and a list of elements that the edit was required to ADD to it. For each element, judge whether it is clearly present in the image (present and recognizable, not a faint trace or a vaguely similar object). Respond in JSON only:
+{ "result": "MATCH" } when every listed element is clearly present, or
+{ "result": "MISMATCH", "reason": "one short sentence naming which element is missing or unrecognizable" } otherwise.`;
+async function verifyBorrowedAddition(dataUrl, descriptions){
+  try{
+    const { mime, base64 } = dataUrlParts(await compressDataUrl(dataUrl, 1024, 0.8));
+    const content = [
+      { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
+      { type: 'text', text: `Elements that must now be clearly present in this image:\n${descriptions.map((d, i) => `${i + 1}. ${d}`).join('\n')}\n\nInspect the image and respond in the JSON shape given.` }
+    ];
+    const result = await callPromptWriterApi(borrowedAdditionCheckSystem, content);
+    if(result && result.result === 'MISMATCH') return { ok: false, reason: (typeof result.reason === 'string' && result.reason) || 'The added element could not be found in the picture.' };
+    return { ok: true };
+  }catch(err){
+    console.warn('Borrowed-part check failed (keeping the render):', err);
+    return { ok: true };
+  }
+}
+
 function clearEditBorrowed(){
   editBorrowedCrops = [];
   cancelEditBorrowCrop();
@@ -22011,6 +22053,11 @@ async function submitEdit(){
     await customAlert('Describe the change, mark it up on the image, take a part from another view, or pick a camera angle first.', 'Edit Image');
     return;
   }
+  // A borrowed part needs a place to go: the edit model adds it reliably only when told where.
+  if(editBorrowedCrops.length && !editDesc && !hasMarkup){
+    await customAlert('Draw a box on the image where the part from the other view should go (use the Pen), or describe where it goes in the text box, then submit.', 'Edit Image');
+    return;
+  }
 
   // Every deduction is announced first (owner rule): each picture edit costs 1 edit.
   if(!isAdminUser){
@@ -22111,23 +22158,36 @@ ${buildApprovedDecisionsText()}
   projectSwitchLocked = true;
 
   let requestBody;
+  let borrowedDescriptions = [];
   try{
     const compressedComposite = await compressDataUrl(compositeDataUrl, 1536, 0.88);
     const composite2 = dataUrlParts(compressedComposite);
     requestBody = { prompt: promptText, referenceImage: composite2.base64, referenceMimeType: composite2.mime, preferSpeed: shouldPreferSpeedForCurrentBooth(), isUserInitiatedEdit: true };
 
-    // Parts borrowed from other views of this same design (see editBorrowedCrops): each is
-    // attached as a reference image with an instruction to reproduce that element here.
+    // Parts borrowed from other views of this same design (see editBorrowedCrops). Owner
+    // report: a bare reference image was ignored by the edit model and the view came back
+    // unchanged. Each cut is therefore first described in words by the vision model, and the
+    // addition is written as the PRIMARY CHANGE at the top of the prompt, naming the element,
+    // the reference it comes from and where it goes; the result is then checked (see below).
     if(editBorrowedCrops.length){
+      statusEl.textContent = 'Reading the part you selected...';
       const cropParts = [];
+      const descriptions = [];
       for(const crop of editBorrowedCrops){
         const compressedCrop = await compressDataUrl(crop.dataUrl, 1024, 0.9);
         const parts = dataUrlParts(compressedCrop);
         cropParts.push({ data: parts.base64, mimeType: parts.mime });
+        descriptions.push(await describeBorrowedCrop(parts.base64, parts.mime, crop.fromLabel));
       }
       requestBody.additionalReferenceImages = [...(requestBody.additionalReferenceImages || []), ...cropParts];
-      const fromList = editBorrowedCrops.map((c, i) => `reference ${i + 1} is cut from the ${c.fromLabel} view`).join('; ');
-      requestBody.prompt += ` ${editBorrowedCrops.length === 1 ? 'A reference image is' : editBorrowedCrops.length + ' reference images are'} attached showing a PART OF THIS SAME BOOTH cut out of another view of the approved design (${fromList}). Each shows an element that belongs to this booth and is missing or wrong in the picture being edited. Reproduce that element in the edited picture exactly as it appears in the cut: the same design, geometry, materials, colours and branding, at the size and place it must have from this camera position, ${(editDesc || hasMarkup) ? 'following the client\'s instruction and markup for where it goes' : 'placed where this booth has it in the view it was cut from, as seen from this camera position'}. Do not paste the cut as a flat patch; build the element into the scene with correct perspective, lighting and shadows. Change nothing else.`;
+      borrowedDescriptions = descriptions;
+      const items = descriptions.map((desc, i) => `(${i + 1}) ${desc} (attached reference image ${i + 1}, cut from the ${editBorrowedCrops[i].fromLabel} view of this same booth)`).join('; ');
+      const where = hasMarkup && editDesc
+        ? 'at the location marked on the image, as the client describes'
+        : hasMarkup ? 'at the location marked on the image'
+        : `where the client describes: "${editDesc}"`;
+      const additionInstruction = `PRIMARY CHANGE REQUESTED, THIS IS THE POINT OF THE EDIT: ADD to this picture the following element${descriptions.length > 1 ? 's' : ''}, which belong${descriptions.length > 1 ? '' : 's'} to this same booth and ${descriptions.length > 1 ? 'are' : 'is'} visible in its other views but missing here: ${items}. Place ${descriptions.length > 1 ? 'them' : 'it'} ${where}, built into the scene at the right size and perspective for this camera position, with matching lighting and shadows, in exactly the design, materials, colours and branding the reference shows. Do not paste the reference as a flat patch. A result without ${descriptions.length > 1 ? 'these elements' : 'this element'} clearly present is wrong. Everything else in the picture stays identical.\n\n`;
+      requestBody.prompt = additionInstruction + requestBody.prompt;
     }
     if(editReferenceDataUrl){
       const compressedRef = await compressDataUrl(editReferenceDataUrl, 1536, 0.88);
@@ -22179,7 +22239,26 @@ ${buildApprovedDecisionsText()}
       throw new Error(detail);
     }
     statusEl.textContent = 'Applying edit...';
-    const compressedResult = data.image;
+    let compressedResult = data.image;
+    // Borrowed part: confirm it is really in the result; one more render (uncharged) if not.
+    if(borrowedDescriptions.length){
+      statusEl.textContent = 'Checking that the part was added...';
+      const added = await verifyBorrowedAddition(compressedResult, borrowedDescriptions);
+      if(!added.ok){
+        console.warn('Borrowed part not found in the edited image, rendering once more:', added.reason);
+        statusEl.textContent = 'The part was not added yet. Rendering again...';
+        const retryBody = { ...requestBody, isUserInitiatedEdit: false, prompt: `THE PREVIOUS ATTEMPT FAILED: ${added.reason} The element${borrowedDescriptions.length > 1 ? 's' : ''} listed below MUST appear clearly in this picture; adding ${borrowedDescriptions.length > 1 ? 'them' : 'it'} is the whole purpose of this edit.\n\n` + requestBody.prompt };
+        const retryRes = await fetchWithTimeout('/api/edit-image-openai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(retryBody) }, 190000);
+        const retryText = await retryRes.text();
+        let retryData = {};
+        try{ retryData = JSON.parse(retryText); }catch(e){ /* keep the first result */ }
+        if(retryRes.ok && retryData.image){
+          const addedNow = await verifyBorrowedAddition(retryData.image, borrowedDescriptions);
+          if(addedNow.ok || !added.ok) compressedResult = retryData.image;
+          if(!addedNow.ok) console.warn('Borrowed part still not confirmed after the second render:', addedNow.reason);
+        }
+      }
+    }
     if(!isAdminUser && currentUserEditCount != null){
       currentUserEditCount++;
       renderEditUsageIndicator();
