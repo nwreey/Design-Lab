@@ -6246,7 +6246,7 @@ Non-negotiable rules for this image: THE OUTPUT IS A PHOTOGRAPH OF THE BOOTH AND
    from the approved design. */
 const SAME_DESIGN_HARD_RULE = `
 
-HARD RULE — SAME DESIGN ONLY (absolute, overrides any creative impulse): The attached reference image IS the approved final design. Your ONLY job is to show THIS EXACT design from the requested camera position, in high resolution. Reproduce every element exactly as approved: identical architecture, geometry, proportions, materials, colors, branding, logo placements, furniture, lighting fixtures, signage, and decorative elements. Do NOT redesign, restyle, improve, simplify, add, remove, resize, recolor, or reinterpret ANYTHING. If an element is visible in the reference, it must appear identically; where a surface becomes visible only from this new angle, render it strictly consistent with the approved design language without inventing new features. Any visible deviation from the approved design is a failure.`;
+HARD RULE, SAME DESIGN ONLY (absolute, overrides any creative impulse): The attached reference image IS the approved final design. Your ONLY job is to show THIS EXACT design from the requested camera position, in high resolution. Reproduce every element exactly as approved: identical architecture, geometry, proportions, materials, colors, branding, logo placements, furniture, lighting fixtures, signage, and decorative elements. Do NOT redesign, restyle, improve, simplify, add, remove, resize, recolor, or reinterpret ANYTHING. NEVER ADD OR REMOVE ANYTHING IN THE STAND: no new wall, partition, ceiling, canopy, column, counter, screen, room, plant, sign or structure that the approved design and the other attached views do not have; and nothing that exists in them taken away, including a ceiling or canopy, a wall, a counter, a screen or the hero structure. If an element is visible in the reference, it must appear identically; where a surface becomes visible only from this new angle, render it strictly consistent with the approved design language without inventing new features. Any visible deviation from the approved design is a failure.`;
 
 // MULTI-VIEW RENDER ENGINE (MRE-001, Test Engine only) — appended (never in Special Engine) to
 // the very first Gemini render of a booth, replacing the usual single hero photograph with one
@@ -22970,7 +22970,32 @@ function computeImageSimilarity(dataUrlA, dataUrlB){
 // edit endpoint whenever it's given a referenceImage (it attaches the photo as an inlineData
 // part alongside the text prompt), so no separate "Gemini edit" endpoint is needed — it's the
 // exact same endpoint the initial generation used, just called again with a reference photo.
-async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geometryCorrectionReason, lumaReferenceFrame, controlKind){
+// The views already accepted in this run that help most for a new camera: the three whose cameras
+// are closest to it (exterior), or the first three (top and interior views). Compressed small so
+// three of them add little to the request. Owner request (Sep 2026): every camera is shown the
+// other views, not only the hero, so the unseen sides stay consistent across the set.
+async function priorViewsForSpec(spec, maxCount){
+  const out = [];
+  const entries = Array.from(cameraViewsAcceptedImages.entries()).filter(([camId]) => camId !== spec.camId);
+  if(!entries.length) return out;
+  const specOf = (camId) => (CAMERA_SPECS || []).find(sp => sp.camId === camId);
+  const angular = (a, b) => { const d = Math.abs(((a - b) % 360 + 360) % 360); return Math.min(d, 360 - d); };
+  const ranked = entries.map(([camId, image]) => {
+    const other = specOf(camId);
+    const dist = (spec.type === 'exterior' && other && other.type === 'exterior' && typeof other.azimuth === 'number') ? angular(spec.azimuth || 0, other.azimuth) : 999;
+    return { camId, image, dist, name: VIEWER_CAMERA_LABELS[camId] || camId };
+  }).sort((a, b) => a.dist - b.dist);
+  for(const entry of ranked.slice(0, maxCount || 3)){
+    try{
+      const small = await compressDataUrlToTarget(await compressDataUrl(entry.image, 800, 0.8), 220 * 1024);
+      const parts = dataUrlParts(small);
+      out.push({ data: parts.base64, mimeType: parts.mime, name: entry.name });
+    }catch(e){ /* a view that cannot be compressed is simply not attached */ }
+  }
+  return out;
+}
+
+async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geometryCorrectionReason, lumaReferenceFrame, controlKind, priorViews){
   // controlKind says WHAT the attached second image is ('massing' = this app's own exact geometry
   // render, 'orbit' = a soft video still). The prompt has to introduce the two differently, so
   // this is passed through rather than reduced to a boolean — see buildCameraViewPrompt's note.
@@ -23009,9 +23034,16 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geo
   const massingFirst = referenceKind === 'massing' && lumaReferenceFrame && lumaReferenceFrame.data;
   const primaryImage = massingFirst ? lumaReferenceFrame.data : base64;
   const primaryMime  = massingFirst ? (lumaReferenceFrame.mimeType || 'image/jpeg') : mime;
-  const additionalReferenceImages = massingFirst
+  const priors = Array.isArray(priorViews) ? priorViews : [];
+  const additionalReferenceImages = (massingFirst
     ? [{ data: base64, mimeType: mime }]
-    : (lumaReferenceFrame ? [lumaReferenceFrame] : undefined);
+    : (lumaReferenceFrame ? [lumaReferenceFrame] : [])).concat(priors.map(pv => ({ data: pv.data, mimeType: pv.mimeType })));
+  // The other views already accepted, named in the order they are attached, so the model reads
+  // the rear, the sides and the ceiling from real pictures of this booth rather than guessing.
+  const firstPriorIndex = massingFirst ? 3 : (lumaReferenceFrame ? 3 : 2);
+  const priorViewsNote = priors.length
+    ? ` ${priors.length === 1 ? 'ONE MORE IMAGE IS' : priors.length + ' MORE IMAGES ARE'} ATTACHED, IMAGES ${priors.length === 1 ? firstPriorIndex : firstPriorIndex + ' TO ' + (firstPriorIndex + priors.length - 1)}: other views of THIS SAME BOOTH already rendered and approved from other cameras (${priors.map((pv, i) => `image ${firstPriorIndex + i} is the ${pv.name} view`).join(', ')}). They show parts of the booth the approved image does not: use them for every face, the ceiling or canopy, the rear and the sides, so that this view agrees with all of them. What they show exists and stays; what none of them shows is not invented.`
+    : '';
   // quality 'high' is the whole point of this call for the owner: these views are what the
   // client downloads and presents, so they get the provider's top quality tier and its largest
   // landscape size, not the mid setting used for quick concept drafts. Slower and costlier per
@@ -23028,9 +23060,11 @@ async function requestCameraViewFromOpenAI(spec, base64, mime, isWiderRetry, geo
   // size is sent, so Standard renders at 512 and Pro at its smallest, 1K).
   const viewQuality = isAdminUser ? 'medium' : 'high';
   const viewSize = isAdminUser ? '1024x672' : '1536x1024';
+  const themeRule = ' FOR ANY PART OF THE BOOTH THAT NO ATTACHED IMAGE SHOWS: design it as the same designer would, in the theme of this booth, with the same inspiration, materials, colours, lighting language, brand identity and the elements the brief requires, so it reads as one intentional design; never a blank, generic or different-looking area, and never an element the design does not have.';
+  const promptWithContext = prompt + priorViewsNote + themeRule;
   const body = useOpenAi
-    ? { prompt, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, size: viewSize, quality: viewQuality, isUserInitiatedEdit: chargeThisCall }
-    : { prompt, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, isUserInitiatedEdit: chargeThisCall, quotaKind: 'edit', aspectRatio: '3:2', imageModel: viewsEngine === 'pro' ? 'pro' : 'standard' };
+    ? { prompt: promptWithContext, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, size: viewSize, quality: viewQuality, isUserInitiatedEdit: chargeThisCall }
+    : { prompt: promptWithContext, referenceImage: primaryImage, referenceMimeType: primaryMime, additionalReferenceImages, isUserInitiatedEdit: chargeThisCall, quotaKind: 'edit', aspectRatio: '3:2', imageModel: viewsEngine === 'pro' ? 'pro' : 'standard' };
   // Camera views default to OpenAI's edit endpoint (useOpenAi above) unless the hero itself
   // was rendered on Gemini — that endpoint is now allowed 180s server-side (see vercel.json),
   // but this call was still cutting off at the old 100s client timeout, which is exactly what
@@ -23184,6 +23218,8 @@ DOUBLE DECK CAMERA RULES — Camera Validation Rules (only apply these two addit
 4. The accompanying text for this image states whether this specific camera "requiresUpperFloorVisible". When it does, a genuine second floor (upper deck) must be visibly present in the image, positioned above the ground floor, with a real guard rail/railing visible along any exposed edge of it (per "guardRailRequired": true) — if the image reads as a single-level booth with no upper floor at all, that is a MISMATCH.
 7. CAMERA POSITION (always applies): the accompanying text states the exact camera position this view must be taken from and which faces of the booth must be visible where. The picture must be taken from that position: a straight-on view shows the named face flat and square with the named ends at the left and right edges; a corner view shows the two named faces meeting at the near corner; a top view looks straight down; an interior view stands inside the booth. A picture taken from a different side, from the approved image's own angle when a different one was asked for, or showing a different face than named, is a MISMATCH, and the reason must name what the picture shows instead.
 
+8. NOTHING ADDED, NOTHING REMOVED (always applies): compare the second image with the approved first image and with any other attached views of the same booth. Any wall, partition, ceiling, canopy, column, room, counter, screen or other major element present in the second image but in none of the others is an ADDITION; any such element visible in the others that the second image's camera should show but that is missing is a REMOVAL (a missing ceiling or canopy, a missing wall, a missing counter). Either is a MISMATCH, and the reason must name the element.
+
 6. DESIGN FIDELITY (always applies — this protects the client's approval): compare the second image against the approved FIRST image. It must read as the SAME booth: the same hero structure form, the same materials and color palette, the same branding and logo treatment, the same signage, the same general furniture character, the same lighting approach. Elements genuinely hidden in the approved view may appear when the camera reveals them, but they must be consistent with the approved design language. If the second image reads as a REDESIGNED or noticeably DIFFERENT booth (different hero form, different palette, different materials, added/removed major elements), that is a MISMATCH.
 
 5. The accompanying text states whether this image "isStaircaseView". When it is, a staircase connecting the ground floor and the second floor must be clearly visible and appear structurally supported (resting on real posts, a stringer, or a wall — never floating in mid-air with no visible support). If no staircase is visible at all in this specific view, that is a MISMATCH.
@@ -23259,7 +23295,7 @@ function describeViewArrangement(spec){
   return `Seen from this camera, left to right across the picture: ${order}.${wallNote}${topNote}`;
 }
 
-async function verifyCameraViewGeometry(dataUrl, spec){
+async function verifyCameraViewGeometry(dataUrl, spec, priorViews){
   if(!cameraViewsOrientationLock) return { result: 'MATCH' };
   try{
     const { mime, base64 } = dataUrlParts(await compressDataUrl(dataUrl, 1024, 0.8));
@@ -23270,7 +23306,11 @@ async function verifyCameraViewGeometry(dataUrl, spec){
       content.push({ type: 'image', source: { type: 'base64', media_type: cameraViewsHeroRef.mime || 'image/jpeg', data: cameraViewsHeroRef.base64 } });
     }
     content.push({ type: 'image', source: { type: 'base64', media_type: mime, data: base64 } });
-    content.push({ type: 'text', text: `The FIRST image is the client's APPROVED design. The SECOND image is the newly rendered view under inspection.\n\nORIENTATION LOCK (machine-readable, authoritative facts for this exact booth):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThe second image is the "${spec.name}" camera view of this exact booth. requiresUpperFloorVisible: ${!!spec.requiresUpperFloorVisible}. isStaircaseView: ${spec.focusZone === 'staircase'}.\n\nREQUIRED CAMERA POSITION (check 7): ${describeRequiredCameraPosition(spec)}${describeViewArrangement(spec) ? ` EXPECTED ARRANGEMENT: ${describeViewArrangement(spec)} A picture with these elements in the reverse order, or a wall on the wrong side, is a MIRROR IMAGE and a MISMATCH.` : ''}` });
+    // Up to two other accepted views follow, so an added wall or a removed ceiling can be judged
+    // against the rest of the set, not only against the hero's own angle.
+    const priorsForInspector = (Array.isArray(priorViews) ? priorViews : []).slice(0, 2);
+    priorsForInspector.forEach(pv => content.push({ type: 'image', source: { type: 'base64', media_type: pv.mimeType || 'image/jpeg', data: pv.data } }));
+    content.push({ type: 'text', text: `The FIRST image is the client's APPROVED design. The SECOND image is the newly rendered view under inspection.\n\nORIENTATION LOCK (machine-readable, authoritative facts for this exact booth):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThe second image is the "${spec.name}" camera view of this exact booth. requiresUpperFloorVisible: ${!!spec.requiresUpperFloorVisible}. isStaircaseView: ${spec.focusZone === 'staircase'}.${priorsForInspector.length ? ` ${priorsForInspector.length === 1 ? 'A THIRD image is' : 'A THIRD and a FOURTH image are'} attached: other views of this same booth already accepted (${priorsForInspector.map((pv, i) => `image ${i + 3} is the ${pv.name} view`).join(', ')}); use them together with the first image for check 8.` : ''}\n\nREQUIRED CAMERA POSITION (check 7): ${describeRequiredCameraPosition(spec)}${describeViewArrangement(spec) ? ` EXPECTED ARRANGEMENT: ${describeViewArrangement(spec)} A picture with these elements in the reverse order, or a wall on the wrong side, is a MIRROR IMAGE and a MISMATCH.` : ''}` });
     const analysis = await callPromptWriterApi(orientationLockVerificationSystem, content);
     if(analysis && analysis.result === 'MISMATCH'){
       return { result: 'MISMATCH', reason: (analysis.reason && typeof analysis.reason === 'string') ? analysis.reason : 'Geometry does not match the locked Orientation Lock.' };
@@ -23332,7 +23372,7 @@ const SIMILARITY_THRESHOLD = 0.96;
 // Views accepted so far in the current run: camId -> compressed data URL, for the repeat check.
 let cameraViewsAcceptedImages = new Map();
 
-async function designDirectorCheckView(spec, resultDataUrl, heroCompressed){
+async function designDirectorCheckView(spec, resultDataUrl, heroCompressed, priorViews){
   // 1. Not the approved image again.
   const heroSimilarity = await computeImageSimilarity(heroCompressed, resultDataUrl);
   const lookAlikeBar = (spec.type === 'exterior' && !spec.sameCornerAsHero) ? 0.93 : SIMILARITY_THRESHOLD;
@@ -23348,8 +23388,9 @@ async function designDirectorCheckView(spec, resultDataUrl, heroCompressed){
       return { ok: false, kind: 'view-repeat', reason: `This attempt repeats the ${otherName} view (similarity ${otherSimilarity.toFixed(2)}) instead of showing the booth from the ${spec.name} camera position, which is a different side.` };
     }
   }
-  // 3. The inspector: camera position, walls and open sides, design fidelity.
-  const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec);
+  // 3. The inspector: camera position, walls and open sides, design fidelity, nothing added or
+  // removed (checked against the hero and the other accepted views).
+  const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec, priorViews);
   if(geometryCheck.result === 'MISMATCH'){
     return { ok: false, kind: 'inspector', reason: geometryCheck.reason };
   }
@@ -23364,11 +23405,12 @@ async function renderViewWithDirectorCheck(spec, heroBase64, heroMime, heroCompr
   let renders = 0;
   let correction = undefined;
   let wider = false;
+  const priorViews = await priorViewsForSpec(spec, 3);
   while(renders < MAX_VIEW_RENDERS){
     renders++;
     if(onAttempt) onAttempt(renders, verdict);
-    resultDataUrl = await requestCameraViewFromOpenAI(spec, heroBase64, heroMime, wider, correction, controlImage, controlKind);
-    verdict = await designDirectorCheckView(spec, resultDataUrl, heroCompressed);
+    resultDataUrl = await requestCameraViewFromOpenAI(spec, heroBase64, heroMime, wider, correction, controlImage, controlKind, priorViews);
+    verdict = await designDirectorCheckView(spec, resultDataUrl, heroCompressed, priorViews);
     if(verdict.ok) break;
     console.warn('Design Director check failed for', spec.camId, '(render ' + renders + ' of ' + MAX_VIEW_RENDERS + '):', verdict.reason);
     // The next render names the failure. A look-alike is told to move the camera (the wider
@@ -23686,7 +23728,9 @@ function buildMassingViewsForSpecs(specsIn){
 // they have no dependency on each other whatsoever. Three at a time is deliberately modest:
 // enough to cut the wall-clock time to roughly a third, while staying far away from the image
 // provider's per-minute request limits (which would turn into failed views, not faster ones).
-const CAMERA_VIEW_CONCURRENCY = 3;
+// Owner decision (Sep 2026): views render ONE AT A TIME, so each new view can be shown the views
+// already accepted (see priorViewsForSpec) and stays consistent with them, not only with the hero.
+const CAMERA_VIEW_CONCURRENCY = 1;
 
 // Owner decision (Sep 2026): no 360 orbit video is requested for any run, admin or client. See
 // generateCameraViewsFromHero for the reasoning; the orbit code stays intact behind this flag.
