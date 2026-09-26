@@ -23190,9 +23190,13 @@ DOUBLE DECK CAMERA RULES — Camera Validation Rules (only apply these two addit
 
 If this image's visible geometry is consistent with the Orientation Lock on all applicable checks above, respond MATCH. If ANY check fails, respond MISMATCH and state exactly which check failed and what is visibly wrong, in one short, specific sentence a designer could act on to fix it (e.g. "A curved wall appears on the Left side, which the Orientation Lock lists as an open side." or "No second floor is visible — this double-deck booth renders as a single-level structure.").
 
-Respond in JSON only, no explanation outside the JSON, using exactly one of these two shapes:
-{ "result": "MATCH" }
-{ "result": "MISMATCH", "reason": "one short specific sentence" }`;
+Respond in JSON only, no explanation outside the JSON. ALWAYS include "camera", your own classification of the second image, answered from the picture alone before you compare it with anything:
+  "faceShown": which of the booth's faces fills the picture: "Front", "Right", "Rear", "Left", "Corner" (two faces meeting at a near corner), "Top" (straight down) or "Interior" (camera inside the booth);
+  "squareOn": true only if the camera is directly in front of that single face, perpendicular to it, so the face reads flat and symmetrical (false for any angled or three-quarter view);
+  "mirrored": true if the elements or walls appear in the reverse left-to-right order from the expected arrangement given in the text.
+Use exactly one of these two shapes:
+{ "result": "MATCH", "camera": { "faceShown": "Right", "squareOn": true, "mirrored": false } }
+{ "result": "MISMATCH", "reason": "one short specific sentence", "camera": { "faceShown": "Corner", "squareOn": false, "mirrored": false } }`;
 
 // Plain-words statement of where the camera must stand for a spec, for the inspector's camera
 // check (owner, Sep 2026: every view is double-checked as a design director would, for the
@@ -23271,11 +23275,44 @@ async function verifyCameraViewGeometry(dataUrl, spec){
     if(analysis && analysis.result === 'MISMATCH'){
       return { result: 'MISMATCH', reason: (analysis.reason && typeof analysis.reason === 'string') ? analysis.reason : 'Geometry does not match the locked Orientation Lock.' };
     }
+    // Owner report (Sep 2026): a Right Side view that was not a straight view from the right still
+    // passed. The inspector's own forced-choice classification is now compared with the spec here,
+    // in code, so a lenient MATCH cannot let a wrong camera through.
+    const cameraMismatch = compareCameraClassification(spec, analysis && analysis.camera);
+    if(cameraMismatch) return { result: 'MISMATCH', reason: cameraMismatch };
     return { result: 'MATCH' };
   }catch(err){
     console.error('Orientation Lock verification failed (failing open — treating as a match):', err);
     return { result: 'MATCH' };
   }
+}
+
+// The inspector's classification of the picture against what the spec demands. Returns a reason
+// string on a mismatch, or '' when the picture is from the right camera.
+function compareCameraClassification(spec, camera){
+  if(!camera || typeof camera !== 'object') return '';
+  const lbl = (f) => f === 'Back' ? 'Rear' : f;
+  const face = typeof camera.faceShown === 'string' ? camera.faceShown.trim() : '';
+  if(camera.mirrored === true) return 'The picture is a mirror image: the elements or walls appear in the reverse left-to-right order for this camera.';
+  if(spec.straightOn){
+    const expected = lbl(spec.straightOn);
+    if(face && face !== expected) return `The picture shows the ${face === 'Corner' ? 'booth from a corner (two faces)' : face + ' face'} instead of a straight view of the ${expected} face.`;
+    if(camera.squareOn === false) return `The picture is an angled view of the ${expected} face instead of a straight, square view from directly in front of it.`;
+    return '';
+  }
+  if(spec.corner){
+    if(face && face !== 'Corner') return `The picture shows the ${face === 'Top' ? 'booth from above' : face === 'Interior' ? 'interior' : face + ' face square on'} instead of a three-quarter view from the ${spec.name.toLowerCase()}.`;
+    return '';
+  }
+  if(spec.type === 'top-down'){
+    if(face && face !== 'Top') return 'The picture is not taken from directly above the booth.';
+    return '';
+  }
+  if(spec.type === 'interior' || spec.type === 'upper-deck-overview'){
+    if(face && face !== 'Interior') return 'The picture shows the booth from outside instead of from inside.';
+    return '';
+  }
+  return '';
 }
 
 /* DESIGN DIRECTOR CHECK FOR CAMERA VIEWS (owner, Sep 2026). Every generated view is double-checked
@@ -24863,7 +24900,10 @@ The booth's architecture, materials, branding, and furniture are completely unch
           : (spec.seenInHero === true
             ? ` This face is visible in the approved image (taken from the ${heroCornerLabel} corner): keep every element on it exactly as approved, seen square-on instead of at an angle.`
             : '');
-        return ` STRAIGHT-ON ELEVATION, 100% SQUARE: the camera stands OUTSIDE the booth in the aisle, exactly opposite the centre of the booth's ${faceLabel.toUpperCase()} face (its ${lengthText}${isWidthFace ? 'W / width' : 'D / depth'} side), aimed perpendicular to that face. The ${faceLabel} face spans the frame from edge to edge and reads flat and symmetrical, exactly as a person standing directly in front of it would see it; the two adjacent faces are not visible, or appear only as the thinnest receding edges. Not a diagonal, not a three-quarter view, and not the approved image's own corner angle.${edgeNote}${seenNote}`;
+        const firstImageNote = referenceKind === 'massing'
+          ? ` The FIRST image shows exactly this: one face of the booth, the ${faceLabel.toUpperCase()} face, filling the frame, seen square on. Your output shows that same single face filling the frame in the same way; if the approved image shows this face at an angle or from a corner, do NOT use that angle.`
+          : '';
+        return `${firstImageNote} STRAIGHT-ON ELEVATION, 100% SQUARE: the camera stands OUTSIDE the booth in the aisle, exactly opposite the centre of the booth's ${faceLabel.toUpperCase()} face (its ${lengthText}${isWidthFace ? 'W / width' : 'D / depth'} side), aimed perpendicular to that face. The ${faceLabel} face spans the frame from edge to edge and reads flat and symmetrical, exactly as a person standing directly in front of it would see it; the two adjacent faces are not visible, or appear only as the thinnest receding edges. Not a diagonal, not a three-quarter view, and not the approved image's own corner angle.${edgeNote}${seenNote}`;
       })()
     : '';
   // Owner request (Sep 2026): a SECOND reference image — one frame pulled from a real Luma
