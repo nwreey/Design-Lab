@@ -407,6 +407,9 @@
      other role; the server refuses 'pro' from non-admins anyway, this only keeps it out of sight. */
   #adminImageModelSwitch{display:none;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
   body.is-admin #adminImageModelSwitch{display:inline-flex;}
+  /* !important on purpose: button.ghost sets display:inline-block with higher specificity. */
+  .admin-only-inline{display:none !important;}
+  body.is-admin .admin-only-inline{display:inline-block !important;}
   .admin-model-switch{display:none;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin:0 0 14px;text-align:left;}
   body.is-admin .admin-model-switch{display:flex;}
   .admin-model-switch .seg{display:inline-flex;border:1px solid var(--line, #cfd4dc);border-radius:2px;overflow:hidden;}
@@ -3688,6 +3691,7 @@ Replace only the materials and graphics."></textarea>
       <div class="grid-area-actionbar">
         <div class="action-bar" id="actionBar">
           <button class="ghost small" id="downloadRenderBtn" onclick="downloadCurrentRender()" style="display:none;" data-i18n="btn.downloadImage">Download image</button>
+          <button class="ghost small admin-only-inline" id="adminExportProjectBtn" onclick="exportProjectPackage()" style="display:none;" title="Admin only: download a ZIP with the exact text sent to the image engine, every input image (logo, reference, brand portfolio, posters) and every output image (designs, other designs, camera views, technical view) of this project.">Export package</button>
           <button class="ghost small" onclick="openModifyDesignPanel()" data-i18n="btn.modifyDesign">Modify design</button>
           <button class="primary small" id="approveDesignBtn" onclick="approveDesign()" data-i18n="btn.approve">Approve</button>
           <!-- Owner decision: ONE button here. Labeled "Other Design", and it produces another
@@ -11213,6 +11217,10 @@ async function checkAdminAccess(){
       if(sidebarUploadExisting) sidebarUploadExisting.style.display = 'block';
       renderAdminImageModelSwitch();
       renderAdminViewsEngineSwitch();
+      // Admin-only project export (see exportProjectPackage): revealed the same way as the other
+      // admin controls, inline so no stylesheet ordering can show it to anyone else.
+      const exportBtn = document.getElementById('adminExportProjectBtn');
+      if(exportBtn) exportBtn.style.display = 'inline-block';
     }
     // The AI Auto-fill Helper ("Need help completing this brief?") has now graduated from an
     // admin-only test to a normal feature for every user, in both Booth and Event modes — shown
@@ -17780,6 +17788,119 @@ function renderEcbAreaRenders(inProgressArea){
 /* Cross-origin images (projects restored from server blob storage) make the browser
    IGNORE the download attribute and open the picture instead. This fetches the image
    into a local blob first so the save dialog always appears. */
+/* Admin export (owner request, Sep 2026: "I need the text and pictures sent to the image engine
+   for these projects"). Everything is already in the saved project: promptResult.image_prompt is
+   the exact text the image engine received on Generate, the inputs are the logo, reference image,
+   brand guidelines, posters and brand-portfolio product images, and the outputs are every gallery
+   entry (the design and its Other Designs, each tagged with the engine that made it), every
+   camera view with its history, and the technical view. This packs the lot into one ZIP.
+   The ZIP library is loaded on first use only, from the same CDN as the 3D library. */
+let __jszipLoading = null;
+function ensureJSZip(){
+  if(window.JSZip) return Promise.resolve(window.JSZip);
+  if(!__jszipLoading){
+    __jszipLoading = new Promise((resolve, reject) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      sc.onload = () => resolve(window.JSZip);
+      sc.onerror = () => reject(new Error('Could not load the ZIP library.'));
+      document.head.appendChild(sc);
+    });
+  }
+  return __jszipLoading;
+}
+function safeFileName(text){
+  return String(text || 'file').replace(/[^\w\-. ]+/g, '_').replace(/\s+/g, ' ').trim().slice(0, 80) || 'file';
+}
+function extFromDataUrl(dataUrl){
+  const m = /^data:image\/([a-z0-9+.-]+)/i.exec(dataUrl || '');
+  if(!m) return 'jpg';
+  const t = m[1].toLowerCase();
+  return t === 'jpeg' ? 'jpg' : (t === 'svg+xml' ? 'svg' : t);
+}
+async function exportProjectPackage(){
+  if(!isAdminUser) return;
+  const btn = document.getElementById('adminExportProjectBtn');
+  const setLabel = (t) => { if(btn) btn.textContent = t; };
+  try{
+    setLabel('Packing...');
+    const JSZip = await ensureJSZip();
+    const zip = new JSZip();
+    const name = safeFileName((document.getElementById('f_name') || {}).value || currentProjectId || 'project');
+    const root = zip.folder(name);
+    const addDataUrl = (folder, fileName, dataUrl) => {
+      if(!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return false;
+      const comma = dataUrl.indexOf(',');
+      folder.file(fileName, dataUrl.slice(comma + 1), { base64: true });
+      return true;
+    };
+    // 1. The exact text sent to the image engine on Generate, plus any per-option prompt.
+    const opt = optionResults && optionResults[0];
+    const promptText = (pendingPromptResult && pendingPromptResult.image_prompt) || (opt && opt.image_prompt) || '';
+    root.file('01-prompt-sent-to-image-engine.txt', promptText || '(no prompt saved for this project)');
+    if(pendingPromptResult && pendingPromptResult.concept_description) root.file('02-concept-description.txt', pendingPromptResult.concept_description);
+    // 2. The brief as filled in (every form value), for the record.
+    try{ root.file('03-brief-form-values.json', JSON.stringify(collectFormSnapshot(), null, 2)); }catch(e){ /* optional */ }
+    // 3. Inputs: every image that travelled with the prompt.
+    const inputs = root.folder('inputs');
+    let inputCount = 0;
+    if(addDataUrl(inputs, 'logo.' + extFromDataUrl(logoDataUrl), logoDataUrl)) inputCount++;
+    if(addDataUrl(inputs, 'reference-image.' + extFromDataUrl(referenceImageDataUrl), referenceImageDataUrl)) inputCount++;
+    if(addDataUrl(inputs, 'brand-guidelines.' + extFromDataUrl(brandGuidelinesDataUrl), brandGuidelinesDataUrl)) inputCount++;
+    (posterFiles || []).forEach((pf, i) => { if(addDataUrl(inputs, 'poster-' + (i + 1) + '-' + safeFileName(pf.name || '') + '.' + extFromDataUrl(pf.file), pf.file)) inputCount++; });
+    (brandPortfolio || []).forEach((brand, bi) => {
+      const bf = inputs.folder('brand-portfolio/' + (bi + 1) + '-' + safeFileName(brand.name || 'brand'));
+      if(addDataUrl(bf, 'logo.' + extFromDataUrl(brand.logoDataUrl), brand.logoDataUrl)) inputCount++;
+      (brand.products || []).forEach((prod, pi) => {
+        (prod.images || []).forEach((img, ii) => {
+          const src = img && (img.dataUrl || (typeof img === 'string' ? img : null));
+          if(addDataUrl(bf, 'product-' + (pi + 1) + '-' + safeFileName(prod.name || 'product') + '-' + (ii + 1) + '.' + extFromDataUrl(src), src)) inputCount++;
+        });
+      });
+    });
+    // 4. Outputs: the design and every Other Design, each named by the engine that made it.
+    const outputs = root.folder('outputs');
+    let outputCount = 0;
+    (optionResults || []).forEach((o, oi) => {
+      (o.gallery || []).forEach((g, gi) => {
+        const eng = g.engine === 'openai' ? 'gpt-image-2' : 'gemini';
+        if(addDataUrl(outputs, 'design-' + (oi + 1) + '-' + (gi + 1) + '-' + safeFileName(g.label || 'render') + '-' + eng + '.' + extFromDataUrl(g.image), g.image)) outputCount++;
+      });
+    });
+    // 5. Camera views and the technical view, with their full history.
+    const views = outputs.folder('views');
+    Object.keys(viewCardHistories || {}).forEach(camId => {
+      const hist = viewCardHistories[camId];
+      const label = safeFileName(VIEWER_CAMERA_LABELS[camId] || camId);
+      (hist.images || []).forEach((img, i) => {
+        if(addDataUrl(views, label + (hist.images.length > 1 ? '-' + (i + 1) : '') + '.' + extFromDataUrl(img), img)) outputCount++;
+      });
+    });
+    // Views that were rendered but never edited live only in the cards on screen.
+    document.querySelectorAll('#viewer3dGeneratedGrid .viewer3d-generated-card-light img').forEach(img => {
+      const card = img.closest('.viewer3d-generated-card-light');
+      const camId = card && card.id ? card.id.replace('genCard-', '') : '';
+      if(camId && viewCardHistories && viewCardHistories[camId]) return;
+      const label = safeFileName((card && card.querySelector('.viewer3d-generated-card-label') || {}).textContent || camId || 'view');
+      if(addDataUrl(views, label + '.' + extFromDataUrl(img.src), img.src)) outputCount++;
+    });
+    root.file('00-README.txt',
+      `DesignsLab project package: ${name}\nExported: ${new Date().toISOString()}\nProject id: ${currentProjectId || '(unsaved)'}\n\n01-prompt-sent-to-image-engine.txt: the exact text the image engine received when this design was generated.\n03-brief-form-values.json: every value of the brief form as it was filled in.\ninputs/: every image that travelled with the prompt (${inputCount} file(s)).\noutputs/: the generated design and every other design, each named with the engine that made it, then views/ with every camera view and the technical view (${outputCount} file(s)).\n`);
+    setLabel('Zipping...');
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name + '-package.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    setLabel('Export package');
+  }catch(err){
+    console.error('Project export failed:', err);
+    setLabel('Export package');
+    await customAlert('Could not build the package: ' + (err && err.message ? err.message : 'unknown error'), 'Export');
+  }
+}
+
 async function forceDownloadImage(src, filename){
   try{
     let url = src;
