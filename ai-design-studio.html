@@ -415,11 +415,6 @@
   .admin-model-switch .seg{display:inline-flex;border:1px solid var(--line, #cfd4dc);border-radius:2px;overflow:hidden;}
   .admin-model-switch .seg button{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;color:var(--muted);cursor:pointer;}
   .admin-model-switch .seg button.on{background:var(--navy);color:var(--paper);}
-  #adminViewsEngineSwitch{display:none;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-top:12px;text-align:left;}
-  body.is-admin #adminViewsEngineSwitch{display:flex;}
-  #adminViewsEngineSwitch .seg{display:inline-flex;border:1px solid var(--line, #cfd4dc);border-radius:2px;overflow:hidden;}
-  #adminViewsEngineSwitch .seg button{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;color:var(--muted);cursor:pointer;}
-  #adminViewsEngineSwitch .seg button.on{background:var(--navy);color:var(--paper);}
   #adminImageModelSwitch .seg{display:inline-flex;border:1px solid var(--line, #cfd4dc);border-radius:2px;overflow:hidden;}
   #adminImageModelSwitch .seg button{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;color:var(--muted);cursor:pointer;}
   #adminImageModelSwitch .seg button.on{background:var(--navy);color:var(--paper);}
@@ -3516,19 +3511,11 @@ Replace only the materials and graphics."></textarea>
     <div id="newSpatialEngineField" style="display:none;"></div>
 
     <div class="submit-bar">
-      <div id="adminDesignEngineSwitch" class="admin-model-switch" style="margin:0;" title="Admin only: which design engine writes the render brief. Hybrid is what everyone gets (concept first, then engineering validation, then Design Director); Classic is the previous deterministic prompt, kept for comparison.">
-        <span>Design engine</span>
-        <span class="seg">
-          <button type="button" data-engine="hybrid" class="on" onclick="setAdminDesignEngine('hybrid')">Hybrid</button>
-          <button type="button" data-engine="classic" onclick="setAdminDesignEngine('classic')">Classic</button>
-        </span>
-      </div>
       <div id="adminImageModelSwitch" title="Admin only: which image model renders this design (Generate, Other Design and Modify Design).">
         <span>Image model</span>
         <span class="seg">
           <button type="button" id="adminImageModelStandard" class="on" onclick="setAdminImageModel('standard')">Standard</button>
           <button type="button" id="adminImageModelPro" onclick="setAdminImageModel('pro')">Pro</button>
-          <button type="button" id="adminImageModelOpenai" onclick="setAdminImageModel('openai')">Engine B</button>
         </span>
       </div>
       <button class="primary" id="submitBtn" onclick="generateDesign()" data-i18n="btn.generateDesign">Generate Design</button>
@@ -3824,7 +3811,6 @@ Replace only the materials and graphics."></textarea>
         <span class="seg">
           <button type="button" data-model="standard" class="on" onclick="setAdminImageModel('standard')">Standard</button>
           <button type="button" data-model="pro" onclick="setAdminImageModel('pro')">Pro</button>
-          <button type="button" data-model="openai" onclick="setAdminImageModel('openai')">Engine B</button>
         </span>
       </div>
       <div style="display:flex;gap:10px;">
@@ -3900,14 +3886,6 @@ Replace only the materials and graphics."></textarea>
       <p id="viewPickerDesc">Once approved, no further changes can be made to the concept itself. Your approved hero view is included free — pick which additional camera views to render. Each view uses 1 image edit.</p>
       <div id="viewPickerList" style="text-align:left;max-height:280px;overflow:auto;border:1.5px solid var(--line);border-radius:2px;padding:10px 12px;"></div>
       <p id="viewPickerCount" style="font-weight:700;margin:12px 0 0;"></p>
-      <div id="adminViewsEngineSwitch" title="Admin only: which image engine renders the camera views (also used by Retry and More Views).">
-        <span>Views engine</span>
-        <span class="seg">
-          <button type="button" id="adminViewsEngineStandard" onclick="setAdminViewsEngine('standard')">Standard</button>
-          <button type="button" id="adminViewsEnginePro" onclick="setAdminViewsEngine('pro')">Pro</button>
-          <button type="button" id="adminViewsEngineOpenai" class="on" onclick="setAdminViewsEngine('openai')">Engine B</button>
-        </span>
-      </div>
       <div style="display:flex;gap:10px;margin-top:14px;">
         <button class="ghost" onclick="document.getElementById('approveViewPickerOverlay').style.display='none';" style="flex:1;">Cancel</button>
         <button class="primary" id="viewPickerConfirmBtn" onclick="confirmApproveViewSelection()" style="flex:1;">Approve &amp; Generate</button>
@@ -3939,15 +3917,6 @@ Replace only the materials and graphics."></textarea>
       <div class="gen-notice-eyebrow">Admin Only — Generation Preview</div>
       <h3>Requests about to be sent (12 camera views)</h3>
       <p style="margin-bottom:14px;">This is exactly what will be sent once you approve — review it, then confirm to continue to the normal approval step.</p>
-      <div class="admin-preview-view-block" id="adminPreviewEnginePicker">
-        <div class="admin-preview-view-label">Views engine for this run (admin comparison)</div>
-        <div class="admin-preview-note" style="margin-bottom:8px;">Every selected view is rendered by the engine chosen here. After the run finishes, Approve stays available so you can run the same views again with another engine; earlier runs stay on screen under their engine's name.</div>
-        <div class="seg" style="display:inline-flex;border:1px solid var(--line);border-radius:2px;overflow:hidden;">
-          <button type="button" data-engine="openai" onclick="setAdminViewsEngine('openai')" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;cursor:pointer;">Engine B</button>
-          <button type="button" data-engine="standard" onclick="setAdminViewsEngine('standard')" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;cursor:pointer;">Standard</button>
-          <button type="button" data-engine="pro" onclick="setAdminViewsEngine('pro')" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;cursor:pointer;">Pro</button>
-        </div>
-      </div>
       <div class="admin-preview-view-label">Reference image (sent with every real request below)</div>
       <img id="adminPreviewHeroImg" style="max-width:220px;border:1px solid var(--line);border-radius:2px;display:block;margin:6px 0 16px;" alt="Hero reference">
       <div id="adminPreviewViewsList"></div>
@@ -11034,15 +11003,15 @@ const ADMIN_IMAGE_MODEL_STORAGE_KEY = 'designslab_admin_image_model';
 let adminImageModelChoice = 'standard';
 try{
   const saved = localStorage.getItem(ADMIN_IMAGE_MODEL_STORAGE_KEY);
-  if(saved === 'pro' || saved === 'standard' || saved === 'openai') adminImageModelChoice = saved;
+  if(saved === 'pro' || saved === 'standard') adminImageModelChoice = saved;
 }catch(storageErr){ /* storage unavailable: stays 'standard' */ }
 function setAdminImageModel(choice){
-  adminImageModelChoice = (choice === 'pro' || choice === 'openai') ? choice : 'standard';
+  adminImageModelChoice = choice === 'pro' ? 'pro' : 'standard';
   try{ localStorage.setItem(ADMIN_IMAGE_MODEL_STORAGE_KEY, adminImageModelChoice); }catch(storageErr){ /* nothing to do */ }
   renderAdminImageModelSwitch();
 }
 function renderAdminImageModelSwitch(){
-  const map = { standard: 'adminImageModelStandard', pro: 'adminImageModelPro', openai: 'adminImageModelOpenai' };
+  const map = { standard: 'adminImageModelStandard', pro: 'adminImageModelPro' };
   Object.keys(map).forEach(key => {
     const el = document.getElementById(map[key]);
     if(el) el.classList.toggle('on', adminImageModelChoice === key);
@@ -11061,57 +11030,23 @@ function renderAdminImageModelSwitch(){
     if(other) other.title = 'Admin only: same setting as the switch next to Generate Design. ' + ADMIN_ENGINE_KEY_TEXT;
   }
 }
-// The value every design request sends: 'standard' or 'pro' for the main provider, 'openai' for
-// the other provider (owner request, Sep 2026: compare the two providers on the same design).
-// Non-admins always get 'standard', whatever is stored.
+// The value every design request sends: 'standard' or 'pro' (owner decision, Sep 2026: designs
+// are compared between the main provider's two models only). Non-admins always get 'standard'.
 function currentImageModelForRequest(){
-  return isAdminUser ? adminImageModelChoice : 'standard';
+  return (isAdminUser && adminImageModelChoice === 'pro') ? 'pro' : 'standard';
 }
-// Which endpoint a design request goes to for the current choice, and the prompt it may carry:
-// the other provider caps prompts at 32,000 characters (see capOpenAiPromptLength).
+// Every design request goes to the main provider's endpoint.
 function designImageEndpointForChoice(){
-  return currentImageModelForRequest() === 'openai' ? '/api/generate-image-openai' : '/api/generate-image-gemini';
+  return '/api/generate-image-gemini';
 }
 
-// Admin-only engine for the CAMERA VIEWS (owner request, Sep 2026: "let me choose between pro,
-// normal or the default engine, I will test these 3, when generating views"). 'openai' is the
-// default engine every client gets (the edit model at high quality); 'standard' and 'pro' send
-// the same two-image request to the other provider's standard or premium model. Remembered per
-// browser; applies to Approve, Retry and More Views alike. Non-admins always get the default.
-const ADMIN_VIEWS_ENGINE_STORAGE_KEY = 'designslab_admin_views_engine';
-let adminViewsEngineChoice = 'openai';
-try{
-  const savedViews = localStorage.getItem(ADMIN_VIEWS_ENGINE_STORAGE_KEY);
-  if(savedViews === 'openai' || savedViews === 'standard' || savedViews === 'pro') adminViewsEngineChoice = savedViews;
-}catch(storageErr){ /* storage unavailable: stays 'openai' */ }
-function setAdminViewsEngine(choice){
-  adminViewsEngineChoice = (choice === 'standard' || choice === 'pro') ? choice : 'openai';
-  try{ localStorage.setItem(ADMIN_VIEWS_ENGINE_STORAGE_KEY, adminViewsEngineChoice); }catch(storageErr){ /* nothing to do */ }
-  renderAdminViewsEngineSwitch();
-}
-function renderAdminViewsEngineSwitch(){
-  const map = { standard: 'adminViewsEngineStandard', pro: 'adminViewsEnginePro', openai: 'adminViewsEngineOpenai' };
-  Object.keys(map).forEach(key => {
-    const el = document.getElementById(map[key]);
-    if(el) el.classList.toggle('on', adminViewsEngineChoice === key);
-  });
-  // The admin generation preview carries the same choice. Model ids are written in here, for the
-  // admin only, at render time: the static page never carries a provider name.
-  document.querySelectorAll('#adminPreviewEnginePicker [data-engine]').forEach(btn => {
-    const on = btn.dataset.engine === adminViewsEngineChoice;
-    if(isAdminUser && VIEWS_ENGINE_LABELS[btn.dataset.engine]) btn.textContent = VIEWS_ENGINE_LABELS[btn.dataset.engine];
-    btn.style.background = on ? 'var(--navy)' : 'transparent';
-    btn.style.color = on ? 'var(--paper)' : 'var(--muted)';
-  });
-  const viewsSwitch = document.getElementById('adminViewsEngineSwitch');
-  if(viewsSwitch && isAdminUser) viewsSwitch.title = 'Admin only: which image engine renders the camera views (also used by Retry and More Views). ' + ADMIN_ENGINE_KEY_TEXT;
-}
+// Camera views always render on the default views engine (owner decision, Sep 2026: after
+// approval the default stays for everyone; the main provider's models are not used for views).
 function currentViewsEngineForRequest(){
-  return isAdminUser ? adminViewsEngineChoice : 'openai';
+  return 'openai';
 }
-// Admin-only displays name the engines by model id (owner request); nothing client-facing uses this.
-const VIEWS_ENGINE_LABELS = { openai: 'gpt-image-2 (Engine B, clients\' default)', standard: 'gemini-3.1-flash-image (Standard)', pro: 'gemini-3-pro-image (Pro)' };
-const ADMIN_ENGINE_KEY_TEXT = 'Standard = gemini-3.1-flash-image (what clients get for designs). Pro = gemini-3-pro-image (premium, slower, about twice the cost). Engine B = gpt-image-2 (the other provider; what clients get for camera views).';
+const VIEWS_ENGINE_LABELS = { openai: 'gpt-image-2 (default views engine)' };
+const ADMIN_ENGINE_KEY_TEXT = 'Standard = gemini-3.1-flash-image (what clients get for designs). Pro = gemini-3-pro-image (premium, slower, about twice the cost). Camera views always use gpt-image-2.';
 let currentUserProjectLimit = null; // null = no limit known yet, or admin (unlimited)
 let lastKnownProjectCount = null;
 let projectLimitInfoLoaded = false; // distinguishes "not yet checked" from "confirmed unlimited"
@@ -11223,8 +11158,6 @@ async function checkAdminAccess(){
       const sidebarUploadExisting = document.getElementById('sidebarUploadExisting');
       if(sidebarUploadExisting) sidebarUploadExisting.style.display = 'block';
       renderAdminImageModelSwitch();
-      renderAdminViewsEngineSwitch();
-      renderAdminDesignEngineSwitch();
       // Admin-only project export (see exportProjectPackage): revealed the same way as the other
       // admin controls, inline so no stylesheet ordering can show it to anyone else.
       const exportBtn = document.getElementById('adminExportProjectBtn');
@@ -13912,27 +13845,11 @@ async function runHybridDesignEngine(ctx, onProgress){
   return { prompt, record };
 }
 
-// Admin comparison switch (owner request): the hybrid engine is the engine for everyone; an admin
-// can run the classic deterministic prompt on the same brief to compare.
-const ADMIN_DESIGN_ENGINE_STORAGE_KEY = 'designslab_admin_design_engine';
-let adminDesignEngineChoice = 'hybrid';
-try{
-  const savedEngine = localStorage.getItem(ADMIN_DESIGN_ENGINE_STORAGE_KEY);
-  if(savedEngine === 'hybrid' || savedEngine === 'classic') adminDesignEngineChoice = savedEngine;
-}catch(storageErr){ /* stays hybrid */ }
-function setAdminDesignEngine(choice){
-  adminDesignEngineChoice = choice === 'classic' ? 'classic' : 'hybrid';
-  try{ localStorage.setItem(ADMIN_DESIGN_ENGINE_STORAGE_KEY, adminDesignEngineChoice); }catch(storageErr){ /* nothing to do */ }
-  renderAdminDesignEngineSwitch();
-}
-function renderAdminDesignEngineSwitch(){
-  document.querySelectorAll('#adminDesignEngineSwitch .seg button').forEach(btn => {
-    btn.classList.toggle('on', btn.dataset.engine === adminDesignEngineChoice);
-  });
-}
+// Owner decision (Sep 2026): the hybrid engine is approved and is the only engine, for admins
+// and clients alike. The classic deterministic prompt survives only as the silent fallback for a
+// run in which a hybrid stage fails.
 function currentDesignEngineForRun(){
-  if(!HYBRID_DESIGN_ENGINE_ENABLED) return 'classic';
-  return isAdminUser ? adminDesignEngineChoice : 'hybrid';
+  return HYBRID_DESIGN_ENGINE_ENABLED ? 'hybrid' : 'classic';
 }
 // The record of the last hybrid run, kept with the option and the project for the admin review
 // and the export package.
@@ -20877,8 +20794,6 @@ async function startRenderSession(promptOptions, isUserInitiatedEdit){
     // The 190s timeout (up from a 100s default) still matters either way: it gives the server's own
     // 180s timeout room to fire first, with an actual error message, instead of the client aborting
     // prematurely on an unusually slow render.
-    // Admin comparison (Sep 2026): the Engine B choice on the submit bar sends this render to the
-    // other provider; clients always render on the main one (designImageEndpointForChoice).
     const genEndpoint = firstRenderChosenEngine === 'openai' ? '/api/generate-image-openai' : designImageEndpointForChoice();
     // See capOpenAiPromptLength's own comment — OpenAI hard-rejects prompts over 32,000 chars,
     // and a Test Engine brief plus MRE-001's own suffix is exactly what was hitting that ceiling
@@ -21712,8 +21627,6 @@ async function confirmRegenerateOtherOption(){
     // Owner decision: "Other option" always renders on Gemini for everyone — the old
     // OpenAI/Gemini alternation (and the admin-only engine dialog) is retired, matching
     // the main Generate Design call, which has always been Gemini-only.
-    // Admin comparison (Sep 2026): follows the Engine B choice like Generate does; clients stay
-    // on the main provider. The other provider caps the prompt length.
     const otherOptionEndpoint = designImageEndpointForChoice();
     if(otherOptionEndpoint === '/api/generate-image-openai') otherOptionBody.prompt = capOpenAiPromptLength(otherOptionBody.prompt);
     // Same 190s allowance as the main Generate Design call above — OpenAI's gpt-image-2 needs
@@ -22547,9 +22460,7 @@ ${lastGeneratedBrief || '(brief not available — infer the established style, m
   // Test Engine is retired (see useTestEngine's own comment in generateDesign()) — always false now,
   // for every role including admins, so Modify Design always uses Gemini, exactly like Special
   // Engine already did for every real user.
-  // Admin comparison (Sep 2026): follows the Engine B choice on the submit bar; clients stay on
-  // the main provider.
-  const modifyUsesOpenAiTE = currentImageModelForRequest() === 'openai';
+  const modifyUsesOpenAiTE = false;
   const modifyEndpoint = modifyUsesOpenAiTE ? '/api/generate-image-openai' : '/api/generate-image-gemini';
   // See capOpenAiPromptLength's own comment — OpenAI hard-rejects prompts over 32,000 chars, and
   // Modify Design always goes through OpenAI for Test Engine now (see the comment just above), so
@@ -23320,7 +23231,7 @@ function archivePreviousViewsRun(){
   section.style.cssText = 'margin-bottom:18px;padding-bottom:14px;border-bottom:1.5px dashed var(--line);';
   const heading = document.createElement('div');
   heading.className = 'section-label-light';
-  heading.textContent = `Admin comparison, run ${cameraViewsArchivedRunCount}: ${engineLabel}`;
+  heading.textContent = `Earlier run ${cameraViewsArchivedRunCount}: ${engineLabel}`;
   const oldGrid = document.createElement('div');
   oldGrid.className = 'viewer3d-generated-grid-light';
   cards.forEach(card => {
@@ -24893,7 +24804,6 @@ function showAdminGenerationPreview(opt, cameraPlanResult){
     });
   }
 
-  renderAdminViewsEngineSwitch();
   document.getElementById('adminGenerationPreviewOverlay').style.display = 'flex';
 }
 
@@ -24982,7 +24892,7 @@ function lockApprovedActionBar(){
     if(isAdminUser){
       approveBtn.style.display = '';
       approveBtn.disabled = false;
-      approveBtn.textContent = 'Approve again (compare engines)';
+      approveBtn.textContent = 'Run the views again';
       approveBtn.removeAttribute('data-i18n');
     }else{
       approveBtn.style.display = 'none';
