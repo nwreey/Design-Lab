@@ -22726,6 +22726,8 @@ Check specifically, in this order:
 
 DOUBLE DECK CAMERA RULES — Camera Validation Rules (only apply these two additional checks when the Orientation Lock's "isDoubleDeck" field is true; skip both entirely for a single-level booth):
 4. The accompanying text for this image states whether this specific camera "requiresUpperFloorVisible". When it does, a genuine second floor (upper deck) must be visibly present in the image, positioned above the ground floor, with a real guard rail/railing visible along any exposed edge of it (per "guardRailRequired": true) — if the image reads as a single-level booth with no upper floor at all, that is a MISMATCH.
+7. CAMERA POSITION (always applies): the accompanying text states the exact camera position this view must be taken from and which faces of the booth must be visible where. The picture must be taken from that position: a straight-on view shows the named face flat and square with the named ends at the left and right edges; a corner view shows the two named faces meeting at the near corner; a top view looks straight down; an interior view stands inside the booth. A picture taken from a different side, from the approved image's own angle when a different one was asked for, or showing a different face than named, is a MISMATCH, and the reason must name what the picture shows instead.
+
 6. DESIGN FIDELITY (always applies — this protects the client's approval): compare the second image against the approved FIRST image. It must read as the SAME booth: the same hero structure form, the same materials and color palette, the same branding and logo treatment, the same signage, the same general furniture character, the same lighting approach. Elements genuinely hidden in the approved view may appear when the camera reveals them, but they must be consistent with the approved design language. If the second image reads as a REDESIGNED or noticeably DIFFERENT booth (different hero form, different palette, different materials, added/removed major elements), that is a MISMATCH.
 
 5. The accompanying text states whether this image "isStaircaseView". When it is, a staircase connecting the ground floor and the second floor must be clearly visible and appear structurally supported (resting on real posts, a stringer, or a wall — never floating in mid-air with no visible support). If no staircase is visible at all in this specific view, that is a MISMATCH.
@@ -22735,6 +22737,25 @@ If this image's visible geometry is consistent with the Orientation Lock on all 
 Respond in JSON only, no explanation outside the JSON, using exactly one of these two shapes:
 { "result": "MATCH" }
 { "result": "MISMATCH", "reason": "one short specific sentence" }`;
+
+// Plain-words statement of where the camera must stand for a spec, for the inspector's camera
+// check (owner, Sep 2026: every view is double-checked as a design director would, for the
+// correct camera side, before it is shown).
+function describeRequiredCameraPosition(spec){
+  const lbl = (f) => f === 'Back' ? 'Rear' : f;
+  if(spec.type === 'top-down') return 'straight down from directly above the booth, the whole footprint in frame, the Front (aisle) edge at the bottom of the picture.';
+  if(spec.type === 'interior' || spec.type === 'upper-deck-overview') return `inside the booth (${spec.name}); the exhibition hall must not be the subject and the booth must not be seen from outside.`;
+  if(spec.isHeroImage) return 'the approved image itself.';
+  if(spec.straightOn){
+    const face = lbl(spec.straightOn);
+    return `a straight-on, square view of the booth's ${face} face from outside, in the aisle, the camera directly opposite the centre of that face${spec.edgeLeft && spec.edgeRight ? `; the ${lbl(spec.edgeLeft)} end of that face is at the LEFT edge of the picture and the ${lbl(spec.edgeRight)} end at the RIGHT edge` : ''}. Not a corner angle, not a different face.`;
+  }
+  if(spec.corner){
+    const [fb, lr] = spec.corner.split('-');
+    return `a three-quarter view from outside the booth at its ${lbl(fb)}-${lr} corner, at eye level, the ${lbl(fb)} face and the ${lr} face both visible and meeting at the near corner${spec.sameCornerAsHero ? ' (the same corner as the approved image, but at eye level rather than from above)' : ''}.`;
+  }
+  return `an exterior view ${spec.azimuth} degrees clockwise around the booth from the approved image's own viewpoint${spec.clockHour ? ` (the ${spec.clockHour} o'clock position)` : ''}.`;
+}
 
 async function verifyCameraViewGeometry(dataUrl, spec){
   if(!cameraViewsOrientationLock) return { result: 'MATCH' };
@@ -22747,7 +22768,7 @@ async function verifyCameraViewGeometry(dataUrl, spec){
       content.push({ type: 'image', source: { type: 'base64', media_type: cameraViewsHeroRef.mime || 'image/jpeg', data: cameraViewsHeroRef.base64 } });
     }
     content.push({ type: 'image', source: { type: 'base64', media_type: mime, data: base64 } });
-    content.push({ type: 'text', text: `The FIRST image is the client's APPROVED design. The SECOND image is the newly rendered view under inspection.\n\nORIENTATION LOCK (machine-readable, authoritative facts for this exact booth):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThe second image is the "${spec.name}" camera view of this exact booth. requiresUpperFloorVisible: ${!!spec.requiresUpperFloorVisible}. isStaircaseView: ${spec.focusZone === 'staircase'}.` });
+    content.push({ type: 'text', text: `The FIRST image is the client's APPROVED design. The SECOND image is the newly rendered view under inspection.\n\nORIENTATION LOCK (machine-readable, authoritative facts for this exact booth):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThe second image is the "${spec.name}" camera view of this exact booth. requiresUpperFloorVisible: ${!!spec.requiresUpperFloorVisible}. isStaircaseView: ${spec.focusZone === 'staircase'}.\n\nREQUIRED CAMERA POSITION (check 7): ${describeRequiredCameraPosition(spec)}` });
     const analysis = await callPromptWriterApi(orientationLockVerificationSystem, content);
     if(analysis && analysis.result === 'MISMATCH'){
       return { result: 'MISMATCH', reason: (analysis.reason && typeof analysis.reason === 'string') ? analysis.reason : 'Geometry does not match the locked Orientation Lock.' };
@@ -22757,6 +22778,71 @@ async function verifyCameraViewGeometry(dataUrl, spec){
     console.error('Orientation Lock verification failed (failing open — treating as a match):', err);
     return { result: 'MATCH' };
   }
+}
+
+/* DESIGN DIRECTOR CHECK FOR CAMERA VIEWS (owner, Sep 2026). Every generated view is double-checked
+   before it is shown: (1) it is not a repeat of the approved image, (2) it is not a repeat of any
+   other view already accepted in this run, (3) the inspector confirms the camera stands where the
+   view says (correct face or corner, correct left/right ends), the walls and open sides are right
+   and the design is the approved one. A view that fails is rendered again with the exact reason at
+   the top of its prompt. At most MAX_VIEW_RENDERS renders per view, then the last one is shown and
+   the failure is logged. Only the first render carries the client charge; the checks and the
+   re-renders are on us. */
+const MAX_VIEW_RENDERS = 3;
+const REPEAT_OF_OTHER_VIEW_BAR = 0.955;
+// Look-alike bar against the approved image (24x24 grayscale similarity): two genuinely different
+// angles of the same booth land around 0.85 to 0.93, so only a near-duplicate trips 0.96; exterior
+// views use the tighter 0.93 (see designDirectorCheckView).
+const SIMILARITY_THRESHOLD = 0.96;
+// Views accepted so far in the current run: camId -> compressed data URL, for the repeat check.
+let cameraViewsAcceptedImages = new Map();
+
+async function designDirectorCheckView(spec, resultDataUrl, heroCompressed){
+  // 1. Not the approved image again.
+  const heroSimilarity = await computeImageSimilarity(heroCompressed, resultDataUrl);
+  const lookAlikeBar = (spec.type === 'exterior' && !spec.sameCornerAsHero) ? 0.93 : SIMILARITY_THRESHOLD;
+  if(heroSimilarity > lookAlikeBar){
+    return { ok: false, kind: 'hero-repeat', reason: `This attempt came back nearly identical to the approved image (similarity ${heroSimilarity.toFixed(2)}) instead of the ${spec.name} camera position.` };
+  }
+  // 2. Not a repeat of another accepted view.
+  for(const [otherId, otherImage] of cameraViewsAcceptedImages){
+    if(otherId === spec.camId) continue;
+    const otherSimilarity = await computeImageSimilarity(otherImage, resultDataUrl);
+    if(otherSimilarity > REPEAT_OF_OTHER_VIEW_BAR){
+      const otherName = VIEWER_CAMERA_LABELS[otherId] || otherId;
+      return { ok: false, kind: 'view-repeat', reason: `This attempt repeats the ${otherName} view (similarity ${otherSimilarity.toFixed(2)}) instead of showing the booth from the ${spec.name} camera position, which is a different side.` };
+    }
+  }
+  // 3. The inspector: camera position, walls and open sides, design fidelity.
+  const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec);
+  if(geometryCheck.result === 'MISMATCH'){
+    return { ok: false, kind: 'inspector', reason: geometryCheck.reason };
+  }
+  return { ok: true };
+}
+
+// Render, check, and re-render with the reason, up to MAX_VIEW_RENDERS times. Returns the data URL
+// to show plus how many renders it took and whether the last one passed.
+async function renderViewWithDirectorCheck(spec, heroBase64, heroMime, heroCompressed, controlImage, controlKind, onAttempt){
+  let resultDataUrl = null;
+  let verdict = { ok: false };
+  let renders = 0;
+  let correction = undefined;
+  let wider = false;
+  while(renders < MAX_VIEW_RENDERS){
+    renders++;
+    if(onAttempt) onAttempt(renders, verdict);
+    resultDataUrl = await requestCameraViewFromOpenAI(spec, heroBase64, heroMime, wider, correction, controlImage, controlKind);
+    verdict = await designDirectorCheckView(spec, resultDataUrl, heroCompressed);
+    if(verdict.ok) break;
+    console.warn('Design Director check failed for', spec.camId, '(render ' + renders + ' of ' + MAX_VIEW_RENDERS + '):', verdict.reason);
+    // The next render names the failure. A look-alike is told to move the camera (the wider
+    // note); every other failure is prefixed as a geometry correction. Either way the re-render
+    // is uncharged (see requestCameraViewFromOpenAI).
+    wider = verdict.kind === 'hero-repeat';
+    correction = verdict.kind === 'hero-repeat' ? undefined : verdict.reason;
+  }
+  return { dataUrl: resultDataUrl, renders, passed: !!verdict.ok, lastReason: verdict.ok ? '' : (verdict.reason || '') };
 }
 
 /* Generates all 12 camera views directly from the approved hero image — see the comment
@@ -23201,6 +23287,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   document.getElementById('viewer3dGeneratedCard').style.display = 'block';
   if(isAdminUser) archivePreviousViewsRun();
   cameraViewsCurrentRunEngine = currentViewsEngineForRequest();
+  cameraViewsAcceptedImages = new Map();
   document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
   document.getElementById('goodLuckMessage').style.display = 'none';
   document.getElementById('techBoardActions').style.display = 'none';
@@ -23226,7 +23313,6 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   // never fix an angle problem anyway. 0.96 is the level where only a genuine near-duplicate of
   // the hero trips it — which now means something specific and worth one retry: the model ignored
   // the orbit frame and re-rendered the hero's own viewpoint.
-  const SIMILARITY_THRESHOLD = 0.96;
   const compressedFront = await compressDataUrlToTarget(compressedHero, 300 * 1024);
   // CAMERA_SPECS[0] is always the Hero View by construction (see computeCameraViewPlan) —
   // the approved hero image itself, reused unmodified, never a separate request.
@@ -23322,39 +23408,14 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
       const controlImage = control.image;
       const controlKind = control.kind;
 
-      let resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, undefined, controlImage, controlKind);
-
-      // Compared against the HERO, not the previously finished view: with views now rendering
-      // concurrently there is no meaningful "previous" one, and the hero is the comparison that
-      // actually matters — a view that comes back looking like the hero is the exact failure
-      // the owner reported ("the pictures similar").
-      // Exterior views use a tighter look-alike threshold than the general one: a render that
-      // comes back closer than 0.93 to the hero on a 24x24 grayscale compare is, in practice,
-      // the hero again with the furniture shuffled, which is the exact failure a production run
-      // showed on four of five exterior cameras. Top and interior views are naturally far from
-      // the hero and are unaffected by the lower bar.
-      const similarity = await computeImageSimilarity(compressedFront, resultDataUrl);
-      // The eye-level view from the hero's own corner shares the hero's composition by design
-      // (same faces, same order left to right); only the height differs, so it is held to the
-      // general bar rather than the exterior one, or it would be retried for being what it is.
-      const lookAlikeBar = (spec.type === 'exterior' && !spec.sameCornerAsHero) ? 0.93 : SIMILARITY_THRESHOLD;
-      if(similarity > lookAlikeBar){
-        const retryDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, true, undefined, controlImage, controlKind);
-        const retrySimilarity = await computeImageSimilarity(compressedFront, retryDataUrl);
-        if(retrySimilarity < similarity) resultDataUrl = retryDataUrl;
-      }
-
-      // OLE-001 automatic rejection: an independent vision-based QA check of the finished
-      // render against this booth's locked Orientation Lock (see verifyCameraViewGeometry) —
-      // catches the exact class of bug reported in production (a new wall invented on a rear
-      // view) that prose-only anchoring alone didn't reliably stop. One automatic correction
-      // attempt, citing the specific violation the check found — same one-retry budget as the
-      // similarity check just above, not an unbounded loop.
-      const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec);
-      if(geometryCheck.result === 'MISMATCH'){
-        console.warn('Camera view', spec.camId, 'failed Orientation Lock check, retrying once:', geometryCheck.reason);
-        resultDataUrl = await requestCameraViewFromOpenAI(spec, base64, mime, false, geometryCheck.reason, controlImage, controlKind);
-      }
+      // Design Director check (see renderViewWithDirectorCheck): render, check the camera side,
+      // the walls, the design and that it repeats no other view, re-render with the reason when
+      // it fails, at most MAX_VIEW_RENDERS renders, and only then show it.
+      const outcome = await renderViewWithDirectorCheck(spec, base64, mime, compressedFront, controlImage, controlKind, (n, lastVerdict) => {
+        renderGeneratedViewCard(spec.camId, 'pending', n === 1 ? 'Building this view...' : `Design Director check: rendering again (${n} of ${MAX_VIEW_RENDERS})...`);
+      });
+      const resultDataUrl = outcome.dataUrl;
+      if(!outcome.passed) console.warn('Design Director: showing', spec.camId, 'after', outcome.renders, 'renders without a clean pass:', outcome.lastReason);
 
       // Owner report (Sep 2026): 300KB was visibly too aggressive a compression budget for a
       // camera view — raised to 750KB across the board (this call and retryGeneratedView's own
@@ -23364,6 +23425,7 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
       // tier just paid for. Larger stored images do make the project save heavier, which is
       // why that save now runs in idle time (see runDeferredProjectSave).
       const compressedResult = await compressDataUrlToTarget(resultDataUrl, 1400 * 1024);
+      cameraViewsAcceptedImages.set(spec.camId, compressedResult);
       initCardHistory(spec.camId, compressedResult);
       renderGeneratedViewCard(spec.camId, 'done', compressedResult);
     }catch(err){
@@ -23456,16 +23518,14 @@ async function retryGeneratedView(camId){
       cameraViewsMassingViews = buildMassingViewsForSpecs([spec]);
       retryControl = cameraControlReferenceFor(camId);
     }
-    let resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false, undefined, retryControl.image, retryControl.kind);
-    // Same OLE-001 automatic geometry check as the main generation loop (see
-    // verifyCameraViewGeometry) — a manual Retry deserves the same protection against inventing
-    // a wall or shifting the hero structure's shape, not just the original batch run.
-    const geometryCheck = await verifyCameraViewGeometry(resultDataUrl, spec);
-    if(geometryCheck.result === 'MISMATCH'){
-      console.warn('Retry for', camId, 'failed Orientation Lock check, correcting once:', geometryCheck.reason);
-      resultDataUrl = await requestCameraViewFromOpenAI(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, false, geometryCheck.reason, retryControl.image, retryControl.kind);
-    }
+    const heroCompressedForRetry = 'data:' + (cameraViewsHeroRef.mime || 'image/jpeg') + ';base64,' + cameraViewsHeroRef.base64;
+    const retryOutcome = await renderViewWithDirectorCheck(spec, cameraViewsHeroRef.base64, cameraViewsHeroRef.mime, heroCompressedForRetry, retryControl.image, retryControl.kind, (n) => {
+      renderGeneratedViewCard(camId, 'pending', n === 1 ? 'Building this view...' : `Design Director check: rendering again (${n} of ${MAX_VIEW_RENDERS})...`);
+    });
+    const resultDataUrl = retryOutcome.dataUrl;
+    if(!retryOutcome.passed) console.warn('Design Director: showing retry of', camId, 'after', retryOutcome.renders, 'renders without a clean pass:', retryOutcome.lastReason);
     const compressedResult = await compressDataUrlToTarget(resultDataUrl, 1400 * 1024); // same budget as the batch run
+    cameraViewsAcceptedImages.set(camId, compressedResult);
     pushCardHistory(camId, compressedResult, 'Retry');
     renderGeneratedViewCard(camId, 'done', compressedResult);
     saveCurrentProject();
@@ -24494,7 +24554,7 @@ function renderGeneratedViewCard(camId, state, imageOrMsg){
 
   if(state === 'pending'){
     card.className = 'viewer3d-generated-card-light pending';
-    card.innerHTML = `<div class="viewer3d-generated-card-label">${label}</div><div class="viewer3d-pending-frame"><div class="viewer3d-building-icon">🏗️</div><div class="viewer3d-building-label">Building this view...</div><div class="viewer3d-card-loading-bar"></div></div><div class="viewer3d-pending-footer"></div>`;
+    card.innerHTML = `<div class="viewer3d-generated-card-label">${label}</div><div class="viewer3d-pending-frame"><div class="viewer3d-building-icon">🏗️</div><div class="viewer3d-building-label">${imageOrMsg || 'Building this view...'}</div><div class="viewer3d-card-loading-bar"></div></div><div class="viewer3d-pending-footer"></div>`;
     return;
   }
 
