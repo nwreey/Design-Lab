@@ -3516,6 +3516,13 @@ Replace only the materials and graphics."></textarea>
     <div id="newSpatialEngineField" style="display:none;"></div>
 
     <div class="submit-bar">
+      <div id="adminDesignEngineSwitch" class="admin-model-switch" style="margin:0;" title="Admin only: which design engine writes the render brief. Hybrid is what everyone gets (concept first, then engineering validation, then Design Director); Classic is the previous deterministic prompt, kept for comparison.">
+        <span>Design engine</span>
+        <span class="seg">
+          <button type="button" data-engine="hybrid" class="on" onclick="setAdminDesignEngine('hybrid')">Hybrid</button>
+          <button type="button" data-engine="classic" onclick="setAdminDesignEngine('classic')">Classic</button>
+        </span>
+      </div>
       <div id="adminImageModelSwitch" title="Admin only: which image model renders this design (Generate, Other Design and Modify Design).">
         <span>Image model</span>
         <span class="seg">
@@ -11217,6 +11224,7 @@ async function checkAdminAccess(){
       if(sidebarUploadExisting) sidebarUploadExisting.style.display = 'block';
       renderAdminImageModelSwitch();
       renderAdminViewsEngineSwitch();
+      renderAdminDesignEngineSwitch();
       // Admin-only project export (see exportProjectPackage): revealed the same way as the other
       // admin controls, inline so no stylesheet ordering can show it to anyone else.
       const exportBtn = document.getElementById('adminExportProjectBtn');
@@ -13510,6 +13518,426 @@ function buildCameraTextPlain(){
 // INDUSTRY_LIGHTING_PROFILES, the creative checklist items above) is untouched and still exactly
 // as it was, so re-enabling a specific piece later is a small, safe, targeted change.
 const BOOTH_CREATIVE_RULES_ENABLED = false;
+
+/* ================= HDE-001 HYBRID ARCHITECTURAL DESIGN ENGINE =================
+   Owner specification (Sep 2026). The creative philosophy of the original two-layer benchmark
+   (an architect writes the concept from the brand, the products, the visitor experience and the
+   project identity) combined with the engineering precision of the current deterministic
+   engines (dimensions, orientation, open sides, structural shell, circulation, accessibility,
+   quantities, venue restrictions). The order is the point:
+
+     Stage A  CREATIVE CONCEPT       a senior exhibition architect (text model) develops the
+                                     architectural concept from brand, products, visitor
+                                     experience and identity. The plot and the list of what
+                                     must exist are given as context; calculated dimensions,
+                                     hero archetypes and default allocations are NOT.
+     Stage B  ENGINEERING VALIDATION the same architect, now acting as the engineering reviewer,
+                                     checks that concept against every hard client requirement
+                                     from the deterministic engines and revises the architecture
+                                     creatively until it is feasible. Requirements are never
+                                     weakened; identity is never simply removed.
+     Stage C  DESIGN DIRECTOR        reviews the validated architecture: proportions, visual
+                                     hierarchy, negative space, material coherence.
+     Stage D  FINAL PROMPT           the app writes the two-layer render brief (LAYER 1
+                                     architecture, LAYER 2 exhibition) from the refined concept
+                                     and the plain wall facts. No engineering calculations, no
+                                     rule identifiers in it.
+     Stage E  IMAGE VALIDATION       the rendered image itself is inspected (open sides, walls,
+                                     the hero element) and re-rendered with a correction when it
+                                     fails; see renderWithOpenSidesGate. Nothing claims quality
+                                     before the picture exists.
+
+   Every stage fails soft: any error falls back to the classic deterministic prompt for that run,
+   so a model outage can never block a client. Nothing brand-specific lives here; the brand comes
+   from the brief. */
+const HYBRID_DESIGN_ENGINE_ENABLED = true;
+
+const HYBRID_CONCEPT_FIELDS = [
+  'conceptName', 'designObjective', 'architecturalConcept', 'spacePlanning', 'visitorFlow',
+  'structuralPlanning', 'materials', 'lightingStrategy', 'productExperience', 'branding',
+  'furniture', 'digitalTechnology', 'decorativeElements', 'exhibitionStory', 'renderingNotes'
+];
+
+const HYBRID_CONCEPT_SCHEMA_TEXT = `Respond in JSON only, no text outside the JSON, with exactly these string fields (every one required, each a paragraph of concrete, buildable description written for a rendering studio, never a list of keywords):
+{
+  "conceptName": "a short name for the architectural idea",
+  "designObjective": "what this booth must achieve for this brand and its visitors",
+  "architecturalConcept": "the one architectural idea and the hero architecture that carries it: its form, its rough size in relation to the plot, where it stands in relation to the open sides, and the secondary architectural elements that belong to it",
+  "spacePlanning": "how the required functions are arranged across the plot as one composition: what stands where, what is open and what is enclosed, the open floor that is deliberately left empty",
+  "visitorFlow": "how a visitor enters from the open sides, what they meet in what order, and where they leave",
+  "structuralPlanning": "walls only where the plot has them, columns, portals, ceilings and canopies, heights, how it all stands up on the raised floor",
+  "materials": "a controlled palette, each material tied to the element it clads and to the brand",
+  "lightingStrategy": "the lighting layers and their purpose, in the brand's own colours",
+  "productExperience": "the actual products or services on show and the zones built for them",
+  "branding": "where the logo and brand identity live in the architecture, in priority order, never on every surface",
+  "furniture": "what furnishes the spaces already established, as the rooms and counters the plan requires",
+  "digitalTechnology": "screens and interactive elements actually present, with their sizes",
+  "decorativeElements": "the lightest layer: plants, art, feature lighting, only what serves the concept",
+  "exhibitionStory": "what a visitor feels and understands while moving through the finished booth",
+  "renderingNotes": "the mood, atmosphere and photographic character of the final image, no camera position (the app sets the camera)"
+}`;
+
+const hybridCreativeConceptSystem = `SYSTEM
+
+${EXPERT_DESIGNER_PERSONA}
+
+${EPS_002}
+
+${EPS_006}
+
+${EPS_014}
+
+HOW THIS STAGE WORKS (read before designing):
+You are developing the ARCHITECTURAL CONCEPT of an exhibition booth, and only that, in the first of three stages. The concept must originate in the brand, its products or services, the visitor experience the client wants and the identity of this project. It must not originate in the size of the plot, in a catalogue of hero shapes, or in a default arrangement of zones. The plot dimensions, the open sides and the list of elements that must exist are given to you as the site and the programme, the way a real client hands them to an architect: they are what the concept has to house, not what generates it.
+
+Think it through silently before writing: what this brand is, what its products ask for, how a visitor should feel walking in, what single architectural idea expresses that, how the required functions live inside that idea, how the walls the plot has (and only those) become part of it, and how the open floor stays open. Then write every field of the JSON as the concept a senior exhibition architect would present, concrete enough that a rendering studio could build it and generic enough that it belongs to THIS brand and no other. Do not borrow the design language of another brand's booth.
+
+Hard facts you must respect even at this creative stage: never invent walls on open sides; keep the required elements and their quantities; stay inside the plot and under the height limit; no people anywhere; no suspended venue rigging unless the brief says rigging is available. Everything else is yours.
+
+${HYBRID_CONCEPT_SCHEMA_TEXT}`;
+
+function hybridEngineeringSystem(isDoubleDeck){
+  return `SYSTEM
+
+${EXPERT_DESIGNER_PERSONA}
+
+You are now the ENGINEERING REVIEWER of a concept you have just received: the same senior exhibition architect, checking the proposal against the hard, client-mandated constraints listed in the request. This is the second of three stages.
+
+Standards that govern the check:
+
+${EPS_005}
+
+${EPS_008}
+
+${EPS_009}
+
+${EPS_010}
+
+${EPS_012}
+
+${EPS_016}
+
+${EPS_017}
+
+${EPS_018}
+${isDoubleDeck ? '\n' + EPS_020 + '\n' : ''}
+HOW THIS STAGE WORKS:
+1. Go through every constraint in the CONSTRAINT TABLE and test the concept against it: plot dimensions and height limit, which sides are open and which are walls, structural feasibility (everything supported, nothing outside the floor, nothing suspended unless rigging is available), circulation (the share of open floor the table requires, aisles a wheelchair can use), accessibility, every required element with its exact quantity and its minimum size, enclosure rules (which functions may be closed rooms), venue restrictions, and, when present, the double-deck rules.
+2. Where the concept conflicts with a constraint, REVISE THE ARCHITECTURE CREATIVELY until it is feasible. Reshape, resize, relocate, split or reproportion the hero and the composition; never solve a conflict by deleting the architectural identity, and never by weakening, reducing or dropping a client requirement. A requirement the table marks as removed by the client's own decision stays removed; every other one stays at its stated quantity.
+3. Keep every field of the concept that already complies exactly as written. Change only what a constraint forces you to change, and change it in the spirit of the concept.
+4. Report honestly. Every conflict you found goes in "engineeringReview.conflicts" with the constraint, the issue and the resolution you applied. If something cannot be resolved without breaking a client requirement, keep the requirement, do your best with the architecture, and list it under "engineeringReview.unresolved".
+
+${HYBRID_CONCEPT_SCHEMA_TEXT.replace('with exactly these string fields (every one required', 'with exactly these string fields (every one required, revised where a constraint required it')}
+plus one more field:
+  "engineeringReview": { "conflicts": [ { "constraint": "", "issue": "", "resolution": "" } ], "unresolved": [ "" ], "confirmed": [ "one line per constraint group confirmed feasible" ] }`;
+}
+
+const hybridDesignDirectorSystem = `SYSTEM
+
+${EXPERT_DESIGNER_PERSONA}
+
+You are now the DESIGN DIRECTOR reviewing an architectural concept that has already passed engineering validation. This is the third and last stage before the render brief is written. You do not redesign and you do not touch anything the engineering review fixed or any client requirement; you refine.
+
+Review and refine, in this order:
+1. PROPORTIONS: the hero architecture against the plot and the human scale; heights, widths and depths that read as one building rather than a collection of objects; nothing oversized for its role, nothing timid.
+2. VISUAL HIERARCHY: one dominant architectural gesture, then the reception and the main brand moment, then everything else. Architecture should carry roughly seventy percent of the visual weight of the final image; furniture, products, screens and graphics together the remaining thirty. Remove or subordinate anything that competes with the hero.
+3. NEGATIVE SPACE: the open floor is part of the design. Make sure the composition keeps generous empty floor on the open sides, clear sightlines into the booth, and breathing room around the hero; if the concept is crowded, thin it in a way that keeps every required element.
+4. MATERIAL COHERENCE: a controlled palette, each material assigned to a role, brand colours used with intent; remove any material that has no reason to be there.
+5. LIGHTING: purposeful layers that reveal form and brand, never random glowing strips.
+
+Rewrite only the fields that benefit; keep the rest verbatim. Then list what you changed and why in "directorNotes".
+
+${HYBRID_CONCEPT_SCHEMA_TEXT.replace('with exactly these string fields (every one required', 'with exactly these string fields (every one required, refined where it improved the design')}
+plus one more field:
+  "directorNotes": [ "one line per refinement made" ]`;
+
+// The constraint table the engineering stage checks against: every hard fact the deterministic
+// engines already establish, written as facts, not as rule identifiers.
+function buildHybridConstraintTable(ctx){
+  const { resolvedSpec, structuralShellRaw, designIntent, levels, upperDeckSpecificationText, ceilingRiggingSpecRaw, flooringSpecRaw, additionalRequirementsRaw } = ctx;
+  const widthM = resolvedSpec.widthM, depthM = resolvedSpec.depthM;
+  const heightM = (structuralShellRaw && structuralShellRaw.wallHeightMm) ? structuralShellRaw.wallHeightMm / 1000 : (parseFloat((document.getElementById('f_totalHeight') || {}).value) || 0);
+  const openSet = getBoothOpenSidesSet();
+  const label = (side) => side === 'Back' ? 'Rear' : side;
+  const openSides = ALL_BOOTH_SIDES.filter(s => openSet.has(s)).map(label);
+  const wallSides = ALL_BOOTH_SIDES.filter(s => !openSet.has(s)).map(label);
+  const approach = computeCameraApproachCorner(openSet);
+  let feasibility = null;
+  try{ feasibility = detectSpatialConflicts(widthM, depthM, heightM); }catch(e){ feasibility = null; }
+  const circulationPercent = Math.round(getCirculationReservePercent(widthM * depthM) * 100);
+  const requiredElements = [];
+  (resolvedSpec.zones || []).forEach(zone => {
+    (zone.furniture || []).forEach(item => {
+      const dims = item.dims ? formatDimsBlock(item.dims).join(', ') : '';
+      requiredElements.push({
+        element: item.name,
+        zone: zone.name,
+        status: item.status || 'Kept',
+        minimumSize: dims || 'per exhibition standards',
+        enclosure: item.enclosed ? 'may be a closed room' : 'open, never a closed room',
+        clientDecision: item.resolutionNote || ''
+      });
+    });
+  });
+  const removed = (resolvedSpec.removed || []).map(r => r.name);
+  return {
+    plot: {
+      widthM, depthM, heightLimitM: heightM, areaSqm: Math.round(widthM * depthM * 10) / 10,
+      openSides, wallSides,
+      wallCount: wallSides.length,
+      wallHeightM: heightM,
+      levels: levels === '2' ? 'double deck (ground floor + upper floor)' : 'single level',
+      upperDeck: levels === '2' ? stripInternalEngineCodes(upperDeckSpecificationText || '') : null,
+      heroCameraCorner: approach.corner.replace('Back', 'Rear')
+    },
+    structure: {
+      wallsOnlyOn: wallSides.length ? wallSides.join(', ') : 'none (island)',
+      openSidesRule: openSides.length === 4
+        ? 'island: no full-height wall anywhere, every side at least 60 percent visually open; wall-like elements half height or transparent'
+        : 'every wall side fully closed, corner to corner, at the stated height; every open side completely open, corner to corner, no backdrop or feature wall along it, interior wall-like elements set back at least 1.0 m from an open edge',
+      floorBoundary: 'every element fully inside the raised floor, nothing overhanging or floating',
+      overhead: stripInternalEngineCodes(extractSpecBody(ceilingRiggingSpecRaw || '') || 'no suspended venue rigging; any overhead element is self-supported from the booth structure'),
+      flooring: stripInternalEngineCodes(extractSpecBody(flooringSpecRaw || '') || 'raised floor with premium exhibition carpet, straight edge')
+    },
+    circulation: {
+      minimumOpenFloorPercent: circulationPercent,
+      accessibility: 'main aisles at least 1.2 m wide, every open zone reachable by wheelchair, doorways of any enclosed room at least 0.9 m clear',
+      availableForZonesSqm: feasibility ? Math.round(feasibility.availableForZonesSqm * 10) / 10 : null,
+      requestedByElementsSqm: feasibility ? Math.round(feasibility.totalRequestedSqm * 10) / 10 : null,
+      fits: feasibility ? !feasibility.isImpossible : true
+    },
+    requiredElements,
+    removedByClientDecision: removed,
+    clientRequirementsText: stripInternalEngineCodes(additionalRequirementsRaw || ''),
+    industry: designIntent.industry || '',
+    noPeople: 'no people, staff, visitors or crowds anywhere in the image'
+  };
+}
+
+// The identity brief the creative stage designs from: brand, products, experience, identity.
+function buildHybridIdentityBrief(ctx){
+  const { name, designIntent, colorHexes, archStyle, constructionStyle, industryStyle, brandPersonalityBriefText, desc, hasPosters, posterCount, brandPortfolioTextRaw, resolvedSpec, levels, upperDeckSpecificationText } = ctx;
+  const openSet = getBoothOpenSidesSet();
+  const label = (side) => side === 'Back' ? 'Rear' : side;
+  const mustExist = [];
+  (resolvedSpec.zones || []).forEach(zone => {
+    (zone.furniture || []).forEach(item => { if(item.status !== 'Removed') mustExist.push(item.name); });
+  });
+  return {
+    projectName: name || 'Untitled project',
+    industry: designIntent.industry || industryStyle || '',
+    brandPersonality: stripInternalEngineCodes(brandPersonalityBriefText || ''),
+    brandColours: (colorHexes || []).slice(),
+    architecturalStyle: archStyle || '',
+    constructionStyle: constructionStyle || '',
+    clientDescription: (desc || '').trim(),
+    posters: hasPosters && String(hasPosters).startsWith('yes') ? `${posterCount || 'several'} poster design(s) to feature` : 'none',
+    brandsAndProducts: extractSpecBody(brandPortfolioTextRaw || '') || '',
+    site: {
+      widthM: resolvedSpec.widthM, depthM: resolvedSpec.depthM,
+      heightLimitM: parseFloat((document.getElementById('f_totalHeight') || {}).value) || null,
+      openSides: ALL_BOOTH_SIDES.filter(s => openSet.has(s)).map(label),
+      wallSides: ALL_BOOTH_SIDES.filter(s => !openSet.has(s)).map(label),
+      levels: levels === '2' ? 'double deck' : 'single level',
+      upperDeck: levels === '2' ? stripInternalEngineCodes(upperDeckSpecificationText || '') : null
+    },
+    programme: mustExist
+  };
+}
+
+function hybridConceptIsComplete(concept){
+  return !!concept && HYBRID_CONCEPT_FIELDS.every(f => typeof concept[f] === 'string' && concept[f].trim().length > 0);
+}
+
+function hybridPickConcept(obj){
+  if(!obj || typeof obj !== 'object') return null;
+  const out = {};
+  HYBRID_CONCEPT_FIELDS.forEach(f => { out[f] = typeof obj[f] === 'string' ? obj[f].trim() : ''; });
+  return out;
+}
+
+async function runHybridCreativeConcept(identityBrief){
+  const content = [{ type: 'text', text: `CLIENT AND PROJECT IDENTITY (design from this):\n${JSON.stringify(identityBrief, null, 2)}\n\nThe "programme" list is what must exist somewhere in the design, at the client's quantities; "site" is the plot. Neither decides the concept. Develop the architectural concept for THIS brand and respond in the JSON shape given.` }];
+  const result = await callPromptWriterApi(hybridCreativeConceptSystem, content);
+  const concept = hybridPickConcept(result);
+  if(!hybridConceptIsComplete(concept)) throw new Error('The creative concept came back incomplete.');
+  return concept;
+}
+
+async function runHybridEngineeringValidation(concept, constraintTable, isDoubleDeck){
+  const content = [{ type: 'text', text: `PROPOSED CONCEPT (from the creative stage):\n${JSON.stringify(concept, null, 2)}\n\nCONSTRAINT TABLE (hard, client-mandated, from the project's own engineering engines):\n${JSON.stringify(constraintTable, null, 2)}\n\nValidate the concept against every constraint, revise the architecture creatively where it conflicts, keep every requirement, and respond in the JSON shape given.` }];
+  const result = await callPromptWriterApi(hybridEngineeringSystem(isDoubleDeck), content);
+  const revised = hybridPickConcept(result);
+  if(!hybridConceptIsComplete(revised)) throw new Error('The engineering validation came back incomplete.');
+  const review = (result && result.engineeringReview && typeof result.engineeringReview === 'object') ? result.engineeringReview : {};
+  return {
+    concept: revised,
+    review: {
+      conflicts: Array.isArray(review.conflicts) ? review.conflicts : [],
+      unresolved: Array.isArray(review.unresolved) ? review.unresolved.filter(Boolean) : [],
+      confirmed: Array.isArray(review.confirmed) ? review.confirmed.filter(Boolean) : []
+    }
+  };
+}
+
+async function runHybridDesignDirector(concept, constraintTable){
+  const content = [{ type: 'text', text: `VALIDATED CONCEPT:\n${JSON.stringify(concept, null, 2)}\n\nPLOT AND FIXED FACTS (do not change any of these):\n${JSON.stringify({ plot: constraintTable.plot, structure: constraintTable.structure, requiredElements: constraintTable.requiredElements.map(e => e.element) }, null, 2)}\n\nRefine proportions, visual hierarchy, negative space and material coherence, and respond in the JSON shape given.` }];
+  const result = await callPromptWriterApi(hybridDesignDirectorSystem, content);
+  const refined = hybridPickConcept(result);
+  if(!hybridConceptIsComplete(refined)) throw new Error('The design director review came back incomplete.');
+  return { concept: refined, notes: Array.isArray(result.directorNotes) ? result.directorNotes.filter(Boolean) : [] };
+}
+
+// Stage D. The render brief the image engine receives: the two layers of the original benchmark,
+// written from the refined concept and the plain wall facts. No calculations, no rule identifiers.
+function assembleHybridImagePrompt(concept, ctx, constraintTable){
+  const { name, resolvedSpec, structuralShellRaw, colorHexes, openSidesText, levels, additionalRequirementsRaw, brandPortfolioTextRaw, flooringSpecRaw, ceilingRiggingSpecRaw, constructionStyle, archStyle } = ctx;
+  // Strips rule identifiers, and the long dashes some of the older brief fragments still carry
+  // (owner rule: none anywhere), before anything reaches the image engine.
+  const clean = (t) => stripInternalEngineCodes(String(t || '')).replace(/\s*[\u2014\u2013]\s*/g, ': ').trim();
+  const lines = [];
+  lines.push(`=== EXHIBITION BOOTH DESIGN BRIEF: ${name || 'Untitled project'} ===`);
+  lines.push('');
+  lines.push('LAYER 1: ARCHITECTURAL LAYER (HIGHEST PRIORITY). Establish everything in this layer before anything in Layer 2. Architecture carries about seventy percent of the visual weight of the image.');
+  lines.push('');
+  lines.push('1. PROJECT SUMMARY');
+  lines.push(`${name || 'Untitled project'}: exhibition booth, ${resolvedSpec.widthM.toFixed(1)} m wide by ${resolvedSpec.depthM.toFixed(1)} m deep, ${constraintTable.plot.heightLimitM ? constraintTable.plot.heightLimitM.toFixed(1) + ' m high, ' : ''}${levels === '2' ? 'double deck (ground floor and upper floor), ' : ''}${clean(openSidesText)}. Concept: "${clean(concept.conceptName)}".`);
+  lines.push('');
+  lines.push('2. DESIGN OBJECTIVE');
+  lines.push(clean(concept.designObjective));
+  lines.push('');
+  lines.push('3. ARCHITECTURAL CONCEPT');
+  lines.push(clean(concept.architecturalConcept));
+  lines.push('');
+  lines.push('4. SPACE PLANNING');
+  lines.push(clean(concept.spacePlanning));
+  lines.push('');
+  lines.push('5. VISITOR FLOW');
+  lines.push(clean(concept.visitorFlow));
+  lines.push('');
+  lines.push('6. STRUCTURAL PLANNING');
+  lines.push(clean(concept.structuralPlanning));
+  lines.push('');
+  lines.push('STRUCTURAL SHELL (fixed facts of this plot; decorate and populate it, never redesign it)');
+  lines.push(clean(formatStructuralShellPlain(structuralShellRaw)));
+  lines.push('');
+  lines.push('7. MATERIALS');
+  lines.push(clean(concept.materials));
+  if(constructionStyle || archStyle) lines.push(`Construction style: ${constructionStyle || 'as designed'}. Architectural style: ${archStyle || 'as designed'}.`);
+  const flooringBody = extractSpecBody(flooringSpecRaw || '');
+  if(flooringBody) lines.push('Flooring: ' + clean(flooringBody));
+  lines.push('');
+  lines.push('8. LIGHTING STRATEGY');
+  lines.push(clean(concept.lightingStrategy));
+  const ceilingBody = extractSpecBody(ceilingRiggingSpecRaw || '');
+  if(ceilingBody) lines.push('Ceiling and overhead: ' + clean(ceilingBody));
+  lines.push('');
+  lines.push('9. NEGATIVE RULES');
+  lines.push(`No people, staff, visitors or crowds anywhere. No wall, backdrop, feature wall, screen wall or row of panels on any open side; the exhibition hall stays visible through the booth on every open side. No wall beyond the ${constraintTable.plot.wallCount} stated. Nothing outside the raised floor, nothing floating, nothing suspended from the venue unless the ceiling section above says rigging is available. No neighbouring booths, hall branding or aisle signage. No text other than the brand's own name and logo. No generic exhibition stand, no shopping-mall kiosk, no random collection of boxes.`);
+  lines.push('');
+  lines.push('LAYER 2: EXHIBITION LAYER (SECONDARY). Content that populates the architecture above; nothing here may contradict Layer 1.');
+  lines.push('');
+  lines.push('1. PRODUCT EXPERIENCE');
+  lines.push(clean(concept.productExperience));
+  const portfolioBody = extractSpecBody(brandPortfolioTextRaw || '');
+  if(portfolioBody) lines.push(clean(portfolioBody));
+  lines.push('');
+  lines.push('2. BRANDING');
+  lines.push(clean(concept.branding));
+  if(colorHexes && colorHexes.length) lines.push(`Brand colours, exact: ${colorHexes.join(', ')}.`);
+  lines.push('');
+  lines.push('3. FURNITURE');
+  lines.push(clean(concept.furniture));
+  const requirementsBody = clean(additionalRequirementsRaw);
+  if(requirementsBody){
+    lines.push('Client requirements with exact quantities (every one present, none substituted):');
+    lines.push(requirementsBody);
+  }
+  if(constraintTable.removedByClientDecision && constraintTable.removedByClientDecision.length){
+    lines.push('Not included, by the client\'s own decision: ' + constraintTable.removedByClientDecision.join(', ') + '.');
+  }
+  lines.push('');
+  lines.push('4. DIGITAL TECHNOLOGY');
+  lines.push(clean(concept.digitalTechnology));
+  lines.push('');
+  lines.push('5. DECORATIVE ELEMENTS');
+  lines.push(clean(concept.decorativeElements));
+  lines.push('');
+  lines.push('6. EXHIBITION STORY');
+  lines.push(clean(concept.exhibitionStory));
+  lines.push('');
+  lines.push('7. RENDERING INSTRUCTIONS');
+  lines.push(clean(concept.renderingNotes));
+  lines.push(clean(buildCameraTextPlain()));
+  lines.push('Photorealistic architectural visualization of premium international exhibition quality: realistic construction, controlled materials, excellent lighting, clear brand hierarchy; the booth fills roughly ninety to ninety-five percent of the frame inside a large, softly blurred exhibition hall.');
+  return lines.join('\n');
+}
+
+// A one-line summary of the hero element for the image inspector (Stage E), taken from the
+// refined concept so the render is checked against what was actually asked for.
+function hybridHeroSummary(concept){
+  const text = String((concept && concept.architecturalConcept) || '').replace(/\s+/g, ' ').trim();
+  if(!text) return '';
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const firstTwo = sentences.slice(0, 2).join(' ').trim();
+  return firstTwo.length > 320 ? firstTwo.slice(0, 317) + '...' : firstTwo;
+}
+
+// Runs stages A to D. Returns { prompt, record } or throws; the caller falls back to the classic
+// prompt on any throw. onProgress receives short user-facing messages.
+async function runHybridDesignEngine(ctx, onProgress){
+  const t0 = Date.now();
+  const progress = (m) => { try{ if(onProgress) onProgress(m); }catch(e){ /* cosmetic */ } };
+  progress('Developing the architectural concept for your brand...');
+  const identity = buildHybridIdentityBrief(ctx);
+  const concept = await runHybridCreativeConcept(identity);
+  progress('Validating the concept against your requirements...');
+  const table = buildHybridConstraintTable(ctx);
+  const engineering = await runHybridEngineeringValidation(concept, table, ctx.levels === '2');
+  progress('Design Director review...');
+  const director = await runHybridDesignDirector(engineering.concept, table);
+  progress('Writing the render brief...');
+  const prompt = assembleHybridImagePrompt(director.concept, ctx, table);
+  const record = {
+    engine: 'hybrid',
+    conceptName: director.concept.conceptName,
+    creativeConcept: concept,
+    engineeringReview: engineering.review,
+    validatedConcept: engineering.concept,
+    directorNotes: director.notes,
+    finalConcept: director.concept,
+    heroSummary: hybridHeroSummary(director.concept),
+    durationMs: Date.now() - t0
+  };
+  return { prompt, record };
+}
+
+// Admin comparison switch (owner request): the hybrid engine is the engine for everyone; an admin
+// can run the classic deterministic prompt on the same brief to compare.
+const ADMIN_DESIGN_ENGINE_STORAGE_KEY = 'designslab_admin_design_engine';
+let adminDesignEngineChoice = 'hybrid';
+try{
+  const savedEngine = localStorage.getItem(ADMIN_DESIGN_ENGINE_STORAGE_KEY);
+  if(savedEngine === 'hybrid' || savedEngine === 'classic') adminDesignEngineChoice = savedEngine;
+}catch(storageErr){ /* stays hybrid */ }
+function setAdminDesignEngine(choice){
+  adminDesignEngineChoice = choice === 'classic' ? 'classic' : 'hybrid';
+  try{ localStorage.setItem(ADMIN_DESIGN_ENGINE_STORAGE_KEY, adminDesignEngineChoice); }catch(storageErr){ /* nothing to do */ }
+  renderAdminDesignEngineSwitch();
+}
+function renderAdminDesignEngineSwitch(){
+  document.querySelectorAll('#adminDesignEngineSwitch .seg button').forEach(btn => {
+    btn.classList.toggle('on', btn.dataset.engine === adminDesignEngineChoice);
+  });
+}
+function currentDesignEngineForRun(){
+  if(!HYBRID_DESIGN_ENGINE_ENABLED) return 'classic';
+  return isAdminUser ? adminDesignEngineChoice : 'hybrid';
+}
+// The record of the last hybrid run, kept with the option and the project for the admin review
+// and the export package.
+let lastHybridDesignRecord = null;
+/* ================= END HDE-001 ================= */
 
 // --- Layer 8 (Final Image-Generation Prompt) — the single function that now decides what
 // actually reaches Gemini for booth mode (see generateDesign()'s isDirectToGeminiEngine branch).
@@ -17839,6 +18267,7 @@ async function exportProjectPackage(){
     const promptText = (pendingPromptResult && pendingPromptResult.image_prompt) || (opt && opt.image_prompt) || '';
     root.file('01-prompt-sent-to-image-engine.txt', promptText || '(no prompt saved for this project)');
     if(pendingPromptResult && pendingPromptResult.concept_description) root.file('02-concept-description.txt', pendingPromptResult.concept_description);
+    if(pendingPromptResult && pendingPromptResult.hybridRecord) root.file('04-hybrid-engine-record.json', JSON.stringify(pendingPromptResult.hybridRecord, null, 2));
     // 2. The brief as filled in (every form value), for the record.
     try{ root.file('03-brief-form-values.json', JSON.stringify(collectFormSnapshot(), null, 2)); }catch(e){ /* optional */ }
     // 3. Inputs: every image that travelled with the prompt.
@@ -18979,12 +19408,30 @@ async function generateDesign(){
   // Design Generation Pipeline v2 — final assembly (Layer 8), now that desc is in its final
   // English form. See layeredDesignPromptContext's own comment above for why this is deferred
   // to here rather than done inside the engine-selection block further up.
+  lastHybridDesignRecord = null;
   if(layeredDesignPromptContext){
     try{
       layeredDesignPrompt = assembleLayeredDesignPrompt({ ...layeredDesignPromptContext, desc });
     }catch(pipelineV2AssembleErr){
       console.error('Design Generation Pipeline v2 final assembly failed — booth mode falls back to the legacy raw brief:', pipelineV2AssembleErr);
       layeredDesignPrompt = '';
+    }
+    // HDE-001 (owner, Sep 2026): the hybrid engine writes the render brief for booth mode. The
+    // classic deterministic prompt just assembled stays as the fallback for this run, and as the
+    // admin's comparison engine. See the HDE-001 block for the stages.
+    if(mode === 'booth' && currentDesignEngineForRun() === 'hybrid'){
+      const loadingTextEl = document.getElementById('loadingText');
+      try{
+        const hybrid = await runHybridDesignEngine({ ...layeredDesignPromptContext, desc }, (msg) => { if(loadingTextEl) loadingTextEl.textContent = msg; });
+        if(hybrid && hybrid.prompt){
+          layeredDesignPrompt = hybrid.prompt;
+          lastHybridDesignRecord = hybrid.record;
+        }
+      }catch(hybridErr){
+        console.error('Hybrid design engine failed for this run; using the classic prompt instead:', hybridErr);
+        lastHybridDesignRecord = { engine: 'classic-fallback', error: (hybridErr && hybridErr.message) || String(hybridErr) };
+      }
+      if(loadingTextEl) loadingTextEl.textContent = 'Rendering your design...';
     }
   }
 
@@ -19385,7 +19832,10 @@ Never generate an image yourself. Never explain your reasoning, and never mentio
       const directPromptResult = {
         title: name || (mode === 'event' ? 'Direct to Gemini event design' : 'Direct to Gemini booth design'),
         image_prompt: finalImagePromptText + attachedNote,
-        concept_description: ''
+        concept_description: '',
+        // HDE-001 record (concept, engineering review, director notes) travels with the prompt
+        // result so it is saved with the project, shown to the admin and included in the export.
+        hybridRecord: lastHybridDesignRecord || null
       };
       console.log('[Direct to Gemini] using ' + ((mode === 'booth' && layeredDesignPrompt) ? 'the layered Design Generation Pipeline v2 prompt' : 'the raw client brief') + ' as the image prompt:', directPromptResult);
       await showPromptReview(directPromptResult);
@@ -19834,7 +20284,27 @@ function cancelConflictApproval(){
 async function showPromptReview(promptResult){
   pendingPromptResult = promptResult;
   const wrap = document.getElementById('promptCards');
-  wrap.innerHTML = `
+  // HDE-001: the admin sees what the hybrid engine decided before the render brief was written
+  // (concept, conflicts the engineering review resolved, the director's refinements), or that the
+  // run fell back to the classic prompt and why.
+  const rec = promptResult.hybridRecord;
+  const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  let hybridBlock = '';
+  if(rec && rec.engine === 'hybrid'){
+    const conflicts = (rec.engineeringReview && rec.engineeringReview.conflicts) || [];
+    const unresolved = (rec.engineeringReview && rec.engineeringReview.unresolved) || [];
+    hybridBlock = `
+    <div class="prompt-card" style="margin-bottom:12px;">
+      <div class="prompt-card-label">Hybrid design engine: "${esc(rec.conceptName)}" (${Math.round((rec.durationMs || 0) / 1000)} s)</div>
+      <div class="admin-preview-note"><strong>Engineering review:</strong> ${conflicts.length ? conflicts.length + ' conflict(s) resolved' : 'no conflicts found'}${unresolved.length ? '; UNRESOLVED: ' + esc(unresolved.join(' | ')) : ''}</div>
+      ${conflicts.map(c => `<div class="admin-preview-note" style="margin-left:12px;">${esc(c.constraint)}: ${esc(c.issue)} <em>Resolved:</em> ${esc(c.resolution)}</div>`).join('')}
+      <div class="admin-preview-note" style="margin-top:6px;"><strong>Design Director:</strong> ${(rec.directorNotes || []).length ? '' : 'no changes'}</div>
+      ${(rec.directorNotes || []).map(n => `<div class="admin-preview-note" style="margin-left:12px;">${esc(n)}</div>`).join('')}
+    </div>`;
+  }else if(rec && rec.engine === 'classic-fallback'){
+    hybridBlock = `<div class="prompt-card" style="margin-bottom:12px;"><div class="prompt-card-label">Hybrid design engine: FELL BACK to the classic prompt</div><div class="admin-preview-note">${esc(rec.error || 'unknown error')}</div></div>`;
+  }
+  wrap.innerHTML = hybridBlock + `
     <div class="prompt-card">
       <div class="prompt-card-label">Rendering prompt</div>
       <input type="text" class="prompt-title-input" id="promptTitle0" value="${(promptResult.title||'').replace(/"/g,'&quot;')}">
@@ -22314,12 +22784,13 @@ Check, in this order:
 1. Every side listed as OPEN shows no wall of any kind along it (including the far sides at the back of the picture).
 2. Every side listed as WALL shows a real, continuous solid wall along it, not an opening, an archway or a missing wall.
 3. The number of walled sides in the picture equals the number of WALL sides in the facts.
+4. Only when the request names the HERO ARCHITECTURE the brief asked for: that element is recognizably present as the dominant architectural element of the booth. Judge presence and dominance only, never style.
 
 If all checks pass, respond MATCH. If any fails, respond MISMATCH with one short specific sentence naming the side and what is visibly wrong (for example: "A full-height graphic wall closes the Left side, which must be open."), and list the offending sides.
 
 Respond in JSON only, using exactly one of these two shapes:
 { "result": "MATCH" }
-{ "result": "MISMATCH", "reason": "one short specific sentence", "wallsOnOpenSides": ["Left"], "missingWalls": [] }`;
+{ "result": "MISMATCH", "reason": "one short specific sentence", "wallsOnOpenSides": ["Left"], "missingWalls": [], "missingHero": false }`;
 
 function heroWallFactsFromForm(){
   if(mode !== 'booth') return null;
@@ -22331,17 +22802,21 @@ function heroWallFactsFromForm(){
     wallSides: ALL_BOOTH_SIDES.filter(side => !openSet.has(side)).map(label),
     cameraCorner: approach.corner.replace('Back', 'Rear'),
     nearSides: approach.corner.split('-').map(label),
-    farSides: ALL_BOOTH_SIDES.filter(side => !approach.corner.split('-').includes(side)).map(label)
+    farSides: ALL_BOOTH_SIDES.filter(side => !approach.corner.split('-').includes(side)).map(label),
+    // HDE-001: the hero architecture the brief asked for, so the inspector can confirm the
+    // picture actually contains it (validation of the real image, not of the plan).
+    heroSummary: (lastHybridDesignRecord && lastHybridDesignRecord.heroSummary) || ''
   };
 }
 
 async function verifyHeroOpenSides(dataUrl, facts){
-  if(!facts || !facts.openSides || facts.openSides.length === 4 || facts.openSides.length === 0) return { result: 'MATCH' };
+  if(!facts || !facts.openSides || facts.openSides.length === 0) return { result: 'MATCH' };
+  if(facts.openSides.length === 4 && !facts.heroSummary) return { result: 'MATCH' };
   try{
     const { mime, base64 } = dataUrlParts(await compressDataUrl(dataUrl, 1024, 0.8));
     const content = [
       { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
-      { type: 'text', text: `WALL FACTS FOR THIS BOOTH (locked): OPEN sides: ${facts.openSides.join(', ')}. WALL sides: ${facts.wallSides.join(', ')}. Exactly ${facts.wallSides.length} walled side(s). The camera stands above the ${facts.cameraCorner} corner: the near sides in this picture are ${facts.nearSides.join(' and ')}; the far sides at the back of the picture are ${facts.farSides.join(' and ')}.\n\nInspect the image against these facts and respond in the JSON shape given.` }
+      { type: 'text', text: `WALL FACTS FOR THIS BOOTH (locked): OPEN sides: ${facts.openSides.join(', ')}. WALL sides: ${facts.wallSides.join(', ')}. Exactly ${facts.wallSides.length} walled side(s). The camera stands above the ${facts.cameraCorner} corner: the near sides in this picture are ${facts.nearSides.join(' and ')}; the far sides at the back of the picture are ${facts.farSides.join(' and ')}.${facts.heroSummary ? `\n\nHERO ARCHITECTURE THE BRIEF ASKED FOR (check 4): "${facts.heroSummary}" It must be recognizably present as the dominant architectural element; if the picture shows no such element, or a plain box in its place, that is a MISMATCH with "missingHero": true.` : ''}\n\nInspect the image against these facts and respond in the JSON shape given.` }
     ];
     const analysis = await callPromptWriterApi(heroOpenSidesVerificationSystem, content);
     if(analysis && analysis.result === 'MISMATCH'){
@@ -22349,7 +22824,8 @@ async function verifyHeroOpenSides(dataUrl, facts){
         result: 'MISMATCH',
         reason: (typeof analysis.reason === 'string' && analysis.reason) ? analysis.reason : 'A wall appears on a side that must be open.',
         wallsOnOpenSides: Array.isArray(analysis.wallsOnOpenSides) ? analysis.wallsOnOpenSides : [],
-        missingWalls: Array.isArray(analysis.missingWalls) ? analysis.missingWalls : []
+        missingWalls: Array.isArray(analysis.missingWalls) ? analysis.missingWalls : [],
+        missingHero: analysis.missingHero === true
       };
     }
     return { result: 'MATCH' };
@@ -22362,7 +22838,7 @@ async function verifyHeroOpenSides(dataUrl, facts){
 function buildOpenSidesCorrectionPrefix(facts, verdict, attempt){
   const offenders = (verdict.wallsOnOpenSides || []).join(', ');
   const missing = (verdict.missingWalls || []).join(', ');
-  return `CORRECTION REQUIRED, READ THIS FIRST (attempt ${attempt} of ${HERO_GEOMETRY_MAX_RETRIES}): an automated inspection of the previous render of this exact brief found this violation of the booth's locked wall facts: "${verdict.reason}"${offenders ? ` A wall was rendered on the ${offenders} side, which is OPEN.` : ''}${missing ? ` The ${missing} side must be a solid wall and was not.` : ''} This booth has exactly ${facts.wallSides.length} walled side(s) (${facts.wallSides.join(', ') || 'none'}) and ${facts.openSides.length} open side(s) (${facts.openSides.join(', ')}). Every OPEN side, including the far side of the booth at the back of this picture (${facts.farSides.join(' and ')}), has no wall, backdrop, feature wall, graphic wall, screen wall or row of panels along it: the exhibition hall is visible through the booth past it. Render the same design again with that violation removed and nothing else changed.\n\n`;
+  return `CORRECTION REQUIRED, READ THIS FIRST (attempt ${attempt} of ${HERO_GEOMETRY_MAX_RETRIES}): an automated inspection of the previous render of this exact brief found this violation of the booth's locked wall facts: "${verdict.reason}"${offenders ? ` A wall was rendered on the ${offenders} side, which is OPEN.` : ''}${missing ? ` The ${missing} side must be a solid wall and was not.` : ''}${(verdict.missingHero && facts.heroSummary) ? ` The hero architecture the brief asks for was missing: "${facts.heroSummary}" It must be built exactly as described, as the dominant architectural element.` : ''} This booth has exactly ${facts.wallSides.length} walled side(s) (${facts.wallSides.join(', ') || 'none'}) and ${facts.openSides.length} open side(s) (${facts.openSides.join(', ')}). Every OPEN side, including the far side of the booth at the back of this picture (${facts.farSides.join(' and ')}), has no wall, backdrop, feature wall, graphic wall, screen wall or row of panels along it: the exhibition hall is visible through the booth past it. Render the same design again with that violation removed and nothing else changed.\n\n`;
 }
 
 /* Renders a booth design through the gate: inspect, and while a wall sits on an open side (or a
@@ -22380,7 +22856,7 @@ async function renderWithOpenSidesGate(initialImage, basePrompt, render, onProgr
     lastVerdict = await verifyHeroOpenSides(image, facts);
     if(lastVerdict.result === 'MATCH' || attempts >= HERO_GEOMETRY_MAX_RETRIES) break;
     attempts++;
-    if(onProgress) onProgress(`A wall was found on an open side. Correcting and rendering again (${attempts} of ${HERO_GEOMETRY_MAX_RETRIES})...`);
+    if(onProgress) onProgress(`${lastVerdict.missingHero && !(lastVerdict.wallsOnOpenSides || []).length && !(lastVerdict.missingWalls || []).length ? 'The hero architecture was not built as asked' : 'A wall was found on an open side'}. Correcting and rendering again (${attempts} of ${HERO_GEOMETRY_MAX_RETRIES})...`);
     try{
       const corrected = await render(buildOpenSidesCorrectionPrefix(facts, lastVerdict, attempts) + basePrompt);
       if(corrected) image = corrected;
