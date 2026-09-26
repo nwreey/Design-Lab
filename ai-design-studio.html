@@ -2613,9 +2613,10 @@ Replace only the materials and graphics."></textarea>
         <label>Carpet Color</label>
         <div class="color-row">
           <input type="color" id="f_carpetColorPicker" class="color-picker" value="#8B1E2B" oninput="syncColorHex(this)">
-          <input type="text" id="f_carpetColorHex" class="color-hex" value="#8B1E2B" placeholder="#RRGGBB" oninput="syncColorPicker(this)" onchange="syncColorPicker(this)">
+          <input type="text" id="f_carpetColorHex" class="color-hex" value="#8B1E2B" placeholder="No specific color" oninput="syncColorPicker(this); carpetColorCleared = false;" onchange="syncColorPicker(this)">
+          <button type="button" class="color-remove" onclick="clearCarpetColor()" aria-label="Remove carpet color" title="No specific carpet color: it will be coordinated with the brand palette">×</button>
         </div>
-        <div class="hint">Only applies when Floor Finish is a carpet finish — coordinate with the brand color palette unless a specific color is wanted.</div>
+        <div class="hint">Only applies when Floor Finish is a carpet finish. Remove the color (×) to leave it to the design, coordinated with the brand palette.</div>
       </div>
 
       <div class="field" id="woodTypeField" style="display:none;">
@@ -10711,7 +10712,10 @@ function collectFlooringSpecification(){
 
   if(CARPET_FLOOR_FINISHES.includes(floorFinishRaw)){
     lines.push(`Carpet Type: ${document.getElementById('f_carpetType').value}.`);
-    lines.push(`Carpet Color: ${document.getElementById('f_carpetColorHex').value} — coordinate this color with the booth's brand color palette unless a different specific color is clearly intended.`);
+    const carpetHex = currentCarpetColorHex();
+    lines.push(carpetHex
+      ? `Carpet Color: ${carpetHex}, coordinate this color with the booth's brand color palette unless a different specific color is clearly intended.`
+      : 'Carpet Color: no specific color requested; choose a carpet color coordinated with the booth\'s brand color palette.');
   }
 
   if(WOOD_FLOOR_FINISHES.includes(floorFinishRaw)){
@@ -15342,6 +15346,23 @@ function computeBoothAspectRatio(widthM, depthM){
 
 function syncColorHex(colorInput){
   colorInput.closest('.color-row').querySelector('.color-hex').value = colorInput.value.toUpperCase();
+  if(colorInput.id === 'f_carpetColorPicker'){ carpetColorCleared = false; colorInput.style.opacity = ''; }
+}
+
+// Owner request (Sep 2026): the carpet colour can be removed. With no colour, the brief asks for a
+// carpet coordinated with the brand palette instead of a fixed hex.
+let carpetColorCleared = false;
+function clearCarpetColor(){
+  const hex = document.getElementById('f_carpetColorHex');
+  const picker = document.getElementById('f_carpetColorPicker');
+  if(hex) hex.value = '';
+  if(picker) picker.style.opacity = '0.35';
+  carpetColorCleared = true;
+}
+function currentCarpetColorHex(){
+  const hex = document.getElementById('f_carpetColorHex');
+  const v = hex ? hex.value.trim() : '';
+  return /^#([0-9A-Fa-f]{6})$/.test(v) ? v.toUpperCase() : '';
 }
 
 function syncColorPicker(hexInput){
@@ -26452,8 +26473,9 @@ function restoreFormSnapshot(snap){
   document.getElementById('f_floorFinishCustom').value = snap.f_floorFinishCustom || '';
   const rawCarpetType = snap.f_carpetType || 'Exhibition Carpet';
   document.getElementById('f_carpetType').value = LEGACY_CARPET_TYPE_MAP[rawCarpetType] || rawCarpetType;
-  document.getElementById('f_carpetColorHex').value = snap.f_carpetColorHex || '#8B1E2B';
-  syncColorPicker(document.getElementById('f_carpetColorHex'));
+  document.getElementById('f_carpetColorHex').value = snap.f_carpetColorHex != null ? snap.f_carpetColorHex : '#8B1E2B';
+  if(document.getElementById('f_carpetColorHex').value === ''){ clearCarpetColor(); }
+  else { carpetColorCleared = false; document.getElementById('f_carpetColorPicker').style.opacity = ''; syncColorPicker(document.getElementById('f_carpetColorHex')); }
   document.getElementById('f_woodType').value = snap.f_woodType || 'Oak';
   document.getElementById('f_woodFinish').value = snap.f_woodFinish || 'Matte';
   document.getElementById('f_marbleColor').value = snap.f_marbleColor || 'White';
