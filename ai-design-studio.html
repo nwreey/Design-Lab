@@ -3513,7 +3513,7 @@ Replace only the materials and graphics."></textarea>
     <div id="newSpatialEngineField" style="display:none;"></div>
 
     <div class="submit-bar">
-      <div id="adminImageModelSwitch" title="Admin only: which image model renders this design (Generate, Other Design and Modify Design). Standard is what clients get; Pro is the premium model of the same provider, slower and about twice the cost; Engine B is the other provider's image model, the one that renders the camera views by default.">
+      <div id="adminImageModelSwitch" title="Admin only: which image model renders this design (Generate, Other Design and Modify Design).">
         <span>Image model</span>
         <span class="seg">
           <button type="button" id="adminImageModelStandard" class="on" onclick="setAdminImageModel('standard')">Standard</button>
@@ -3729,10 +3729,13 @@ Replace only the materials and graphics."></textarea>
            is the first thing in the card the page scrolls to. Regular users never see it:
            showAdminLumaVideoFromOrbit returns before touching it for anyone but an admin. -->
       <div id="adminLumaVideoCard" style="display:none;margin-bottom:14px;padding:12px 14px;border:1.5px dashed var(--line);border-radius:3px;">
-        <div class="section-label-light">Admin Only — 360° Orbit Video (the clip the views are checked against)</div>
+        <div class="section-label-light">Admin Only: how these views were built</div>
         <div class="admin-preview-note" id="adminLumaVideoStatus" style="margin-bottom:10px;"></div>
         <video id="adminLumaVideoEl" controls loop playsinline style="max-width:560px;width:100%;border:1px solid var(--line);border-radius:2px;display:none;"></video>
       </div>
+      <!-- Admin engine comparison (owner request, Sep 2026): each earlier run of the views is kept
+           here under its engine's name when the admin approves again with another engine. -->
+      <div id="viewer3dGeneratedArchive"></div>
       <div class="section-label-light">Final Views — click any image to preview full size</div>
       <div class="viewer3d-generated-grid-light" id="viewer3dGeneratedGrid"></div>
       <!-- Owner request: after approval the user can come back for MORE camera views —
@@ -3805,7 +3808,7 @@ Replace only the materials and graphics."></textarea>
         <textarea id="otherOptionDislikeInput" rows="3" maxlength="600" data-i18n-placeholder="ph.ooDislike" placeholder="e.g. focus on the hospitality lounge, make the brand wall the hero, more open sight lines..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:9px 11px;border:1.5px solid var(--line);border-radius:2px;box-sizing:border-box;"></textarea>
         <div style="font-size:11px;opacity:.55;margin-top:5px;" data-i18n="oo.dislikeHint">Describe what you want the next option to focus on — your words guide the new design.</div>
       </div>
-      <div id="adminOtherDesignModelSwitch" class="admin-model-switch" title="Admin only: which image model renders this other design. Same setting as the switch next to Generate Design; Standard is what clients get, Pro is the premium model of the same provider, Engine B is the other provider.">
+      <div id="adminOtherDesignModelSwitch" class="admin-model-switch" title="Admin only: which image model renders this other design. Same setting as the switch next to Generate Design.">
         <span>Image model</span>
         <span class="seg">
           <button type="button" data-model="standard" class="on" onclick="setAdminImageModel('standard')">Standard</button>
@@ -3886,7 +3889,7 @@ Replace only the materials and graphics."></textarea>
       <p id="viewPickerDesc">Once approved, no further changes can be made to the concept itself. Your approved hero view is included free — pick which additional camera views to render. Each view uses 1 image edit.</p>
       <div id="viewPickerList" style="text-align:left;max-height:280px;overflow:auto;border:1.5px solid var(--line);border-radius:2px;padding:10px 12px;"></div>
       <p id="viewPickerCount" style="font-weight:700;margin:12px 0 0;"></p>
-      <div id="adminViewsEngineSwitch" title="Admin only: which image engine renders the camera views (also used by Retry and More Views). Standard and Pro are the main provider's models; Engine B is the other provider's edit model, which is what clients always get.">
+      <div id="adminViewsEngineSwitch" title="Admin only: which image engine renders the camera views (also used by Retry and More Views).">
         <span>Views engine</span>
         <span class="seg">
           <button type="button" id="adminViewsEngineStandard" onclick="setAdminViewsEngine('standard')">Standard</button>
@@ -3925,6 +3928,15 @@ Replace only the materials and graphics."></textarea>
       <div class="gen-notice-eyebrow">Admin Only — Generation Preview</div>
       <h3>Requests about to be sent (12 camera views)</h3>
       <p style="margin-bottom:14px;">This is exactly what will be sent once you approve — review it, then confirm to continue to the normal approval step.</p>
+      <div class="admin-preview-view-block" id="adminPreviewEnginePicker">
+        <div class="admin-preview-view-label">Views engine for this run (admin comparison)</div>
+        <div class="admin-preview-note" style="margin-bottom:8px;">Every selected view is rendered by the engine chosen here. After the run finishes, Approve stays available so you can run the same views again with another engine; earlier runs stay on screen under their engine's name.</div>
+        <div class="seg" style="display:inline-flex;border:1px solid var(--line);border-radius:2px;overflow:hidden;">
+          <button type="button" data-engine="openai" onclick="setAdminViewsEngine('openai')" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;cursor:pointer;">Engine B</button>
+          <button type="button" data-engine="standard" onclick="setAdminViewsEngine('standard')" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;cursor:pointer;">Standard</button>
+          <button type="button" data-engine="pro" onclick="setAdminViewsEngine('pro')" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;cursor:pointer;">Pro</button>
+        </div>
+      </div>
       <div class="admin-preview-view-label">Reference image (sent with every real request below)</div>
       <img id="adminPreviewHeroImg" style="max-width:220px;border:1px solid var(--line);border-radius:2px;display:block;margin:6px 0 16px;" alt="Hero reference">
       <div id="adminPreviewViewsList"></div>
@@ -11029,6 +11041,14 @@ function renderAdminImageModelSwitch(){
   document.querySelectorAll('#adminOtherDesignModelSwitch .seg button').forEach(btn => {
     btn.classList.toggle('on', btn.dataset.model === adminImageModelChoice);
   });
+  // Model ids in the tooltips, written for the admin only at render time (owner asked to be
+  // reminded what each label is); the static page never carries a provider name.
+  if(isAdminUser){
+    const main = document.getElementById('adminImageModelSwitch');
+    if(main) main.title = 'Admin only: which image model renders this design (Generate, Other Design and Modify Design). ' + ADMIN_ENGINE_KEY_TEXT;
+    const other = document.getElementById('adminOtherDesignModelSwitch');
+    if(other) other.title = 'Admin only: same setting as the switch next to Generate Design. ' + ADMIN_ENGINE_KEY_TEXT;
+  }
 }
 // The value every design request sends: 'standard' or 'pro' for the main provider, 'openai' for
 // the other provider (owner request, Sep 2026: compare the two providers on the same design).
@@ -11064,11 +11084,23 @@ function renderAdminViewsEngineSwitch(){
     const el = document.getElementById(map[key]);
     if(el) el.classList.toggle('on', adminViewsEngineChoice === key);
   });
+  // The admin generation preview carries the same choice. Model ids are written in here, for the
+  // admin only, at render time: the static page never carries a provider name.
+  document.querySelectorAll('#adminPreviewEnginePicker [data-engine]').forEach(btn => {
+    const on = btn.dataset.engine === adminViewsEngineChoice;
+    if(isAdminUser && VIEWS_ENGINE_LABELS[btn.dataset.engine]) btn.textContent = VIEWS_ENGINE_LABELS[btn.dataset.engine];
+    btn.style.background = on ? 'var(--navy)' : 'transparent';
+    btn.style.color = on ? 'var(--paper)' : 'var(--muted)';
+  });
+  const viewsSwitch = document.getElementById('adminViewsEngineSwitch');
+  if(viewsSwitch && isAdminUser) viewsSwitch.title = 'Admin only: which image engine renders the camera views (also used by Retry and More Views). ' + ADMIN_ENGINE_KEY_TEXT;
 }
 function currentViewsEngineForRequest(){
   return isAdminUser ? adminViewsEngineChoice : 'openai';
 }
-const VIEWS_ENGINE_LABELS = { openai: 'Engine B (default)', standard: 'Standard model', pro: 'Pro model' };
+// Admin-only displays name the engines by model id (owner request); nothing client-facing uses this.
+const VIEWS_ENGINE_LABELS = { openai: 'gpt-image-2 (Engine B, clients\' default)', standard: 'gemini-3.1-flash-image (Standard)', pro: 'gemini-3-pro-image (Pro)' };
+const ADMIN_ENGINE_KEY_TEXT = 'Standard = gemini-3.1-flash-image (what clients get for designs). Pro = gemini-3-pro-image (premium, slower, about twice the cost). Engine B = gpt-image-2 (the other provider; what clients get for camera views).';
 let currentUserProjectLimit = null; // null = no limit known yet, or admin (unlimited)
 let lastKnownProjectCount = null;
 let projectLimitInfoLoaded = false; // distinguishes "not yet checked" from "confirmed unlimited"
@@ -22672,6 +22704,46 @@ function runDeferredProjectSave(){
   else setTimeout(run, 0);
 }
 
+// Admin engine comparison (owner request, Sep 2026): which engine built the run currently in the
+// grid, and the helper that moves that run aside, under its engine's name, before another run
+// starts. Archived cards keep their image and label (click to preview, Download) and lose Edit
+// and Retry, which belong to the live run. Archives live in the page only; the project saves
+// the live run as always.
+let cameraViewsCurrentRunEngine = null;
+let cameraViewsArchivedRunCount = 0;
+function archivePreviousViewsRun(){
+  const grid = document.getElementById('viewer3dGeneratedGrid');
+  const archive = document.getElementById('viewer3dGeneratedArchive');
+  if(!grid || !archive) return;
+  const cards = Array.from(grid.children).filter(card => card.querySelector('img'));
+  if(!cards.length) return;
+  cameraViewsArchivedRunCount++;
+  const engineLabel = VIEWS_ENGINE_LABELS[cameraViewsCurrentRunEngine] || 'previous engine';
+  const section = document.createElement('div');
+  section.style.cssText = 'margin-bottom:18px;padding-bottom:14px;border-bottom:1.5px dashed var(--line);';
+  const heading = document.createElement('div');
+  heading.className = 'section-label-light';
+  heading.textContent = `Admin comparison, run ${cameraViewsArchivedRunCount}: ${engineLabel}`;
+  const oldGrid = document.createElement('div');
+  oldGrid.className = 'viewer3d-generated-grid-light';
+  cards.forEach(card => {
+    const img = card.querySelector('img');
+    const label = (card.querySelector('.viewer3d-generated-card-label') || {}).textContent || '';
+    const src = img.getAttribute('src');
+    const copy = document.createElement('div');
+    copy.className = 'viewer3d-generated-card-light';
+    copy.innerHTML = `<div class="viewer3d-generated-card-label">${label}</div><img><div class="viewer3d-generated-card-actions"><button class="ghost small">Download</button></div>`;
+    const copyImg = copy.querySelector('img');
+    copyImg.src = src;
+    copyImg.onclick = () => openImageLightbox(src);
+    copy.querySelector('button').onclick = () => forceDownloadImage(src, cameraViewFilename(label.replace(/\s+failed$/, '')) + '-run' + cameraViewsArchivedRunCount + '.jpg');
+    oldGrid.appendChild(copy);
+  });
+  section.appendChild(heading);
+  section.appendChild(oldGrid);
+  archive.appendChild(section);
+}
+
 async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPromptText, designTitle){
   const compressedHero = await compressDataUrl(heroImage, 1536, 0.88);
   const { mime, base64 } = dataUrlParts(compressedHero);
@@ -22684,6 +22756,8 @@ async function generateCameraViewsFromHero(heroImage, engine, lockedDesignPrompt
   if(stopBtn) stopBtn.style.display = isAdminUser ? 'inline-block' : 'none';
 
   document.getElementById('viewer3dGeneratedCard').style.display = 'block';
+  if(isAdminUser) archivePreviousViewsRun();
+  cameraViewsCurrentRunEngine = currentViewsEngineForRequest();
   document.getElementById('viewer3dGeneratedGrid').innerHTML = '';
   document.getElementById('goodLuckMessage').style.display = 'none';
   document.getElementById('techBoardActions').style.display = 'none';
@@ -24222,6 +24296,7 @@ function showAdminGenerationPreview(opt, cameraPlanResult){
     });
   }
 
+  renderAdminViewsEngineSwitch();
   document.getElementById('adminGenerationPreviewOverlay').style.display = 'flex';
 }
 
@@ -24303,7 +24378,19 @@ function lockApprovedActionBar(){
   const otherOptionBtnEl = document.getElementById('otherOptionBtn');
   if(otherOptionBtnEl) otherOptionBtnEl.style.display = 'none';
   const approveBtn = document.getElementById('approveDesignBtn');
-  if(approveBtn) approveBtn.style.display = 'none';
+  // Admin engine comparison (owner request, Sep 2026): after a run, Approve stays available to an
+  // admin so the same views can be run again with another engine; the earlier run is kept on
+  // screen (archivePreviousViewsRun). Clients keep the locked behaviour.
+  if(approveBtn){
+    if(isAdminUser){
+      approveBtn.style.display = '';
+      approveBtn.disabled = false;
+      approveBtn.textContent = 'Approve again (compare engines)';
+      approveBtn.removeAttribute('data-i18n');
+    }else{
+      approveBtn.style.display = 'none';
+    }
+  }
 }
 
 // The counterpart to lockApprovedActionBar — these are the same three DOM elements reused
@@ -24319,7 +24406,11 @@ function unlockApprovedActionBar(){
   const otherOptionBtnEl = document.getElementById('otherOptionBtn');
   if(otherOptionBtnEl){ otherOptionBtnEl.style.display = ''; otherOptionBtnEl.disabled = false; }
   const approveBtn = document.getElementById('approveDesignBtn');
-  if(approveBtn){ approveBtn.style.display = ''; approveBtn.disabled = false; }
+  if(approveBtn){ approveBtn.style.display = ''; approveBtn.disabled = false; approveBtn.textContent = 'Approve'; approveBtn.setAttribute('data-i18n', 'btn.approve'); if(typeof applyTranslations === 'function') try{ applyTranslations(); }catch(e){ /* label stays Approve */ } }
+  // A fresh project starts with no archived comparison runs.
+  const archive = document.getElementById('viewer3dGeneratedArchive');
+  if(archive) archive.innerHTML = '';
+  cameraViewsArchivedRunCount = 0;
 }
 
 // Admin-only debug/comparison aid (see adminLumaVideoCard's own HTML comment): polls a Luma
