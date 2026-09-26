@@ -23192,6 +23192,48 @@ function describeRequiredCameraPosition(spec){
   return `an exterior view ${spec.azimuth} degrees clockwise around the booth from the approved image's own viewpoint${spec.clockHour ? ` (the ${spec.clockHour} o'clock position)` : ''}.`;
 }
 
+// The left-to-right order of the booth's elements as THIS camera sees them, computed by projecting
+// the massing zones (their real positions on the layout grid) through the same camera the massing
+// render used (see borrowCameraFor). Owner report (Sep 2026): a corner view came back with the
+// items flipped, a mirror image of the booth. Stating the order as a fact of the camera, telling
+// the model never to mirror it, and having the inspector check it, is the answer. Empty when
+// there is no massing model (older projects, non-booth modes).
+function describeViewArrangement(spec){
+  const model = cameraViewsMassingModel;
+  if(!model || !spec || spec.isHeroImage || spec.type === 'interior' || spec.type === 'upper-deck-overview') return '';
+  const cam = borrowCameraFor(spec);
+  if(!cam) return '';
+  const W = model.widthM, D = model.depthM;
+  const items = [];
+  (model.zones || []).forEach(zone => {
+    const xFrac = (zone.position && typeof zone.position.xFrac === 'number') ? zone.position.xFrac : 0.5;
+    const yFrac = (zone.position && typeof zone.position.yFrac === 'number') ? zone.position.yFrac : 0.5;
+    const pt = [xFrac * W, 0.5, (1 - yFrac) * D];
+    const proj = borrowProject(cam, pt);
+    if(!proj) return;
+    items.push({ name: zone.name, u: proj.u, v: proj.v });
+  });
+  if(!items.length) return '';
+  items.sort((a, b) => a.u - b.u);
+  const order = items.map(i => i.name).join(', then ');
+  const lbl = (side) => side === 'Back' ? 'Rear' : side;
+  const wallSides = ALL_BOOTH_SIDES.filter(side => model.sides && model.sides[side] && model.sides[side].state === 'STRUCTURAL WALL');
+  let wallNote = '';
+  if(wallSides.length && spec.type !== 'top-down'){
+    // Where each wall appears: project the midpoint of the wall's foot.
+    const wallPos = wallSides.map(side => {
+      const mid = side === 'Front' ? [W / 2, 0.5, D] : side === 'Back' ? [W / 2, 0.5, 0] : side === 'Left' ? [0, 0.5, D / 2] : [W, 0.5, D / 2];
+      const proj = borrowProject(cam, mid);
+      if(!proj) return null;
+      const where = proj.u < 0.33 ? 'on the left of the picture' : proj.u > 0.67 ? 'on the right of the picture' : 'across the middle of the picture';
+      return `the ${lbl(side)} wall ${where}`;
+    }).filter(Boolean);
+    if(wallPos.length) wallNote = ` Walls: ${wallPos.join('; ')}.`;
+  }
+  const topNote = spec.type === 'top-down' ? ' In this top view the Front edge is at the bottom of the picture and the Rear at the top.' : '';
+  return `Seen from this camera, left to right across the picture: ${order}.${wallNote}${topNote}`;
+}
+
 async function verifyCameraViewGeometry(dataUrl, spec){
   if(!cameraViewsOrientationLock) return { result: 'MATCH' };
   try{
@@ -23203,7 +23245,7 @@ async function verifyCameraViewGeometry(dataUrl, spec){
       content.push({ type: 'image', source: { type: 'base64', media_type: cameraViewsHeroRef.mime || 'image/jpeg', data: cameraViewsHeroRef.base64 } });
     }
     content.push({ type: 'image', source: { type: 'base64', media_type: mime, data: base64 } });
-    content.push({ type: 'text', text: `The FIRST image is the client's APPROVED design. The SECOND image is the newly rendered view under inspection.\n\nORIENTATION LOCK (machine-readable, authoritative facts for this exact booth):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThe second image is the "${spec.name}" camera view of this exact booth. requiresUpperFloorVisible: ${!!spec.requiresUpperFloorVisible}. isStaircaseView: ${spec.focusZone === 'staircase'}.\n\nREQUIRED CAMERA POSITION (check 7): ${describeRequiredCameraPosition(spec)}` });
+    content.push({ type: 'text', text: `The FIRST image is the client's APPROVED design. The SECOND image is the newly rendered view under inspection.\n\nORIENTATION LOCK (machine-readable, authoritative facts for this exact booth):\n${JSON.stringify(cameraViewsOrientationLock)}\n\nThe second image is the "${spec.name}" camera view of this exact booth. requiresUpperFloorVisible: ${!!spec.requiresUpperFloorVisible}. isStaircaseView: ${spec.focusZone === 'staircase'}.\n\nREQUIRED CAMERA POSITION (check 7): ${describeRequiredCameraPosition(spec)}${describeViewArrangement(spec) ? ` EXPECTED ARRANGEMENT: ${describeViewArrangement(spec)} A picture with these elements in the reverse order, or a wall on the wrong side, is a MIRROR IMAGE and a MISMATCH.` : ''}` });
     const analysis = await callPromptWriterApi(orientationLockVerificationSystem, content);
     if(analysis && analysis.result === 'MISMATCH'){
       return { result: 'MISMATCH', reason: (analysis.reason && typeof analysis.reason === 'string') ? analysis.reason : 'Geometry does not match the locked Orientation Lock.' };
@@ -24640,6 +24682,11 @@ function buildCameraViewPrompt(spec, isWiderRetry, geometryCorrectionReason, ref
   // in the middle of the much longer locked-facts block below. Leading with one short,
   // impossible-to-miss sentence — before the model has read anything else — is what actually
   // fixes that, on top of (not instead of) the fuller locked-facts anchor further down.
+  // The arrangement as a fact of the camera, with the no-flip rule (owner, Sep 2026).
+  const arrangementText = describeViewArrangement(spec);
+  const arrangementSentence = arrangementText
+    ? ` ARRANGEMENT, A FACT OF THIS CAMERA: ${arrangementText} NEVER MIRROR OR FLIP THE BOOTH: every element keeps the place the camera gives it; a picture with these elements in the reverse order, or with a wall on the other side, is a mirror image and is wrong.`
+    : ' NEVER MIRROR OR FLIP THE BOOTH: every element keeps the place this camera gives it; a mirror image of the layout is wrong.';
   const orientationFactsSentence = cameraViewsClosedSides.length === 0
     ? `WALL FACTS FOR THIS EXACT BOOTH (read this first): this booth is fully open on all four sides — front, right, back, and left — with absolutely no wall, partition, backdrop panel, or solid surface anywhere around its perimeter, on any side, including the side(s) not directly visible in the reference photo. Never add a wall, panel, backdrop, or partition anywhere in this render, on any side, for any reason — every side stays completely open floor-to-ceiling, exactly like the open side(s) already visible in the reference. `
     : `WALL FACTS FOR THIS EXACT BOOTH (read this first): this booth has a real, solid structural wall ONLY on its ${cameraViewsClosedSides.join(' and ')} side(s) — every other side, including any not directly visible in the reference photo, is completely open with no wall, panel, or partition of any kind. Never add a wall anywhere except the exact side(s) named here, and never remove or open up the wall on the side(s) named here. `;
@@ -24726,7 +24773,7 @@ The booth's architecture, materials, branding, and furniture are completely unch
 
 YOUR TASK: re-render the FIRST image as a real, photorealistic AERIAL PHOTOGRAPH captured from directly above, as if taken by a drone hovering over the booth, keeping its footprint, orientation and layout precisely, and dressing every surface, structure and object in the exact design language of the SECOND image at full quality. The white blocks are placeholders for the real elements in those exact positions and sizes: never leave any of them as a white box, never keep the plain grey background or the flat untextured look, and never rotate or mirror the plan. Where the first image shows open space, the space is open; where it shows no wall, there is no wall. The darker strip along the bottom edge of the floor in the first image marks the booth's FRONT (aisle) edge; do not reproduce the strip itself.
 
-View: ${spec.name}: ${spec.promptHint}${upperFloorVisibilityNote} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
+View: ${spec.name}: ${spec.promptHint}${upperFloorVisibilityNote}${arrangementSentence} Machine-readable form of this view: ${cameraSpecToJSON(spec)}.
 
 This must be a genuine photograph-style aerial image, real materials, real shadows, real depth and lighting, exactly like a professional drone photo of a real physical structure, never a flat technical drawing, CAD plan, blueprint, or 2D diagram. The booth's architecture, materials, branding, and furniture are completely unchanged from the approved design; only the camera is directly overhead.${widerNote} The full footprint and layout of the booth is visible in one frame; for a double-deck booth, this means the upper deck's own surface, railings, and any staircase opening are visible from above, and wherever the upper deck doesn't extend to the full footprint, the ground floor beneath is visible around it in the same shot. For whatever the second image does not show, act as the same professional exhibition designer who created it: continue the same materials, colours, brand identity, structural style, and design language into the parts only visible from above, so the whole booth reads as one coherent, intentional design. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the approved image, same dark gray carpet flooring and surrounding aisle space, consistent and unchanging. Light the space with premium, even, professional exhibition lighting. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
   }
@@ -24827,14 +24874,14 @@ The booth's architecture, materials, branding, and furniture are completely unch
 
 YOUR TASK: re-render the FIRST image as a finished, photorealistic photograph of this booth, keeping its camera and geometry precisely, and dressing every surface, structure and object in the exact design language of the SECOND image at full quality: the same materials on the same elements, the same colours, the same branding in the same places, the same furniture. The white blocks are placeholders for the real elements in those exact positions and sizes: never leave any of them as a white box, never keep the plain grey background or the model's flat untextured look, and never move the camera to the second image's angle. Where the first image shows open space, the space is open; where it shows no wall, there is no wall. The darker strip along one edge of the floor in the first image marks the booth's FRONT (aisle) edge: use it to tell which way the booth faces, and do not reproduce the strip itself.
 
-Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the approved image's own viewpoint (that viewpoint is the 0-degree position). ${openSideClaimSentence}${straightOnSentence}${cornerSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
+Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the approved image's own viewpoint (that viewpoint is the 0-degree position). ${openSideClaimSentence}${straightOnSentence}${cornerSentence}${arrangementSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.
 
 The booth itself is completely static and unchanged from the approved design — only the camera stands at this new position.${widerNote} For any face or element the second image does not show directly, act as the same professional exhibition designer who created it: continue the same materials, colours, brand identity, structural style and design language into those areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the approved image — same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting — bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
   }
 
   return `${geometryCorrectionSentence}${orientationFactsSentence}Using the attached reference image as the exact, authoritative source for this exhibition booth's design — every material, color, branding element, structural detail, and piece of furniture must be identical to the reference, since this is the SAME physical booth, not a new or reinterpreted one — render this booth as it would look from a different, specific EXTERIOR camera position.
 
-Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the reference image's own viewpoint (that viewpoint is the 0-degree position). ${openSideClaimSentence}${straightOnSentence}${cornerSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.${lumaReferenceNote}
+Camera position (absolute, not a suggestion): ${spec.name}, which is ${spec.azimuth} degrees of azimuth clockwise from the reference image's own viewpoint (that viewpoint is the 0-degree position). ${openSideClaimSentence}${straightOnSentence}${cornerSentence}${arrangementSentence} The camera is at a constant elevation angle of ${spec.elevation} degrees above eye level, at a constant distance of ${spec.radius} orbit-units from the booth, always aimed directly at the booth's own center point, using a ${spec.lens}mm-equivalent lens.${upperFloorVisibilityNote} Machine-readable form of this same position: ${cameraSpecToJSON(spec)}.${lumaReferenceNote}
 
 The booth itself is completely static and unchanged from the reference; only the camera has moved to this new position.${relocationSentence}${widerNote} The attached photo may show only one side or angle of the booth; for any sides or the rear not visible in the reference, act as the same professional exhibition designer who created the visible portion: continue the same materials, colors, brand identity, structural style, and design language into those unseen areas, so the whole booth reads as one coherent, intentional design from every angle. ENVIRONMENT: the booth sits inside the same single, large, enclosed professional exhibition hall as the reference: same architecture, ceiling, lighting, and dark gray carpet flooring, consistent and unchanging. Light the hall with premium, even, professional exhibition lighting, bright and clean, clearly revealing every material and detail without harsh shadows or blown-out highlights. Photorealistic.${lockedFactsBlock}${orientationLockBlock}`;
 }
