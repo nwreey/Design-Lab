@@ -403,21 +403,6 @@
   .checkbox-grid label{display:flex;align-items:center;gap:7px;font-weight:500;font-size:14px;cursor:pointer;}
 
   .submit-bar{display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:14px 0 22px;}
-  /* Admin-only image model switch (owner request, Sep 2026): Standard vs Pro. Hidden for every
-     other role; the server refuses 'pro' from non-admins anyway, this only keeps it out of sight. */
-  #adminImageModelSwitch{display:none;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
-  body.is-admin #adminImageModelSwitch{display:inline-flex;}
-  /* !important on purpose: button.ghost sets display:inline-block with higher specificity. */
-  .admin-only-inline{display:none !important;}
-  body.is-admin .admin-only-inline{display:inline-block !important;}
-  .admin-model-switch{display:none;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin:0 0 14px;text-align:left;}
-  body.is-admin .admin-model-switch{display:flex;}
-  .admin-model-switch .seg{display:inline-flex;border:1px solid var(--line, #cfd4dc);border-radius:2px;overflow:hidden;}
-  .admin-model-switch .seg button{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;color:var(--muted);cursor:pointer;}
-  .admin-model-switch .seg button.on{background:var(--navy);color:var(--paper);}
-  #adminImageModelSwitch .seg{display:inline-flex;border:1px solid var(--line, #cfd4dc);border-radius:2px;overflow:hidden;}
-  #adminImageModelSwitch .seg button{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border:0;background:transparent;color:var(--muted);cursor:pointer;}
-  #adminImageModelSwitch .seg button.on{background:var(--navy);color:var(--paper);}
   button.primary{
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;
     background:var(--navy);color:var(--paper);border:2px solid var(--navy);
@@ -3511,13 +3496,6 @@ Replace only the materials and graphics."></textarea>
     <div id="newSpatialEngineField" style="display:none;"></div>
 
     <div class="submit-bar">
-      <div id="adminImageModelSwitch" title="Admin only: which image model renders this design (Generate, Other Design and Modify Design).">
-        <span>Image model</span>
-        <span class="seg">
-          <button type="button" id="adminImageModelStandard" class="on" onclick="setAdminImageModel('standard')">Standard</button>
-          <button type="button" id="adminImageModelPro" onclick="setAdminImageModel('pro')">Pro</button>
-        </span>
-      </div>
       <button class="primary" id="submitBtn" onclick="generateDesign()" data-i18n="btn.generateDesign">Generate Design</button>
     </div>
 
@@ -3805,13 +3783,6 @@ Replace only the materials and graphics."></textarea>
         <label for="otherOptionDislikeInput" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px;" data-i18n="oo.dislikeLabel">What do you want us to focus on? (optional)</label>
         <textarea id="otherOptionDislikeInput" rows="3" maxlength="600" data-i18n-placeholder="ph.ooDislike" placeholder="e.g. focus on the hospitality lounge, make the brand wall the hero, more open sight lines..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:9px 11px;border:1.5px solid var(--line);border-radius:2px;box-sizing:border-box;"></textarea>
         <div style="font-size:11px;opacity:.55;margin-top:5px;" data-i18n="oo.dislikeHint">Describe what you want the next option to focus on — your words guide the new design.</div>
-      </div>
-      <div id="adminOtherDesignModelSwitch" class="admin-model-switch" title="Admin only: which image model renders this other design. Same setting as the switch next to Generate Design.">
-        <span>Image model</span>
-        <span class="seg">
-          <button type="button" data-model="standard" class="on" onclick="setAdminImageModel('standard')">Standard</button>
-          <button type="button" data-model="pro" onclick="setAdminImageModel('pro')">Pro</button>
-        </span>
       </div>
       <div style="display:flex;gap:10px;">
         <button class="ghost" onclick="document.getElementById('otherOptionNoticeOverlay').style.display='none';" style="flex:1;">Cancel</button>
@@ -10996,44 +10967,11 @@ let pendingGenerateIsRegenerate = false;
 
 let isAdminUser = false;
 
-// Admin-only image model choice (owner request, Sep 2026): 'standard' or 'pro'. Remembered per
-// browser so a testing session does not reset on every reload. Only ever sent as 'pro' for an
-// admin; the server enforces the same rule, this is just the honest client half of it.
-const ADMIN_IMAGE_MODEL_STORAGE_KEY = 'designslab_admin_image_model';
-let adminImageModelChoice = 'standard';
-try{
-  const saved = localStorage.getItem(ADMIN_IMAGE_MODEL_STORAGE_KEY);
-  if(saved === 'pro' || saved === 'standard') adminImageModelChoice = saved;
-}catch(storageErr){ /* storage unavailable: stays 'standard' */ }
-function setAdminImageModel(choice){
-  adminImageModelChoice = choice === 'pro' ? 'pro' : 'standard';
-  try{ localStorage.setItem(ADMIN_IMAGE_MODEL_STORAGE_KEY, adminImageModelChoice); }catch(storageErr){ /* nothing to do */ }
-  renderAdminImageModelSwitch();
-}
-function renderAdminImageModelSwitch(){
-  const map = { standard: 'adminImageModelStandard', pro: 'adminImageModelPro' };
-  Object.keys(map).forEach(key => {
-    const el = document.getElementById(map[key]);
-    if(el) el.classList.toggle('on', adminImageModelChoice === key);
-  });
-  // The Other Design dialog carries a second copy of the same switch (owner request: choose the
-  // model there too); it shows the same state, so a change in either place is a change in both.
-  document.querySelectorAll('#adminOtherDesignModelSwitch .seg button').forEach(btn => {
-    btn.classList.toggle('on', btn.dataset.model === adminImageModelChoice);
-  });
-  // Model ids in the tooltips, written for the admin only at render time (owner asked to be
-  // reminded what each label is); the static page never carries a provider name.
-  if(isAdminUser){
-    const main = document.getElementById('adminImageModelSwitch');
-    if(main) main.title = 'Admin only: which image model renders this design (Generate, Other Design and Modify Design). ' + ADMIN_ENGINE_KEY_TEXT;
-    const other = document.getElementById('adminOtherDesignModelSwitch');
-    if(other) other.title = 'Admin only: same setting as the switch next to Generate Design. ' + ADMIN_ENGINE_KEY_TEXT;
-  }
-}
-// The value every design request sends: 'standard' or 'pro' (owner decision, Sep 2026: designs
-// are compared between the main provider's two models only). Non-admins always get 'standard'.
+// Owner decision (Sep 2026): every design renders on the standard image model, for admins and
+// clients alike; the premium model is no longer offered. The request still names the model so the
+// server's own gate stays unchanged.
 function currentImageModelForRequest(){
-  return (isAdminUser && adminImageModelChoice === 'pro') ? 'pro' : 'standard';
+  return 'standard';
 }
 // Every design request goes to the main provider's endpoint.
 function designImageEndpointForChoice(){
@@ -11046,7 +10984,6 @@ function currentViewsEngineForRequest(){
   return 'openai';
 }
 const VIEWS_ENGINE_LABELS = { openai: 'gpt-image-2 (default views engine)' };
-const ADMIN_ENGINE_KEY_TEXT = 'Standard = gemini-3.1-flash-image (what clients get for designs). Pro = gemini-3-pro-image (premium, slower, about twice the cost). Camera views always use gpt-image-2.';
 let currentUserProjectLimit = null; // null = no limit known yet, or admin (unlimited)
 let lastKnownProjectCount = null;
 let projectLimitInfoLoaded = false; // distinguishes "not yet checked" from "confirmed unlimited"
@@ -11157,7 +11094,6 @@ async function checkAdminAccess(){
       // with no role ever able to see this section) — this is purely a visibility toggle.
       const sidebarUploadExisting = document.getElementById('sidebarUploadExisting');
       if(sidebarUploadExisting) sidebarUploadExisting.style.display = 'block';
-      renderAdminImageModelSwitch();
       // Admin-only project export (see exportProjectPackage): revealed the same way as the other
       // admin controls, inline so no stylesheet ordering can show it to anyone else.
       const exportBtn = document.getElementById('adminExportProjectBtn');
@@ -21519,7 +21455,6 @@ async function regenerateOtherOption(){
     const remainingAfterThis = currentUserModifyLimit - currentUserModifyCount - 1;
     noticeText.textContent = `This will use 1 of your allowed modifications — you'll have ${Math.max(0, remainingAfterThis)} remaining after this one.`;
   }
-  renderAdminImageModelSwitch();
   document.getElementById('otherOptionNoticeOverlay').style.display = 'flex';
 }
 
