@@ -21689,14 +21689,14 @@ function collectOtherViewsForBorrow(excludeCamId){
   const opt = optionResults && optionResults[activeOptionIndex];
   if(opt && opt.gallery && opt.gallery.length){
     const entry = opt.gallery[opt.activeGalleryIndex] || opt.gallery[opt.gallery.length - 1];
-    if(entry && entry.image) views.push({ src: entry.image, label: 'Approved design' });
+    if(entry && entry.image) views.push({ src: entry.image, label: 'Approved design', camId: 'CAM01' });
   }
   document.querySelectorAll('#viewer3dGeneratedGrid .viewer3d-generated-card-light').forEach(card => {
     const camId = (card.id || '').replace('genCard-', '');
     if(!camId || camId === excludeCamId) return;
     const img = card.querySelector('img');
     if(!img || !img.src) return;
-    views.push({ src: img.src, label: VIEWER_CAMERA_LABELS[camId] || camId });
+    views.push({ src: img.src, label: VIEWER_CAMERA_LABELS[camId] || camId, camId });
   });
   return views;
 }
@@ -21719,14 +21719,14 @@ function renderEditBorrowThumbs(excludeCamId){
     const cap = document.createElement('span');
     cap.textContent = v.label; cap.style.cssText = 'font-size:11px;';
     b.appendChild(im); b.appendChild(cap);
-    b.onclick = () => openEditBorrowCrop(v.src, v.label);
+    b.onclick = () => openEditBorrowCrop(v.src, v.label, v.camId);
     thumbs.appendChild(b);
   });
   wrap.style.display = 'block';
   renderEditBorrowedList();
 }
 
-function openEditBorrowCrop(src, label){
+function openEditBorrowCrop(src, label, camId){
   const cropWrap = document.getElementById('editBorrowCropWrap');
   const canvas = document.getElementById('editBorrowCanvas');
   const useBtn = document.getElementById('editBorrowUseBtn');
@@ -21738,7 +21738,7 @@ function openEditBorrowCrop(src, label){
     const scale = Math.min(1, maxW / img.naturalWidth);
     canvas.width = Math.round(img.naturalWidth * scale);
     canvas.height = Math.round(img.naturalHeight * scale);
-    editBorrowSource = { src, label, img, scale };
+    editBorrowSource = { src, label, camId: camId || null, img, scale };
     editBorrowSelection = null;
     if(useBtn) useBtn.disabled = true;
     document.getElementById('editBorrowCropLabel').textContent = `${label}: drag a box around the part to take.`;
@@ -21806,7 +21806,11 @@ function useEditBorrowSelection(){
   ctx.drawImage(editBorrowSource.img, sx, sy, sw, sh, 0, 0, out.width, out.height);
   let dataUrl;
   try{ dataUrl = out.toDataURL('image/jpeg', 0.9); }catch(e){ customAlert('Could not cut that part out (the image could not be read).', 'Edit Image'); return; }
-  editBorrowedCrops.push({ dataUrl, fromLabel: editBorrowSource.label });
+  const iw = editBorrowSource.img.naturalWidth || 1, ih = editBorrowSource.img.naturalHeight || 1;
+  editBorrowedCrops.push({
+    dataUrl, fromLabel: editBorrowSource.label, fromCamId: editBorrowSource.camId, fromSrc: editBorrowSource.src,
+    rect: { u0: sx / iw, v0: sy / ih, u1: (sx + sw) / iw, v1: (sy + sh) / ih }
+  });
   cancelEditBorrowCrop();
   renderEditBorrowedList();
 }
@@ -21837,6 +21841,125 @@ function renderEditBorrowedList(){
     item.appendChild(im); item.appendChild(cap); item.appendChild(rm);
     list.appendChild(item);
   });
+}
+
+/* CAMERA MAPPING FOR BORROWED PARTS (owner, Sep 2026: "he should look at the full image that has
+   the area and reflect it on the selected image based on the position of the camera"). Both
+   pictures were rendered from known cameras (the massing cameras of computeCameraViewPlan /
+   buildMassingViewsForSpecs). So the part's place on the booth can be worked out: the bottom of
+   the cut in the source view is un-projected onto the booth floor, and that floor point is
+   projected into the view being edited. The result is drawn as a blue dashed marker on the
+   image, stated in metres on the booth, and both camera positions are described, so the model
+   places the element where it belongs from this camera, not where it sat in the other frame.
+   Approximate by nature (the render is the model's interpretation of the massing camera), which
+   is why it is given as a marker and words rather than as pixel coordinates to obey. */
+function borrowCameraFor(spec){
+  const model = cameraViewsMassingModel;
+  if(!model || !spec) return null;
+  const W = model.widthM, D = model.depthM;
+  const H = model.heightM > 0 ? model.heightM : 3.5;
+  if(!(W > 0 && D > 0)) return null;
+  const FOV = 42, ASPECT = 1024 / 768;
+  const maxSpan = Math.max(W, D, H) || 1;
+  const orbitRadius = ((maxSpan * 0.5) / Math.tan((FOV * Math.PI / 180) / 2)) * 1.45;
+  const heroAbs = typeof model.heroAbsoluteAzimuth === 'number' ? model.heroAbsoluteAzimuth : 45;
+  const targetY = H * 0.35;
+  const target = [W / 2, targetY, D / 2];
+  let position, up = [0, 1, 0];
+  if(spec.type === 'top-down'){
+    position = [W / 2, orbitRadius * 1.15, D / 2];
+    up = [0, 0, -1];
+    return { position, target: [W / 2, 0, D / 2], up, FOV, ASPECT, W, D, H };
+  }
+  const absAz = (((heroAbs + (spec.azimuth || 0)) % 360) + 360) % 360;
+  // The approved image itself is an elevated aerial shot from the hero corner (35 to 45 degrees).
+  const elevDeg = spec.isHeroImage ? 40 : (typeof spec.elevation === 'number' ? spec.elevation : 15);
+  const azRad = absAz * Math.PI / 180, elevRad = elevDeg * Math.PI / 180;
+  let camRadius = orbitRadius;
+  if(spec.straightOn){
+    const isWidthFace = spec.straightOn === 'Front' || spec.straightOn === 'Back';
+    const faceLen = isWidthFace ? W : D;
+    const halfDepthTowardCamera = isWidthFace ? D / 2 : W / 2;
+    const vFovRad = FOV * Math.PI / 180;
+    const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * ASPECT);
+    camRadius = Math.max((faceLen / 2) / Math.tan(hFovRad / 2) / 0.8, (H * 0.65) / Math.tan(vFovRad / 2) / 0.8) + halfDepthTowardCamera;
+  }
+  const horizontal = camRadius * Math.cos(elevRad);
+  position = [W / 2 + horizontal * Math.sin(azRad), targetY + camRadius * Math.sin(elevRad), D / 2 + horizontal * Math.cos(azRad)];
+  return { position, target, up, FOV, ASPECT, W, D, H };
+}
+function borrowCameraBasis(cam){
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const cross = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
+  const norm = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const z = norm(sub(cam.position, cam.target)); // camera looks down -z
+  const x = norm(cross(cam.up, z));
+  const y = cross(z, x);
+  return { x, y, z };
+}
+// Normalized image point (u right, v down, 0..1) to a ray, intersected with the plane y = planeY.
+function borrowUnprojectToPlane(cam, u, v, planeY){
+  const b = borrowCameraBasis(cam);
+  const t = Math.tan((cam.FOV * Math.PI / 180) / 2);
+  const dx = (2 * u - 1) * t * cam.ASPECT, dy = (1 - 2 * v) * t;
+  const dir = [b.x[0] * dx + b.y[0] * dy - b.z[0], b.x[1] * dx + b.y[1] * dy - b.z[1], b.x[2] * dx + b.y[2] * dy - b.z[2]];
+  if(Math.abs(dir[1]) < 1e-6) return null;
+  const k = (planeY - cam.position[1]) / dir[1];
+  if(k <= 0) return null;
+  return [cam.position[0] + dir[0] * k, planeY, cam.position[2] + dir[2] * k];
+}
+// World point to normalized image coordinates in a camera; null when behind the camera.
+function borrowProject(cam, pt){
+  const b = borrowCameraBasis(cam);
+  const rel = [pt[0] - cam.position[0], pt[1] - cam.position[1], pt[2] - cam.position[2]];
+  const cx = rel[0] * b.x[0] + rel[1] * b.x[1] + rel[2] * b.x[2];
+  const cy = rel[0] * b.y[0] + rel[1] * b.y[1] + rel[2] * b.y[2];
+  const cz = rel[0] * b.z[0] + rel[1] * b.z[1] + rel[2] * b.z[2];
+  if(cz >= -1e-6) return null;
+  const t = Math.tan((cam.FOV * Math.PI / 180) / 2);
+  const u = (cx / (-cz) / (t * cam.ASPECT) + 1) / 2;
+  const v = (1 - cy / (-cz) / t) / 2;
+  return { u, v };
+}
+// Where a borrowed cut stands on the booth and where that spot falls in the view being edited.
+function mapBorrowedPartToView(crop, targetCamId){
+  const specs = CAMERA_SPECS || [];
+  const sourceSpec = specs.find(sp => sp.camId === crop.fromCamId);
+  const targetSpec = targetCamId ? specs.find(sp => sp.camId === targetCamId) : specs.find(sp => sp.isHeroImage);
+  const sourceCam = borrowCameraFor(sourceSpec), targetCam = borrowCameraFor(targetSpec);
+  if(!sourceCam || !targetCam || !crop.rect) return null;
+  const r = crop.rect;
+  const cu = (r.u0 + r.u1) / 2;
+  // The bottom of the cut is where the element meets the floor; a wall-mounted element still
+  // maps to the right wall by this, since the ray reaches the floor along that wall's foot.
+  let floor = borrowUnprojectToPlane(sourceCam, cu, r.v1, 0);
+  if(!floor) floor = borrowUnprojectToPlane(sourceCam, cu, (r.v0 + r.v1) / 2, sourceCam.H * 0.4);
+  if(!floor) return null;
+  const W = sourceCam.W, D = sourceCam.D;
+  const clampedFloor = [Math.max(0, Math.min(W, floor[0])), floor[1], Math.max(0, Math.min(D, floor[2]))];
+  const proj = borrowProject(targetCam, clampedFloor);
+  const fromLeftM = clampedFloor[0], fromRightM = W - clampedFloor[0], fromFrontM = D - clampedFloor[2], fromRearM = clampedFloor[2];
+  const xWord = fromLeftM <= fromRightM ? `${fromLeftM.toFixed(1)} m in from the Left side` : `${fromRightM.toFixed(1)} m in from the Right side`;
+  const zWord = fromFrontM <= fromRearM ? `${fromFrontM.toFixed(1)} m in from the Front edge` : `${fromRearM.toFixed(1)} m in from the Rear edge`;
+  const words = `${xWord} and ${zWord}`;
+  const widthFrac = Math.min(0.6, Math.max(0.08, (r.u1 - r.u0) * 0.9));
+  const heightFrac = Math.min(0.7, Math.max(0.1, (r.v1 - r.v0) * 0.9));
+  const inFrame = proj && proj.u > -0.05 && proj.u < 1.05 && proj.v > -0.05 && proj.v < 1.05;
+  return { floorPoint: clampedFloor, words, target: inFrame ? { u: Math.max(0.03, Math.min(0.97, proj.u)), v: Math.max(0.03, Math.min(0.97, proj.v)), widthFrac, heightFrac } : null };
+}
+// Draws the computed spot as a blue dashed box on the markup canvas (the box stands on the floor
+// point: the point is its bottom centre).
+function drawBorrowMarker(target){
+  const canvas = document.getElementById('markupCanvas');
+  const ctx = canvas && canvas.getContext('2d');
+  if(!ctx || !target) return false;
+  const w = canvas.width * target.widthFrac, h = canvas.height * target.heightFrac;
+  const x = canvas.width * target.u - w / 2, y = canvas.height * target.v - h;
+  ctx.save();
+  ctx.strokeStyle = '#2E6BE1'; ctx.lineWidth = Math.max(3, canvas.width / 300); ctx.setLineDash([14, 10]);
+  ctx.strokeRect(Math.max(0, x), Math.max(0, y), Math.min(w, canvas.width - Math.max(0, x)), Math.min(h, canvas.height - Math.max(0, y)));
+  ctx.restore();
+  return true;
 }
 
 // Names the object in a borrowed cut in one sentence, so the edit prompt can ask for it in words
@@ -22053,11 +22176,21 @@ async function submitEdit(){
     await customAlert('Describe the change, mark it up on the image, take a part from another view, or pick a camera angle first.', 'Edit Image');
     return;
   }
-  // A borrowed part needs a place to go: the edit model adds it reliably only when told where.
-  if(editBorrowedCrops.length && !editDesc && !hasMarkup){
-    await customAlert('Draw a box on the image where the part from the other view should go (use the Pen), or describe where it goes in the text box, then submit.', 'Edit Image');
-    return;
+  // A borrowed part is placed by camera geometry when both views' cameras are known (see
+  // mapBorrowedPartToView): the computed spot is drawn on the image as a blue dashed marker and
+  // stated in metres. When it cannot be computed, the client has to say where it goes.
+  let borrowedPlacements = [];
+  if(editBorrowedCrops.length){
+    const targetCamId = editTarget.type === 'camview' ? editTarget.camId : null;
+    borrowedPlacements = editBorrowedCrops.map(crop => mapBorrowedPartToView(crop, targetCamId));
+    let markerDrawn = false;
+    borrowedPlacements.forEach(pl => { if(pl && pl.target && drawBorrowMarker(pl.target)) markerDrawn = true; });
+    if(!editDesc && !hasMarkup && !markerDrawn){
+      await customAlert('Draw a box on the image where the part from the other view should go (use the Pen), or describe where it goes in the text box, then submit.', 'Edit Image');
+      return;
+    }
   }
+  const hasAutoMarker = borrowedPlacements.some(pl => pl && pl.target);
 
   // Every deduction is announced first (owner rule): each picture edit costs 1 edit.
   if(!isAdminUser){
@@ -22181,12 +22314,31 @@ ${buildApprovedDecisionsText()}
       }
       requestBody.additionalReferenceImages = [...(requestBody.additionalReferenceImages || []), ...cropParts];
       borrowedDescriptions = descriptions;
-      const items = descriptions.map((desc, i) => `(${i + 1}) ${desc} (attached reference image ${i + 1}, cut from the ${editBorrowedCrops[i].fromLabel} view of this same booth)`).join('; ');
-      const where = hasMarkup && editDesc
-        ? 'at the location marked on the image, as the client describes'
-        : hasMarkup ? 'at the location marked on the image'
-        : `where the client describes: "${editDesc}"`;
-      const additionInstruction = `PRIMARY CHANGE REQUESTED, THIS IS THE POINT OF THE EDIT: ADD to this picture the following element${descriptions.length > 1 ? 's' : ''}, which belong${descriptions.length > 1 ? '' : 's'} to this same booth and ${descriptions.length > 1 ? 'are' : 'is'} visible in its other views but missing here: ${items}. Place ${descriptions.length > 1 ? 'them' : 'it'} ${where}, built into the scene at the right size and perspective for this camera position, with matching lighting and shadows, in exactly the design, materials, colours and branding the reference shows. Do not paste the reference as a flat patch. A result without ${descriptions.length > 1 ? 'these elements' : 'this element'} clearly present is wrong. Everything else in the picture stays identical.\n\n`;
+      // The whole source view is attached after the cuts, so the model can see where on the booth
+      // the element stands, not only what it looks like.
+      const sourceViews = [];
+      for(const crop of editBorrowedCrops){
+        if(!crop.fromSrc || sourceViews.some(sv => sv.src === crop.fromSrc)) continue;
+        const compressedSource = await compressDataUrl(crop.fromSrc, 1024, 0.85);
+        const sp = dataUrlParts(compressedSource);
+        sourceViews.push({ src: crop.fromSrc, label: crop.fromLabel, index: cropParts.length + sourceViews.length + 1 });
+        requestBody.additionalReferenceImages.push({ data: sp.base64, mimeType: sp.mime });
+      }
+      const targetSpecForWords = editTarget.type === 'camview' ? (CAMERA_SPECS || []).find(sp => sp.camId === editTarget.camId) : (CAMERA_SPECS || []).find(sp => sp.isHeroImage);
+      const items = descriptions.map((desc, i) => {
+        const crop = editBorrowedCrops[i];
+        const pl = borrowedPlacements[i];
+        const sourceSpec = (CAMERA_SPECS || []).find(sp => sp.camId === crop.fromCamId);
+        const sv = sourceViews.find(x => x.src === crop.fromSrc);
+        const r = crop.rect || { u0: 0, v0: 0, u1: 1, v1: 1 };
+        const region = `${Math.round(((r.u0 + r.u1) / 2) * 100)}% from the left and ${Math.round(((r.v0 + r.v1) / 2) * 100)}% from the top of that view`;
+        return `(${i + 1}) ${desc}: attached reference image ${i + 1} is the cut itself${sv ? `, and attached reference image ${sv.index} is the whole ${crop.fromLabel} view it was cut from (the element sits about ${region})` : ''}. That view is taken from ${sourceSpec ? describeRequiredCameraPosition(sourceSpec) : 'another camera position'}${pl ? ` On the booth the element stands about ${pl.words}.` : ''}`;
+      }).join(' ');
+      const thisCamera = targetSpecForWords ? describeRequiredCameraPosition(targetSpecForWords) : 'this view\'s own camera position';
+      const where = hasAutoMarker
+        ? `exactly where that spot on the booth appears from THIS camera: a BLUE DASHED BOX has been drawn on the image at the computed position (its bottom edge is where the element meets the floor); place the element inside that box, adjusted to the booth's real geometry${editDesc ? `, and the client adds: "${editDesc}"` : ''}${hasMarkup ? '; the client\'s own hand-drawn markings apply as well' : ''}`
+        : (hasMarkup && editDesc ? `at the location marked on the image, as the client describes: "${editDesc}"` : hasMarkup ? 'at the location marked on the image' : `where the client describes: "${editDesc}"`);
+      const additionInstruction = `PRIMARY CHANGE REQUESTED, THIS IS THE POINT OF THE EDIT: ADD to this picture the following element${descriptions.length > 1 ? 's' : ''}, which belong${descriptions.length > 1 ? '' : 's'} to this same booth and ${descriptions.length > 1 ? 'are' : 'is'} visible in its other views but missing here. ${items} THIS picture is taken from ${thisCamera} Work out where the element stands on the booth from the view it was cut from, then place ${descriptions.length > 1 ? 'them' : 'it'} ${where}. Never copy the element to the same place in the frame it had in the other view; its place in this frame follows from the camera. Build it into the scene at the right size and perspective for this camera, with matching lighting and shadows, in exactly the design, materials, colours and branding the reference shows. Do not paste the reference as a flat patch. A result without ${descriptions.length > 1 ? 'these elements' : 'this element'} clearly present, in the right place, is wrong. Everything else in the picture stays identical.\n\n`;
       requestBody.prompt = additionInstruction + requestBody.prompt;
     }
     if(editReferenceDataUrl){
